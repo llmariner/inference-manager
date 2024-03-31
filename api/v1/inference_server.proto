@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package llmoperator.chat.server.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/llm-operator/inference-serfver/api/v1";
+
+// The API specification fllows OpenAPI API specification (https://platform.openai.com/docs/api-reference/chat).
+
+message CreateChatCompletionRequest {
+  // Message has fields for system message, user message, assistant message, and tool message.
+  message Message {
+    message ToolCall {
+      message Function {
+	string name  = 1;
+	string arguments = 2;
+      }
+      string id = 1;
+      string type = 2;
+      Function function = 3;
+    }
+
+    // The type of content varies. For eample, it is string or array for UserMesasge.
+    string content = 1;
+    string role = 2;
+    string name = 3;
+    repeated ToolCall tool_calls = 4;
+  }
+
+  message ResponseFormat {
+    string type = 1;
+  }
+
+  message Tool {
+    message Function {
+      string description = 1;
+      string name = 2;
+      // TODO(kenji): Revisit this. This specifies parameters the functions accepts,
+      // described as a JSON Schema object.
+      string parameters = 3;
+    }
+    string type = 1;
+    Function function = 2;
+  }
+
+  // TODO(kenji): Revisit this.
+  repeated Message messages = 1;
+  string model = 2;
+  double frequency_penalty = 3;
+  map<string, double> logit_bias = 4;
+  bool logprobs = 5;
+  int32 top_logprobs = 6;
+  int32 max_tokens = 7;
+  int32 n = 8;
+  double presence_penalty = 9;
+  ResponseFormat response_format = 10;
+  int32 seed = 11;
+  // string / arrary/ null
+  string stop = 12;
+  bool stream = 13;
+  double temperature = 14;
+  double top_p = 15;
+  repeated Tool tools = 16;
+  // string or object
+  bool tool_chocise = 17;
+  string user = 18;
+}
+
+message ChatCompletion {
+  message Choice {
+    message Message {
+      message ToolCall {
+	message Function {
+	  string name  = 1;
+	  string arguments = 2;
+	}
+	string id = 1;
+	string type = 2;
+	Function function = 3;
+      }
+
+      string content = 1;
+      repeated ToolCall tool_calls = 2;
+      string role = 3;
+    }
+
+    message Logprobs {
+      message Content {
+	message TopLogprobs {
+	  string token = 1;
+	  double logprob = 2;
+	  bytes bytes = 3;
+	}
+
+	string token = 1;
+	double logprob = 2;
+	// A list of integers representing the UTF-8 bytes representation of the token.
+	bytes bytes = 3;
+	TopLogprobs top_logprobs = 4;
+      }
+      repeated Content content = 1;
+    }
+
+    string finish_reason = 1;
+    int32 index = 2;
+    Message message = 3;
+    Logprobs logprobs = 4;
+  }
+
+  message Usage {
+    int32 completion_tokens = 1;
+    int32 prompt_tokens = 2;
+    int32 total_tokens = 3;
+  }
+
+  string id = 1;
+  repeated Choice choices = 2;
+  int32 created = 3;
+  string model = 4;
+  string system_fingerprint = 5;
+  string object = 6;
+  Usage usage = 7;
+}
+
+service ChatService {
+  rpc CreateChatCompletion(CreateChatCompletionRequest) returns (ChatCompletion) {
+    option (google.api.http) = {
+      post: "/v1/chat/completions"
+      body: "*"
+    };
+  }
+}

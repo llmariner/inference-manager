@@ -1,0 +1,396 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api/v1/inference_server.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ChatService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "ChatService_CreateChatCompletion",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ChatCompletion"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateChatCompletionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ChatCompletionChoice": {
+      "type": "object",
+      "properties": {
+        "finishReason": {
+          "type": "string"
+        },
+        "index": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "$ref": "#/definitions/ChatCompletionChoiceMessage"
+        },
+        "logprobs": {
+          "$ref": "#/definitions/ChoiceLogprobs"
+        }
+      }
+    },
+    "ChatCompletionChoiceMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatCompletionChoiceMessageToolCall"
+          }
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "ChatCompletionChoiceMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/ChatCompletionChoiceMessageToolCallFunction"
+        }
+      }
+    },
+    "ChatCompletionChoiceMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    },
+    "ChatCompletionUsage": {
+      "type": "object",
+      "properties": {
+        "completionTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "promptTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalTokens": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ChoiceLogprobs": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LogprobsContent"
+          }
+        }
+      }
+    },
+    "ContentTopLogprobs": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "logprob": {
+          "type": "number",
+          "format": "double"
+        },
+        "bytes": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "CreateChatCompletionRequestResponseFormat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateChatCompletionRequestTool": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolFunction": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "string",
+          "description": "TODO(kenji): Revisit this. This specifies parameters the functions accepts,\ndescribed as a JSON Schema object."
+        }
+      }
+    },
+    "LogprobsContent": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "logprob": {
+          "type": "number",
+          "format": "double"
+        },
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "description": "A list of integers representing the UTF-8 bytes representation of the token."
+        },
+        "topLogprobs": {
+          "$ref": "#/definitions/ContentTopLogprobs"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ChatCompletion": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatCompletionChoice"
+          }
+        },
+        "created": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "model": {
+          "type": "string"
+        },
+        "systemFingerprint": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/definitions/ChatCompletionUsage"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1CreateChatCompletionRequestMessage"
+          },
+          "description": "TODO(kenji): Revisit this."
+        },
+        "model": {
+          "type": "string"
+        },
+        "frequencyPenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "logitBias": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "logprobs": {
+          "type": "boolean"
+        },
+        "topLogprobs": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "n": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "presencePenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "responseFormat": {
+          "$ref": "#/definitions/CreateChatCompletionRequestResponseFormat"
+        },
+        "seed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stop": {
+          "type": "string",
+          "title": "string / arrary/ null"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "double"
+        },
+        "topP": {
+          "type": "number",
+          "format": "double"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateChatCompletionRequestTool"
+          }
+        },
+        "toolChocise": {
+          "type": "boolean",
+          "title": "string or object"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The type of content varies. For eample, it is string or array for UserMesasge."
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCall"
+          }
+        }
+      },
+      "description": "Message has fields for system message, user message, assistant message, and tool message."
+    },
+    "v1CreateChatCompletionRequestMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCallFunction"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

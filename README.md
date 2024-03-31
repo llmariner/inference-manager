@@ -7,7 +7,7 @@ Currently we just run [Ollama](https://ollama.com/) by following [LLM Starter Pa
 The following commands build and run a Docker container.
 
 ```bash
-docker build -t inference-server:latest -f build/inference-server/Dockerfile .
+docker build -t inference-server:latest -f build/ollama/Dockerfile .
 docker run -p 11434:11434 inference-server:latest
 ```
 

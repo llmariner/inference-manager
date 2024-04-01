@@ -32,3 +32,9 @@ curl http://localhost:11434/api/generate -d '{
   - https://github.com/NVIDIA/TensorRT-LLM
   - https://github.com/vllm-project/vllm
   - https://github.com/predibase/lorax
+
+Here are some other notes:
+
+- Ollama internally users [llama.cpp](https://github.com/ggerganov/llama.cpp). It provides a lightweight OpenAI API compatible HTTP server.
+- [go-llama.cpp](https://github.com/go-skynet/go-llama.cpp) provides a Gobinding.
+- [LocalAI](https://github.com/mudler/LocalAI) is another OpenAI API compatible HTTP server (supported by Spectro Cloud).

@@ -14,5 +14,4 @@ generate: buf-generate-all
 
 .PHONY: build-server
 build-server:
-	@GOOS=linux GOARCH=amd64 go build -o ./bin/amd64/server ./server/cmd/
-	@GOOS=linux GOARCH=arm64 go build -o ./bin/arm64/server ./server/cmd/
+	go build -o ./bin/server ./server/cmd/

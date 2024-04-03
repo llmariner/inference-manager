@@ -47,3 +47,4 @@ Here are some other notes:
 - [LocalAI](https://github.com/mudler/LocalAI) is another OpenAI API compatible HTTP server (supported by Spectro Cloud).
 - [kaito](https://github.com/Azure/kaito) internally uses `torchrun` or [accelerate launch](https://huggingface.co/docs/accelerate/en/index) to launch an inference workload.
   See [its Dockerfiles](https://github.com/Azure/kaito/tree/main/docker/presets) and [preset Python programs](https://github.com/Azure/kaito/tree/main/presets).
+- [localllm](https://cloud.google.com/blog/products/application-development/new-localllm-lets-you-develop-gen-ai-apps-locally-without-gpus) from Google Cloud.

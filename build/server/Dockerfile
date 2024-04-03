@@ -11,7 +11,7 @@ RUN \
     go mod download
 
 RUN --mount=type=cache,target=${GOCACHE} \
-    --mount=type=cache,id=job-manager,sharing=locked,target=/go/pkg/mod \
+    --mount=type=cache,id=inference-server,sharing=locked,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-server
 
 FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot

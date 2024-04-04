@@ -1,4 +1,4 @@
-module github.com/llm-operator/inference-server
+module github.com/llm-operator/inference-manager
 
 go 1.21
 

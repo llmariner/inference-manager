@@ -1,6 +1,4 @@
-# inference-server
-
-Inference Server.
+# inference-manager
 
 Currently we just run [Ollama](https://ollama.com/) by following [LLM Starter Pack](https://github.com/cncf/llm-starter-pack).
 

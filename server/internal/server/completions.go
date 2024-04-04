@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	v1 "github.com/llm-operator/inference-server/api/v1"
+	v1 "github.com/llm-operator/inference-manager/api/v1"
 )
 
 // CreateChatCompletion creates a chat completion.

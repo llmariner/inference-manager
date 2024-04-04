@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	v1 "github.com/llm-operator/inference-server/api/v1"
+	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

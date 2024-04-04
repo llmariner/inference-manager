@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	v1 "github.com/llm-operator/inference-server/api/v1"
-	"github.com/llm-operator/inference-server/server/internal/config"
-	"github.com/llm-operator/inference-server/server/internal/server"
+	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/server"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

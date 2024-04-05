@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "inference-manager-engine.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "inference-manager-engine.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: inference-manager-engine
+        image: "{{ .Values.image.repository }}:{{ .Values.version }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - run
+        - --config
+        - /etc/config/config.yaml
+        ports:
+        - name: internal-grpc
+          containerPort: {{ .Values.internalGrpcPort }}
+          protocol: TCP
+        - name: ollama
+          containerPort: {{ .Values.ollamaPort }}
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "inference-manager-engine.fullname" . }}

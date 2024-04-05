@@ -19,6 +19,8 @@ python convert-lora-to-ggml.py "${lora_adapter_dir}"
 
 ## Step 2. Create a Modelfile
 
+See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for the spec.
+
 ```dockerifle
 FROM google/gemma:2b
 ADAPTER ./ggml-adapter-model.bin

@@ -12,13 +12,15 @@ RUN \
 
 RUN --mount=type=cache,target=${GOCACHE} \
     --mount=type=cache,id=inference-manager,sharing=locked,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-server
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-engine
 
-FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot
+FROM ollama/ollama:latest
 ARG TARGETARCH
+
+RUN ollama serve & sleep 1 && ollama pull gemma:2b
 
 WORKDIR /run
 
-COPY --from=builder /workspace/bin/server .
+COPY --from=builder /workspace/bin/engine .
 
-ENTRYPOINT ["./server"]
+ENTRYPOINT ["./engine"]

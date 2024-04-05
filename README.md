@@ -1,31 +1,6 @@
 # inference-manager
 
-Currently we just run [Ollama](https://ollama.com/) by following [LLM Starter Pack](https://github.com/cncf/llm-starter-pack).
-
-The following commands build and run a Docker container.
-
-```bash
-docker build -t inference-server:latest -f build/ollama/Dockerfile .
-docker run -p 11434:11434 inference-server:latest
-```
-
-Another option is to use LocalAI.
-
-```bash
-mkdir ./models
-docker run --rm -p 8080:8080 --name local-ai -v ./models:/build/models localai/localai:latest-aio-cpu
-```
-
-You can then send an HTTP request to verify:
-
-```bash
-curl http://localhost:11434/api/generate -d '{
-  "model": "gemma:2b",
-  "prompt":"Why is the sky blue?"
-}'
-```
-
-# TODO
+## TODO
 
 - Implement the API endpoints (but still bypass to Ollama)
 - Replace Ollama with its own code
@@ -46,3 +21,52 @@ Here are some other notes:
 - [kaito](https://github.com/Azure/kaito) internally uses `torchrun` or [`accelerate launch`](https://huggingface.co/docs/accelerate/en/index) to launch an inference workload.
   See [its Dockerfiles](https://github.com/Azure/kaito/tree/main/docker/presets) and [preset Python programs](https://github.com/Azure/kaito/tree/main/presets).
 - [localllm](https://cloud.google.com/blog/products/application-development/new-localllm-lets-you-develop-gen-ai-apps-locally-without-gpus) from Google Cloud.
+
+
+## Running Engine Locally
+
+Run the following command:
+
+```bash
+make build-docker-engine
+docker run \
+  -v ./config:/config \
+  -v ./adapter:/adapter \
+  -p 8080:8080 \
+  -p 8081:8081 \
+  llm-operator/inference-manager-engine \
+  run \
+  --config /config/config.yaml
+```
+
+`./config/config.yaml` has the following content:
+
+```yaml
+internalGrpcPort: 8081
+ollamaPort: 8080
+```
+
+`./adapter` has `ggml-adapter-model.bin` (fine-tuned model).
+
+Then hit the HTTP point and verify that Ollama responds.
+
+```bash
+curl http://localhost:11434/api/generate -d '{
+  "model": "gemma:2b",
+  "prompt":"Why is the sky blue?"
+}'
+```
+
+Register a new model and use it.
+
+```bash
+grpcurl \
+  -d '{"model_name": "gemma:2b-fine-tuned", "base_model": "gemma:2b", "adapter_path": "/adapter/ggml-adapter-model.bin"}' \
+  -plaintext localhost:8081 \
+  llmoperator.inference_engine.v1.InferenceEngineInternalService/RegisterModel
+
+curl http://localhost:11434/api/generate -d '{
+  "model": "gemma:2b-fine-tuned",
+  "prompt":"Why is the sky blue?"
+}'
+```

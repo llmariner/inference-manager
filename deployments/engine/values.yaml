@@ -1,6 +1,11 @@
 internalGrpcPort: 8081
 ollamaPort: 8080
 
+modelStore:
+  enable: false
+  mountPath: /models
+  pvClaimName:
+
 replicaCount: 1
 image:
   repository: llm-operator/inference-manager-engine

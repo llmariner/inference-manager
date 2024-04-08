@@ -13,4 +13,7 @@ image:
   # to Never as it is required to use a loaded image in a Kind cluster.
   pullPolicy: Never
 
+ingress:
+  ingressClassName:
+
 version: latest

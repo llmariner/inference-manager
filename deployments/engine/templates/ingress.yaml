@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}-ollama
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  rules:
+  - http:
+      paths:
+      - path: /v1/chat/completions
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "inference-manager-engine.fullname" . }}-ollama
+            port:
+              number: {{ .Values.ollamaPort }}

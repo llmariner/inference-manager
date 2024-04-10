@@ -16,6 +16,7 @@ func NewManager() *Manager {
 type Manager struct {
 }
 
+// Run starts the Ollama service on the given port.
 func (m *Manager) Run(port int) error {
 	log.Printf("Starting Ollama on port %d\n", port)
 

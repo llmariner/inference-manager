@@ -55,6 +55,7 @@ func (s *S) Stop() {
 	s.srv.Stop()
 }
 
+// RegisterModel registers a new model.
 func (s *S) RegisterModel(
 	ctx context.Context,
 	req *v1.RegisterModelRequest,

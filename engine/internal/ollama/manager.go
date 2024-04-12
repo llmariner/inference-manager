@@ -8,19 +8,20 @@ import (
 )
 
 // NewManager returns a new Manager.
-func NewManager() *Manager {
-	return &Manager{}
+func NewManager(port int) *Manager {
+	return &Manager{port: port}
 }
 
 // Manager manages the Ollama service.
 type Manager struct {
+	port int
 }
 
 // Run starts the Ollama service on the given port.
-func (m *Manager) Run(port int) error {
-	log.Printf("Starting Ollama on port %d\n", port)
+func (m *Manager) Run() error {
+	log.Printf("Starting Ollama on port %d\n", m.port)
 
-	os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", port))
+	os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", m.port))
 	_, err := exec.Command("ollama", "serve").Output()
 	return err
 }
@@ -47,6 +48,7 @@ func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
 		return err
 	}
 
+	os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", m.port))
 	if _, err := exec.Command("ollama", "create", modelName, "-f", file.Name()).Output(); err != nil {
 		return err
 	}

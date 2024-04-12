@@ -4,9 +4,15 @@ import (
 	"context"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	"github.com/llm-operator/inference-manager/engine/internal/server"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 const flagConfig = "config"
@@ -39,15 +45,36 @@ var runCmd = &cobra.Command{
 func run(ctx context.Context, c *config.Config) error {
 	errCh := make(chan error)
 
-	om := ollama.NewManager()
+	om := ollama.NewManager(c.OllamaPort)
 	go func() {
-		errCh <- om.Run(c.OllamaPort)
+		errCh <- om.Run()
 	}()
 
 	go func() {
 		s := server.New(om)
 		errCh <- s.Run(c.InternalGRPCPort)
 	}()
+
+	if !c.Debug.Standalone {
+		sc := s3.NewClient(c.ObjectStore.S3)
+
+		conn, err := grpc.Dial(c.ModelManagerServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return err
+		}
+		mc := mv1.NewModelsServiceClient(conn)
+
+		conn, err = grpc.Dial(c.ModelManagerInternalServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return err
+		}
+		mic := mv1.NewModelsInternalServiceClient(conn)
+
+		s := modelsyncer.New(om, sc, mc, mic)
+		go func() {
+			errCh <- s.Run(ctx)
+		}()
+	}
 
 	return <-errCh
 }

@@ -1,10 +1,18 @@
 internalGrpcPort: 8081
 ollamaPort: 8080
 
-modelStore:
-  enable: false
-  mountPath: /models
-  pvClaimName:
+modelManagerServerAddr:
+modelManagerInternalServerAddr:
+
+objectStore:
+  s3:
+    endpointUrl:
+    bucket:
+
+awsSecret:
+  name:
+  accessKeyIdKey:
+  secretAccessKeyKey:
 
 replicaCount: 1
 image:

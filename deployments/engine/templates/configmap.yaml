@@ -8,3 +8,9 @@ data:
   config.yaml: |
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
+    modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
+    modelManagerInternalServerAddr: {{ .Values.modelManagerInternalServerAddr }}
+    objectStore:
+      s3:
+        endpointUrl: {{ .Values.objectStore.s3.endpointUrl }}
+        bucket: {{ .Values.objectStore.s3.bucket }}

@@ -4,11 +4,6 @@
     "title": "api/v1/inference_engine.proto",
     "version": "version not set"
   },
-  "tags": [
-    {
-      "name": "InferenceEngineInternalService"
-    }
-  ],
   "consumes": [
     "application/json"
   ],
@@ -43,9 +38,6 @@
           }
         }
       }
-    },
-    "v1RegisterModelResponse": {
-      "type": "object"
     }
   }
 }

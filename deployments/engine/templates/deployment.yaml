@@ -29,24 +29,26 @@ spec:
         - name: ollama
           containerPort: {{ .Values.ollamaPort }}
           protocol: TCP
+        {{- with .Values.awsSecret }}
+        {{- if .name }}
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .name }}
+              key: {{ .accessKeyIdKey }}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .name }}
+              key: {{ .secretAccessKeyKey }}
+        {{- end }}
+        {{- end }}
         volumeMounts:
         - name: config
           mountPath: /etc/config
           readOnly: true
-        {{- with .Values.modelStore }}
-        {{- if .enable }}
-        - mountPath: {{ .mountPath }}
-          name: model-store
-        {{- end }}
-        {{- end }}
       volumes:
       - name: config
         configMap:
           name: {{ include "inference-manager-engine.fullname" . }}
-      {{- with .Values.modelStore }}
-      {{- if .enable }}
-      - name: model-store
-        persistentVolumeClaim:
-          claimName: {{ .pvClaimName }}
-      {{- end }}
-      {{- end }}

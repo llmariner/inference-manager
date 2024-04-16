@@ -115,7 +115,11 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	}
 	// Ollama does not allow extra ':'s in the tag.
 
-	if err := s.om.CreateNewModel(ollamaModelName(modelID), ms); err != nil {
+	modelName, err := ollamaModelName(modelID)
+	if err != nil {
+		return err
+	}
+	if err := s.om.CreateNewModel(modelName, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	log.Printf("Registered the model successfully\n")
@@ -131,8 +135,9 @@ func extractBaseModel(modelID string) (string, error) {
 	return strings.Join(l[1:len(l)-2], ":"), nil
 }
 
-func ollamaModelName(modelID string) string {
-	// Remove the "ft:" suffix. Also replace ":" with "-" as Ollama does not allow ":" in the tag.
-	l := strings.Split(modelID, ":")
-	return fmt.Sprintf("%s:%s", l[1], strings.Join(l[2:], "-"))
+func ollamaModelName(modelID string) (string, error) {
+	if !strings.HasPrefix(modelID, "ft:") {
+		return "", fmt.Errorf("invalid model ID: %q", modelID)
+	}
+	return modelID[3:], nil
 }

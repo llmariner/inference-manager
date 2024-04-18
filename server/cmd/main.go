@@ -1,8 +1,13 @@
 package main
 
-import "log"
+import (
+	"log"
+	"os"
+)
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

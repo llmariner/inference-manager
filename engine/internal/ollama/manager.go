@@ -1,6 +1,7 @@
 package ollama
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -49,7 +50,11 @@ func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
 	}
 
 	os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", m.port))
-	if _, err := exec.Command("ollama", "create", modelName, "-f", file.Name()).Output(); err != nil {
+	cmd := exec.Command("ollama", "create", modelName, "-f", file.Name())
+	var errb bytes.Buffer
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		log.Printf("Failed to create model: %s", errb.String())
 		return err
 	}
 

@@ -99,7 +99,11 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(f.Name())
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Printf("Failed to remove %q: %s", f.Name(), err)
+		}
+	}()
 
 	if err := s.s3Client.Download(f, resp.Path); err != nil {
 		return fmt.Errorf("download: %s", err)

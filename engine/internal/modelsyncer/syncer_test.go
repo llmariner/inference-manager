@@ -14,7 +14,7 @@ func TestExtractBaseModel(t *testing.T) {
 	}{
 		{
 			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-			want:    "google-gemma-2b",
+			want:    "gemma:2b",
 		},
 		{
 			modelID: "bogus",

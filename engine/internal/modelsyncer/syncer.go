@@ -129,10 +129,10 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 
 func extractBaseModel(modelID string) (string, error) {
 	l := strings.Split(modelID, ":")
-	if len(l) != 5 {
+	if len(l) <= 2 {
 		return "", fmt.Errorf("invalid model ID: %q", modelID)
 	}
-	return strings.Join(l[1:len(l)-2], ":"), nil
+	return strings.Join(l[1:len(l)-1], ":"), nil
 }
 
 func ollamaModelName(modelID string) (string, error) {

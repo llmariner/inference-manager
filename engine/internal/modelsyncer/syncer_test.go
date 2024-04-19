@@ -13,8 +13,8 @@ func TestExtractBaseModel(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			modelID: "ft:gemma:2b:custom-model-name:7p4lURel",
-			want:    "gemma:2b",
+			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
+			want:    "google-gemma-2b",
 		},
 		{
 			modelID: "bogus",

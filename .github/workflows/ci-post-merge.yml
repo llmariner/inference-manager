@@ -61,13 +61,13 @@ jobs:
       with:
         file: ./build/engine/Dockerfile
         push: true
-        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager:engine-${{ needs.update-tag.outputs.new_tag }}
+        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_tag }}
     - name: Build, tag, and push server to Amazon ECR
       uses: docker/build-push-action@v5
       with:
         file: ./build/server/Dockerfile
         push: true
-        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager:server-${{ needs.update-tag.outputs.new_tag }}
+        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_tag }}
 
   publish-helm-chart:
     runs-on: ubuntu-latest

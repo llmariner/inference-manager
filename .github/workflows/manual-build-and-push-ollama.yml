@@ -35,4 +35,4 @@ jobs:
       with:
         context: ./build/ollama
         push: true
-        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager:ollama-${{ inputs.tag }}
+        tags: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-ollama:${{ inputs.tag }}

@@ -1,6 +1,8 @@
 internalGrpcPort: 8081
 ollamaPort: 8080
 
+baseModels:
+
 modelManagerServerAddr:
 modelManagerInternalServerAddr:
 

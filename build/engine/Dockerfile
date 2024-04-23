@@ -17,8 +17,6 @@ RUN --mount=type=cache,target=${GOCACHE} \
 FROM --platform=$BUILDPLATFORM ollama/ollama:latest
 ARG TARGETARCH
 
-RUN ollama serve & sleep 1 && ollama pull gemma:2b
-
 WORKDIR /run
 
 COPY --from=builder /workspace/bin/engine .

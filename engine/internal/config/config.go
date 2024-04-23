@@ -39,6 +39,8 @@ type Config struct {
 	InternalGRPCPort int `yaml:"internalGrpcPort"`
 	OllamaPort       int `yaml:"ollamaPort"`
 
+	BaseModels []string `yaml:"baseModels"`
+
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
 	Debug DebugConfig `yaml:"debug"`
@@ -54,6 +56,10 @@ func (c *Config) Validate() error {
 	}
 	if c.OllamaPort <= 0 {
 		return fmt.Errorf("ollamaPort must be greater than 0")
+	}
+
+	if len(c.BaseModels) == 0 {
+		return fmt.Errorf("baseModels must be set")
 	}
 
 	if !c.Debug.Standalone {

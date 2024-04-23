@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
@@ -54,6 +55,17 @@ func run(ctx context.Context, c *config.Config) error {
 		s := server.New(om)
 		errCh <- s.Run(c.InternalGRPCPort)
 	}()
+
+	if err := om.WaitForReady(); err != nil {
+		return err
+	}
+
+	for _, b := range c.BaseModels {
+		if err := om.PullBaseModel(b); err != nil {
+			return err
+		}
+	}
+	log.Printf("Finished pulling base models\n")
 
 	if !c.Debug.Standalone {
 		sc := s3.NewClient(c.ObjectStore.S3)

@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=${GOCACHE} \
     --mount=type=cache,id=inference-manager,sharing=locked,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-engine
 
-FROM ollama/ollama:latest
+FROM --platform=$BUILDPLATFORM ollama/ollama:latest
 ARG TARGETARCH
 
 RUN ollama serve & sleep 1 && ollama pull gemma:2b

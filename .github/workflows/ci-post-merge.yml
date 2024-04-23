@@ -63,8 +63,8 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-	  public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_tag }}
-	  public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:latest
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_tag }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:latest
     - name: Build, tag, and push server to Amazon ECR
       uses: docker/build-push-action@v5
       with:

@@ -31,12 +31,12 @@ Run the following command:
 make build-docker-engine
 docker run \
   -v ./config:/config \
-  -v ./adapter:/adapter \
   -p 8080:8080 \
   -p 8081:8081 \
   llm-operator/inference-manager-engine \
   run \
   --config /config/config.yaml
+
 ```
 
 `./config/config.yaml` has the following content:
@@ -44,29 +44,15 @@ docker run \
 ```yaml
 internalGrpcPort: 8081
 ollamaPort: 8080
+debug:
+  standalone: true
 ```
-
-`./adapter` has `ggml-adapter-model.bin` (fine-tuned model).
 
 Then hit the HTTP point and verify that Ollama responds.
 
 ```bash
 curl http://localhost:11434/api/generate -d '{
   "model": "gemma:2b",
-  "prompt":"Why is the sky blue?"
-}'
-```
-
-Register a new model and use it.
-
-```bash
-grpcurl \
-  -d '{"model_name": "gemma:2b-fine-tuned", "base_model": "gemma:2b", "adapter_path": "/adapter/ggml-adapter-model.bin"}' \
-  -plaintext localhost:8081 \
-  llmoperator.inference_engine.v1.InferenceEngineInternalService/RegisterModel
-
-curl http://localhost:11434/api/generate -d '{
-  "model": "gemma:2b-fine-tuned",
   "prompt":"Why is the sky blue?"
 }'
 ```

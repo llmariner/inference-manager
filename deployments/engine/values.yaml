@@ -1,3 +1,17 @@
+global:
+  objectStore:
+    s3:
+      endpointUrl:
+      bucket:
+
+  awsSecret:
+    name:
+    accessKeyIdKey:
+    secretAccessKeyKey:
+
+  ingress:
+    ingressClassName:
+
 internalGrpcPort: 8081
 ollamaPort: 8080
 
@@ -5,16 +19,6 @@ baseModels:
 
 modelManagerServerAddr:
 modelManagerInternalServerAddr:
-
-objectStore:
-  s3:
-    endpointUrl:
-    bucket:
-
-awsSecret:
-  name:
-  accessKeyIdKey:
-  secretAccessKeyKey:
 
 replicaCount: 1
 image:

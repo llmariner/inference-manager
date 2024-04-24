@@ -17,5 +17,5 @@ data:
     objectStore:
       s3:
         endpointUrl: {{ .Values.global.objectStore.s3.endpointUrl }}
-	region: {{ .Values.global.objectStore.s3.region }}
+        region: {{ .Values.global.objectStore.s3.region }}
         bucket: {{ .Values.global.objectStore.s3.bucket }}

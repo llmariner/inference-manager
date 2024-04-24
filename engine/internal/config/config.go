@@ -10,6 +10,7 @@ import (
 // S3Config is the S3 configuration.
 type S3Config struct {
 	EndpointURL string `yaml:"endpointUrl"`
+	Region      string `yaml:"region"`
 	Bucket      string `yaml:"bucket"`
 }
 
@@ -22,6 +23,9 @@ type ObjectStoreConfig struct {
 func (c *ObjectStoreConfig) Validate() error {
 	if c.S3.EndpointURL == "" {
 		return fmt.Errorf("s3 endpoint url must be set")
+	}
+	if c.S3.Region == "" {
+		return fmt.Errorf("s3 region must be set")
 	}
 	if c.S3.Bucket == "" {
 		return fmt.Errorf("s3 bucket must be set")

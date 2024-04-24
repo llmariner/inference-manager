@@ -17,7 +17,7 @@ func NewClient(c config.S3Config) *Client {
 	}))
 	conf := &aws.Config{
 		Endpoint: aws.String(c.EndpointURL),
-		Region:   aws.String("dummy"),
+		Region:   aws.String(c.Region),
 		// This is needed as the minio server does not support the virtual host style.
 		S3ForcePathStyle: aws.Bool(true),
 	}

@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "inference-manager-engine.labels" . | nindent 4 }}
 spec:
-  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.global.ingress.ingressClassName }}
   rules:
   - http:
       paths:

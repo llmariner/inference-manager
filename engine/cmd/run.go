@@ -61,7 +61,11 @@ func run(ctx context.Context, c *config.Config) error {
 	}
 
 	for _, b := range c.BaseModels {
-		if err := om.PullBaseModel(b); err != nil {
+		ob, err := ollama.ConvertHuggingFaceModelNameToOllama(b)
+		if err != nil {
+			return err
+		}
+		if err := om.PullBaseModel(ob); err != nil {
 			return err
 		}
 	}

@@ -43,6 +43,7 @@ type Config struct {
 	InternalGRPCPort int `yaml:"internalGrpcPort"`
 	OllamaPort       int `yaml:"ollamaPort"`
 
+	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
 	BaseModels []string `yaml:"baseModels"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`

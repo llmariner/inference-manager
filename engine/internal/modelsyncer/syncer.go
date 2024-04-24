@@ -140,14 +140,12 @@ func extractBaseModel(modelID string) (string, error) {
 	// Currently the base model name is from HuggingFace while Ollama uses a different name convetion.
 	// This is a temporary workaround.
 	// TODO(kenji): Fix this.
-	fromHuggingFacetoOllama := map[string]string{
-		"google-gemma-2b": "gemma:2b",
+
+	obase, err := ollama.ConvertHuggingFaceModelNameToOllama(base)
+	if err != nil {
+		return "", err
 	}
-	v, ok := fromHuggingFacetoOllama[base]
-	if !ok {
-		return "", fmt.Errorf("unsupported base model: %q", base)
-	}
-	return v, nil
+	return obase, nil
 }
 
 func ollamaModelName(modelID string) (string, error) {

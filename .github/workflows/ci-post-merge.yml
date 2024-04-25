@@ -28,7 +28,7 @@ jobs:
     needs:
     - re-test
     outputs:
-      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
     steps:
     - uses: actions/checkout@v4
     - name: Bump version and push tag
@@ -63,7 +63,7 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_tag }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_version }}
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:latest
     - name: Build, tag, and push server to Amazon ECR
       uses: docker/build-push-action@v5
@@ -72,7 +72,7 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_tag }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:latest
 
   publish-helm-chart:
@@ -92,9 +92,9 @@ jobs:
     - name: Set up charts directory
       run: mkdir charts
     - name: build dispatcher helm chart
-      run: helm package --version ${{ needs.update-tag.outputs.new_tag }} --destination ./charts ./deployments/engine
+      run: helm package --version ${{ needs.update-tag.outputs.new_version }} --destination ./charts ./deployments/engine
     # - name: build server helm chart
-    #   run: helm package --version ${{ needs.update-tag.outputs.new_tag }} --destination ./charts ./deployments/server
+    #   run: helm package --version ${{ needs.update-tag.outputs.new_version }} --destination ./charts ./deployments/server
     - name: Rebuild index.yaml and push
       run: |
         curl -o index.yaml http://llm-operator-charts.s3-website-us-west-2.amazonaws.com/index.yaml

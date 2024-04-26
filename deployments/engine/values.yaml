@@ -18,8 +18,9 @@ ollamaPort: 8080
 
 baseModels:
 
-modelManagerServerAddr:
-modelManagerInternalServerAddr:
+# The following default values work if model-manager-server runs in the same namespace.
+modelManagerServerAddr: llm-operator-model-manager-server-grpc:8081
+modelManagerInternalServerAddr: llm-operator-model-manager-server-internal-grpc:8082
 
 replicaCount: 1
 image:

@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         {{- include "inference-manager-engine.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ sha256sum (toJson .Values) }}
     spec:
       containers:
       - name: inference-manager-engine

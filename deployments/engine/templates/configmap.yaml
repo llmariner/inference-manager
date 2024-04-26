@@ -8,10 +8,7 @@ data:
   config.yaml: |
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
-    baseModels:
-    {{- range .Values.baseModels }}
-    - {{ . }}
-    {{- end }}
+    modelSyncInterval: {{ .Values.modelSyncInterval }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     modelManagerInternalServerAddr: {{ .Values.modelManagerInternalServerAddr }}
     objectStore:

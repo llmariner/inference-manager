@@ -1,6 +1,6 @@
 internalGrpcPort: 8081
 ollamaPort: 8080
-baseModels:
-- gemma:2b
 debug:
   standalone: true
+  baseModels:
+  - google/gemma-2b

@@ -41,7 +41,7 @@ docker run \
 Then hit the HTTP point and verify that Ollama responds.
 
 ```bash
-curl http://localhost:11434/api/generate -d '{
+curl http://localhost:8080/api/generate -d '{
   "model": "gemma:2b",
   "prompt":"Why is the sky blue?"
 }'

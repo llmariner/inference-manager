@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -36,6 +37,10 @@ func (c *ObjectStoreConfig) Validate() error {
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
 	Standalone bool `yaml:"standalone"`
+
+	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
+	// This is only used in standalone mode.
+	BaseModels []string `yaml:"baseModels"`
 }
 
 // Config is the configuration.
@@ -43,8 +48,7 @@ type Config struct {
 	InternalGRPCPort int `yaml:"internalGrpcPort"`
 	OllamaPort       int `yaml:"ollamaPort"`
 
-	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
-	BaseModels []string `yaml:"baseModels"`
+	ModelSyncInterval time.Duration `yaml:"modelSyncInterval"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -63,11 +67,15 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("ollamaPort must be greater than 0")
 	}
 
-	if len(c.BaseModels) == 0 {
-		return fmt.Errorf("baseModels must be set")
-	}
+	if c.Debug.Standalone {
+		if len(c.Debug.BaseModels) == 0 {
+			return fmt.Errorf("baseModels must be set")
+		}
+	} else {
+		if c.ModelSyncInterval <= 0 {
+			return fmt.Errorf("modelSyncInterval must be set")
+		}
 
-	if !c.Debug.Standalone {
 		if c.ModelManagerServerAddr == "" {
 			return fmt.Errorf("model manager address must be set")
 		}

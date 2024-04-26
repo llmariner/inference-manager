@@ -69,6 +69,10 @@ func (s *S) syncModels(ctx context.Context) error {
 	}
 
 	for _, model := range resp.Data {
+		if model.OwnedBy == "system" {
+			continue
+		}
+
 		if s.registeredModels[model.Id] {
 			continue
 		}

@@ -60,18 +60,18 @@ func run(ctx context.Context, c *config.Config) error {
 		return err
 	}
 
-	for _, b := range c.BaseModels {
-		ob, err := ollama.ConvertHuggingFaceModelNameToOllama(b)
-		if err != nil {
-			return err
+	if c.Debug.Standalone {
+		for _, b := range c.Debug.BaseModels {
+			ob, err := ollama.ConvertHuggingFaceModelNameToOllama(b)
+			if err != nil {
+				return err
+			}
+			if err := om.PullBaseModel(ob); err != nil {
+				return err
+			}
 		}
-		if err := om.PullBaseModel(ob); err != nil {
-			return err
-		}
-	}
-	log.Printf("Finished pulling base models\n")
-
-	if !c.Debug.Standalone {
+		log.Printf("Finished pulling base models\n")
+	} else {
 		sc := s3.NewClient(c.ObjectStore.S3)
 
 		conn, err := grpc.Dial(c.ModelManagerServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -88,7 +88,7 @@ func run(ctx context.Context, c *config.Config) error {
 
 		s := modelsyncer.New(om, sc, mc, mic)
 		go func() {
-			errCh <- s.Run(ctx)
+			errCh <- s.Run(ctx, c.ModelSyncInterval)
 		}()
 	}
 

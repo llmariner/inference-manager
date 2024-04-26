@@ -3,27 +3,47 @@ package modelsyncer
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
-	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	v1 "github.com/llm-operator/model-manager/api/v1"
+	"google.golang.org/grpc"
 )
 
 const (
 	fakeTenantID = "fake-tenant-id"
+
+	systemOwner = "system"
 )
+
+type ollamaManager interface {
+	CreateNewModel(modelName string, spec *ollama.ModelSpec) error
+	PullBaseModel(modelName string) error
+}
+
+type s3Client interface {
+	Download(f io.WriterAt, path string) error
+}
+
+type modelClient interface {
+	ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error)
+}
+
+type modelInternalClient interface {
+	GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error)
+}
 
 // New creates a syncer..
 func New(
-	om *ollama.Manager,
-	s3Client *s3.Client,
-	mClient mv1.ModelsServiceClient,
-	miClient mv1.ModelsInternalServiceClient,
+	om ollamaManager,
+	s3Client s3Client,
+	mClient modelClient,
+	miClient modelInternalClient,
 ) *S {
 	return &S{
 		om:               om,
@@ -36,19 +56,22 @@ func New(
 
 // S is a syncer.
 type S struct {
-	om       *ollama.Manager
-	s3Client *s3.Client
+	om       ollamaManager
+	s3Client s3Client
 
-	mClient  mv1.ModelsServiceClient
-	miClient mv1.ModelsInternalServiceClient
+	mClient  modelClient
+	miClient modelInternalClient
 
 	registeredModels map[string]bool
 }
 
 // Run starts the syncer.
-func (s *S) Run(ctx context.Context) error {
-	// TODO(kenji): Make this configurable.
-	ticker := time.NewTicker(1 * time.Second)
+func (s *S) Run(ctx context.Context, interval time.Duration) error {
+	if err := s.syncModels(ctx); err != nil {
+		return err
+	}
+
+	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -69,16 +92,35 @@ func (s *S) syncModels(ctx context.Context) error {
 	}
 
 	for _, model := range resp.Data {
-		if model.OwnedBy == "system" {
-			continue
-		}
-
 		if s.registeredModels[model.Id] {
 			continue
 		}
-		if err := s.registerModel(ctx, model.Id); err != nil {
-			return err
+
+		if model.OwnedBy == systemOwner {
+			if err := s.registerBaseModel(ctx, model.Id); err != nil {
+				return err
+			}
+		} else {
+			if err := s.registerModel(ctx, model.Id); err != nil {
+				return err
+			}
 		}
+
+		s.registeredModels[model.Id] = true
+	}
+	return nil
+}
+
+func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
+	log.Printf("Registering base model %q\n", modelID)
+
+	ollamaModelID, err := ollama.ConvertHuggingFaceModelNameToOllama(modelID)
+	if err != nil {
+		return err
+	}
+	// TODO(kenji): Pull models from the object store instead of pulling from Ollama.
+	if err := s.om.PullBaseModel(ollamaModelID); err != nil {
+		return err
 	}
 	return nil
 }

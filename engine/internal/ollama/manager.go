@@ -28,7 +28,7 @@ func (m *Manager) Run() error {
 
 // ModelSpec is the specification for a new model.
 type ModelSpec struct {
-	BaseModel   string
+	From        string
 	AdapterPath string
 }
 
@@ -44,7 +44,10 @@ func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
 		}
 	}()
 
-	s := fmt.Sprintf("FROM %s\nAdapter %s\n", spec.BaseModel, spec.AdapterPath)
+	s := fmt.Sprintf("FROM %s\n", spec.From)
+	if p := spec.AdapterPath; p != "" {
+		s += fmt.Sprintf("Adapter %s\n", p)
+	}
 	if _, err := file.Write([]byte(s)); err != nil {
 		return err
 	}

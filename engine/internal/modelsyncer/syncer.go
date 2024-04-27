@@ -36,6 +36,7 @@ type modelClient interface {
 
 type modelInternalClient interface {
 	GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error)
+	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
 }
 
 // New creates a syncer..
@@ -114,14 +115,44 @@ func (s *S) syncModels(ctx context.Context) error {
 func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	log.Printf("Registering base model %q\n", modelID)
 
-	ollamaModelID, err := ollama.ConvertHuggingFaceModelNameToOllama(modelID)
+	resp, err := s.miClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
+		Id: modelID,
+	})
 	if err != nil {
 		return err
 	}
-	// TODO(kenji): Pull models from the object store instead of pulling from Ollama.
-	if err := s.om.PullBaseModel(ollamaModelID); err != nil {
+
+	log.Printf("Downloading the model from %q\n", resp.GgufModelPath)
+	f, err := os.CreateTemp("/tmp", "model")
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Printf("Failed to remove %q: %s", f.Name(), err)
+		}
+	}()
+
+	if err := s.s3Client.Download(f, resp.GgufModelPath); err != nil {
+		return fmt.Errorf("download: %s", err)
+	}
+	log.Printf("Downloaded the model to %q\n", f.Name())
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	ms := &ollama.ModelSpec{
+		From: f.Name(),
+	}
+
+	// HuggingFace uses '/" as a separator, but Ollama does not accept. Use '-' instead for now.
+	// TODO(kenji): Revisit this.
+	modelName := strings.ReplaceAll(modelID, "/", "-")
+	if err := s.om.CreateNewModel(modelName, ms); err != nil {
+		return fmt.Errorf("create new model: %s", err)
+	}
+	log.Printf("Registered the base model successfully\n")
+
 	return nil
 }
 
@@ -160,11 +191,9 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	}
 
 	ms := &ollama.ModelSpec{
-		BaseModel:   baseModel,
+		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	// Ollama does not allow extra ':'s in the tag.
-
 	modelName, err := ollamaModelName(modelID)
 	if err != nil {
 		return err
@@ -182,16 +211,7 @@ func extractBaseModel(modelID string) (string, error) {
 	if len(l) <= 2 {
 		return "", fmt.Errorf("invalid model ID: %q", modelID)
 	}
-	base := strings.Join(l[1:len(l)-1], ":")
-	// Currently the base model name is from HuggingFace while Ollama uses a different name convetion.
-	// This is a temporary workaround.
-	// TODO(kenji): Fix this.
-
-	obase, err := ollama.ConvertHuggingFaceModelNameToOllama(base)
-	if err != nil {
-		return "", err
-	}
-	return obase, nil
+	return strings.Join(l[1:len(l)-1], ":"), nil
 }
 
 func ollamaModelName(modelID string) (string, error) {

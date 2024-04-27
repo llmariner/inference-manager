@@ -1,8 +1,10 @@
 package ollama
 
-import "fmt"
+import (
+	"fmt"
+)
 
-// ConvertHuggingFaceModelNameToOllama converts a HuggingFace model name to an Ollama model name.
+// ConvertHuggingFaceModelNameToOllama converts a HuggingFace model name to an official Ollama model name.
 func ConvertHuggingFaceModelNameToOllama(hfModelName string) (string, error) {
 	fromHuggingFacetoOllama := map[string]string{
 		"google/gemma-2b": "gemma:2b",

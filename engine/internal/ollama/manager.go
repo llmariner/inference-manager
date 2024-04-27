@@ -47,6 +47,16 @@ func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
 	s := fmt.Sprintf("FROM %s\n", spec.From)
 	if p := spec.AdapterPath; p != "" {
 		s += fmt.Sprintf("Adapter %s\n", p)
+	} else {
+		// Follow the model file that "ollama show gemma:2b --modelfile" shows.
+		s += `TEMPLATE """<start_of_turn>user
+{{ if .System }}{{ .System }} {{ end }}{{ .Prompt }}<end_of_turn>
+<start_of_turn>model
+{{ .Response }}<end_of_turn>
+"""
+PARAMETER repeat_penalty 1
+PARAMETER stop "<start_of_turn>"
+PARAMETER stop "<end_of_turn>"`
 	}
 	if _, err := file.Write([]byte(s)); err != nil {
 		return err

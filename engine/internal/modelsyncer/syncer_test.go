@@ -15,11 +15,13 @@ func TestSyncModels(t *testing.T) {
 	tcs := []struct {
 		name                 string
 		models               []*mv1.Model
+		wantCreated          []string
 		wantRegisteredModels []string
 	}{
 		{
 			name:                 "no models",
 			models:               []*mv1.Model{},
+			wantCreated:          nil,
 			wantRegisteredModels: nil,
 		},
 		{
@@ -29,6 +31,9 @@ func TestSyncModels(t *testing.T) {
 					Id:      "google/gemma-2b",
 					OwnedBy: systemOwner,
 				},
+			},
+			wantCreated: []string{
+				"google-gemma-2b",
 			},
 			wantRegisteredModels: []string{
 				"google/gemma-2b",
@@ -42,6 +47,9 @@ func TestSyncModels(t *testing.T) {
 					OwnedBy: fakeTenantID,
 				},
 			},
+			wantCreated: []string{
+				"google-gemma-2b:fine-tuning-wpsd9kb5nl",
+			},
 			wantRegisteredModels: []string{
 				"ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
 			},
@@ -49,14 +57,17 @@ func TestSyncModels(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			fom := &fakeOllamaManager{}
 			om := New(
-				&noopOllamaManager{},
+				fom,
 				&noopS3Client{},
 				&fakeModelClient{models: tc.models},
 				&fakeModelInternalClient{},
 			)
 			err := om.syncModels(context.Background())
 			assert.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.wantCreated, fom.created)
 
 			var registered []string
 			for k := range om.registeredModels {
@@ -75,7 +86,7 @@ func TestExtractBaseModel(t *testing.T) {
 	}{
 		{
 			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-			want:    "gemma:2b",
+			want:    "google-gemma-2b",
 		},
 		{
 			modelID: "bogus",
@@ -123,14 +134,16 @@ func TestOllamaModelName(t *testing.T) {
 	}
 }
 
-type noopOllamaManager struct {
+type fakeOllamaManager struct {
+	created []string
 }
 
-func (n *noopOllamaManager) CreateNewModel(modelName string, spec *ollama.ModelSpec) error {
+func (n *fakeOllamaManager) CreateNewModel(modelName string, spec *ollama.ModelSpec) error {
+	n.created = append(n.created, modelName)
 	return nil
 }
 
-func (n *noopOllamaManager) PullBaseModel(modelName string) error {
+func (n *fakeOllamaManager) PullBaseModel(modelName string) error {
 	return nil
 }
 
@@ -152,6 +165,13 @@ func (n *fakeModelClient) ListModels(ctx context.Context, in *mv1.ListModelsRequ
 }
 
 type fakeModelInternalClient struct {
+}
+
+func (n *fakeModelInternalClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {
+	return &mv1.GetBaseModelPathResponse{
+		Path:          "fake-path",
+		GgufModelPath: "fake-gguf-path",
+	}, nil
 }
 
 func (n *fakeModelInternalClient) GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error) {

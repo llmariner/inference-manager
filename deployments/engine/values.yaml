@@ -13,7 +13,7 @@ global:
   ingress:
     ingressClassName:
 
-internalGrpcPort: 8081
+internalGrpcPort: 8082
 ollamaPort: 8080
 
 modelSyncInterval: 1m

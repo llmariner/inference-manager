@@ -1,13 +1,14 @@
 module github.com/llm-operator/inference-manager
 
-go 1.21
+go 1.22
 
-toolchain go1.21.2
+toolchain go1.22.2
 
 require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/llm-operator/model-manager v0.25.0
+	github.com/ollama/ollama v0.1.32
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80

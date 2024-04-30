@@ -14,14 +14,5 @@ func (s *S) CreateChatCompletion(
 ) (*v1.ChatCompletion, error) {
 	log.Printf("Received a CreateChatCompletion request: %+v\n", req)
 
-	return &v1.ChatCompletion{
-		Id: "fake-id",
-		Choices: []*v1.ChatCompletion_Choice{
-			{
-				Message: &v1.ChatCompletion_Choice_Message{
-					Content: "fake-content",
-				},
-			},
-		},
-	}, nil
+	return handleChatRequest(ctx, req)
 }

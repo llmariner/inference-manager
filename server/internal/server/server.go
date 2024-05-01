@@ -14,15 +14,18 @@ import (
 )
 
 // New creates a server.
-func New() *S {
-	return &S{}
+func New(ollamaServerAddr string) *S {
+	return &S{
+		ollamaServerAddr: ollamaServerAddr,
+	}
 }
 
 // S is a server.
 type S struct {
 	v1.UnimplementedChatServiceServer
 
-	srv *grpc.Server
+	ollamaServerAddr string
+	srv              *grpc.Server
 }
 
 // Run starts the gRPC server.

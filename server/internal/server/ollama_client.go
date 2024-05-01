@@ -1,72 +1,68 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 
-	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/ollama/ollama/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func newClient() (*api.Client, error) {
-	client, err := api.ClientFromEnvironment()
+type client struct {
+	base *url.URL
+	http *http.Client
+}
+
+func newClient(ollamaServerAddr string) *client {
+	return &client{
+		base: &url.URL{
+			Scheme: "http",
+			Host:   ollamaServerAddr,
+		},
+		http: http.DefaultClient,
+	}
+}
+
+func (c *client) sendRequest(ctx context.Context, method, path string, data any) ([]byte, error) {
+	var buf *bytes.Buffer
+	bts, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
-	return client, nil
-}
+	buf = bytes.NewBuffer(bts)
 
-func handleChatRequest(ctx context.Context, req *v1.CreateChatCompletionRequest) (*v1.ChatCompletion, error) {
-	client, err := newClient()
+	requestURL := c.base.JoinPath(path)
+	request, err := http.NewRequestWithContext(ctx, method, requestURL.String(), buf)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to create a client: %s", err)
+		return nil, err
 	}
 
-	var msgs []api.Message
-	for _, msg := range req.Messages {
-		msgs = append(msgs, api.Message{
-			Role:    msg.Role,
-			Content: msg.Content,
-		})
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/x-ndjson")
+
+	response, err := c.http.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Printf("Failed to close the response body: %s\n", err)
+		}
+	}()
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusBadRequest {
+		log.Printf("Received an error response: %+v\n", response)
+		return nil, status.Errorf(codes.Code(response.StatusCode), "Status: %s", response.Status)
 	}
 
-	ollamaReq := &api.ChatRequest{
-		Model:    req.Model,
-		Messages: msgs,
+	resp, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
 	}
-
-	var ollamaResp api.ChatResponse
-	fn := func(resp api.ChatResponse) error {
-		ollamaResp = resp
-		return processChatResponse(resp)
-	}
-
-	if err := client.Chat(ctx, ollamaReq, fn); err != nil {
-		log.Printf("Failed to create a chat completion: %v\n", err)
-		return nil, status.Errorf(codes.Internal, "Failed to create a chat completion: %s", err)
-	}
-
-	return &v1.ChatCompletion{
-		Id: "fake-id",
-		Choices: []*v1.ChatCompletion_Choice{
-			{
-				Message: &v1.ChatCompletion_Choice_Message{
-					Content: ollamaResp.Message.Content,
-				},
-			},
-		},
-		Model: req.Model,
-		Usage: &v1.ChatCompletion_Usage{
-			CompletionTokens: int32(ollamaResp.EvalCount),
-			PromptTokens:     int32(ollamaResp.PromptEvalCount),
-			TotalTokens:      int32(ollamaResp.EvalCount + ollamaResp.PromptEvalCount),
-		},
-	}, nil
-}
-
-func processChatResponse(resp api.ChatResponse) error {
-	// TODO(guangrui): process and publish metrics.
-	return nil
+	return resp, nil
 }

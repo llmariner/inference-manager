@@ -1,0 +1,6 @@
+apiVersion: v2
+name: inference-manager-server
+description: A Helm chart for inference-manager-server
+type: application
+version: 0.1.0
+appVersion: 0.1.0

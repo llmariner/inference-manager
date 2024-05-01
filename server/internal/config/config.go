@@ -11,6 +11,25 @@ import (
 type Config struct {
 	GRPCPort int `yaml:"grpcPort"`
 	HTTPPort int `yaml:"httpPort"`
+
+	AuthConfig AuthConfig `yaml:"auth"`
+}
+
+// AuthConfig is the authentication configuration.
+type AuthConfig struct {
+	Enable                 bool   `yaml:"enable"`
+	RBACInternalServerAddr string `yaml:"rbacInternalServerAddr"`
+}
+
+// Validate validates the configuration.
+func (c *AuthConfig) Validate() error {
+	if !c.Enable {
+		return nil
+	}
+	if c.RBACInternalServerAddr == "" {
+		return fmt.Errorf("rbacInternalServerAddr must be set")
+	}
+	return nil
 }
 
 // Validate validates the configuration.
@@ -20,6 +39,9 @@ func (c *Config) Validate() error {
 	}
 	if c.HTTPPort <= 0 {
 		return fmt.Errorf("httpPort must be greater than 0")
+	}
+	if err := c.AuthConfig.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

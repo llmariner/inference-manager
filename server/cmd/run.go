@@ -58,7 +58,7 @@ func run(ctx context.Context, c *config.Config) error {
 
 	go func() {
 		s := server.New()
-		errCh <- s.Run(c.GRPCPort)
+		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
 	return <-errCh

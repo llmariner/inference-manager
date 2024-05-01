@@ -6,18 +6,23 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/ollama/ollama/api"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func newClient() *api.Client {
+func newClient() (*api.Client, error) {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return client
+	return client, nil
 }
 
 func handleChatRequest(ctx context.Context, req *v1.CreateChatCompletionRequest) (*v1.ChatCompletion, error) {
-	client := newClient()
+	client, err := newClient()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create a client: %s", err)
+	}
 
 	var msgs []api.Message
 	for _, msg := range req.Messages {
@@ -38,10 +43,9 @@ func handleChatRequest(ctx context.Context, req *v1.CreateChatCompletionRequest)
 		return processChatResponse(resp)
 	}
 
-	err := client.Chat(ctx, ollamaReq, fn)
-	if err != nil {
+	if err := client.Chat(ctx, ollamaReq, fn); err != nil {
 		log.Printf("Failed to create a chat completion: %v\n", err)
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Failed to create a chat completion: %s", err)
 	}
 
 	return &v1.ChatCompletion{

@@ -11,7 +11,6 @@ import (
 
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	v1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
 )
 
@@ -87,7 +86,7 @@ func (s *S) Run(ctx context.Context, interval time.Duration) error {
 
 func (s *S) syncModels(ctx context.Context) error {
 	// list all models for the fake tenant.
-	resp, err := s.mClient.ListModels(ctx, &v1.ListModelsRequest{})
+	resp, err := s.mClient.ListModels(ctx, &mv1.ListModelsRequest{})
 	if err != nil {
 		return err
 	}

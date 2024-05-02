@@ -2,9 +2,9 @@ global:
   ingress:
     ingressClassName:
 
-grpcPort: 8443
-httpPort: 8444
-monitoringPort: 8445
+httpPort: 8080
+grpcPort: 8081
+monitoringPort: 8083
 
 # The following default values work if ollama server runs in the same namespace.
 ollamaServerAddr: llm-operator-inference-manager-engine-ollama:8080

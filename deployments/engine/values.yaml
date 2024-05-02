@@ -31,3 +31,12 @@ ingress:
   ingressClassName:
 
 version:
+
+enableGpu: true
+gpuNumber: 1
+
+enableKeda: true
+scaledobject:
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  prometheusServerAddr: http://prometheus-server.monitoring.svc.cluster.local

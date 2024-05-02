@@ -31,6 +31,11 @@ spec:
         - name: ollama
           containerPort: {{ .Values.ollamaPort }}
           protocol: TCP
+        {{- if .Values.enableGpu }}
+        resources:
+          limits:
+            nvidia.com/gpu: {{ .Values.gpuNumber }}
+        {{- end }}
         {{- with .Values.global.awsSecret }}
         {{- if .name }}
         env:
@@ -44,6 +49,12 @@ spec:
             secretKeyRef:
               name: {{ .name }}
               key: {{ .secretAccessKeyKey }}
+        - name: PATH
+          value: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        - name: LD_LIBRARY_PATH
+          value: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: compute,utility
         {{- end }}
         {{- end }}
         volumeMounts:
@@ -54,3 +65,7 @@ spec:
       - name: config
         configMap:
           name: {{ include "inference-manager-engine.fullname" . }}
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule

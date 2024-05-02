@@ -1,0 +1,14 @@
+{{- if .Values.enableServiceMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}-http
+  labels:
+    {{- include "inference-manager-server.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "inference-manager-server.labels" . | nindent 6 }}
+  endpoints:
+  - port: monitoring
+{{- end }}

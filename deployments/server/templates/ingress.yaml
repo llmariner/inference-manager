@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}-http
+  labels:
+    {{- include "inference-manager-server.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.ingressClassName }}
+  rules:
+  - http:
+      paths:
+      - path: /v1/chat/completions
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "inference-manager-server.fullname" . }}-http
+            port:
+              number: {{ .Values.httpPort }}

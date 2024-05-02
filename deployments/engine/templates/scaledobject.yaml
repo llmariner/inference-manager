@@ -1,4 +1,4 @@
-{{- if .Values.enableKeda }}
+{{- if .Values.autoscaling.enableKeda }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -12,14 +12,14 @@ spec:
     name: {{ include "inference-manager-engine.fullname" . }}
   pollingInterval: 15
   cooldownPeriod: 30
-  minReplicaCount:  {{ .Values.scaledobject.minReplicaCount }}
-  maxReplicaCount:  {{ .Values.scaledobject.maxReplicaCount }}
+  minReplicaCount:  {{ .Values.autoscaling.scaledobject.minReplicaCount }}
+  maxReplicaCount:  {{ .Values.autoscaling.scaledobject.maxReplicaCount }}
   # uncomment this if it is desired to scale to zero.
   # idleReplicaCount: 0
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: {{ .Values.scaledobject.prometheusServerAddr }}
+        serverAddress: {{ .Values.autoscaling.scaledobject.prometheusServerAddr }}
         metricName: gpu-util
         metricType: Value
         query: |-

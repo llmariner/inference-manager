@@ -31,10 +31,10 @@ spec:
         - name: ollama
           containerPort: {{ .Values.ollamaPort }}
           protocol: TCP
-        {{- if .Values.enableGpu }}
+        {{ if gt .Values.resources.gpu 0 }}
         resources:
           limits:
-            nvidia.com/gpu: {{ .Values.gpuNumber }}
+            nvidia.com/gpu: {{ .Values.resources.gpu }}
         {{- end }}
         {{- with .Values.global.awsSecret }}
         {{- if .name }}

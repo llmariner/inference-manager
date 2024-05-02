@@ -93,8 +93,8 @@ jobs:
       run: mkdir charts
     - name: build dispatcher helm chart
       run: helm package --version ${{ needs.update-tag.outputs.new_version }} --destination ./charts ./deployments/engine
-    # - name: build server helm chart
-    #   run: helm package --version ${{ needs.update-tag.outputs.new_version }} --destination ./charts ./deployments/server
+    - name: build server helm chart
+      run: helm package --version ${{ needs.update-tag.outputs.new_version }} --destination ./charts ./deployments/server
     - name: Rebuild index.yaml and push
       run: |
         curl -o index.yaml http://llm-operator-charts.s3-website-us-west-2.amazonaws.com/index.yaml

@@ -57,7 +57,7 @@ func run(ctx context.Context, c *config.Config) error {
 	}()
 
 	go func() {
-		s := server.New()
+		s := server.New(c.OllamaServerAddr)
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 

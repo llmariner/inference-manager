@@ -9,8 +9,10 @@ import (
 
 // Config is the configuration.
 type Config struct {
-	GRPCPort int `yaml:"grpcPort"`
-	HTTPPort int `yaml:"httpPort"`
+	GRPCPort         int    `yaml:"grpcPort"`
+	HTTPPort         int    `yaml:"httpPort"`
+	MonitoringPort   int    `yaml:"monitoringPort"`
+	OllamaServerAddr string `yaml:"ollamaServerAddr"`
 
 	AuthConfig AuthConfig `yaml:"auth"`
 }
@@ -39,6 +41,12 @@ func (c *Config) Validate() error {
 	}
 	if c.HTTPPort <= 0 {
 		return fmt.Errorf("httpPort must be greater than 0")
+	}
+	if c.MonitoringPort <= 0 {
+		return fmt.Errorf("monitoringPort must be greater than 0")
+	}
+	if c.OllamaServerAddr == "" {
+		return fmt.Errorf("ollamaServerAddr must be set")
 	}
 	if err := c.AuthConfig.Validate(); err != nil {
 		return err

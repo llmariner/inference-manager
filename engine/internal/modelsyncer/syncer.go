@@ -29,26 +29,21 @@ type s3Client interface {
 	Download(f io.WriterAt, path string) error
 }
 
-type modelClient interface {
-	ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error)
-}
-
 type modelInternalClient interface {
 	GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error)
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
+	ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error)
 }
 
 // New creates a syncer..
 func New(
 	om ollamaManager,
 	s3Client s3Client,
-	mClient modelClient,
 	miClient modelInternalClient,
 ) *S {
 	return &S{
 		om:               om,
 		s3Client:         s3Client,
-		mClient:          mClient,
 		miClient:         miClient,
 		registeredModels: map[string]bool{},
 	}
@@ -59,7 +54,6 @@ type S struct {
 	om       ollamaManager
 	s3Client s3Client
 
-	mClient  modelClient
 	miClient modelInternalClient
 
 	registeredModels map[string]bool
@@ -86,7 +80,7 @@ func (s *S) Run(ctx context.Context, interval time.Duration) error {
 
 func (s *S) syncModels(ctx context.Context) error {
 	// list all models for the fake tenant.
-	resp, err := s.mClient.ListModels(ctx, &mv1.ListModelsRequest{})
+	resp, err := s.miClient.ListModels(ctx, &mv1.ListModelsRequest{})
 	if err != nil {
 		return err
 	}

@@ -74,19 +74,13 @@ func run(ctx context.Context, c *config.Config) error {
 	} else {
 		sc := s3.NewClient(c.ObjectStore.S3)
 
-		conn, err := grpc.Dial(c.ModelManagerServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.Dial(c.ModelManagerInternalServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return err
 		}
-		mc := mv1.NewModelsServiceClient(conn)
+		mc := mv1.NewModelsInternalServiceClient(conn)
 
-		conn, err = grpc.Dial(c.ModelManagerInternalServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
-		mic := mv1.NewModelsInternalServiceClient(conn)
-
-		s := modelsyncer.New(om, sc, mc, mic)
+		s := modelsyncer.New(om, sc, mc)
 		go func() {
 			errCh <- s.Run(ctx, c.ModelSyncInterval)
 		}()

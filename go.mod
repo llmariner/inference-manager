@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
-	github.com/llm-operator/model-manager v0.25.0
+	github.com/llm-operator/model-manager v0.36.0
 	github.com/llm-operator/rbac-manager v0.18.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0

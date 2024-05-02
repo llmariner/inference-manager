@@ -54,7 +54,6 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
-	ModelManagerServerAddr         string `yaml:"modelManagerServerAddr"`
 	ModelManagerInternalServerAddr string `yaml:"modelManagerInternalServerAddr"`
 }
 
@@ -76,9 +75,6 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("modelSyncInterval must be set")
 		}
 
-		if c.ModelManagerServerAddr == "" {
-			return fmt.Errorf("model manager address must be set")
-		}
 		if c.ModelManagerInternalServerAddr == "" {
 			return fmt.Errorf("model manager internal address must be set")
 		}

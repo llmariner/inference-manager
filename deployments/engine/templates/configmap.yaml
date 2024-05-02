@@ -9,7 +9,6 @@ data:
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
     modelSyncInterval: {{ .Values.modelSyncInterval }}
-    modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     modelManagerInternalServerAddr: {{ .Values.modelManagerInternalServerAddr }}
     objectStore:
       s3:

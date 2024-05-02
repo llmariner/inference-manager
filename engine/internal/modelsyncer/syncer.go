@@ -144,10 +144,7 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		From: f.Name(),
 	}
 
-	// HuggingFace uses '/" as a separator, but Ollama does not accept. Use '-' instead for now.
-	// TODO(kenji): Revisit this.
-	modelName := strings.ReplaceAll(modelID, "/", "-")
-	if err := s.om.CreateNewModel(modelName, ms); err != nil {
+	if err := s.om.CreateNewModel(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	log.Printf("Registered the base model successfully\n")

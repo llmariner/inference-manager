@@ -28,7 +28,7 @@ func TestSyncModels(t *testing.T) {
 			name: "system model",
 			models: []*mv1.Model{
 				{
-					Id:      "google/gemma-2b",
+					Id:      "google-gemma-2b",
 					OwnedBy: systemOwner,
 				},
 			},
@@ -36,7 +36,7 @@ func TestSyncModels(t *testing.T) {
 				"google-gemma-2b",
 			},
 			wantRegisteredModels: []string{
-				"google/gemma-2b",
+				"google-gemma-2b",
 			},
 		},
 		{

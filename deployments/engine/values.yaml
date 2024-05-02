@@ -26,16 +26,15 @@ image:
   repository: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine
   pullPolicy: IfNotPresent
 
-ingress:
-  ingressClassName:
-
 version:
 
-enableGpu: true
-gpuNumber: 1
+resources:
+  gpu: 1
 
-enableKeda: true
-scaledobject:
-  minReplicaCount: 1
-  maxReplicaCount: 2
-  prometheusServerAddr: http://prometheus-server.monitoring.svc.cluster.local
+autoscaling:
+  # TODO(kenji): Enable once Keda installation is supported in the Terraform provisioning.
+  enableKeda: false
+  scaledobject:
+    minReplicaCount: 1
+    maxReplicaCount: 2
+    prometheusServerAddr:

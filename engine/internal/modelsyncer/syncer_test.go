@@ -61,8 +61,7 @@ func TestSyncModels(t *testing.T) {
 			om := New(
 				fom,
 				&noopS3Client{},
-				&fakeModelClient{models: tc.models},
-				&fakeModelInternalClient{},
+				&fakeModelInternalClient{models: tc.models},
 			)
 			err := om.syncModels(context.Background())
 			assert.NoError(t, err)
@@ -154,17 +153,14 @@ func (n *noopS3Client) Download(f io.WriterAt, path string) error {
 	return nil
 }
 
-type fakeModelClient struct {
+type fakeModelInternalClient struct {
 	models []*mv1.Model
 }
 
-func (n *fakeModelClient) ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error) {
+func (n *fakeModelInternalClient) ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error) {
 	return &mv1.ListModelsResponse{
 		Data: n.models,
 	}, nil
-}
-
-type fakeModelInternalClient struct {
 }
 
 func (n *fakeModelInternalClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {

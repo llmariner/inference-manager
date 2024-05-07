@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -48,15 +49,11 @@ func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
 	if p := spec.AdapterPath; p != "" {
 		s += fmt.Sprintf("Adapter %s\n", p)
 	} else {
-		// Follow the model file that "ollama show gemma:2b --modelfile" shows.
-		s += `TEMPLATE """<start_of_turn>user
-{{ if .System }}{{ .System }} {{ end }}{{ .Prompt }}<end_of_turn>
-<start_of_turn>model
-{{ .Response }}<end_of_turn>
-"""
-PARAMETER repeat_penalty 1
-PARAMETER stop "<start_of_turn>"
-PARAMETER stop "<end_of_turn>"`
+		modelFile, err := ollamaBaseModelFile(modelName)
+		if err != nil {
+			return err
+		}
+		s += modelFile
 	}
 	if _, err := file.Write([]byte(s)); err != nil {
 		return err
@@ -109,4 +106,40 @@ func (m *Manager) runCommand(args []string) error {
 	}
 
 	return nil
+}
+
+// ollamaBaseModelFile returns the base model file for the given model name.
+// This is based on the output of "ollama show <model> --modelfile".
+func ollamaBaseModelFile(name string) (string, error) {
+	if strings.HasPrefix(name, "google-gemma-2b-it") {
+		// Output of "ollama show gemma:2b --modelfile".
+		return `
+TEMPLATE """<start_of_turn>user
+{{ if .System }}{{ .System }} {{ end }}{{ .Prompt }}<end_of_turn>
+<start_of_turn>model
+{{ .Response }}<end_of_turn>
+"""
+PARAMETER repeat_penalty 1
+PARAMETER stop "<start_of_turn>"
+PARAMETER stop "<end_of_turn>"`, nil
+
+	}
+
+	if strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct") {
+		// Output of "ollama show mistral --modelfile".
+		return `
+TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
+PARAMETER stop "[INST]"
+PARAMETER stop "[/INST]"`, nil
+	}
+
+	if strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct") {
+		// Output of "ollama show mixtral --modelfile".
+		return `
+TEMPLATE """[INST] {{ if .System }}{{ .System }} {{ end }}{{ .Prompt }} [/INST]"""
+PARAMETER stop "[INST]"
+PARAMETER stop "[/INST]"`, nil
+	}
+
+	return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
 }

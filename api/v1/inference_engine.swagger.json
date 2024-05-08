@@ -4,6 +4,11 @@
     "title": "api/v1/inference_engine.proto",
     "version": "version not set"
   },
+  "tags": [
+    {
+      "name": "InferenceEngineInternalService"
+    }
+  ],
   "consumes": [
     "application/json"
   ],
@@ -36,6 +41,26 @@
           "items": {
             "$ref": "#/definitions/protobufAny"
           }
+        }
+      }
+    },
+    "v1ListModelsResponse": {
+      "type": "object",
+      "properties": {
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Model"
+          }
+        }
+      }
+    },
+    "v1Model": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "id is the model id."
         }
       }
     }

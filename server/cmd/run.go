@@ -7,12 +7,9 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -57,18 +54,26 @@ func run(ctx context.Context, c *config.Config) error {
 			},
 		}),
 	)
-	addr := fmt.Sprintf("localhost:%d", c.GRPCPort)
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if err := v1.RegisterChatServiceHandlerFromEndpoint(ctx, mux, addr, opts); err != nil {
-		return err
-	}
+	// TODO(kenji): Call v1.RegisterChatServiceHandlerFromEndpoint once the gRPC method is defined
+	// with gRPC gateway.
+
+	s := server.New(c.OllamaServerAddr)
+
+	createFile := runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1, 2, 2},
+			[]string{"v1", "chat", "completions"},
+			"",
+		))
+	mux.Handle("POST", createFile, s.CreateChatCompletion)
+
 	go func() {
 		log.Printf("Starting HTTP server on port %d", c.HTTPPort)
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.HTTPPort), mux)
 	}()
 
 	go func() {
-		s := server.New(c.OllamaServerAddr)
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 

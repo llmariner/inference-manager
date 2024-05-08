@@ -1,47 +1,96 @@
 package server
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // CreateChatCompletion creates a chat completion.
 func (s *S) CreateChatCompletion(
-	ctx context.Context,
-	req *v1.CreateChatCompletionRequest,
-) (*v1.ChatCompletion, error) {
-	log.Printf("Received a CreateChatCompletion request: %+v\n", req)
-
-	if req.Stream {
-		return nil, status.Error(codes.Unimplemented, "Streaming chat completions is not supported")
-	}
-
-	client := newClient(s.ollamaServerAddr)
-
-	bytes, err := client.sendRequest(ctx, http.MethodPost, "/v1/chat/completions", req)
+	w http.ResponseWriter,
+	req *http.Request,
+	pathParams map[string]string,
+) {
+	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to create a chat completion: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var createReq v1.CreateChatCompletionRequest
+	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
+	// That one correctly handles the JSON field names of the snake case.
+	if err := json.Unmarshal(reqBody, &createReq); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	var resp v1.ChatCompletion
-	if err := json.Unmarshal(bytes, &resp); err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to unmarshal chat completion response: %s", err)
+	// TODO(kenji): Check if the specified model is available
+	// for the tenant.
+
+	// Forward the request to the Ollama server.
+	baseURL := &url.URL{
+		Scheme: "http",
+		Host:   s.ollamaServerAddr,
+	}
+	requestURL := baseURL.JoinPath("/v1/chat/completions").String()
+	freq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, requestURL, bytes.NewReader(reqBody))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Copy headers.
+	for k, v := range req.Header {
+		for _, vv := range v {
+			freq.Header.Add(k, vv)
+		}
 	}
 
-	if err := processChatCompletionResponse(&resp); err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to process chat completion response: %s", err)
+	resp, err := http.DefaultClient.Do(freq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return &resp, nil
-}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
-func processChatCompletionResponse(resp *v1.ChatCompletion) error {
-	// TODO(guangrui): process and publish metrics.
-	log.Printf("Received a chat completion: %+v\n", resp)
-	return nil
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
+		http.Error(w, fmt.Sprintf("Status: %s", resp.Status), resp.StatusCode)
+		return
+	}
+
+	// Copy headers.
+	for k, v := range resp.Header {
+		for _, vv := range v {
+			w.Header().Add(k, vv)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+
+	if !createReq.Stream {
+		// Non streaming response. Just copy the response body.
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("Failed to proxy request: %s", err)
+			http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	// Streaming response.
+
+	// TODO(kenji): Replace this to use scanner.
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Failed to proxy request: %s", err)
+		http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
+		return
+	}
+
 }

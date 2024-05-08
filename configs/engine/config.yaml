@@ -1,5 +1,5 @@
-internalGrpcPort: 8081
 ollamaPort: 8080
+internalGrpcPort: 8082
 debug:
   standalone: true
   baseModels:

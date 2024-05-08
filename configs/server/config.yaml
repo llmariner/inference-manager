@@ -1,0 +1,5 @@
+httpPort: 8080
+grpcPort: 8081
+monitoringPort: 8083
+
+ollamaServerAddr: engine:8080

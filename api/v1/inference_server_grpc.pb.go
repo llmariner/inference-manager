@@ -3,10 +3,7 @@
 package v1
 
 import (
-	context "context"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,7 +15,6 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatServiceClient interface {
-	CreateChatCompletion(ctx context.Context, in *CreateChatCompletionRequest, opts ...grpc.CallOption) (*ChatCompletion, error)
 }
 
 type chatServiceClient struct {
@@ -29,20 +25,10 @@ func NewChatServiceClient(cc grpc.ClientConnInterface) ChatServiceClient {
 	return &chatServiceClient{cc}
 }
 
-func (c *chatServiceClient) CreateChatCompletion(ctx context.Context, in *CreateChatCompletionRequest, opts ...grpc.CallOption) (*ChatCompletion, error) {
-	out := new(ChatCompletion)
-	err := c.cc.Invoke(ctx, "/llmoperator.chat.server.v1.ChatService/CreateChatCompletion", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ChatServiceServer is the server API for ChatService service.
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility
 type ChatServiceServer interface {
-	CreateChatCompletion(context.Context, *CreateChatCompletionRequest) (*ChatCompletion, error)
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -50,9 +36,6 @@ type ChatServiceServer interface {
 type UnimplementedChatServiceServer struct {
 }
 
-func (UnimplementedChatServiceServer) CreateChatCompletion(context.Context, *CreateChatCompletionRequest) (*ChatCompletion, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateChatCompletion not implemented")
-}
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 
 // UnsafeChatServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -66,36 +49,13 @@ func RegisterChatServiceServer(s grpc.ServiceRegistrar, srv ChatServiceServer) {
 	s.RegisterService(&ChatService_ServiceDesc, srv)
 }
 
-func _ChatService_CreateChatCompletion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateChatCompletionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChatServiceServer).CreateChatCompletion(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/llmoperator.chat.server.v1.ChatService/CreateChatCompletion",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).CreateChatCompletion(ctx, req.(*CreateChatCompletionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ChatService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "llmoperator.chat.server.v1.ChatService",
 	HandlerType: (*ChatServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "CreateChatCompletion",
-			Handler:    _ChatService_CreateChatCompletion_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/v1/inference_server.proto",
+	Methods:     []grpc.MethodDesc{},
+	Streams:     []grpc.StreamDesc{},
+	Metadata:    "api/v1/inference_server.proto",
 }

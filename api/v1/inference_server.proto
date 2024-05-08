@@ -124,10 +124,6 @@ message ChatCompletion {
 }
 
 service ChatService {
-  rpc CreateChatCompletion(CreateChatCompletionRequest) returns (ChatCompletion) {
-    option (google.api.http) = {
-      post: "/v1/chat/completions"
-      body: "*"
-    };
-  }
+  // CreateChatCompletion is implemented as an HTTP handler without gRPC
+  // as gRPC gateway does not support server-sent events.
 }

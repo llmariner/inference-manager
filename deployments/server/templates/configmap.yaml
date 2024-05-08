@@ -10,4 +10,4 @@ data:
     httpPort: {{ .Values.httpPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     ollamaServerAddr: {{ .Values.ollamaServerAddr }}
-
+    modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}

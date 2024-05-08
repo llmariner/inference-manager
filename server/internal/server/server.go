@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
@@ -13,10 +14,22 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+type reqIntercepter interface {
+	InterceptHTTPRequest(req *http.Request) (int, error)
+}
+
+type noopReqIntercepter struct {
+}
+
+func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, error) {
+	return http.StatusOK, nil
+}
+
 // New creates a server.
 func New(ollamaServerAddr string) *S {
 	return &S{
 		ollamaServerAddr: ollamaServerAddr,
+		reqIntercepter:   noopReqIntercepter{},
 	}
 }
 
@@ -25,7 +38,10 @@ type S struct {
 	v1.UnimplementedChatServiceServer
 
 	ollamaServerAddr string
-	srv              *grpc.Server
+
+	reqIntercepter reqIntercepter
+
+	srv *grpc.Server
 }
 
 // Run starts the gRPC server.
@@ -39,6 +55,8 @@ func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) err
 			return err
 		}
 		opts = append(opts, grpc.ChainUnaryInterceptor(ai.Unary()))
+
+		s.reqIntercepter = ai
 	}
 
 	grpcServer := grpc.NewServer(opts...)

@@ -11,8 +11,6 @@ services:
     - run
     - --config
     - /etc/config/config.yaml
-    environment:
-      DB_PASSWORD: password
     ports:
     - 8080:8080
     - 8081:8081

@@ -16,6 +16,7 @@ spec:
       annotations:
         checksum/config: {{ sha256sum (toJson .Values) }}
     spec:
+      serviceAccountName: {{ include "inference-manager-server.serviceAccountName" . }}
       containers:
       - name: inference-manager-server
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.version }}"

@@ -3,3 +3,6 @@ grpcPort: 8081
 monitoringPort: 8083
 
 ollamaServerAddr: engine:8080
+
+debug:
+  standalone: True

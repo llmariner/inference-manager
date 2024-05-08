@@ -9,12 +9,16 @@ import (
 
 // Config is the configuration.
 type Config struct {
-	GRPCPort         int    `yaml:"grpcPort"`
-	HTTPPort         int    `yaml:"httpPort"`
-	MonitoringPort   int    `yaml:"monitoringPort"`
-	OllamaServerAddr string `yaml:"ollamaServerAddr"`
+	GRPCPort       int `yaml:"grpcPort"`
+	HTTPPort       int `yaml:"httpPort"`
+	MonitoringPort int `yaml:"monitoringPort"`
+
+	ModelManagerServerAddr string `yaml:"modelManagerServerAddr"`
+	OllamaServerAddr       string `yaml:"ollamaServerAddr"`
 
 	AuthConfig AuthConfig `yaml:"auth"`
+
+	Debug DebugConfig `yaml:"debug"`
 }
 
 // AuthConfig is the authentication configuration.
@@ -24,7 +28,7 @@ type AuthConfig struct {
 }
 
 // Validate validates the configuration.
-func (c *AuthConfig) Validate() error {
+func (c *AuthConfig) validate() error {
 	if !c.Enable {
 		return nil
 	}
@@ -32,6 +36,11 @@ func (c *AuthConfig) Validate() error {
 		return fmt.Errorf("rbacInternalServerAddr must be set")
 	}
 	return nil
+}
+
+// DebugConfig is the debug configuration.
+type DebugConfig struct {
+	Standalone bool `yaml:"standalone"`
 }
 
 // Validate validates the configuration.
@@ -48,9 +57,16 @@ func (c *Config) Validate() error {
 	if c.OllamaServerAddr == "" {
 		return fmt.Errorf("ollamaServerAddr must be set")
 	}
-	if err := c.AuthConfig.Validate(); err != nil {
+	if err := c.AuthConfig.validate(); err != nil {
 		return err
 	}
+
+	if !c.Debug.Standalone {
+		if c.ModelManagerServerAddr == "" {
+			return fmt.Errorf("modelManagerServerAddr must be set")
+		}
+	}
+
 	return nil
 }
 

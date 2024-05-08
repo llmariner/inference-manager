@@ -19,6 +19,11 @@ func (s *S) CreateChatCompletion(
 	req *http.Request,
 	pathParams map[string]string,
 ) {
+	if status, err := s.reqIntercepter.InterceptHTTPRequest(req); err != nil {
+		http.Error(w, err.Error(), status)
+		return
+	}
+
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

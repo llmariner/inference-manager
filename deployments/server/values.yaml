@@ -8,6 +8,7 @@ monitoringPort: 8083
 
 # The following default values work if ollama server runs in the same namespace.
 ollamaServerAddr: llm-operator-inference-manager-engine-ollama:8080
+modelManagerServerAddr: llm-operator-model-manager-server-grpc:8081
 
 replicaCount: 1
 image:

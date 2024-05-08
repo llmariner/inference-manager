@@ -9,10 +9,25 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+// ModelClient is an interface for a model client.
+type ModelClient interface {
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+}
+
+// NoopModelClient is a no-op model client.
+type NoopModelClient struct {
+}
+
+// GetModel is a no-op implementation of GetModel.
+func (c *NoopModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
+	return &mv1.Model{}, nil
+}
 
 type reqIntercepter interface {
 	InterceptHTTPRequest(req *http.Request) (int, error)
@@ -21,14 +36,19 @@ type reqIntercepter interface {
 type noopReqIntercepter struct {
 }
 
+// InterceptHTTPRequest is a no-op implementation of InterceptHTTPRequest.
 func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, error) {
 	return http.StatusOK, nil
 }
 
 // New creates a server.
-func New(ollamaServerAddr string) *S {
+func New(
+	ollamaServerAddr string,
+	modelClient ModelClient,
+) *S {
 	return &S{
 		ollamaServerAddr: ollamaServerAddr,
+		modelClient:      modelClient,
 		reqIntercepter:   noopReqIntercepter{},
 	}
 }
@@ -38,6 +58,8 @@ type S struct {
 	v1.UnimplementedChatServiceServer
 
 	ollamaServerAddr string
+
+	modelClient ModelClient
 
 	reqIntercepter reqIntercepter
 

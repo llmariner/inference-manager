@@ -9,7 +9,10 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/server"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -57,7 +60,18 @@ func run(ctx context.Context, c *config.Config) error {
 	// TODO(kenji): Call v1.RegisterChatServiceHandlerFromEndpoint once the gRPC method is defined
 	// with gRPC gateway.
 
-	s := server.New(c.OllamaServerAddr)
+	var mclient server.ModelClient
+	if c.Debug.Standalone {
+		mclient = &server.NoopModelClient{}
+	} else {
+		conn, err := grpc.Dial(c.ModelManagerServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return err
+		}
+		mclient = mv1.NewModelsServiceClient(conn)
+	}
+
+	s := server.New(c.OllamaServerAddr, mclient)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(

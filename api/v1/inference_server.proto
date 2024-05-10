@@ -57,7 +57,7 @@ message CreateChatCompletionRequest {
   ResponseFormat response_format = 10;
   int32 seed = 11;
   // string / arrary/ null
-  string stop = 12;
+  repeated string stop = 12;
   bool stream = 13;
   double temperature = 14;
   double top_p = 15;

@@ -124,6 +124,21 @@ PARAMETER repeat_penalty 1
 PARAMETER stop "<start_of_turn>"
 PARAMETER stop "<end_of_turn>"`, nil
 
+	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3-8B-Instruct"):
+		// Output of "ollama show llama3 --modelfile".
+		return `
+TEMPLATE "{{ if .System }}<|start_header_id|>system<|end_header_id|>
+
+{{ .System }}<|eot_id|>{{ end }}{{ if .Prompt }}<|start_header_id|>user<|end_header_id|>
+
+{{ .Prompt }}<|eot_id|>{{ end }}<|start_header_id|>assistant<|end_header_id|>
+
+{{ .Response }}<|eot_id|>"
+PARAMETER stop <|start_header_id|>
+PARAMETER stop <|end_header_id|>
+PARAMETER stop <|eot_id|>
+PARAMETER num_keep 24`, nil
+
 	case strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct"):
 		// Output of "ollama show mistral --modelfile".
 		return `

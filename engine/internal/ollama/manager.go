@@ -111,7 +111,8 @@ func (m *Manager) runCommand(args []string) error {
 // ollamaBaseModelFile returns the base model file for the given model name.
 // This is based on the output of "ollama show <model> --modelfile".
 func ollamaBaseModelFile(name string) (string, error) {
-	if strings.HasPrefix(name, "google-gemma-2b-it") {
+	switch {
+	case strings.HasPrefix(name, "google-gemma-"):
 		// Output of "ollama show gemma:2b --modelfile".
 		return `
 TEMPLATE """<start_of_turn>user
@@ -123,23 +124,21 @@ PARAMETER repeat_penalty 1
 PARAMETER stop "<start_of_turn>"
 PARAMETER stop "<end_of_turn>"`, nil
 
-	}
-
-	if strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct") {
+	case strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct"):
 		// Output of "ollama show mistral --modelfile".
 		return `
 TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
 PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
-	}
 
-	if strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct") {
+	case strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct"):
 		// Output of "ollama show mixtral --modelfile".
 		return `
 TEMPLATE """[INST] {{ if .System }}{{ .System }} {{ end }}{{ .Prompt }} [/INST]"""
 PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
-	}
 
-	return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
+	default:
+		return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
+	}
 }

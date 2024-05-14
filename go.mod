@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/llm-operator/model-manager v0.36.0
-	github.com/llm-operator/rbac-manager v0.22.0
+	github.com/llm-operator/rbac-manager v0.26.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de

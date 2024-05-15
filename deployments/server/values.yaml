@@ -17,3 +17,6 @@ image:
   version:
 
 enableServiceMonitor: false
+
+service:
+  annotations:

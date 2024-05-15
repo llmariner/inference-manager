@@ -1,0 +1,8 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "inference-manager-server.serviceAccountName" . }}
+  labels:
+{{ include "inference-manager-server.labels" . | nindent 4 }}
+{{- end -}}

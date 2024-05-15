@@ -78,29 +78,56 @@ func (s *S) Run(ctx context.Context, interval time.Duration) error {
 	}
 }
 
-func (s *S) syncModels(ctx context.Context) error {
-	// list all models for the fake tenant.
-	resp, err := s.miClient.ListModels(ctx, &mv1.ListModelsRequest{})
+// PullModel downloads and registers a model from model manager.
+func (s *S) PullModel(ctx context.Context, modelID string) error {
+	found, err := s.syncModelHelper(ctx, modelID)
 	if err != nil {
 		return err
 	}
+	if !found {
+		return fmt.Errorf("model %q not found", modelID)
+	}
+	return nil
+}
 
+// TODO(guangrui): Remove syncModel after on-demand model loading is done, and combine this helper function into PullModel.
+func (s *S) syncModelHelper(ctx context.Context, modelID string) (bool, error) {
+	// list all models for the fake tenant.
+	resp, err := s.miClient.ListModels(ctx, &mv1.ListModelsRequest{})
+	if err != nil {
+		return false, err
+	}
+
+	found := false
 	for _, model := range resp.Data {
-		if s.registeredModels[model.Id] {
+		if modelID != "" && modelID != model.Id {
 			continue
+		}
+		found = true
+
+		if s.registeredModels[model.Id] {
+			break
 		}
 
 		if model.OwnedBy == systemOwner {
 			if err := s.registerBaseModel(ctx, model.Id); err != nil {
-				return err
+				return false, err
 			}
 		} else {
 			if err := s.registerModel(ctx, model.Id); err != nil {
-				return err
+				return false, err
 			}
 		}
 
 		s.registeredModels[model.Id] = true
+		break
+	}
+	return found, nil
+}
+
+func (s *S) syncModels(ctx context.Context) error {
+	if _, err := s.syncModelHelper(ctx, ""); err != nil {
+		return err
 	}
 	return nil
 }

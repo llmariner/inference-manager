@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}
+rules:
+- apiGroups: ["*"]
+  resources:
+  - pods
+  verbs: ["get", "list", "watch"]
+
+------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "inference-manager-server.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "inference-manager-server.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+

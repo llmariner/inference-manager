@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
@@ -44,15 +46,33 @@ var runCmd = &cobra.Command{
 }
 
 func run(ctx context.Context, c *config.Config) error {
+	if err := os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", c.OllamaPort)); err != nil {
+		return err
+	}
+
+	om, err := ollama.NewManager()
+	if err != nil {
+		return err
+	}
+
 	errCh := make(chan error)
 
-	om := ollama.NewManager(c.OllamaPort)
 	go func() {
 		errCh <- om.Run()
 	}()
 
+	sc := s3.NewClient(c.ObjectStore.S3)
+
+	conn, err := grpc.Dial(c.ModelManagerInternalServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	mc := mv1.NewModelsInternalServiceClient(conn)
+
+	syncer := modelsyncer.New(om, sc, mc)
+
 	go func() {
-		s := server.New(om)
+		s := server.New(om, syncer)
 		errCh <- s.Run(c.InternalGRPCPort)
 	}()
 
@@ -72,17 +92,9 @@ func run(ctx context.Context, c *config.Config) error {
 		}
 		log.Printf("Finished pulling base models\n")
 	} else {
-		sc := s3.NewClient(c.ObjectStore.S3)
-
-		conn, err := grpc.Dial(c.ModelManagerInternalServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
-		mc := mv1.NewModelsInternalServiceClient(conn)
-
-		s := modelsyncer.New(om, sc, mc)
+		// TODO(guangrui): remove this once on-demand pulling model in inference-manager-server is done.
 		go func() {
-			errCh <- s.Run(ctx, c.ModelSyncInterval)
+			errCh <- syncer.Run(ctx, c.ModelSyncInterval)
 		}()
 	}
 

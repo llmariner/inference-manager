@@ -2,27 +2,37 @@ package ollama
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/ollama/ollama/api"
 )
 
 // NewManager returns a new Manager.
-func NewManager(port int) *Manager {
-	return &Manager{port: port}
+func NewManager() (*Manager, error) {
+	client, err := api.ClientFromEnvironment()
+	if err != nil {
+		return nil, err
+	}
+	return &Manager{
+		client: client,
+	}, nil
 }
 
 // Manager manages the Ollama service.
 type Manager struct {
-	port int
+	client *api.Client
 }
 
-// Run starts the Ollama service on the given port.
+// Run starts the Ollama service.
 func (m *Manager) Run() error {
-	log.Printf("Starting Ollama on port %d\n", m.port)
+	log.Printf("Starting Ollama service.\n")
 
 	return m.runCommand([]string{"serve"})
 }
@@ -93,9 +103,6 @@ func (m *Manager) WaitForReady() error {
 }
 
 func (m *Manager) runCommand(args []string) error {
-	if err := os.Setenv("OLLAMA_HOST", fmt.Sprintf("0.0.0.0:%d", m.port)); err != nil {
-		return err
-	}
 	log.Printf("Running Ollama command: %v", args)
 	cmd := exec.Command("ollama", args...)
 	var errb bytes.Buffer
@@ -156,4 +163,26 @@ PARAMETER stop "[/INST]"`, nil
 	default:
 		return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
 	}
+}
+
+// DeleteModel deletes the model.
+func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
+	return m.client.Delete(ctx, &api.DeleteRequest{
+		Model: modelName,
+	})
+}
+
+// ListModels lists the loaded models.
+func (m *Manager) ListModels(ctx context.Context) ([]*v1.Model, error) {
+	var models []*v1.Model
+	resp, err := m.client.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, model := range resp.Models {
+		models = append(models, &v1.Model{
+			Id: model.Name,
+		})
+	}
+	return models, nil
 }

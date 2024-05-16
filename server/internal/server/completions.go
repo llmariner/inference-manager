@@ -40,10 +40,22 @@ func (s *S) CreateChatCompletion(
 	// TODO(kenji): Check if the specified model is available
 	// for the tenant.
 
+	if createReq.Model == "" {
+		http.Error(w, "Model is required", http.StatusBadRequest)
+		return
+	}
+
+	dest, err := s.router.GetEngineForModel(req.Context(), createReq.Model)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to find pod to route the request: %s", err), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Forwarding completion request to %s\n", dest)
+
 	// Forward the request to the Ollama server.
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   s.ollamaServerAddr,
+		Host:   dest,
 	}
 	requestURL := baseURL.JoinPath("/v1/chat/completions").String()
 	freq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, requestURL, bytes.NewReader(reqBody))

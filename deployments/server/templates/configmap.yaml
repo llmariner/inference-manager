@@ -9,5 +9,10 @@ data:
     grpcPort: {{ .Values.grpcPort }}
     httpPort: {{ .Values.httpPort }}
     monitoringPort: {{ .Values.monitoringPort }}
-    ollamaServerAddr: {{ .Values.ollamaServerAddr }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
+    inferenceManagerEngine:
+      ollamaPort: {{ .Values.inferenceManagerEngine.ollamaPort }}
+      internalGrpcPort: {{ .Values.inferenceManagerEngine.internalGrpcPort }}
+      namespace: {{ .Values.inferenceManagerEngine.namespace | default .Release.Namespace | quote }}
+      labelKey: {{ .Values.inferenceManagerEngine.labelKey }}
+      labelValue: {{ .Values.inferenceManagerEngine.labelValue }}

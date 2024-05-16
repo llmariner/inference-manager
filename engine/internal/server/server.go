@@ -38,7 +38,10 @@ type S struct {
 func (s *S) Run(port int) error {
 	log.Printf("Starting internal gRPC server on port %d\n", port)
 
-	grpcServer := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(newLoggingInterceptor()),
+	}
+	grpcServer := grpc.NewServer(opts...)
 	v1.RegisterInferenceEngineInternalServiceServer(grpcServer, s)
 	reflection.Register(grpcServer)
 
@@ -61,8 +64,6 @@ func (s *S) Stop() {
 
 // PullModel downloads and registers a model with the engine.
 func (s *S) PullModel(ctx context.Context, req *v1.PullModelRequest) (*emptypb.Empty, error) {
-	log.Printf("Received a PullModel request: %+v\n", req)
-
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
@@ -74,8 +75,6 @@ func (s *S) PullModel(ctx context.Context, req *v1.PullModelRequest) (*emptypb.E
 
 // DeleteModel removes a model from the engine.
 func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*emptypb.Empty, error) {
-	log.Printf("Received a DeleteModel request: %+v\n", req)
-
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
@@ -88,8 +87,6 @@ func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*empty
 
 // ListModels lists all downloaded models in the engine.
 func (s *S) ListModels(ctx context.Context, req *v1.ListModelsRequest) (*v1.ListModelsResponse, error) {
-	log.Printf("Received a ListModels request: %+v\n", req)
-
 	ms, err := s.om.ListModels(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to list models: %s", err)

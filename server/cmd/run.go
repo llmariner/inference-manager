@@ -50,7 +50,8 @@ func run(ctx context.Context, c *config.Config) error {
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			// Do not use the camel case for JSON fields to follow OpenAI API.
 			MarshalOptions: protojson.MarshalOptions{
-				UseProtoNames: true,
+				UseProtoNames:     true,
+				EmitDefaultValues: true,
 			},
 			UnmarshalOptions: protojson.UnmarshalOptions{
 				DiscardUnknown: true,

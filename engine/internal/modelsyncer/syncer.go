@@ -181,8 +181,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	}
 
 	resp, err := s.miClient.GetModelPath(ctx, &mv1.GetModelPathRequest{
-		Id:       modelID,
-		TenantId: fakeTenantID,
+		Id: modelID,
 	})
 	if err != nil {
 		return err

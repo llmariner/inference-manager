@@ -30,15 +30,15 @@ func (c *NoopModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest,
 }
 
 type reqIntercepter interface {
-	InterceptHTTPRequest(req *http.Request) (int, error)
+	InterceptHTTPRequest(req *http.Request) (int, auth.UserInfo, error)
 }
 
 type noopReqIntercepter struct {
 }
 
 // InterceptHTTPRequest is a no-op implementation of InterceptHTTPRequest.
-func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, error) {
-	return http.StatusOK, nil
+func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.UserInfo, error) {
+	return http.StatusOK, auth.UserInfo{}, nil
 }
 
 // New creates a server.
@@ -72,7 +72,10 @@ func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) err
 
 	var opts []grpc.ServerOption
 	if authConfig.Enable {
-		ai, err := auth.NewInterceptor(ctx, authConfig.RBACInternalServerAddr, "api.model")
+		ai, err := auth.NewInterceptor(ctx, auth.Config{
+			RBACServerAddr: authConfig.RBACInternalServerAddr,
+			AccessResource: "api.model",
+		})
 		if err != nil {
 			return err
 		}

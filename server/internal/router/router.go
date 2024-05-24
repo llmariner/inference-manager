@@ -85,7 +85,6 @@ func (r *R) Run(ctx context.Context, errCh chan error) error {
 			if err := r.refreshRoutes(ctx, r.k8sClient); err != nil {
 				return err
 			}
-			r.m.printRoute()
 		case <-stopper:
 			return nil
 		case err := <-errCh:

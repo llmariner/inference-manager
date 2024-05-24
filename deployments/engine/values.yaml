@@ -16,8 +16,6 @@ global:
 internalGrpcPort: 8082
 ollamaPort: 8080
 
-modelSyncInterval: 1m
-
 # The following default values work if model-manager-server runs in the same namespace.
 modelManagerInternalServerAddr: model-manager-server-internal-grpc:8082
 

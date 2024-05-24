@@ -11,21 +11,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestSyncModels(t *testing.T) {
+func TestPullModel(t *testing.T) {
 	tcs := []struct {
 		name                 string
+		modelID              string
 		models               []*mv1.Model
 		wantCreated          []string
 		wantRegisteredModels []string
 	}{
 		{
-			name:                 "no models",
-			models:               []*mv1.Model{},
-			wantCreated:          nil,
-			wantRegisteredModels: nil,
-		},
-		{
-			name: "system model",
+			name:    "system model",
+			modelID: "google-gemma-2b",
 			models: []*mv1.Model{
 				{
 					Id:      "google-gemma-2b",
@@ -40,7 +36,8 @@ func TestSyncModels(t *testing.T) {
 			},
 		},
 		{
-			name: "non-system model",
+			name:    "non-system model",
+			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
 			models: []*mv1.Model{
 				{
 					Id:      "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
@@ -63,7 +60,7 @@ func TestSyncModels(t *testing.T) {
 				&noopS3Client{},
 				&fakeModelInternalClient{models: tc.models},
 			)
-			err := om.syncModels(context.Background())
+			err := om.PullModel(context.Background(), tc.modelID)
 			assert.NoError(t, err)
 
 			assert.ElementsMatch(t, tc.wantCreated, fom.created)

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -59,43 +58,12 @@ type S struct {
 	registeredModels map[string]bool
 }
 
-// Run starts the syncer.
-func (s *S) Run(ctx context.Context, interval time.Duration) error {
-	if err := s.syncModels(ctx); err != nil {
-		return err
-	}
-
-	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			if err := s.syncModels(ctx); err != nil {
-				return err
-			}
-		}
-	}
-}
-
 // PullModel downloads and registers a model from model manager.
 func (s *S) PullModel(ctx context.Context, modelID string) error {
-	found, err := s.syncModelHelper(ctx, modelID)
-	if err != nil {
-		return err
-	}
-	if !found {
-		return fmt.Errorf("model %q not found", modelID)
-	}
-	return nil
-}
-
-// TODO(guangrui): Remove syncModel after on-demand model loading is done, and combine this helper function into PullModel.
-func (s *S) syncModelHelper(ctx context.Context, modelID string) (bool, error) {
 	// list all models for the fake tenant.
 	resp, err := s.miClient.ListModels(ctx, &mv1.ListModelsRequest{})
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	found := false
@@ -111,23 +79,20 @@ func (s *S) syncModelHelper(ctx context.Context, modelID string) (bool, error) {
 
 		if model.OwnedBy == systemOwner {
 			if err := s.registerBaseModel(ctx, model.Id); err != nil {
-				return false, err
+				return err
 			}
 		} else {
 			if err := s.registerModel(ctx, model.Id); err != nil {
-				return false, err
+				return err
 			}
 		}
 
 		s.registeredModels[model.Id] = true
 		break
 	}
-	return found, nil
-}
 
-func (s *S) syncModels(ctx context.Context) error {
-	if _, err := s.syncModelHelper(ctx, ""); err != nil {
-		return err
+	if !found {
+		return fmt.Errorf("model %q not found", modelID)
 	}
 	return nil
 }

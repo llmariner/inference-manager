@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,8 +47,6 @@ type Config struct {
 	InternalGRPCPort int `yaml:"internalGrpcPort"`
 	OllamaPort       int `yaml:"ollamaPort"`
 
-	ModelSyncInterval time.Duration `yaml:"modelSyncInterval"`
-
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
 	Debug DebugConfig `yaml:"debug"`
@@ -71,10 +68,6 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("baseModels must be set")
 		}
 	} else {
-		if c.ModelSyncInterval <= 0 {
-			return fmt.Errorf("modelSyncInterval must be set")
-		}
-
 		if c.ModelManagerInternalServerAddr == "" {
 			return fmt.Errorf("model manager internal address must be set")
 		}

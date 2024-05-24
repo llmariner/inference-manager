@@ -91,11 +91,6 @@ func run(ctx context.Context, c *config.Config) error {
 			}
 		}
 		log.Printf("Finished pulling base models\n")
-	} else {
-		// TODO(guangrui): remove this once on-demand pulling model in inference-manager-server is done.
-		go func() {
-			errCh <- syncer.Run(ctx, c.ModelSyncInterval)
-		}()
 	}
 
 	return <-errCh

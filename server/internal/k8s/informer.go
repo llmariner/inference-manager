@@ -36,7 +36,7 @@ func NewInformers(
 		return nil, err
 	}
 	factory := informers.NewSharedInformerFactoryWithOptions(
-		k8sclient.CoreClientset(),
+		k8sclient.CoreClientset,
 		0, /*defaultResync*/
 		informers.WithNamespace(namespace),
 		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {

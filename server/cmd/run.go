@@ -8,6 +8,8 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/k8s"
+	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
@@ -74,7 +76,12 @@ func run(ctx context.Context, c *config.Config) error {
 		mclient = mv1.NewModelsServiceClient(conn)
 	}
 
-	s := server.New(c.OllamaServerAddr, mclient)
+	k8sClient, err := k8s.NewClient()
+	if err != nil {
+		return err
+	}
+	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
+	s := server.New(r, mclient)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(
@@ -92,6 +99,10 @@ func run(ctx context.Context, c *config.Config) error {
 
 	go func() {
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
+	}()
+
+	go func() {
+		errCh <- r.Run(ctx, errCh)
 	}()
 
 	return <-errCh

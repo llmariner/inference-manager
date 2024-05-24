@@ -14,9 +14,9 @@ type Config struct {
 	MonitoringPort int `yaml:"monitoringPort"`
 
 	ModelManagerServerAddr string `yaml:"modelManagerServerAddr"`
-	OllamaServerAddr       string `yaml:"ollamaServerAddr"`
 
-	AuthConfig AuthConfig `yaml:"auth"`
+	AuthConfig                   AuthConfig                   `yaml:"auth"`
+	InferenceManagerEngineConfig InferenceManagerEngineConfig `yaml:"inferenceManagerEngine"`
 
 	Debug DebugConfig `yaml:"debug"`
 }
@@ -43,6 +43,34 @@ type DebugConfig struct {
 	Standalone bool `yaml:"standalone"`
 }
 
+// InferenceManagerEngineConfig is the inference manager engine configuration.
+type InferenceManagerEngineConfig struct {
+	OllamaPort       int    `yaml:"ollamaPort"`
+	InternalGRPCPort int    `yaml:"internalGrpcPort"`
+	Namespace        string `yaml:"namespace"`
+	LabelKey         string `yaml:"labelKey"`
+	LabelValue       string `yaml:"labelValue"`
+}
+
+func (c *InferenceManagerEngineConfig) validate() error {
+	if c.OllamaPort <= 0 {
+		return fmt.Errorf("ollamaPort must be greater than 0")
+	}
+	if c.InternalGRPCPort <= 0 {
+		return fmt.Errorf("inferenceManagerEngineInternalGRPCPort must be greater than 0")
+	}
+	if c.Namespace == "" {
+		return fmt.Errorf("namespace must be set")
+	}
+	if c.LabelKey == "" {
+		return fmt.Errorf("labelKey must be set")
+	}
+	if c.LabelValue == "" {
+		return fmt.Errorf("labelValue must be set")
+	}
+	return nil
+}
+
 // Validate validates the configuration.
 func (c *Config) Validate() error {
 	if c.GRPCPort <= 0 {
@@ -54,10 +82,12 @@ func (c *Config) Validate() error {
 	if c.MonitoringPort <= 0 {
 		return fmt.Errorf("monitoringPort must be greater than 0")
 	}
-	if c.OllamaServerAddr == "" {
-		return fmt.Errorf("ollamaServerAddr must be set")
-	}
+
 	if err := c.AuthConfig.validate(); err != nil {
+		return err
+	}
+
+	if err := c.InferenceManagerEngineConfig.validate(); err != nil {
 		return err
 	}
 

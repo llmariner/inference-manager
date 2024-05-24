@@ -102,10 +102,15 @@ func (r *R) GetEngineForModel(ctx context.Context, modelID string) (string, erro
 		return fmt.Sprintf("%s:%d", routes[0], r.imeConfig.OllamaPort), nil
 	}
 
-	ip, err := r.pullModel(ctx, modelID)
+	ip, err := r.m.findLeastLoadedEngine()
 	if err != nil {
 		return "", err
 	}
+
+	if err := r.pullModel(ctx, modelID, ip); err != nil {
+		return "", err
+	}
+
 	r.m.addRoute(model{id: modelID}, ip)
 	return fmt.Sprintf("%s:%d", ip, r.imeConfig.OllamaPort), nil
 }
@@ -158,25 +163,20 @@ func (r *R) listModels(ctx context.Context, ip string) ([]string, error) {
 	return modelIDs, nil
 }
 
-// pullModel pulls the model to the least loaded engine and returns the IP address of the engine.
-func (r *R) pullModel(ctx context.Context, modelID string) (string, error) {
-	ip, err := r.m.findLeastLoadedEngine()
-	if err != nil {
-		return "", err
-	}
-
+// pullModel pulls the model from the engine of the IP.
+func (r *R) pullModel(ctx context.Context, modelID, ip string) error {
 	ec, err := r.getEngineClient(ip)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	log.Printf("Pulling model %s on %s\n", modelID, ip)
 	if _, err = ec.PullModel(ctx, &v1.PullModelRequest{Id: modelID}); err != nil {
-		return "", err
+		return err
 	}
 	log.Printf("Finish pulling model %s on %s\n", modelID, ip)
 
-	return ip, nil
+	return nil
 }
 
 func (r *R) getEngineClient(ip string) (v1.InferenceEngineInternalServiceClient, error) {

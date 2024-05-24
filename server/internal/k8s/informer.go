@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -50,10 +49,9 @@ func NewInformers(
 	}, nil
 }
 
-// Start starts the informers.
-func (is *Informers) Start() {
-	log.Printf("Starting informers\n")
-	go is.podInformer.Run(is.stopCh)
+// Run runs the informer.
+func (is *Informers) Run() {
+	is.podInformer.Run(is.stopCh)
 }
 
 // SetPodEventHandlers sets the specified handlers to the Pod informer.

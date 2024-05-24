@@ -72,8 +72,8 @@ func (r *R) Run(ctx context.Context, errCh chan error) error {
 		return err
 	}
 
-	is.Start()
-	log.Printf("Pod informer started.\n")
+	log.Printf("Starting informer.\n")
+	go is.Run()
 
 	// refresh routes periodically, since a engine may evict models.
 	ticker := time.NewTicker(tickPeriod)

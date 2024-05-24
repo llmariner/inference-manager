@@ -11,7 +11,6 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/k8s"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
@@ -19,11 +18,6 @@ const tickPeriod = 60 * time.Second
 
 type model struct {
 	id string
-}
-
-// podLister is an interface for listing pods.
-type podLister interface {
-	ListPods(ctx context.Context, namespace string, labels map[string]string) ([]*apiv1.Pod, error)
 }
 
 // R manages the routing table of models to engines.
@@ -57,7 +51,7 @@ func (r *R) Run(ctx context.Context, errCh chan error) error {
 	defer runtime.HandleCrash()
 
 	// initialize the routes before starting the informer.
-	if err := r.refreshRoutes(ctx, r.k8sClient); err != nil {
+	if err := r.refreshRoutes(ctx); err != nil {
 		return err
 	}
 
@@ -82,7 +76,7 @@ func (r *R) Run(ctx context.Context, errCh chan error) error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := r.refreshRoutes(ctx, r.k8sClient); err != nil {
+			if err := r.refreshRoutes(ctx); err != nil {
 				return err
 			}
 			r.m.printRoute()
@@ -110,8 +104,8 @@ func (r *R) GetEngineForModel(ctx context.Context, modelID string) (string, erro
 	return fmt.Sprintf("%s:%d", ip, r.imeConfig.OllamaPort), nil
 }
 
-func (r *R) refreshRoutes(ctx context.Context, podLister podLister) error {
-	pods, err := podLister.ListPods(ctx, r.imeConfig.Namespace, r.engineLabels)
+func (r *R) refreshRoutes(ctx context.Context) error {
+	pods, err := r.k8sClient.ListPods(ctx, r.imeConfig.Namespace, r.engineLabels)
 	if err != nil {
 		return err
 	}

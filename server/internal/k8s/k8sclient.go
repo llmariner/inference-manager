@@ -10,9 +10,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Client is a wrapper for Kubernetes clientsets.
+// Client is a wrapper for Kubernetes clientset.
 type Client struct {
-	coreClientset kubernetes.Interface
+	CoreClientset kubernetes.Interface
 }
 
 // NewClient creates a Client instance.
@@ -27,19 +27,14 @@ func NewClient() (*Client, error) {
 	}
 
 	c := Client{
-		coreClientset: coreClientset,
+		CoreClientset: coreClientset,
 	}
 	return &c, nil
 }
 
-// CoreClientset returns the Core clientset.
-func (c *Client) CoreClientset() kubernetes.Interface {
-	return c.coreClientset
-}
-
 // ListPods lists pods.
 func (c *Client) ListPods(ctx context.Context, namespace string, labels map[string]string) ([]*apiv1.Pod, error) {
-	client := c.coreClientset.CoreV1().Pods(namespace)
+	client := c.CoreClientset.CoreV1().Pods(namespace)
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: labels,
 	})

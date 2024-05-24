@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/router"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
@@ -43,13 +44,12 @@ func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.U
 
 // New creates a server.
 func New(
-	ollamaServerAddr string,
+	router *router.R,
 	modelClient ModelClient,
 ) *S {
 	return &S{
-		ollamaServerAddr: ollamaServerAddr,
-		modelClient:      modelClient,
-		reqIntercepter:   noopReqIntercepter{},
+		router:         router,
+		reqIntercepter: noopReqIntercepter{},
 	}
 }
 
@@ -57,9 +57,7 @@ func New(
 type S struct {
 	v1.UnimplementedChatServiceServer
 
-	ollamaServerAddr string
-
-	modelClient ModelClient
+	router *router.R
 
 	reqIntercepter reqIntercepter
 

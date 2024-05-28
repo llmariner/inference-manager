@@ -11,6 +11,10 @@ import (
 	"net/url"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -41,9 +45,6 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	// TODO(kenji): Check if the specified model is available
-	// for the tenant.
-
 	if createReq.Model == "" {
 		http.Error(w, "Model is required", http.StatusBadRequest)
 		return
@@ -54,6 +55,20 @@ func (s *S) CreateChatCompletion(
 		http.Error(w, fmt.Sprintf("Failed to find pod to route the request: %s", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Check if the specified model is available
+	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
+	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: createReq.Model,
+	}); err != nil {
+		if status.Code(err) == codes.NotFound {
+			http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
+		return
+	}
+
 	log.Printf("Forwarding completion request to %s\n", dest)
 
 	// Forward the request to the Ollama server.

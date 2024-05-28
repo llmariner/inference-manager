@@ -52,6 +52,7 @@ func New(
 ) *S {
 	return &S{
 		engineGetter:   engineGetter,
+		modelClient:    modelClient,
 		reqIntercepter: noopReqIntercepter{},
 	}
 }
@@ -61,6 +62,8 @@ type S struct {
 	v1.UnimplementedChatServiceServer
 
 	engineGetter engineGetter
+
+	modelClient ModelClient
 
 	reqIntercepter reqIntercepter
 

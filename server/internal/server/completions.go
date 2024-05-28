@@ -45,7 +45,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	dest, err := s.router.GetEngineForModel(req.Context(), createReq.Model)
+	dest, err := s.engineGetter.GetEngineForModel(req.Context(), createReq.Model)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to find pod to route the request: %s", err), http.StatusInternalServerError)
 		return

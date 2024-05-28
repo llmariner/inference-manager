@@ -132,6 +132,7 @@ func (r *routeMap) printRoute() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	log.Printf("Engines: %+v\n", r.engines)
-	log.Printf("Route: %+v\n", r.m)
+	log.Printf("Dumping the current route map:\n")
+	log.Printf("- engines: %+v\n", r.engines)
+	log.Printf("- route: %+v\n", r.m)
 }

@@ -137,8 +137,6 @@ func (r *R) refreshRoutes(ctx context.Context) error {
 }
 
 func (r *R) listModels(ctx context.Context, ip string) ([]string, error) {
-	log.Printf("Listing loaded models on %s\n", ip)
-
 	ec, err := r.getEngineClient(ip)
 	if err != nil {
 		return nil, err

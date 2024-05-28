@@ -13,6 +13,10 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 )
 
+const (
+	completionPath = "/v1/chat/completions"
+)
+
 // CreateChatCompletion creates a chat completion.
 func (s *S) CreateChatCompletion(
 	w http.ResponseWriter,
@@ -57,7 +61,7 @@ func (s *S) CreateChatCompletion(
 		Scheme: "http",
 		Host:   dest,
 	}
-	requestURL := baseURL.JoinPath("/v1/chat/completions").String()
+	requestURL := baseURL.JoinPath(completionPath).String()
 	freq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, requestURL, bytes.NewReader(reqBody))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

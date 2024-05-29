@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -27,6 +28,12 @@ func (s *S) CreateChatCompletion(
 	req *http.Request,
 	pathParams map[string]string,
 ) {
+	var createReq v1.CreateChatCompletionRequest
+	st := time.Now()
+	defer func() {
+		s.metricsMonitor.ObserveCompletionLatency(createReq.Model, time.Since(st))
+	}()
+
 	if status, _, err := s.reqIntercepter.InterceptHTTPRequest(req); err != nil {
 		http.Error(w, err.Error(), status)
 		return
@@ -37,7 +44,7 @@ func (s *S) CreateChatCompletion(
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var createReq v1.CreateChatCompletionRequest
+
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {

@@ -9,10 +9,13 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/k8s"
+	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -76,12 +79,15 @@ func run(ctx context.Context, c *config.Config) error {
 		mclient = mv1.NewModelsServiceClient(conn)
 	}
 
+	m := monitoring.NewMetricsMonitor()
+	defer m.UnregisterAllCollectors()
+
 	k8sClient, err := k8s.NewClient()
 	if err != nil {
 		return err
 	}
 	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
-	s := server.New(r, mclient)
+	s := server.New(r, m, mclient)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(
@@ -95,6 +101,13 @@ func run(ctx context.Context, c *config.Config) error {
 	go func() {
 		log.Printf("Starting HTTP server on port %d", c.HTTPPort)
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.HTTPPort), mux)
+	}()
+
+	go func() {
+		log.Printf("Starting metrics server on port %d", c.MonitoringPort)
+		monitorMux := http.NewServeMux()
+		monitorMux.Handle("/metrics", promhttp.Handler())
+		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.MonitoringPort), monitorMux)
 	}()
 
 	go func() {

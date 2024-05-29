@@ -60,6 +60,7 @@ func TestCreateChatCompletion(t *testing.T) {
 		&fakeEngineGetter{
 			addr: fmt.Sprintf("localhost:%d", engineSrv.port()),
 		},
+		&fakeMetricsMonitor{},
 		&fakeModelClient{
 			models: map[string]*mv1.Model{
 				modelID: {},
@@ -178,4 +179,10 @@ type fakeEngineGetter struct {
 
 func (g *fakeEngineGetter) GetEngineForModel(ctx context.Context, modelID string) (string, error) {
 	return g.addr, nil
+}
+
+type fakeMetricsMonitor struct {
+}
+
+func (m *fakeMetricsMonitor) ObserveCompletionLatency(modelID string, latency time.Duration) {
 }

@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
@@ -48,10 +49,12 @@ func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.U
 // New creates a server.
 func New(
 	engineGetter engineGetter,
+	m monitoring.MetricsMonitoring,
 	modelClient ModelClient,
 ) *S {
 	return &S{
 		engineGetter:   engineGetter,
+		metricsMonitor: m,
 		modelClient:    modelClient,
 		reqIntercepter: noopReqIntercepter{},
 	}
@@ -62,6 +65,8 @@ type S struct {
 	v1.UnimplementedChatServiceServer
 
 	engineGetter engineGetter
+
+	metricsMonitor monitoring.MetricsMonitoring
 
 	modelClient ModelClient
 

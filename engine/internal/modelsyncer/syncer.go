@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
@@ -57,6 +58,8 @@ type S struct {
 	miClient modelInternalClient
 
 	registeredModels map[string]bool
+	// mu protects registeredModels.
+	mu sync.Mutex
 }
 
 // PullModel downloads and registers a model from model manager.
@@ -67,34 +70,39 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	found := false
+	var found *mv1.Model
 	for _, model := range resp.Data {
 		if modelID != "" && modelID != model.Id {
 			continue
 		}
-		found = true
-
-		if s.registeredModels[model.Id] {
-			break
-		}
-
-		if model.OwnedBy == systemOwner {
-			if err := s.registerBaseModel(ctx, model.Id); err != nil {
-				return err
-			}
-		} else {
-			if err := s.registerModel(ctx, model.Id); err != nil {
-				return err
-			}
-		}
-
-		s.registeredModels[model.Id] = true
+		found = model
 		break
 	}
-
-	if !found {
+	if found == nil {
 		return fmt.Errorf("model %q not found", modelID)
 	}
+
+	s.mu.Lock()
+	registerd := s.registeredModels[modelID]
+	s.mu.Unlock()
+	if registerd {
+		return nil
+	}
+
+	if found.OwnedBy == systemOwner {
+		if err := s.registerBaseModel(ctx, modelID); err != nil {
+			return err
+		}
+	} else {
+		if err := s.registerModel(ctx, modelID); err != nil {
+			return err
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registeredModels[modelID] = true
+
 	return nil
 }
 
@@ -182,6 +190,17 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	log.Printf("Registered the model successfully\n")
 
 	return nil
+}
+
+// ListSyncedModelIDs lists all models that have been synced.
+func (s *S) ListSyncedModelIDs(ctx context.Context) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ms []string
+	for m := range s.registeredModels {
+		ms = append(ms, m)
+	}
+	return ms
 }
 
 func extractBaseModel(modelID string) (string, error) {

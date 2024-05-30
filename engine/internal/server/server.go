@@ -87,11 +87,14 @@ func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*empty
 
 // ListModels lists all downloaded models in the engine.
 func (s *S) ListModels(ctx context.Context, req *v1.ListModelsRequest) (*v1.ListModelsResponse, error) {
-	ms, err := s.om.ListModels(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to list models: %s", err)
+	ids := s.syncer.ListSyncedModelIDs(ctx)
+	var models []*v1.Model
+	for _, id := range ids {
+		models = append(models, &v1.Model{
+			Id: id,
+		})
 	}
 	return &v1.ListModelsResponse{
-		Models: ms,
+		Models: models,
 	}, nil
 }

@@ -45,9 +45,11 @@ func TestPullModel(t *testing.T) {
 				},
 			},
 			wantCreated: []string{
+				"google-gemma-2b",
 				"google-gemma-2b:fine-tuning-wpsd9kb5nl",
 			},
 			wantRegisteredModels: []string{
+				"google-gemma-2b",
 				"ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
 			},
 		},

@@ -81,6 +81,14 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 		return fmt.Errorf("model %q not found", modelID)
 	}
 
+	if found.OwnedBy == systemOwner {
+		return s.registerBaseModel(ctx, modelID)
+	}
+
+	return s.registerModel(ctx, modelID)
+}
+
+func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	s.mu.Lock()
 	registerd := s.registeredModels[modelID]
 	s.mu.Unlock()
@@ -88,24 +96,6 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	if found.OwnedBy == systemOwner {
-		if err := s.registerBaseModel(ctx, modelID); err != nil {
-			return err
-		}
-	} else {
-		if err := s.registerModel(ctx, modelID); err != nil {
-			return err
-		}
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.registeredModels[modelID] = true
-
-	return nil
-}
-
-func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	log.Printf("Registering base model %q\n", modelID)
 
 	resp, err := s.miClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
@@ -141,15 +131,32 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	if err := s.om.CreateNewModel(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registeredModels[modelID] = true
+
 	log.Printf("Registered the base model successfully\n")
 
 	return nil
 }
 
 func (s *S) registerModel(ctx context.Context, modelID string) error {
+	s.mu.Lock()
+	registerd := s.registeredModels[modelID]
+	s.mu.Unlock()
+	if registerd {
+		return nil
+	}
+
 	log.Printf("Registering model %q\n", modelID)
 	baseModel, err := extractBaseModel(modelID)
 	if err != nil {
+		return err
+	}
+
+	// Registesr the base model if it has not yet.
+	if err := s.registerBaseModel(ctx, baseModel); err != nil {
 		return err
 	}
 
@@ -186,6 +193,11 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	if err := s.om.CreateNewModel(models.OllamaModelName(modelID), ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registeredModels[modelID] = true
+
 	log.Printf("Registered the model successfully\n")
 
 	return nil

@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	fakeTenantID = "fake-tenant-id"
-
 	systemOwner = "system"
 )
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/inference-manager/common/pkg/models"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc/codes"
@@ -77,6 +78,14 @@ func (s *S) CreateChatCompletion(
 	}
 
 	log.Printf("Forwarding completion request to %s\n", dest)
+
+	// Convert to the Ollama model name and marshal the request.
+	createReq.Model = models.OllamaModelName(createReq.Model)
+	reqBody, err = json.Marshal(&createReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Forward the request to the Ollama server.
 	baseURL := &url.URL{

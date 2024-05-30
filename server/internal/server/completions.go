@@ -58,22 +58,24 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
+	// Check if the specified model is available
+	if s.enableAuth {
+		ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
+		if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+			Id: createReq.Model,
+		}); err != nil {
+			if status.Code(err) == codes.NotFound {
+				http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
+				return
+			}
+			http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	dest, err := s.engineGetter.GetEngineForModel(req.Context(), createReq.Model)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to find pod to route the request: %s", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Check if the specified model is available
-	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
-	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: createReq.Model,
-	}); err != nil {
-		if status.Code(err) == codes.NotFound {
-			http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
 		return
 	}
 

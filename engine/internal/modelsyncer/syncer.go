@@ -175,11 +175,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	modelName, err := ollamaModelName(modelID)
-	if err != nil {
-		return err
-	}
-	if err := s.om.CreateNewModel(modelName, ms); err != nil {
+	if err := s.om.CreateNewModel(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	log.Printf("Registered the model successfully\n")
@@ -193,11 +189,4 @@ func extractBaseModel(modelID string) (string, error) {
 		return "", fmt.Errorf("invalid model ID: %q", modelID)
 	}
 	return strings.Join(l[1:len(l)-1], ":"), nil
-}
-
-func ollamaModelName(modelID string) (string, error) {
-	if !strings.HasPrefix(modelID, "ft:") {
-		return "", fmt.Errorf("invalid model ID: %q", modelID)
-	}
-	return modelID[3:], nil
 }

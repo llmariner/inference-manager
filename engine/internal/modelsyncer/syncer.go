@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
@@ -175,7 +176,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	if err := s.om.CreateNewModel(modelID, ms); err != nil {
+	if err := s.om.CreateNewModel(models.OllamaModelName(modelID), ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	log.Printf("Registered the model successfully\n")

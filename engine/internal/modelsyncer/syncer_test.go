@@ -41,7 +41,7 @@ func TestPullModel(t *testing.T) {
 			models: []*mv1.Model{
 				{
 					Id:      "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-					OwnedBy: fakeTenantID,
+					OwnedBy: "fake-tenant-id",
 				},
 			},
 			wantCreated: []string{

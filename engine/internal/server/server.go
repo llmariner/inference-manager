@@ -8,7 +8,6 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -17,9 +16,8 @@ import (
 )
 
 // New creates a server.
-func New(om *ollama.Manager, syncer *modelsyncer.S) *S {
+func New(syncer *modelsyncer.S) *S {
 	return &S{
-		om:     om,
 		syncer: syncer,
 	}
 }
@@ -28,7 +26,6 @@ func New(om *ollama.Manager, syncer *modelsyncer.S) *S {
 type S struct {
 	v1.UnimplementedInferenceEngineInternalServiceServer
 
-	om     *ollama.Manager
 	syncer *modelsyncer.S
 
 	srv *grpc.Server
@@ -78,7 +75,7 @@ func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*empty
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
-	if err := s.om.DeleteModel(ctx, req.Id); err != nil {
+	if err := s.syncer.DeleteModel(ctx, req.Id); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete the model: %s", err)
 	}
 

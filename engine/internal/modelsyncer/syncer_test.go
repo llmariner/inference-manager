@@ -115,6 +115,10 @@ func (n *fakeOllamaManager) PullBaseModel(modelName string) error {
 	return nil
 }
 
+func (n *fakeOllamaManager) DeleteModel(ctx context.Context, modelName string) error {
+	return nil
+}
+
 type noopS3Client struct {
 }
 

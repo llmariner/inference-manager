@@ -165,7 +165,7 @@ func (r *R) pullModel(ctx context.Context, modelID, ip string) error {
 	if _, err = ec.PullModel(ctx, &v1.PullModelRequest{Id: modelID}); err != nil {
 		return err
 	}
-	log.Printf("Finish pulling model %s on %s\n", modelID, ip)
+	log.Printf("Finished pulling model %s on %s\n", modelID, ip)
 
 	return nil
 }

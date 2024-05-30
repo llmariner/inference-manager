@@ -64,6 +64,8 @@ func New(
 type S struct {
 	v1.UnimplementedChatServiceServer
 
+	enableAuth bool
+
 	engineGetter engineGetter
 
 	metricsMonitor monitoring.MetricsMonitoring
@@ -91,6 +93,7 @@ func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) err
 		opts = append(opts, grpc.ChainUnaryInterceptor(ai.Unary()))
 
 		s.reqIntercepter = ai
+		s.enableAuth = true
 	}
 
 	grpcServer := grpc.NewServer(opts...)

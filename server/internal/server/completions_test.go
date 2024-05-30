@@ -67,6 +67,7 @@ func TestCreateChatCompletion(t *testing.T) {
 			},
 		},
 	)
+	srv.enableAuth = true
 
 	tcs := []struct {
 		name string

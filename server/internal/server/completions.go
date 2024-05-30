@@ -58,7 +58,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	// Check if the specified model is available
+	// Check if the specified model is available.
 	if s.enableAuth {
 		ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 		if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
@@ -79,7 +79,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	log.Printf("Forwarding completion request to %s\n", dest)
+	log.Printf("Forwarding completion request to Inference Manager Engine (IP: %s)\n", dest)
 
 	// Convert to the Ollama model name and marshal the request.
 	createReq.Model = models.OllamaModelName(createReq.Model)
@@ -89,7 +89,6 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	// Forward the request to the Ollama server.
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   dest,
@@ -132,7 +131,6 @@ func (s *S) CreateChatCompletion(
 	if !createReq.Stream {
 		// Non streaming response. Just copy the response body.
 		if _, err := io.Copy(w, resp.Body); err != nil {
-			log.Printf("Failed to proxy request: %s", err)
 			http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
 			return
 		}

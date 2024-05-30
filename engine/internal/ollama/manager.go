@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/ollama/ollama/api"
 )
 
@@ -170,19 +169,4 @@ func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
 	return m.client.Delete(ctx, &api.DeleteRequest{
 		Model: modelName,
 	})
-}
-
-// ListModels lists the loaded models.
-func (m *Manager) ListModels(ctx context.Context) ([]*v1.Model, error) {
-	var models []*v1.Model
-	resp, err := m.client.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, model := range resp.Models {
-		models = append(models, &v1.Model{
-			Id: model.Name,
-		})
-	}
-	return models, nil
 }

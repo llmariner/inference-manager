@@ -72,7 +72,7 @@ func run(ctx context.Context, c *config.Config) error {
 	syncer := modelsyncer.New(om, sc, mc)
 
 	go func() {
-		s := server.New(om, syncer)
+		s := server.New(syncer)
 		errCh <- s.Run(c.InternalGRPCPort)
 	}()
 

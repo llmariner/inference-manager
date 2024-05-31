@@ -58,7 +58,14 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	// Check if the specified model is available.
+	// Increment the number of requests for the specified model.
+	s.metricsMonitor.UpdateCompletionRequest(createReq.Model, 1)
+	defer func() {
+		// Decrement the number of requests for the specified model.
+		s.metricsMonitor.UpdateCompletionRequest(createReq.Model, -1)
+	}()
+
+	// Check if the specified model is available
 	if s.enableAuth {
 		ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 		if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{

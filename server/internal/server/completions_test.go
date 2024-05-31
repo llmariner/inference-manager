@@ -187,3 +187,6 @@ type fakeMetricsMonitor struct {
 
 func (m *fakeMetricsMonitor) ObserveCompletionLatency(modelID string, latency time.Duration) {
 }
+
+func (m *fakeMetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
+}

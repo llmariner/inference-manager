@@ -10,17 +10,20 @@ const (
 	metricNamespace = "llm_operator"
 
 	metricsNameCompletionLatency = "inference_manager_serever_completion_latency"
+	metricsNameCompletionRequest = "inference_manager_serever_completion_num_active_requests"
 	metricLabelModelID           = "model_id"
 )
 
 // MetricsMonitoring is an interface for monitoring metrics.
 type MetricsMonitoring interface {
 	ObserveCompletionLatency(modelID string, latency time.Duration)
+	UpdateCompletionRequest(modelID string, c int)
 }
 
 // MetricsMonitor holds and updates Prometheus metrics.
 type MetricsMonitor struct {
-	completionLatencyHistVec *prometheus.HistogramVec
+	completionLatencyHistVec  *prometheus.HistogramVec
+	completionRequestGaugeVec *prometheus.GaugeVec
 }
 
 // latencyBuckets are the buckets for the latencies from 100ms to 5 minutes.
@@ -41,12 +44,24 @@ func NewMetricsMonitor() *MetricsMonitor {
 		},
 	)
 
+	completionRequestGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameCompletionRequest,
+		},
+		[]string{
+			metricLabelModelID,
+		},
+	)
+
 	m := &MetricsMonitor{
-		completionLatencyHistVec: completionLatencyHistVec,
+		completionLatencyHistVec:  completionLatencyHistVec,
+		completionRequestGaugeVec: completionRequestGaugeVec,
 	}
 
 	prometheus.MustRegister(
 		completionLatencyHistVec,
+		completionRequestGaugeVec,
 	)
 
 	return m
@@ -57,7 +72,13 @@ func (m *MetricsMonitor) ObserveCompletionLatency(modelID string, latency time.D
 	m.completionLatencyHistVec.WithLabelValues(modelID).Observe(float64(latency) / float64(time.Second))
 }
 
+// UpdateCompletionRequest updates the number of completion requests.
+func (m *MetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
+	m.completionRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
+}
+
 // UnregisterAllCollectors unregisters all connectors.
 func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.completionLatencyHistVec)
+	prometheus.Unregister(m.completionRequestGaugeVec)
 }

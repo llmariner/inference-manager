@@ -25,7 +25,7 @@ spec:
         query: |-
           sum(avg_over_time(DCGM_FI_DEV_GPU_UTIL{pod=~"llm-operator-inference-manager-engine.*"}[1m]))
         threshold: '50'
-   - type: prometheus
+    - type: prometheus
       metadata:
         serverAddress: {{ .Values.autoscaling.scaledobject.prometheusServerAddr }}
         metricName: active-requests

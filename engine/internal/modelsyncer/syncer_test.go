@@ -15,18 +15,16 @@ func TestPullModel(t *testing.T) {
 	tcs := []struct {
 		name                 string
 		modelID              string
-		models               []*mv1.Model
+		model                *mv1.Model
 		wantCreated          []string
 		wantRegisteredModels []string
 	}{
 		{
 			name:    "system model",
 			modelID: "google-gemma-2b",
-			models: []*mv1.Model{
-				{
-					Id:      "google-gemma-2b",
-					OwnedBy: systemOwner,
-				},
+			model: &mv1.Model{
+				Id:      "google-gemma-2b",
+				OwnedBy: systemOwner,
 			},
 			wantCreated: []string{
 				"google-gemma-2b",
@@ -38,11 +36,10 @@ func TestPullModel(t *testing.T) {
 		{
 			name:    "non-system model",
 			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-			models: []*mv1.Model{
-				{
-					Id:      "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-					OwnedBy: "fake-tenant-id",
-				},
+			model: &mv1.Model{
+
+				Id:      "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
+				OwnedBy: "fake-tenant-id",
 			},
 			wantCreated: []string{
 				"google-gemma-2b",
@@ -60,7 +57,7 @@ func TestPullModel(t *testing.T) {
 			om := New(
 				fom,
 				&noopS3Client{},
-				&fakeModelInternalClient{models: tc.models},
+				&fakeModelInternalClient{model: tc.model},
 			)
 			err := om.PullModel(context.Background(), tc.modelID)
 			assert.NoError(t, err)
@@ -129,13 +126,13 @@ func (n *noopS3Client) Download(f io.WriterAt, path string) error {
 }
 
 type fakeModelInternalClient struct {
-	models []*mv1.Model
+	model *mv1.Model
 }
 
-func (n *fakeModelInternalClient) ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error) {
-	return &mv1.ListModelsResponse{
-		Data: n.models,
-	}, nil
+func (n *fakeModelInternalClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
+
+	return n.model, nil
+
 }
 
 func (n *fakeModelInternalClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {

@@ -32,7 +32,7 @@ type s3Client interface {
 type modelInternalClient interface {
 	GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error)
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
-	ListModels(ctx context.Context, in *mv1.ListModelsRequest, opts ...grpc.CallOption) (*mv1.ListModelsResponse, error)
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
 }
 
 // New creates a syncer..
@@ -63,25 +63,16 @@ type S struct {
 
 // PullModel downloads and registers a model from model manager.
 func (s *S) PullModel(ctx context.Context, modelID string) error {
-	// list all models for the fake tenant.
-	resp, err := s.miClient.ListModels(ctx, &mv1.ListModelsRequest{})
+	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
+	// Consider changing Model Manager gRPC interface to simplify the interaction (e.g.,
+	// add an RPC method that returns a model path for both base model and fine-tuning model).
+	model, err := s.miClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
 	if err != nil {
 		return err
 	}
-
-	var found *mv1.Model
-	for _, model := range resp.Data {
-		if modelID != "" && modelID != model.Id {
-			continue
-		}
-		found = model
-		break
-	}
-	if found == nil {
-		return fmt.Errorf("model %q not found", modelID)
-	}
-
-	if found.OwnedBy == systemOwner {
+	if model.OwnedBy == systemOwner {
 		return s.registerBaseModel(ctx, modelID)
 	}
 

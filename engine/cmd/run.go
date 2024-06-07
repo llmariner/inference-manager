@@ -63,7 +63,7 @@ func run(ctx context.Context, c *config.Config) error {
 
 	sc := s3.NewClient(c.ObjectStore.S3)
 
-	conn, err := grpc.Dial(c.ModelManagerWorkerServiceServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

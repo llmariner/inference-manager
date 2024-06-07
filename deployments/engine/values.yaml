@@ -13,6 +13,11 @@ global:
   ingress:
     ingressClassName:
 
+  worker:
+    registrationKeySecret:
+      name:
+      key:
+
 internalGrpcPort: 8082
 ollamaPort: 8080
 

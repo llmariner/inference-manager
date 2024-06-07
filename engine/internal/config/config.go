@@ -51,7 +51,7 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
-	ModelManagerWorkerServiceServerAddr string `yaml:"modelManagerWorkerServiceServerAddr"`
+	ModelManagerServerWorkerServiceAddr string `yaml:"modelManagerServerWorkerServiceAddr"`
 }
 
 // Validate validates the configuration.
@@ -68,8 +68,8 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("baseModels must be set")
 		}
 	} else {
-		if c.ModelManagerWorkerServiceServerAddr == "" {
-			return fmt.Errorf("model manager worker service server address must be set")
+		if c.ModelManagerServerWorkerServiceAddr == "" {
+			return fmt.Errorf("model manager server worker service address must be set")
 		}
 
 		if err := c.ObjectStore.Validate(); err != nil {

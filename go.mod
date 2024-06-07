@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
-	github.com/llm-operator/model-manager v0.59.0
+	github.com/llm-operator/model-manager v0.62.0
 	github.com/llm-operator/rbac-manager v0.64.0
 	github.com/ollama/ollama v0.1.38
 	github.com/prometheus/client_golang v1.19.1

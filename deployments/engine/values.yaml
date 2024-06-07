@@ -17,7 +17,7 @@ internalGrpcPort: 8082
 ollamaPort: 8080
 
 # The following default values work if model-manager-server runs in the same namespace.
-modelManagerInternalServerAddr: model-manager-server-internal-grpc:8082
+modelManagerWorkerServiceServerAddr: model-manager-server-worker-service-grpc:8082
 
 replicaCount: 1
 image:

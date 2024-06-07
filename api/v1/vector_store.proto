@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+package llmoperator.vectore_store.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/llm-operator/inference-manager/api/v1";
+
+// The API specification fllows OpenAPI API specification (https://platform.openai.com/docs/api-reference/vector-stores).
+
+message ExpiresAfter {
+    // Anchor timestamp after which the expiration policy applies. Supported anchors: last_active_at.
+    string anchor = 1;
+    // The number of days after the anchor time that the vector store will expire.
+    int64 days = 2; 
+}
+
+message VectorStore{
+    string id = 1;
+    string object = 2;
+    // The Unix timestamp (in seconds) for when the vector store was created.
+    int64 created_at = 3;
+    string name = 4;
+    // The total number of bytes used by the files in the vector store.
+    int64 usage_bytes = 5;
+    int64 file_counts = 6;
+    // The status of the vector store, which can be either expired, in_progress, or completed. 
+    // A status of completed indicates that the vector store is ready for use.
+    string status = 7;
+    ExpiresAfter expires_after = 8;
+    // integer or null. The Unix timestamp (in seconds) for when the vector store will expire.
+    int64 expires_at = 9;
+    // integer or null. The Unix timestamp (in seconds) for when the vector store was last active.
+    int64 last_active_at = 10;
+    map<string, string> metadata = 11;
+}
+
+message AutoChunkingStrategy {
+    string type = 1;
+}
+
+message StaticChunkingStrategy {
+    string type = 1;
+    message Static {
+        int64 max_chunk_size_tokens = 1;
+        int64 chunk_overlap_tokens = 2;
+    }
+    Static statis = 2;
+}
+
+message OtherChunkingStrategy {
+    string type = 1;
+}
+
+message CreateVectorStoreRequest {
+    repeated string file_ids = 1;
+    string name = 2;
+    ExpiresAfter expires_after = 3;
+    oneof chunking_strategy {
+        AutoChunkingStrategy auto_chunking_strategy = 4;
+        StaticChunkingStrategy static_chunking_strategy = 5;
+    }
+    map<string, string> metadata = 6;
+}
+
+message ListVectorStoresRequest {
+    int32 limit = 1;
+    string order = 2;
+    string after = 3;
+    string berfore = 4; 
+}
+
+message ListVectorStoresResponse {
+    string object = 1;
+    repeated VectorStore data = 2;
+    string first_id = 3;
+    string last_id = 4;
+    bool has_more = 5;
+}
+
+message GetVectorStoreRequest {
+    string vectore_store_id = 1;
+}
+
+message UpdateVectorStoreRequest {
+    string vectore_store_id = 1;
+    // string or null.
+    string name = 2;
+    ExpiresAfter expires_after = 3;
+    map<string, string> metadata = 4;
+}
+
+message DeleteVectorStoreRequest {
+    string vectore_store_id = 1;
+}
+
+message DeleteVectorStoreResponse {
+    string id = 1;
+    string object = 2;
+    bool deleted = 3;
+}
+
+message VectorStoreFile {
+    string id = 1;
+    string object = 2;
+    // The total vector store usage in bytes. Note that this may be different from the original file size.
+    int64 usage_bytes = 3;
+    // The Unix timestamp (in seconds) for when the vector store file was created.
+    int64 created_at = 4;
+    string vector_store_id = 5;
+    // The status of the vector store file, which can be either in_progress, completed, cancelled, or failed. 
+    // The status completed indicates that the vector store file is ready for use.
+    string status = 6;
+    message Error {
+        // One of server_error or rate_limit_exceeded.
+        string code = 1;
+        string message = 2;
+    }
+    // Error or null.
+    Error last_error = 7;
+    oneof chunking_strategy {
+        StaticChunkingStrategy static_chunking_strategy = 8;
+        OtherChunkingStrategy other_chunking_strategy = 9;
+    }
+}
+
+message CreateVectorStoreFileRequest {
+    string vectore_store_id = 1;
+    string file_id = 2;
+    oneof chunking_strategy {
+        AutoChunkingStrategy auto_chunking_strategy = 3;
+        StaticChunkingStrategy static_chunking_strategy = 4;
+    }
+}
+
+message ListVectorStoreFilesRequest {
+    string vectore_store_id = 1;
+    int32 limit = 2;
+    string order = 3;
+    string after = 4;
+    string berfore = 5;
+    // Filter by file status. One of in_progress, completed, failed, cancelled.
+    string filter = 6; 
+}
+
+message ListVectorStoreFilesResponse {
+    string object = 1;
+    repeated VectorStoreFile data = 2;
+    string first_id = 3;
+    string last_id = 4;
+    bool has_more = 5;
+}
+
+message GetVectorStoreFileRequest {
+    string vectore_store_id = 1;
+    string file_id = 2;
+}
+
+message DeleteVectorStoreFileRequest {
+    string vectore_store_id = 1;
+    string file_id = 2;
+}
+
+message DeleteVectorStoreFileResponse {
+    string id = 1;
+    string object = 2;
+    bool deleted = 3;
+}
+
+service VectorStoreService {
+  rpc CreateVectorStore(CreateVectorStoreRequest) returns (VectorStore) {
+    option (google.api.http) = {
+      post: "/v1/vectore_stores"
+      body: "*"
+    };
+  }
+
+  rpc ListVectorStores(ListVectorStoresRequest) returns (ListVectorStoresResponse) {
+    option (google.api.http) = {
+      get: "/v1/vectore_stores"
+    };
+  }
+
+  rpc GetVectorStore(GetVectorStoreRequest) returns (VectorStore) {
+    option (google.api.http) = {
+      get: "/v1/vectore_stores/{vectore_store_id}"
+    };
+  }
+
+  rpc UpdateVectorStore(UpdateVectorStoreRequest) returns (VectorStore) {
+    option (google.api.http) = {
+      post: "/v1/vectore_stores/{vectore_store_id}"
+    };
+  }
+
+  rpc DeleteVectorStore(DeleteVectorStoreRequest) returns (DeleteVectorStoreResponse) {
+    option (google.api.http) = {
+      delete: "/v1/vectore_stores/{vectore_store_id}"
+    };
+  }
+
+  rpc CreateVectorStoreFile(CreateVectorStoreFileRequest) returns (VectorStoreFile) {
+    option (google.api.http) = {
+      post: "/v1/vectore_stores/{vectore_store_id}/files"
+    };
+  }
+
+  rpc ListVectorStoreFiles(ListVectorStoreFilesRequest) returns (ListVectorStoreFilesResponse) {
+    option (google.api.http) = {
+      get: "/v1/vectore_stores/{vectore_store_id}/files"
+    };
+  }
+
+  rpc GetVectorStoreFile(GetVectorStoreFileRequest) returns (VectorStoreFile) {
+    option (google.api.http) = {
+      get: "/v1/vectore_stores/{vectore_store_id}/files/{file_id}"
+    };
+  }
+
+  rpc DeleteVectorStoreFile(DeleteVectorStoreFileRequest) returns (DeleteVectorStoreFileResponse) {
+    option (google.api.http) = {
+      delete: "/v1/vectore_stores/{vectore_store_id}/files/{file_id}"
+    };
+  }
+}
+

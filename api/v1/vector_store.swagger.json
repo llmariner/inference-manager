@@ -1,0 +1,632 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api/v1/vector_store.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "VectorStoreService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/vectore_stores": {
+      "get": {
+        "operationId": "VectorStoreService_ListVectorStores",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVectorStoresResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "berfore",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      },
+      "post": {
+        "operationId": "VectorStoreService_CreateVectorStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VectorStore"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateVectorStoreRequest"
+            }
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      }
+    },
+    "/v1/vectore_stores/{vectoreStoreId}": {
+      "get": {
+        "operationId": "VectorStoreService_GetVectorStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VectorStore"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      },
+      "delete": {
+        "operationId": "VectorStoreService_DeleteVectorStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteVectorStoreResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      },
+      "post": {
+        "operationId": "VectorStoreService_UpdateVectorStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VectorStore"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      }
+    },
+    "/v1/vectore_stores/{vectoreStoreId}/files": {
+      "get": {
+        "operationId": "VectorStoreService_ListVectorStoreFiles",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVectorStoreFilesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "berfore",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "filter",
+            "description": "Filter by file status. One of in_progress, completed, failed, cancelled.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      },
+      "post": {
+        "operationId": "VectorStoreService_CreateVectorStoreFile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VectorStoreFile"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      }
+    },
+    "/v1/vectore_stores/{vectoreStoreId}/files/{fileId}": {
+      "get": {
+        "operationId": "VectorStoreService_GetVectorStoreFile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VectorStoreFile"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      },
+      "delete": {
+        "operationId": "VectorStoreService_DeleteVectorStoreFile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteVectorStoreFileResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vectoreStoreId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VectorStoreService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "StaticChunkingStrategyStatic": {
+      "type": "object",
+      "properties": {
+        "maxChunkSizeTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "chunkOverlapTokens": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "VectorStoreFileError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "One of server_error or rate_limit_exceeded."
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1AutoChunkingStrategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVectorStoreRequest": {
+      "type": "object",
+      "properties": {
+        "fileIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "expiresAfter": {
+          "$ref": "#/definitions/v1ExpiresAfter"
+        },
+        "autoChunkingStrategy": {
+          "$ref": "#/definitions/v1AutoChunkingStrategy"
+        },
+        "staticChunkingStrategy": {
+          "$ref": "#/definitions/v1StaticChunkingStrategy"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1DeleteVectorStoreFileResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1DeleteVectorStoreResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ExpiresAfter": {
+      "type": "object",
+      "properties": {
+        "anchor": {
+          "type": "string",
+          "description": "Anchor timestamp after which the expiration policy applies. Supported anchors: last_active_at."
+        },
+        "days": {
+          "type": "string",
+          "format": "int64",
+          "description": "The number of days after the anchor time that the vector store will expire."
+        }
+      }
+    },
+    "v1ListVectorStoreFilesResponse": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1VectorStoreFile"
+          }
+        },
+        "firstId": {
+          "type": "string"
+        },
+        "lastId": {
+          "type": "string"
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ListVectorStoresResponse": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1VectorStore"
+          }
+        },
+        "firstId": {
+          "type": "string"
+        },
+        "lastId": {
+          "type": "string"
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1OtherChunkingStrategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "v1StaticChunkingStrategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "statis": {
+          "$ref": "#/definitions/StaticChunkingStrategyStatic"
+        }
+      }
+    },
+    "v1VectorStore": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "The Unix timestamp (in seconds) for when the vector store was created."
+        },
+        "name": {
+          "type": "string"
+        },
+        "usageBytes": {
+          "type": "string",
+          "format": "int64",
+          "description": "The total number of bytes used by the files in the vector store."
+        },
+        "fileCounts": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the vector store, which can be either expired, in_progress, or completed. \nA status of completed indicates that the vector store is ready for use."
+        },
+        "expiresAfter": {
+          "$ref": "#/definitions/v1ExpiresAfter"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "integer or null. The Unix timestamp (in seconds) for when the vector store will expire."
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "integer or null. The Unix timestamp (in seconds) for when the vector store was last active."
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1VectorStoreFile": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "usageBytes": {
+          "type": "string",
+          "format": "int64",
+          "description": "The total vector store usage in bytes. Note that this may be different from the original file size."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "The Unix timestamp (in seconds) for when the vector store file was created."
+        },
+        "vectorStoreId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the vector store file, which can be either in_progress, completed, cancelled, or failed. \nThe status completed indicates that the vector store file is ready for use."
+        },
+        "lastError": {
+          "$ref": "#/definitions/VectorStoreFileError",
+          "description": "Error or null."
+        },
+        "staticChunkingStrategy": {
+          "$ref": "#/definitions/v1StaticChunkingStrategy"
+        },
+        "otherChunkingStrategy": {
+          "$ref": "#/definitions/v1OtherChunkingStrategy"
+        }
+      }
+    }
+  }
+}

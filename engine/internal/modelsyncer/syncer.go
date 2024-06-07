@@ -12,6 +12,7 @@ import (
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 )
 
@@ -29,7 +30,7 @@ type s3Client interface {
 	Download(f io.WriterAt, path string) error
 }
 
-type modelInternalClient interface {
+type modelClient interface {
 	GetModelPath(ctx context.Context, in *mv1.GetModelPathRequest, opts ...grpc.CallOption) (*mv1.GetModelPathResponse, error)
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
@@ -39,7 +40,7 @@ type modelInternalClient interface {
 func New(
 	om ollamaManager,
 	s3Client s3Client,
-	miClient modelInternalClient,
+	miClient modelClient,
 ) *S {
 	return &S{
 		om:               om,
@@ -54,7 +55,7 @@ type S struct {
 	om       ollamaManager
 	s3Client s3Client
 
-	miClient modelInternalClient
+	miClient modelClient
 
 	registeredModels map[string]bool
 	// mu protects registeredModels.
@@ -66,6 +67,7 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
 	// Consider changing Model Manager gRPC interface to simplify the interaction (e.g.,
 	// add an RPC method that returns a model path for both base model and fine-tuning model).
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	model, err := s.miClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})

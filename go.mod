@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/llm-operator/model-manager v0.62.0
-	github.com/llm-operator/rbac-manager v0.69.0
+	github.com/llm-operator/rbac-manager v0.73.0
 	github.com/ollama/ollama v0.1.38
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cobra v1.8.0

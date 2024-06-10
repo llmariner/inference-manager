@@ -2,6 +2,10 @@ global:
   ingress:
     ingressClassName:
 
+  auth:
+    enable:
+    rbacInternalServerAddr:
+
 httpPort: 8080
 grpcPort: 8081
 monitoringPort: 8083

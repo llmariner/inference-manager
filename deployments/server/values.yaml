@@ -1,6 +1,10 @@
 global:
   ingress:
     ingressClassName:
+    annotations:
+    tls:
+      hosts:
+      secretName:
 
   auth:
     enable:

@@ -42,6 +42,16 @@ type DebugConfig struct {
 	BaseModels []string `yaml:"baseModels"`
 }
 
+// WorkerTLSConfig is the worker TLS configuration.
+type WorkerTLSConfig struct {
+	Enable bool `yaml:"enable"`
+}
+
+// WorkerConfig is the worker configuration.
+type WorkerConfig struct {
+	TLS WorkerTLSConfig `yaml:"tls"`
+}
+
 // Config is the configuration.
 type Config struct {
 	InternalGRPCPort int `yaml:"internalGrpcPort"`
@@ -52,6 +62,8 @@ type Config struct {
 	Debug DebugConfig `yaml:"debug"`
 
 	ModelManagerServerWorkerServiceAddr string `yaml:"modelManagerServerWorkerServiceAddr"`
+
+	Worker WorkerConfig `yaml:"workerConfig"`
 }
 
 // Validate validates the configuration.

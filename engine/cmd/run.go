@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
@@ -63,7 +65,13 @@ func run(ctx context.Context, c *config.Config) error {
 
 	sc := s3.NewClient(c.ObjectStore.S3)
 
-	conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var cred credentials.TransportCredentials
+	if c.Worker.TLS.Enable {
+		cred = credentials.NewTLS(&tls.Config{})
+	} else {
+		cred = insecure.NewCredentials()
+	}
+	conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(cred))
 	if err != nil {
 		return err
 	}

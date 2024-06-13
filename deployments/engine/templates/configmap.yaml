@@ -9,6 +9,9 @@ data:
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
     modelManagerServerWorkerServiceAddr: {{ .Values.modelManagerServerWorkerServiceAddr }}
+    worker:
+      tls:
+        enable: {{ .Values.global.worker.tls.enable }}
     objectStore:
       s3:
         endpointUrl: {{ .Values.global.objectStore.s3.endpointUrl }}

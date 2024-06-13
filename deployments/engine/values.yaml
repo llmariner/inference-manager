@@ -17,6 +17,8 @@ global:
     registrationKeySecret:
       name:
       key:
+    tls:
+      enable: false
 
 internalGrpcPort: 8082
 ollamaPort: 8080

@@ -2,6 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "inference-manager-server.fullname" . }}
+  namespace: {{ .Values.inferenceManagerEngine.namespace | default .Release.Namespace | quote }}
 rules:
 - apiGroups:
   - ""
@@ -18,6 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "inference-manager-server.fullname" . }}
+  namespace: {{ .Values.inferenceManagerEngine.namespace | default .Release.Namespace | quote }}
 subjects:
 - kind: ServiceAccount
   name: {{ include "inference-manager-server.serviceAccountName" . }}

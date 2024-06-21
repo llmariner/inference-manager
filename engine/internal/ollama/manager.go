@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,14 +16,14 @@ import (
 )
 
 // NewManager returns a new Manager.
-func NewManager() (*Manager, error) {
-	client, err := api.ClientFromEnvironment()
-	if err != nil {
-		return nil, err
+func NewManager(addr string) *Manager {
+	url := &url.URL{
+		Scheme: "http",
+		Host:   addr,
 	}
 	return &Manager{
-		client: client,
-	}, nil
+		client: api.NewClient(url, http.DefaultClient),
+	}
 }
 
 // Manager manages the Ollama service.

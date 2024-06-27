@@ -8,6 +8,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/inference-manager/server/internal/k8s"
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	"github.com/llm-operator/inference-manager/server/internal/router"
@@ -86,8 +87,9 @@ func run(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
-	s := server.New(r, m, mclient)
+
+	queue := infprocessor.NewTaskQueue()
+	s := server.New(m, mclient, queue)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(
@@ -108,14 +110,21 @@ func run(ctx context.Context, c *config.Config) error {
 		monitorMux := http.NewServeMux()
 		monitorMux.Handle("/metrics", promhttp.Handler())
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.MonitoringPort), monitorMux)
+
 	}()
 
 	go func() {
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
+	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
 	go func() {
 		errCh <- r.Run(ctx, errCh)
+	}()
+
+	go func() {
+		infProcessor := infprocessor.NewP(queue, r)
+		errCh <- infProcessor.Run(ctx)
 	}()
 
 	return <-errCh

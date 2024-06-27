@@ -6,21 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/common/pkg/models"
+	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	completionPath = "/v1/chat/completions"
 )
 
 // CreateChatCompletion creates a chat completion.
@@ -80,44 +74,20 @@ func (s *S) CreateChatCompletion(
 		}
 	}
 
-	dest, err := s.engineGetter.GetEngineForModel(req.Context(), createReq.Model)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to find pod to route the request: %s", err), http.StatusInternalServerError)
-		return
+	task := &infprocessor.Task{
+		Req:    &createReq,
+		Header: req.Header,
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
 	}
 
-	log.Printf("Forwarding completion request to Inference Manager Engine (IP: %s)\n", dest)
+	s.taskQueue.Enqueue(task)
 
-	// Convert to the Ollama model name and marshal the request.
-	createReq.Model = models.OllamaModelName(createReq.Model)
-	reqBody, err = json.Marshal(&createReq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	baseURL := &url.URL{
-		Scheme: "http",
-		Host:   dest,
-	}
-	requestURL := baseURL.JoinPath(completionPath).String()
-	freq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, requestURL, bytes.NewReader(reqBody))
+	resp, err := task.WaitForCompletion()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// Copy headers.
-	for k, v := range req.Header {
-		for _, vv := range v {
-			freq.Header.Add(k, vv)
-		}
 	}
 
-	resp, err := http.DefaultClient.Do(freq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()

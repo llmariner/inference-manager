@@ -4,5 +4,13 @@ monitoringPort: 8083
 
 ollamaServerAddr: engine:8080
 
+inferenceManagerEngine:
+  ollamaPort: 8080
+  internalGrpcPort: 8082
+  namespace: default
+  labelKey: app.kubernetes.io/name
+  labelValue: inference-manager-engine
+
 debug:
-  standalone: True
+  useNoopModelClient: true
+  useFakeKubernetesClient: true

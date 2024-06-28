@@ -40,7 +40,8 @@ func (c *AuthConfig) validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
-	Standalone bool `yaml:"standalone"`
+	UseNoopModelClient      bool `yaml:"useNoopModelClient"`
+	UseFakeKubernetesClient bool `yaml:"useFakeKubernetesClient"`
 }
 
 // InferenceManagerEngineConfig is the inference manager engine configuration.
@@ -89,12 +90,6 @@ func (c *Config) Validate() error {
 
 	if err := c.InferenceManagerEngineConfig.validate(); err != nil {
 		return err
-	}
-
-	if !c.Debug.Standalone {
-		if c.ModelManagerServerAddr == "" {
-			return fmt.Errorf("modelManagerServerAddr must be set")
-		}
 	}
 
 	return nil

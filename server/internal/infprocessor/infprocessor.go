@@ -18,7 +18,7 @@ const (
 	completionPath = "/v1/chat/completions"
 )
 
-// Task is an infeference task.
+// Task is an inference task.
 type Task struct {
 	Req    *v1.CreateChatCompletionRequest
 	Header http.Header

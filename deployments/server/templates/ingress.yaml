@@ -26,3 +26,36 @@ spec:
             name: {{ include "inference-manager-server.fullname" . }}-http
             port:
               number: {{ .Values.httpPort }}
+
+---
+
+{{- if .Values.global.workerServiceIngress.create -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}-worker-service-grpc
+  labels:
+    {{- include "inference-manager-server.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.global.workerServiceIngress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.workerServiceIngress.ingressClassName }}
+  {{- with .Values.global.workerServiceIngress.tls }}
+  tls:
+  - hosts:
+      {{- toYaml .hosts | nindent 6 }}
+    {{- if .secretName }}
+    secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+  - http:
+      paths:
+      - path: /llmoperator.inference.server.v1.InferenceWorkerService
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "inference-manager-server.fullname" . }}-worker-service-grpc
+            port:
+              number: {{ .Values.workerServiceGrpcPort }}
+{{- end -}}

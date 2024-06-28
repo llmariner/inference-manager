@@ -9,9 +9,10 @@ import (
 
 // Config is the configuration.
 type Config struct {
-	GRPCPort       int `yaml:"grpcPort"`
-	HTTPPort       int `yaml:"httpPort"`
-	MonitoringPort int `yaml:"monitoringPort"`
+	GRPCPort              int `yaml:"grpcPort"`
+	HTTPPort              int `yaml:"httpPort"`
+	WorkerServiceGRPCPort int `yaml:"workerServiceGrpcPort"`
+	MonitoringPort        int `yaml:"monitoringPort"`
 
 	ModelManagerServerAddr string `yaml:"modelManagerServerAddr"`
 
@@ -80,6 +81,9 @@ func (c *Config) Validate() error {
 	}
 	if c.HTTPPort <= 0 {
 		return fmt.Errorf("httpPort must be greater than 0")
+	}
+	if c.WorkerServiceGRPCPort <= 0 {
+		return fmt.Errorf("workerServiceGrpcPort must be greater than 0")
 	}
 	if c.MonitoringPort <= 0 {
 		return fmt.Errorf("monitoringPort must be greater than 0")

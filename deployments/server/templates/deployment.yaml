@@ -32,6 +32,9 @@ spec:
         - name: grpc
           containerPort: {{ .Values.grpcPort }}
           protocol: TCP
+        - name: ws-grpc
+          containerPort: {{ .Values.workerServiceGrpcPort }}
+          protocol: TCP
         - name: monitoring
           containerPort: {{ .Values.monitoringPort }}
           protocol: TCP

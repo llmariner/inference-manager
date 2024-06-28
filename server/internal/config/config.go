@@ -40,8 +40,9 @@ func (c *AuthConfig) validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
-	UseNoopModelClient      bool `yaml:"useNoopModelClient"`
-	UseFakeKubernetesClient bool `yaml:"useFakeKubernetesClient"`
+	UseNoopModelClient      bool   `yaml:"useNoopModelClient"`
+	UseFakeKubernetesClient bool   `yaml:"useFakeKubernetesClient"`
+	EnginePodIP             string `yaml:"enginePodIP"`
 }
 
 // InferenceManagerEngineConfig is the inference manager engine configuration.
@@ -90,6 +91,10 @@ func (c *Config) Validate() error {
 
 	if err := c.InferenceManagerEngineConfig.validate(); err != nil {
 		return err
+	}
+
+	if c.Debug.UseFakeKubernetesClient && c.Debug.EnginePodIP == "" {
+		return fmt.Errorf("enginePodIP must be set")
 	}
 
 	return nil

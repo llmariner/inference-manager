@@ -35,6 +35,7 @@ func (c *ObjectStoreConfig) Validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
+	// Standalone is true if the service is running in standalone mode.
 	Standalone bool `yaml:"standalone"`
 
 	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
@@ -75,11 +76,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("ollamaPort must be greater than 0")
 	}
 
-	if c.Debug.Standalone {
-		if len(c.Debug.BaseModels) == 0 {
-			return fmt.Errorf("baseModels must be set")
-		}
-	} else {
+	if !c.Debug.Standalone {
 		if c.ModelManagerServerWorkerServiceAddr == "" {
 			return fmt.Errorf("model manager server worker service address must be set")
 		}

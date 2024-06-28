@@ -2,8 +2,6 @@ httpPort: 8080
 grpcPort: 8081
 monitoringPort: 8083
 
-ollamaServerAddr: engine:8080
-
 inferenceManagerEngine:
   ollamaPort: 8080
   internalGrpcPort: 8082
@@ -14,3 +12,4 @@ inferenceManagerEngine:
 debug:
   useNoopModelClient: true
   useFakeKubernetesClient: true
+  enginePodIP: engine

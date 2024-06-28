@@ -9,16 +9,13 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
+	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
-
-type engineGetter interface {
-	GetEngineForModel(ctx context.Context, modelID string) (string, error)
-}
 
 // ModelClient is an interface for a model client.
 type ModelClient interface {
@@ -48,15 +45,15 @@ func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.U
 
 // New creates a server.
 func New(
-	engineGetter engineGetter,
 	m monitoring.MetricsMonitoring,
 	modelClient ModelClient,
+	taskQueue *infprocessor.TaskQueue,
 ) *S {
 	return &S{
-		engineGetter:   engineGetter,
 		metricsMonitor: m,
 		modelClient:    modelClient,
 		reqIntercepter: noopReqIntercepter{},
+		taskQueue:      taskQueue,
 	}
 }
 
@@ -66,11 +63,11 @@ type S struct {
 
 	enableAuth bool
 
-	engineGetter engineGetter
-
 	metricsMonitor monitoring.MetricsMonitoring
 
 	modelClient ModelClient
+
+	taskQueue *infprocessor.TaskQueue
 
 	reqIntercepter reqIntercepter
 

@@ -8,6 +8,7 @@ data:
   config.yaml: |
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
+    inferenecManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.modelManagerServerWorkerServiceAddr }}
     worker:
       tls:

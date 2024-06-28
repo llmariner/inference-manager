@@ -5,15 +5,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"net"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -48,26 +48,33 @@ func TestCreateChatCompletion(t *testing.T) {
 		modelID = "m0"
 	)
 
-	engineSrv, err := newFakeEngineServer()
-	assert.NoError(t, err)
-
-	go engineSrv.serve()
-	defer engineSrv.shutdown(context.Background())
-
-	assert.Eventuallyf(t, engineSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
-
+	queue := infprocessor.NewTaskQueue()
 	srv := New(
-		&fakeEngineGetter{
-			addr: fmt.Sprintf("localhost:%d", engineSrv.port()),
-		},
 		&fakeMetricsMonitor{},
 		&fakeModelClient{
 			models: map[string]*mv1.Model{
 				modelID: {},
 			},
 		},
+		queue,
 	)
 	srv.enableAuth = true
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		for {
+			task, err := queue.Dequeue(ctx)
+			if err != nil {
+				assert.True(t, errors.Is(err, context.Canceled))
+				return
+			}
+			task.RespCh <- &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte{})),
+			}
+		}
+	}()
 
 	tcs := []struct {
 		name string
@@ -108,60 +115,6 @@ func TestCreateChatCompletion(t *testing.T) {
 	}
 }
 
-func newFakeEngineServer() (*fakeEngineServer, error) {
-	m := http.NewServeMux()
-	m.Handle(completionPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, err
-	}
-
-	return &fakeEngineServer{
-		srv: &http.Server{
-			Handler: m,
-		},
-		listener: listener,
-	}, nil
-}
-
-type fakeEngineServer struct {
-	srv      *http.Server
-	listener net.Listener
-}
-
-func (s *fakeEngineServer) serve() {
-	_ = s.srv.Serve(s.listener)
-}
-
-func (s *fakeEngineServer) shutdown(ctx context.Context) {
-	_ = s.srv.Shutdown(ctx)
-}
-
-func (s *fakeEngineServer) isReady() bool {
-	baseURL := &url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("localhost:%d", s.port()),
-	}
-	requestURL := baseURL.JoinPath(completionPath).String()
-	freq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(nil))
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(freq)
-	if err != nil {
-		return false
-	}
-
-	return resp.StatusCode == http.StatusOK
-}
-
-func (s *fakeEngineServer) port() int {
-	return s.listener.Addr().(*net.TCPAddr).Port
-}
-
 type fakeModelClient struct {
 	models map[string]*mv1.Model
 }
@@ -172,14 +125,6 @@ func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest,
 		return nil, status.Errorf(codes.NotFound, "model not found")
 	}
 	return model, nil
-}
-
-type fakeEngineGetter struct {
-	addr string
-}
-
-func (g *fakeEngineGetter) GetEngineForModel(ctx context.Context, modelID string) (string, error) {
-	return g.addr, nil
 }
 
 type fakeMetricsMonitor struct {

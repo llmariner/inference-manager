@@ -35,7 +35,8 @@ func (c *ObjectStoreConfig) Validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
-	// Standalone is true if the service is running in standalone mode.
+	// Standalone is true if the service is running in standalone mode (except the
+	// dependency to inference-manager-server).
 	Standalone bool `yaml:"standalone"`
 
 	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
@@ -62,7 +63,8 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
-	ModelManagerServerWorkerServiceAddr string `yaml:"modelManagerServerWorkerServiceAddr"`
+	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`
+	ModelManagerServerWorkerServiceAddr     string `yaml:"modelManagerServerWorkerServiceAddr"`
 
 	Worker WorkerConfig `yaml:"workerConfig"`
 }
@@ -74,6 +76,10 @@ func (c *Config) Validate() error {
 	}
 	if c.OllamaPort <= 0 {
 		return fmt.Errorf("ollamaPort must be greater than 0")
+	}
+
+	if c.InferenceManagerServerWorkerServiceAddr == "" {
+		return fmt.Errorf("inference manager server worker service address must be set")
 	}
 
 	if !c.Debug.Standalone {

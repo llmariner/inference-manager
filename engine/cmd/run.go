@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
@@ -67,13 +68,7 @@ func run(ctx context.Context, c *config.Config) error {
 
 		sc := s3.NewClient(c.ObjectStore.S3)
 
-		var cred credentials.TransportCredentials
-		if c.Worker.TLS.Enable {
-			cred = credentials.NewTLS(&tls.Config{})
-		} else {
-			cred = insecure.NewCredentials()
-		}
-		conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(cred))
+		conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
 		if err != nil {
 			return err
 		}
@@ -103,7 +98,21 @@ func run(ctx context.Context, c *config.Config) error {
 		log.Printf("Finished pulling base models\n")
 	}
 
+	conn, err := grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
+	if err != nil {
+		return err
+	}
+	// TODO(kenji): Use the client
+	_ = v1.NewInferenceWorkerServiceClient(conn)
+
 	return <-errCh
+}
+
+func grpcOption(c *config.Config) grpc.DialOption {
+	if c.Worker.TLS.Enable {
+		return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+	}
+	return grpc.WithTransportCredentials(insecure.NewCredentials())
 }
 
 func init() {

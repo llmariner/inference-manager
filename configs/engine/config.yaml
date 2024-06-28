@@ -1,6 +1,7 @@
 internalGrpcPort: 8082
 ollamaPort: 8080
 objectStore:
+inferenceManagerServerWorkerServiceAddr: server:8082
 modelManagerServerWorkerServiceAddr:
 
 debug:

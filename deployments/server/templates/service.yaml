@@ -19,3 +19,23 @@ spec:
       name: monitoring
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}-worker-service-grpc
+  labels:
+    {{- include "inference-manager-server.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.global.workerServiceGrpcService.annotations | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: ws-grpc
+    port: {{ .Values.workerServiceGrpcPort }}
+    protocol: TCP
+    targetPort: ws-grpc
+  selector:
+    {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}

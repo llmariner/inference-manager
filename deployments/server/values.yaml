@@ -10,8 +10,20 @@ global:
     enable:
     rbacInternalServerAddr:
 
+  workerServiceGrpcService:
+    annotations:
+
+  workerServiceIngress:
+    create: false
+    ingressClassName:
+    annotations:
+    tls:
+      hosts:
+      secretName:
+
 httpPort: 8080
 grpcPort: 8081
+workerServiceGrpcPort: 8082
 monitoringPort: 8083
 
 inferenceManagerEngine:

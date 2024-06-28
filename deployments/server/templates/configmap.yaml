@@ -8,6 +8,7 @@ data:
   config.yaml: |
     grpcPort: {{ .Values.grpcPort }}
     httpPort: {{ .Values.httpPort }}
+    workerServiceGrpcPort: {{ .Values.workerServiceGrpcPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     inferenceManagerEngine:

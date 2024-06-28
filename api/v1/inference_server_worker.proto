@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package llmoperator.inference.server.v1;
+
+option go_package = "github.com/llm-operator/inference-manager/api/v1";
+
+service InferenceWorkerService {
+  // TODO(kenji): Define RPC methods.
+}

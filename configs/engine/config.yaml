@@ -1,5 +1,8 @@
-ollamaPort: 8080
 internalGrpcPort: 8082
+ollamaPort: 8080
+objectStore:
+modelManagerServerWorkerServiceAddr:
+
 debug:
   standalone: true
   baseModels:

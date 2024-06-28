@@ -60,18 +60,16 @@ func (s *S) CreateChatCompletion(
 	}()
 
 	// Check if the specified model is available
-	if s.enableAuth {
-		ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
-		if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
-			Id: createReq.Model,
-		}); err != nil {
-			if status.Code(err) == codes.NotFound {
-				http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
-				return
-			}
-			http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
+	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
+	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: createReq.Model,
+	}); err != nil {
+		if status.Code(err) == codes.NotFound {
+			http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
 			return
 		}
+		http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
+		return
 	}
 
 	task := &infprocessor.Task{

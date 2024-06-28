@@ -60,21 +60,26 @@ func run(ctx context.Context, c *config.Config) error {
 		errCh <- om.Run()
 	}()
 
-	sc := s3.NewClient(c.ObjectStore.S3)
-
-	var cred credentials.TransportCredentials
-	if c.Worker.TLS.Enable {
-		cred = credentials.NewTLS(&tls.Config{})
+	var syncer server.ModelSyncer
+	if c.Debug.Standalone {
+		syncer = server.NewFakeModelSyncer()
 	} else {
-		cred = insecure.NewCredentials()
-	}
-	conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(cred))
-	if err != nil {
-		return err
-	}
-	mc := mv1.NewModelsWorkerServiceClient(conn)
 
-	syncer := modelsyncer.New(om, sc, mc)
+		sc := s3.NewClient(c.ObjectStore.S3)
+
+		var cred credentials.TransportCredentials
+		if c.Worker.TLS.Enable {
+			cred = credentials.NewTLS(&tls.Config{})
+		} else {
+			cred = insecure.NewCredentials()
+		}
+		conn, err := grpc.Dial(c.ModelManagerServerWorkerServiceAddr, grpc.WithTransportCredentials(cred))
+		if err != nil {
+			return err
+		}
+		mc := mv1.NewModelsWorkerServiceClient(conn)
+		syncer = modelsyncer.New(om, sc, mc)
+	}
 
 	go func() {
 		s := server.New(syncer)

@@ -10,4 +10,5 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+	rootCmd.SilenceUsage = true
 }

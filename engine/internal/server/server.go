@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -15,8 +15,55 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// ModelSyncer syncs models.
+type ModelSyncer interface {
+	 PullModel(ctx context.Context, modelID string) error
+	 ListSyncedModelIDs(ctx context.Context) []string
+	 DeleteModel(ctx context.Context, modelID string) error
+}
+
+// NewFakeModelSyncer returns a FakeModelSyncer.
+func NewFakeModelSyncer() *FakeModelSyncer {
+	return &FakeModelSyncer{
+		modelIDs: map[string]struct{}{},
+	}
+}
+
+// FakeModelSyncer is a fake implementation of model syncer.
+type FakeModelSyncer struct {
+	modelIDs map[string]struct{}
+	mu sync.Mutex
+}
+
+// PullModel downloads and registers a model from model manager.
+func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.modelIDs[modelID] = struct{}{}
+	return nil
+}
+
+// ListSyncedModelIDs lists all models that have been synced.
+func (s *FakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ids []string
+	for id := range s.modelIDs {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// DeleteModel deletes a model.
+func (s *FakeModelSyncer) DeleteModel(ctx context.Context, modelID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.modelIDs, modelID)
+	return nil
+}
+
 // New creates a server.
-func New(syncer *modelsyncer.S) *S {
+func New(syncer ModelSyncer) *S {
 	return &S{
 		syncer: syncer,
 	}
@@ -26,7 +73,7 @@ func New(syncer *modelsyncer.S) *S {
 type S struct {
 	v1.UnimplementedInferenceEngineInternalServiceServer
 
-	syncer *modelsyncer.S
+	syncer ModelSyncer
 
 	srv *grpc.Server
 }

@@ -21,6 +21,7 @@ const (
 // Task is an inference task.
 // TODO(kenji): Consider preserving the request context as well.
 type Task struct {
+	ID     string
 	Req    *v1.CreateChatCompletionRequest
 	Header http.Header
 	RespCh chan *http.Response

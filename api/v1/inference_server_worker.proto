@@ -2,8 +2,25 @@ syntax = "proto3";
 
 package llmoperator.inference.server.v1;
 
+import "api/v1/inference_server.proto";
+
 option go_package = "github.com/llm-operator/inference-manager/api/v1";
 
+message EngineStatus {
+  string engine_id = 1;
+  repeated string model_ids = 2;
+}
+
+message ProcessTasksRequest {
+  oneof message {
+    EngineStatus engine_status = 1;
+    // TODO(kenji): Add task result.
+  }
+}
+
+message ProcessTasksResponse {
+}
+
 service InferenceWorkerService {
-  // TODO(kenji): Define RPC methods.
+  rpc ProcessTasks(stream ProcessTasksRequest) returns (stream ProcessTasksResponse) {}
 }

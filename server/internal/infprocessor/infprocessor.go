@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
@@ -74,7 +75,12 @@ func NewP(queue *TaskQueue, engineGetter engineGetter) *P {
 	return &P{
 		queue:        queue,
 		engineGetter: engineGetter,
+		enginesByID:  map[string]*engine{},
 	}
+}
+
+type engine struct {
+	srv v1.InferenceWorkerService_ProcessTasksServer
 }
 
 // P processes inference tasks.
@@ -82,6 +88,9 @@ type P struct {
 	queue *TaskQueue
 
 	engineGetter engineGetter
+
+	enginesByID map[string]*engine
+	mu          sync.Mutex
 }
 
 // Run runs the processor.
@@ -135,4 +144,22 @@ func (p *P) runTask(ctx context.Context, t *Task) {
 		return
 	}
 	t.RespCh <- resp
+}
+
+// AddOrUpdateEngineStatus adds or updates the engine status.
+func (p *P) AddOrUpdateEngineStatus(
+	srv v1.InferenceWorkerService_ProcessTasksServer,
+	engineStatus *v1.EngineStatus,
+) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if _, ok := p.enginesByID[engineStatus.EngineId]; !ok {
+		log.Printf("Registering new engine: %s\n", engineStatus.EngineId)
+		e := &engine{
+			srv: srv,
+		}
+		p.enginesByID[engineStatus.EngineId] = e
+	}
+	// TODO(kenji): Update registered models.
 }

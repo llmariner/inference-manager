@@ -141,19 +141,19 @@ func run(ctx context.Context, c *config.Config) error {
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
-	go func() {
-		s := server.NewWorkerServiceServer()
-		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig)
-	}()
-
 	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
 	go func() {
 		errCh <- r.Run(ctx, errCh)
 	}()
 
+	infProcessor := infprocessor.NewP(queue, r)
 	go func() {
-		infProcessor := infprocessor.NewP(queue, r)
 		errCh <- infProcessor.Run(ctx)
+	}()
+
+	go func() {
+		s := server.NewWorkerServiceServer(infProcessor)
+		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig)
 	}()
 
 	return <-errCh

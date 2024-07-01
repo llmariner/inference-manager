@@ -7,10 +7,12 @@ import (
 	"log"
 	"os"
 
+	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	"github.com/llm-operator/inference-manager/engine/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -98,12 +100,19 @@ func run(ctx context.Context, c *config.Config) error {
 		log.Printf("Finished pulling base models\n")
 	}
 
+	engineID, err := id.GenerateID("engine_", 24)
+	if err != nil {
+		return err
+	}
 	conn, err := grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
 	if err != nil {
 		return err
 	}
-	// TODO(kenji): Use the client
-	_ = v1.NewInferenceWorkerServiceClient(conn)
+	p := processor.NewP(engineID, v1.NewInferenceWorkerServiceClient(conn), syncer)
+
+	go func() {
+		errCh <- p.Run(ctx)
+	}()
 
 	return <-errCh
 }

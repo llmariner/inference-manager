@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -72,7 +73,12 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
+	taskID, err := id.GenerateID("inf_", 22)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
+	}
 	task := &infprocessor.Task{
+		ID:     taskID,
 		Req:    &createReq,
 		Header: req.Header,
 		RespCh: make(chan *http.Response),

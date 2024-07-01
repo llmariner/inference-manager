@@ -1,22 +1,17 @@
 package infprocessor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/common/pkg/models"
 )
 
 const (
-	taskQueueSize  = 100
-	completionPath = "/v1/chat/completions"
+	taskQueueSize = 100
 )
 
 // Task is an inference task.
@@ -27,6 +22,8 @@ type Task struct {
 	Header http.Header
 	RespCh chan *http.Response
 	ErrCh  chan error
+
+	bodyWriter pipeReadWriteCloser
 }
 
 // WaitForCompletion waits for the completion of the task.
@@ -75,14 +72,20 @@ type engineGetter interface {
 // NewP creates a new processor.
 func NewP(queue *TaskQueue, engineGetter engineGetter) *P {
 	return &P{
-		queue:        queue,
-		engineGetter: engineGetter,
-		enginesByID:  map[string]*engine{},
+		queue:               queue,
+		engineGetter:        engineGetter,
+		enginesByID:         map[string]*engine{},
+		inProgressTasksByID: map[string]*Task{},
 	}
 }
 
+type engineCommunicator interface {
+	Send(*v1.ProcessTasksResponse) error
+	Recv() (*v1.ProcessTasksRequest, error)
+}
+
 type engine struct {
-	srv v1.InferenceWorkerService_ProcessTasksServer
+	srv engineCommunicator
 }
 
 // P processes inference tasks.
@@ -91,8 +94,9 @@ type P struct {
 
 	engineGetter engineGetter
 
-	enginesByID map[string]*engine
-	mu          sync.Mutex
+	enginesByID         map[string]*engine
+	inProgressTasksByID map[string]*Task
+	mu                  sync.Mutex
 }
 
 // Run runs the processor.
@@ -102,11 +106,16 @@ func (p *P) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		p.runTask(ctx, t)
+		p.scheduleTask(ctx, t)
 	}
 }
 
-func (p *P) runTask(ctx context.Context, t *Task) {
+func (p *P) scheduleTask(ctx context.Context, t *Task) {
+	if len(p.enginesByID) == 0 {
+		t.ErrCh <- fmt.Errorf("no engine found")
+		return
+	}
+
 	dest, err := p.engineGetter.GetEngineForModel(ctx, t.Req.Model)
 	if err != nil {
 		t.ErrCh <- fmt.Errorf("find pod to route the request: %s", err)
@@ -115,42 +124,38 @@ func (p *P) runTask(ctx context.Context, t *Task) {
 
 	log.Printf("Forwarding completion request to Inference Manager Engine (IP: %s)\n", dest)
 
-	// Convert to the Ollama model name and marshal the request.
-	t.Req.Model = models.OllamaModelName(t.Req.Model)
-	reqBody, err := json.Marshal(t.Req)
-	if err != nil {
-		t.ErrCh <- err
-		return
+	// TODO(kenji): Use the above routing algorithm properly.
+	var engine *engine
+	for _, e := range p.enginesByID {
+		engine = e
+		break
 	}
 
-	baseURL := &url.URL{
-		Scheme: "http",
-		Host:   dest,
-	}
-	requestURL := baseURL.JoinPath(completionPath).String()
-	freq, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))
-	if err != nil {
-		t.ErrCh <- err
-		return
-	}
-	// Copy headers.
-	for k, v := range t.Header {
-		for _, vv := range v {
-			freq.Header.Add(k, vv)
-		}
-	}
+	p.mu.Lock()
+	p.inProgressTasksByID[t.ID] = t
+	p.mu.Unlock()
 
-	resp, err := http.DefaultClient.Do(freq)
-	if err != nil {
-		t.ErrCh <- err
+	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
+	// when there is more than one instance of inference-manager-server.
+	header := map[string]*v1.HeaderValue{}
+	for k, vs := range t.Header {
+		header[k] = &v1.HeaderValue{Values: vs}
+	}
+	if err := engine.srv.Send(&v1.ProcessTasksResponse{
+		NewTask: &v1.Task{
+			Id:      t.ID,
+			Request: t.Req,
+			Header:  header,
+		},
+	}); err != nil {
+		t.ErrCh <- fmt.Errorf("failed to send the task: %s", err)
 		return
 	}
-	t.RespCh <- resp
 }
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
 func (p *P) AddOrUpdateEngineStatus(
-	srv v1.InferenceWorkerService_ProcessTasksServer,
+	srv engineCommunicator,
 	engineStatus *v1.EngineStatus,
 ) {
 	p.mu.Lock()
@@ -163,5 +168,91 @@ func (p *P) AddOrUpdateEngineStatus(
 		}
 		p.enginesByID[engineStatus.EngineId] = e
 	}
+
 	// TODO(kenji): Update registered models.
+}
+
+// ProcessTaskResult processes the task result.
+func (p *P) ProcessTaskResult(
+	taskResult *v1.TaskResult,
+) error {
+	taskID := taskResult.TaskId
+
+	p.mu.Lock()
+	t, ok := p.inProgressTasksByID[taskID]
+	p.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	completed, err := p.writeTaskResultToChan(t, taskResult)
+	if err != nil {
+		return fmt.Errorf("write task result to chan: %s", err)
+	}
+
+	if !completed {
+		return nil
+	}
+
+	if err := t.bodyWriter.closeWrite(); err != nil {
+		return fmt.Errorf("close the body writer: %s", err)
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.inProgressTasksByID, taskID)
+
+	return nil
+}
+
+// writeTaskResultToChan writes the task result to the channel.
+//
+// The return bool value indicates whether the task is completed.
+func (p *P) writeTaskResultToChan(
+	t *Task,
+	taskResult *v1.TaskResult,
+) (bool, error) {
+	switch msg := taskResult.Message.(type) {
+	case *v1.TaskResult_HttpResponse:
+		resp := msg.HttpResponse
+		header := http.Header{}
+		for k, vs := range resp.Header {
+			for _, v := range vs.Values {
+				header.Add(k, v)
+			}
+		}
+
+		p := newPipeReadWriteCloser()
+		t.bodyWriter = p
+
+		t.RespCh <- &http.Response{
+			StatusCode: int(resp.StatusCode),
+			Status:     resp.Status,
+			Header:     header,
+			Body:       p,
+		}
+		close(t.RespCh)
+
+		if d := resp.Body; len(d) > 0 {
+			if _, err := p.Write(d); err != nil {
+				return false, fmt.Errorf("write the body writer: %s", err)
+			}
+		}
+
+		return !t.Req.Stream, nil
+	case *v1.TaskResult_ServerSentEvent:
+		if !t.Req.Stream {
+			return false, fmt.Errorf("unexpected chunked response for non-streaming request")
+		}
+
+		if d := msg.ServerSentEvent.Data; len(d) > 0 {
+			if _, err := t.bodyWriter.Write(d); err != nil {
+				return false, fmt.Errorf("write the body writer: %s", err)
+			}
+		}
+
+		return msg.ServerSentEvent.IsLastEvent, nil
+	default:
+		return false, fmt.Errorf("unexpected message type: %T", msg)
+	}
 }

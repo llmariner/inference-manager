@@ -9,6 +9,15 @@ docker-compose build
 docker-compose up
 ```
 
+You can hit `inference-manager-server` at port 8080.
+
+```bash
+curl --request POST http://localhost:8080/v1/chat/completions -d '{
+  "model": "google-gemma-2b-it-q4",
+  "messages": [{"role": "user", "content": "hello"}]
+}'
+```
+
 ## Running Engine Locally
 
 Run the following command:

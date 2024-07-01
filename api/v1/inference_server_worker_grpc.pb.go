@@ -3,7 +3,10 @@
 package v1
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -15,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InferenceWorkerServiceClient interface {
+	ProcessTasks(ctx context.Context, opts ...grpc.CallOption) (InferenceWorkerService_ProcessTasksClient, error)
 }
 
 type inferenceWorkerServiceClient struct {
@@ -25,10 +29,42 @@ func NewInferenceWorkerServiceClient(cc grpc.ClientConnInterface) InferenceWorke
 	return &inferenceWorkerServiceClient{cc}
 }
 
+func (c *inferenceWorkerServiceClient) ProcessTasks(ctx context.Context, opts ...grpc.CallOption) (InferenceWorkerService_ProcessTasksClient, error) {
+	stream, err := c.cc.NewStream(ctx, &InferenceWorkerService_ServiceDesc.Streams[0], "/llmoperator.inference.server.v1.InferenceWorkerService/ProcessTasks", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &inferenceWorkerServiceProcessTasksClient{stream}
+	return x, nil
+}
+
+type InferenceWorkerService_ProcessTasksClient interface {
+	Send(*ProcessTasksRequest) error
+	Recv() (*ProcessTasksResponse, error)
+	grpc.ClientStream
+}
+
+type inferenceWorkerServiceProcessTasksClient struct {
+	grpc.ClientStream
+}
+
+func (x *inferenceWorkerServiceProcessTasksClient) Send(m *ProcessTasksRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *inferenceWorkerServiceProcessTasksClient) Recv() (*ProcessTasksResponse, error) {
+	m := new(ProcessTasksResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // InferenceWorkerServiceServer is the server API for InferenceWorkerService service.
 // All implementations must embed UnimplementedInferenceWorkerServiceServer
 // for forward compatibility
 type InferenceWorkerServiceServer interface {
+	ProcessTasks(InferenceWorkerService_ProcessTasksServer) error
 	mustEmbedUnimplementedInferenceWorkerServiceServer()
 }
 
@@ -36,6 +72,9 @@ type InferenceWorkerServiceServer interface {
 type UnimplementedInferenceWorkerServiceServer struct {
 }
 
+func (UnimplementedInferenceWorkerServiceServer) ProcessTasks(InferenceWorkerService_ProcessTasksServer) error {
+	return status.Errorf(codes.Unimplemented, "method ProcessTasks not implemented")
+}
 func (UnimplementedInferenceWorkerServiceServer) mustEmbedUnimplementedInferenceWorkerServiceServer() {
 }
 
@@ -50,6 +89,32 @@ func RegisterInferenceWorkerServiceServer(s grpc.ServiceRegistrar, srv Inference
 	s.RegisterService(&InferenceWorkerService_ServiceDesc, srv)
 }
 
+func _InferenceWorkerService_ProcessTasks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(InferenceWorkerServiceServer).ProcessTasks(&inferenceWorkerServiceProcessTasksServer{stream})
+}
+
+type InferenceWorkerService_ProcessTasksServer interface {
+	Send(*ProcessTasksResponse) error
+	Recv() (*ProcessTasksRequest, error)
+	grpc.ServerStream
+}
+
+type inferenceWorkerServiceProcessTasksServer struct {
+	grpc.ServerStream
+}
+
+func (x *inferenceWorkerServiceProcessTasksServer) Send(m *ProcessTasksResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *inferenceWorkerServiceProcessTasksServer) Recv() (*ProcessTasksRequest, error) {
+	m := new(ProcessTasksRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // InferenceWorkerService_ServiceDesc is the grpc.ServiceDesc for InferenceWorkerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -57,6 +122,13 @@ var InferenceWorkerService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "llmoperator.inference.server.v1.InferenceWorkerService",
 	HandlerType: (*InferenceWorkerServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "api/v1/inference_server_worker.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ProcessTasks",
+			Handler:       _InferenceWorkerService_ProcessTasks_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "api/v1/inference_server_worker.proto",
 }

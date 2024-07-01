@@ -4,6 +4,11 @@
     "title": "api/v1/inference_server_worker.proto",
     "version": "version not set"
   },
+  "tags": [
+    {
+      "name": "InferenceWorkerService"
+    }
+  ],
   "consumes": [
     "application/json"
   ],
@@ -38,6 +43,23 @@
           }
         }
       }
+    },
+    "v1EngineStatus": {
+      "type": "object",
+      "properties": {
+        "engineId": {
+          "type": "string"
+        },
+        "modelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ProcessTasksResponse": {
+      "type": "object"
     }
   }
 }

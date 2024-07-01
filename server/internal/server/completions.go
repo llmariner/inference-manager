@@ -73,7 +73,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	taskID, err := id.GenerateID("inf_", 22)
+	taskID, err := id.GenerateID("inf_", 24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
 	}

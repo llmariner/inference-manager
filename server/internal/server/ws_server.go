@@ -98,10 +98,13 @@ func (ws *WS) processMessagesFromEngine(srv v1.InferenceWorkerService_ProcessTas
 
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
-		log.Printf("Engine status: %v\n", msg.EngineStatus)
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus)
+	case *v1.ProcessTasksRequest_TaskResult:
+		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult); err != nil {
+			return err
+		}
 	default:
-		log.Printf("Unknown message type: %T\n", msg)
+		return fmt.Errorf("unknown message type: %T", msg)
 	}
 
 	return nil

@@ -51,11 +51,11 @@ var runCmd = &cobra.Command{
 }
 
 func run(ctx context.Context, c *config.Config) error {
-	addr := fmt.Sprintf("0.0.0.0:%d", c.OllamaPort)
-	if err := os.Setenv("OLLAMA_HOST", addr); err != nil {
+	ollamaAddr := fmt.Sprintf("0.0.0.0:%d", c.OllamaPort)
+	if err := os.Setenv("OLLAMA_HOST", ollamaAddr); err != nil {
 		return err
 	}
-	om := ollama.NewManager(addr)
+	om := ollama.NewManager(ollamaAddr)
 
 	errCh := make(chan error)
 
@@ -108,7 +108,12 @@ func run(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	p := processor.NewP(engineID, v1.NewInferenceWorkerServiceClient(conn), syncer)
+	p := processor.NewP(
+		engineID,
+		v1.NewInferenceWorkerServiceClient(conn),
+		ollamaAddr,
+		syncer,
+	)
 
 	go func() {
 		errCh <- p.Run(ctx)

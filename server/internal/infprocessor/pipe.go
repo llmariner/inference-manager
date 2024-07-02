@@ -25,3 +25,11 @@ func (c pipeReadWriteCloser) Close() error {
 	}
 	return nil
 }
+
+// closeWrite closes the write pipe.
+func (c pipeReadWriteCloser) closeWrite() error {
+	if err := c.PipeWriter.Close(); err != nil {
+		return err
+	}
+	return nil
+}

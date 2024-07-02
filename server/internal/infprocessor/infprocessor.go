@@ -30,8 +30,10 @@ type Task struct {
 }
 
 // WaitForCompletion waits for the completion of the task.
-func (t *Task) WaitForCompletion() (*http.Response, error) {
+func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
 	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	case resp := <-t.RespCh:
 		return resp, nil
 	case err := <-t.ErrCh:

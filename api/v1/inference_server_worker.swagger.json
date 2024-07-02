@@ -17,6 +17,40 @@
   ],
   "paths": {},
   "definitions": {
+    "CreateChatCompletionRequestResponseFormat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateChatCompletionRequestTool": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolFunction": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "string",
+          "description": "TODO(kenji): Revisit this. This specifies parameters the functions accepts,\ndescribed as a JSON Schema object."
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -44,6 +78,136 @@
         }
       }
     },
+    "v1CreateChatCompletionRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1CreateChatCompletionRequestMessage"
+          },
+          "description": "TODO(kenji): Revisit this."
+        },
+        "model": {
+          "type": "string"
+        },
+        "frequencyPenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "logitBias": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "logprobs": {
+          "type": "boolean"
+        },
+        "topLogprobs": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "n": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "presencePenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "responseFormat": {
+          "$ref": "#/definitions/CreateChatCompletionRequestResponseFormat"
+        },
+        "seed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stop": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "string / arrary/ null"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "double"
+        },
+        "topP": {
+          "type": "number",
+          "format": "double"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateChatCompletionRequestTool"
+          }
+        },
+        "toolChocise": {
+          "type": "boolean",
+          "title": "string or object"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The type of content varies. For eample, it is string or array for UserMesasge."
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCall"
+          }
+        }
+      },
+      "description": "Message has fields for system message, user message, assistant message, and tool message."
+    },
+    "v1CreateChatCompletionRequestMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCallFunction"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    },
     "v1EngineStatus": {
       "type": "object",
       "properties": {
@@ -58,8 +222,87 @@
         }
       }
     },
+    "v1HeaderValue": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1HttpResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1HeaderValue"
+          }
+        },
+        "body": {
+          "type": "string",
+          "format": "byte",
+          "description": "body is empty for server sent events."
+        }
+      }
+    },
     "v1ProcessTasksResponse": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "newTask": {
+          "$ref": "#/definitions/v1Task"
+        }
+      }
+    },
+    "v1ServerSentEvent": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte"
+        },
+        "isLastEvent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1Task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequest"
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1HeaderValue"
+          }
+        }
+      }
+    },
+    "v1TaskResult": {
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string"
+        },
+        "httpResponse": {
+          "$ref": "#/definitions/v1HttpResponse"
+        },
+        "serverSentEvent": {
+          "$ref": "#/definitions/v1ServerSentEvent"
+        }
+      }
     }
   }
 }

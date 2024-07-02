@@ -11,14 +11,45 @@ message EngineStatus {
   repeated string model_ids = 2;
 }
 
-message ProcessTasksRequest {
+message HeaderValue {
+  repeated string values = 1;
+}
+
+message HttpResponse {
+  int32 status_code = 1;
+  map<string, HeaderValue> header = 2;
+  // body is empty for server sent events.
+  bytes body = 3;
+}
+
+message ServerSentEvent {
+  bytes data = 1;
+  bool is_last_event = 2;
+}
+
+message TaskResult {
+  string task_id = 1;
   oneof message {
-    EngineStatus engine_status = 1;
-    // TODO(kenji): Add task result.
+    HttpResponse http_response = 2;
+    ServerSentEvent server_sent_event = 3;
   }
 }
 
+message ProcessTasksRequest {
+  oneof message {
+    EngineStatus engine_status = 1;
+    TaskResult task_result = 2;
+  }
+}
+
+message Task {
+  string id = 1;
+  llmoperator.chat.server.v1.CreateChatCompletionRequest request = 2;
+  map<string, HeaderValue> header = 3;
+}
+
 message ProcessTasksResponse {
+  Task new_task = 1;
 }
 
 service InferenceWorkerService {

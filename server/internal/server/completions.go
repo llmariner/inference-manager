@@ -86,9 +86,10 @@ func (s *S) CreateChatCompletion(
 
 	s.taskQueue.Enqueue(task)
 
-	resp, err := task.WaitForCompletion()
+	resp, err := task.WaitForCompletion(req.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	defer func() {
@@ -96,7 +97,7 @@ func (s *S) CreateChatCompletion(
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		http.Error(w, fmt.Sprintf("Status: %s", resp.Status), resp.StatusCode)
+		http.Error(w, resp.Status, resp.StatusCode)
 		return
 	}
 

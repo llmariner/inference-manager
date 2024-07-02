@@ -1,14 +1,11 @@
 package infprocessor
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"net"
+	"io"
+	"log"
 	"net/http"
-	"net/url"
 	"testing"
-	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -19,109 +16,52 @@ func TestP(t *testing.T) {
 		modelID = "m0"
 	)
 
-	engineSrv, err := newFakeEngineServer()
-	assert.NoError(t, err)
-
-	go engineSrv.serve()
-	defer engineSrv.shutdown(context.Background())
-
-	assert.Eventuallyf(t, engineSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
-
 	queue := NewTaskQueue()
-
 	iprocessor := NewP(
 		queue,
-		&fakeEngineGetter{
-			addr: fmt.Sprintf("localhost:%d", engineSrv.port()),
-		},
+		&fakeEngineGetter{},
 	)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	comm := &fakeEngineCommunicator{
+		taskCh:   make(chan *v1.Task),
+		resultCh: make(chan *v1.TaskResult),
+	}
+	go comm.run(ctx)
+
+	iprocessor.AddOrUpdateEngineStatus(comm, &v1.EngineStatus{
+		EngineId: "engine_id0",
+	})
+
 	go func() {
 		_ = iprocessor.Run(ctx)
 	}()
 
-	tcs := []struct {
-		name string
-		req  *v1.CreateChatCompletionRequest
-		code int
-	}{
-		{
-			name: "success",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-			},
-			code: http.StatusOK,
+	go func() {
+		resp, err := comm.Recv()
+		assert.NoError(t, err)
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
+		assert.NoError(t, err)
+	}()
+
+	task := &Task{
+		ID: "task0",
+		Req: &v1.CreateChatCompletionRequest{
+			Model: modelID,
 		},
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
 	}
+	queue.Enqueue(task)
 
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			task := &Task{
-				Req:    tc.req,
-				RespCh: make(chan *http.Response),
-				ErrCh:  make(chan error),
-			}
-			queue.Enqueue(task)
-			resp, err := task.WaitForCompletion(context.Background())
-			assert.NoError(t, err)
-			assert.Equal(t, tc.code, resp.StatusCode)
-		})
-	}
-}
-
-func newFakeEngineServer() (*fakeEngineServer, error) {
-	m := http.NewServeMux()
-	m.Handle(completionPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, err
-	}
-
-	return &fakeEngineServer{
-		srv: &http.Server{
-			Handler: m,
-		},
-		listener: listener,
-	}, nil
-}
-
-type fakeEngineServer struct {
-	srv      *http.Server
-	listener net.Listener
-}
-
-func (s *fakeEngineServer) serve() {
-	_ = s.srv.Serve(s.listener)
-}
-
-func (s *fakeEngineServer) shutdown(ctx context.Context) {
-	_ = s.srv.Shutdown(ctx)
-}
-
-func (s *fakeEngineServer) isReady() bool {
-	baseURL := &url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("localhost:%d", s.port()),
-	}
-	requestURL := baseURL.JoinPath(completionPath).String()
-	freq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(nil))
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(freq)
-	if err != nil {
-		return false
-	}
-
-	return resp.StatusCode == http.StatusOK
-}
-
-func (s *fakeEngineServer) port() int {
-	return s.listener.Addr().(*net.TCPAddr).Port
+	resp, err := task.WaitForCompletion(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "ok", string(body))
 }
 
 type fakeEngineGetter struct {
@@ -130,4 +70,43 @@ type fakeEngineGetter struct {
 
 func (g *fakeEngineGetter) GetEngineForModel(ctx context.Context, modelID string) (string, error) {
 	return g.addr, nil
+}
+
+type fakeEngineCommunicator struct {
+	taskCh   chan *v1.Task
+	resultCh chan *v1.TaskResult
+}
+
+func (c *fakeEngineCommunicator) Send(r *v1.ProcessTasksResponse) error {
+	c.taskCh <- r.NewTask
+	return nil
+}
+
+func (c *fakeEngineCommunicator) Recv() (*v1.ProcessTasksRequest, error) {
+	r := <-c.resultCh
+	return &v1.ProcessTasksRequest{
+		Message: &v1.ProcessTasksRequest_TaskResult{
+			TaskResult: r,
+		},
+	}, nil
+}
+
+func (c *fakeEngineCommunicator) run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case t := <-c.taskCh:
+			log.Printf("Processing task: %s\n", t.Id)
+			c.resultCh <- &v1.TaskResult{
+				TaskId: t.Id,
+				Message: &v1.TaskResult_HttpResponse{
+					HttpResponse: &v1.HttpResponse{
+						StatusCode: http.StatusOK,
+						Body:       []byte("ok"),
+					},
+				},
+			}
+		}
+	}
 }

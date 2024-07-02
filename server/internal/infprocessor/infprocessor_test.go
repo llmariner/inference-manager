@@ -63,7 +63,7 @@ func TestP(t *testing.T) {
 				ErrCh:  make(chan error),
 			}
 			queue.Enqueue(task)
-			resp, err := task.WaitForCompletion()
+			resp, err := task.WaitForCompletion(context.Background())
 			assert.NoError(t, err)
 			assert.Equal(t, tc.code, resp.StatusCode)
 		})

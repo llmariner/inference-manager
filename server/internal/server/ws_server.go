@@ -12,7 +12,14 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	defaultClusterID = "default"
+	defaultTenantID  = "default-tenant-id"
 )
 
 // NewWorkerServiceServer creates a new worker service server.
@@ -70,8 +77,27 @@ func (ws *WS) Stop() {
 	ws.srv.Stop()
 }
 
+func (ws *WS) extractClusterInfoFromContext(ctx context.Context) (*auth.ClusterInfo, error) {
+	if !ws.enableAuth {
+		return &auth.ClusterInfo{
+			ClusterID: defaultClusterID,
+			TenantID:  defaultTenantID,
+		}, nil
+	}
+	clusterInfo, ok := auth.ExtractClusterInfoFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "user info not found")
+	}
+	return clusterInfo, nil
+}
+
 // ProcessTasks processes tasks.
 func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) error {
+	clusterInfo, err := ws.extractClusterInfoFromContext(srv.Context())
+	if err != nil {
+		return err
+	}
+
 	for {
 		// Check if the context is done with a non-blocking select.
 		ctx := srv.Context()
@@ -81,7 +107,7 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		default:
 		}
 
-		if err := ws.processMessagesFromEngine(srv); err != nil {
+		if err := ws.processMessagesFromEngine(srv, clusterInfo); err != nil {
 			if err != io.EOF {
 				log.Printf("processTasks error: %s\n", err)
 			}
@@ -90,7 +116,10 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 	}
 }
 
-func (ws *WS) processMessagesFromEngine(srv v1.InferenceWorkerService_ProcessTasksServer) error {
+func (ws *WS) processMessagesFromEngine(
+	srv v1.InferenceWorkerService_ProcessTasksServer,
+	clusterInfo *auth.ClusterInfo,
+) error {
 	req, err := srv.Recv()
 	if err != nil {
 		return err
@@ -98,9 +127,9 @@ func (ws *WS) processMessagesFromEngine(srv v1.InferenceWorkerService_ProcessTas
 
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus)
+		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
 	case *v1.ProcessTasksRequest_TaskResult:
-		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult); err != nil {
+		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
 			return err
 		}
 	default:

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
 
 const (
@@ -17,7 +18,9 @@ const (
 // Task is an inference task.
 // TODO(kenji): Consider preserving the request context as well.
 type Task struct {
-	ID     string
+	ID       string
+	TenantID string
+
 	Req    *v1.CreateChatCompletionRequest
 	Header http.Header
 	RespCh chan *http.Response
@@ -74,7 +77,7 @@ func NewP(queue *TaskQueue, engineGetter engineGetter) *P {
 	return &P{
 		queue:               queue,
 		engineGetter:        engineGetter,
-		enginesByID:         map[string]*engine{},
+		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*Task{},
 	}
 }
@@ -94,7 +97,8 @@ type P struct {
 
 	engineGetter engineGetter
 
-	enginesByID         map[string]*engine
+	// engines is a map from tenant ID and engine ID to engine.
+	engines             map[string]map[string]*engine
 	inProgressTasksByID map[string]*Task
 	mu                  sync.Mutex
 }
@@ -111,9 +115,9 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *Task) {
-	if len(p.enginesByID) == 0 {
+	engines := p.engines[t.TenantID]
+	if len(engines) == 0 {
 		t.ErrCh <- fmt.Errorf("no engine found")
-		return
 	}
 
 	dest, err := p.engineGetter.GetEngineForModel(ctx, t.Req.Model)
@@ -126,7 +130,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 
 	// TODO(kenji): Use the above routing algorithm properly.
 	var engine *engine
-	for _, e := range p.enginesByID {
+	for _, e := range engines {
 		engine = e
 		break
 	}
@@ -157,16 +161,23 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 func (p *P) AddOrUpdateEngineStatus(
 	srv engineCommunicator,
 	engineStatus *v1.EngineStatus,
+	clusterInfo *auth.ClusterInfo,
 ) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if _, ok := p.enginesByID[engineStatus.EngineId]; !ok {
+	engines, ok := p.engines[clusterInfo.TenantID]
+	if !ok {
+		engines = map[string]*engine{}
+		p.engines[clusterInfo.TenantID] = engines
+	}
+
+	if _, ok := engines[engineStatus.EngineId]; !ok {
 		log.Printf("Registering new engine: %s\n", engineStatus.EngineId)
 		e := &engine{
 			srv: srv,
 		}
-		p.enginesByID[engineStatus.EngineId] = e
+		engines[engineStatus.EngineId] = e
 	}
 
 	// TODO(kenji): Update registered models.
@@ -175,6 +186,7 @@ func (p *P) AddOrUpdateEngineStatus(
 // ProcessTaskResult processes the task result.
 func (p *P) ProcessTaskResult(
 	taskResult *v1.TaskResult,
+	clusterInfo *auth.ClusterInfo,
 ) error {
 	taskID := taskResult.TaskId
 

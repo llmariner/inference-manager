@@ -19,8 +19,9 @@ const (
 	completionPath = "/v1/chat/completions"
 )
 
-type modelLister interface {
+type modelSyncer interface {
 	ListSyncedModelIDs(ctx context.Context) []string
+	PullModel(ctx context.Context, modelID string) error
 }
 
 // NewP returns a new processor.
@@ -28,13 +29,13 @@ func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
 	ollamaAddr string,
-	modelLister modelLister,
+	modelSyncer modelSyncer,
 ) *P {
 	return &P{
 		engineID:    engineID,
 		client:      client,
 		ollamaAddr:  ollamaAddr,
-		modelLister: modelLister,
+		modelSyncer: modelSyncer,
 	}
 }
 
@@ -43,7 +44,7 @@ type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
 	ollamaAddr  string
-	modelLister modelLister
+	modelSyncer modelSyncer
 }
 
 // Run runs the processor.
@@ -85,6 +86,11 @@ func (p *P) processTask(
 	t *v1.Task,
 ) error {
 	log.Printf("Processing task: %s\n", t.Id)
+
+	// First pull the model if it is not yet pulled.
+	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
+		return err
+	}
 
 	req, err := p.buildRequest(ctx, t)
 	if err != nil {
@@ -196,7 +202,7 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: p.engineID,
-				ModelIds: p.modelLister.ListSyncedModelIDs(ctx),
+				ModelIds: p.modelSyncer.ListSyncedModelIDs(ctx),
 			},
 		},
 	}

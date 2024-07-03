@@ -64,6 +64,13 @@ type S struct {
 
 // PullModel downloads and registers a model from model manager.
 func (s *S) PullModel(ctx context.Context, modelID string) error {
+	s.mu.Lock()
+	registerd := s.registeredModels[modelID]
+	s.mu.Unlock()
+	if registerd {
+		return nil
+	}
+
 	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
 	// Consider changing Model Manager gRPC interface to simplify the interaction (e.g.,
 	// add an RPC method that returns a model path for both base model and fine-tuning model).
@@ -82,12 +89,6 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 }
 
 func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
-	s.mu.Lock()
-	registerd := s.registeredModels[modelID]
-	s.mu.Unlock()
-	if registerd {
-		return nil
-	}
 
 	log.Printf("Registering base model %q\n", modelID)
 
@@ -135,13 +136,6 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 }
 
 func (s *S) registerModel(ctx context.Context, modelID string) error {
-	s.mu.Lock()
-	registerd := s.registeredModels[modelID]
-	s.mu.Unlock()
-	if registerd {
-		return nil
-	}
-
 	log.Printf("Registering model %q\n", modelID)
 	baseModel, err := extractBaseModel(modelID)
 	if err != nil {
@@ -149,8 +143,13 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	}
 
 	// Registesr the base model if it has not yet.
-	if err := s.registerBaseModel(ctx, baseModel); err != nil {
-		return err
+	s.mu.Lock()
+	registerd := s.registeredModels[baseModel]
+	s.mu.Unlock()
+	if !registerd {
+		if err := s.registerBaseModel(ctx, baseModel); err != nil {
+			return err
+		}
 	}
 
 	resp, err := s.miClient.GetModelPath(ctx, &mv1.GetModelPathRequest{

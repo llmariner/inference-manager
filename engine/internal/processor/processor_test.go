@@ -28,7 +28,7 @@ func TestP(t *testing.T) {
 		"engine_id0",
 		nil,
 		fmt.Sprintf("localhost:%d", ollamaSrv.port()),
-		&fakeModelLister{},
+		&fakeModelSyncer{},
 	)
 
 	fakeClient := &fakeProcessTasksClient{}
@@ -105,10 +105,14 @@ func (s *fakeOllamaServer) port() int {
 	return s.listener.Addr().(*net.TCPAddr).Port
 }
 
-type fakeModelLister struct {
+type fakeModelSyncer struct {
 }
 
-func (f *fakeModelLister) ListSyncedModelIDs(ctx context.Context) []string {
+func (f *fakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
+	return nil
+}
+
+func (f *fakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 

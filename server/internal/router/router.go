@@ -123,7 +123,9 @@ func (r *R) refreshRoutes(ctx context.Context) error {
 		}
 		models, err := r.listModels(ctx, ip)
 		if err != nil {
-			return err
+			// Gracefully handle the error to avoid hard mutual dependency between the server and the engine.
+			log.Printf("Failed to list models on %s: %s\n", ip, err)
+			continue
 		}
 		for _, m := range models {
 			newRM.addRoute(model{id: m}, ip)

@@ -29,8 +29,9 @@ func (s *S) CreateChatCompletion(
 		s.metricsMonitor.ObserveCompletionLatency(createReq.Model, time.Since(st))
 	}()
 
-	if status, _, err := s.reqIntercepter.InterceptHTTPRequest(req); err != nil {
-		http.Error(w, err.Error(), status)
+	statusCode, userInfo, err := s.reqIntercepter.InterceptHTTPRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -77,11 +78,12 @@ func (s *S) CreateChatCompletion(
 		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
 	}
 	task := &infprocessor.Task{
-		ID:     taskID,
-		Req:    &createReq,
-		Header: req.Header,
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
+		ID:       taskID,
+		TenantID: userInfo.TenantID,
+		Req:      &createReq,
+		Header:   req.Header,
+		RespCh:   make(chan *http.Response),
+		ErrCh:    make(chan error),
 	}
 
 	s.taskQueue.Enqueue(task)

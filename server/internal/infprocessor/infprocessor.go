@@ -118,6 +118,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 	engines := p.engines[t.TenantID]
 	if len(engines) == 0 {
 		t.ErrCh <- fmt.Errorf("no engine found")
+		return
 	}
 
 	dest, err := p.engineGetter.GetEngineForModel(ctx, t.Req.Model)

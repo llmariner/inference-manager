@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,9 +32,17 @@ func TestP(t *testing.T) {
 	}
 	go comm.run(ctx)
 
-	iprocessor.AddOrUpdateEngineStatus(comm, &v1.EngineStatus{
-		EngineId: "engine_id0",
-	})
+	clusterInfo := &auth.ClusterInfo{
+		TenantID: "tenant0",
+	}
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+		},
+		clusterInfo,
+	)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -42,12 +51,13 @@ func TestP(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
 		assert.NoError(t, err)
 	}()
 
 	task := &Task{
-		ID: "task0",
+		ID:       "task0",
+		TenantID: "tenant0",
 		Req: &v1.CreateChatCompletionRequest{
 			Model: modelID,
 		},

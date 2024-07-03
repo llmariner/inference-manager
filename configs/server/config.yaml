@@ -3,14 +3,5 @@ grpcPort: 8081
 workerServiceGrpcPort: 8082
 monitoringPort: 8083
 
-inferenceManagerEngine:
-  ollamaPort: 8080
-  internalGrpcPort: 8082
-  namespace: default
-  labelKey: app.kubernetes.io/name
-  labelValue: inference-manager-engine
-
 debug:
   useNoopModelClient: true
-  useFakeKubernetesClient: true
-  enginePodIP: engine

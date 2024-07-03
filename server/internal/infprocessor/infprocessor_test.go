@@ -20,7 +20,7 @@ func TestP(t *testing.T) {
 	queue := NewTaskQueue()
 	iprocessor := NewP(
 		queue,
-		&fakeEngineGetter{},
+		&fakeEngineRouter{},
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -74,12 +74,16 @@ func TestP(t *testing.T) {
 	assert.Equal(t, "ok", string(body))
 }
 
-type fakeEngineGetter struct {
-	addr string
+type fakeEngineRouter struct {
+	engineID string
 }
 
-func (g *fakeEngineGetter) GetEngineForModel(ctx context.Context, modelID string) (string, error) {
-	return g.addr, nil
+func (r *fakeEngineRouter) GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error) {
+	return r.engineID, nil
+}
+
+func (r *fakeEngineRouter) AddOrUpdateEngine(engineID, tenantID string, modelIDs []string) {
+	r.engineID = engineID
 }
 
 type fakeEngineCommunicator struct {

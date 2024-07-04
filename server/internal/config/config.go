@@ -16,8 +16,7 @@ type Config struct {
 
 	ModelManagerServerAddr string `yaml:"modelManagerServerAddr"`
 
-	AuthConfig                   AuthConfig                   `yaml:"auth"`
-	InferenceManagerEngineConfig InferenceManagerEngineConfig `yaml:"inferenceManagerEngine"`
+	AuthConfig AuthConfig `yaml:"auth"`
 
 	Debug DebugConfig `yaml:"debug"`
 }
@@ -41,37 +40,7 @@ func (c *AuthConfig) validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
-	UseNoopModelClient      bool   `yaml:"useNoopModelClient"`
-	UseFakeKubernetesClient bool   `yaml:"useFakeKubernetesClient"`
-	EnginePodIP             string `yaml:"enginePodIP"`
-}
-
-// InferenceManagerEngineConfig is the inference manager engine configuration.
-type InferenceManagerEngineConfig struct {
-	OllamaPort       int    `yaml:"ollamaPort"`
-	InternalGRPCPort int    `yaml:"internalGrpcPort"`
-	Namespace        string `yaml:"namespace"`
-	LabelKey         string `yaml:"labelKey"`
-	LabelValue       string `yaml:"labelValue"`
-}
-
-func (c *InferenceManagerEngineConfig) validate() error {
-	if c.OllamaPort <= 0 {
-		return fmt.Errorf("ollamaPort must be greater than 0")
-	}
-	if c.InternalGRPCPort <= 0 {
-		return fmt.Errorf("inferenceManagerEngineInternalGRPCPort must be greater than 0")
-	}
-	if c.Namespace == "" {
-		return fmt.Errorf("namespace must be set")
-	}
-	if c.LabelKey == "" {
-		return fmt.Errorf("labelKey must be set")
-	}
-	if c.LabelValue == "" {
-		return fmt.Errorf("labelValue must be set")
-	}
-	return nil
+	UseNoopModelClient bool `yaml:"useNoopModelClient"`
 }
 
 // Validate validates the configuration.
@@ -91,14 +60,6 @@ func (c *Config) Validate() error {
 
 	if err := c.AuthConfig.validate(); err != nil {
 		return err
-	}
-
-	if err := c.InferenceManagerEngineConfig.validate(); err != nil {
-		return err
-	}
-
-	if c.Debug.UseFakeKubernetesClient && c.Debug.EnginePodIP == "" {
-		return fmt.Errorf("enginePodIP must be set")
 	}
 
 	return nil

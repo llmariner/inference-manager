@@ -9,7 +9,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
-	"github.com/llm-operator/inference-manager/server/internal/k8s"
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
@@ -20,9 +19,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 const flagConfig = "config"
@@ -85,33 +81,6 @@ func run(ctx context.Context, c *config.Config) error {
 	m := monitoring.NewMetricsMonitor()
 	defer m.UnregisterAllCollectors()
 
-	var k8sClient *k8s.Client
-	if c.Debug.UseFakeKubernetesClient {
-		conf := c.InferenceManagerEngineConfig
-		k8sClient = &k8s.Client{
-			CoreClientset: fake.NewSimpleClientset(
-				&apiv1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "inference-manager-engine",
-						Namespace: conf.Namespace,
-						Labels: map[string]string{
-							conf.LabelKey: conf.LabelValue,
-						},
-					},
-					Status: apiv1.PodStatus{
-						PodIP: c.Debug.EnginePodIP,
-					},
-				},
-			),
-		}
-	} else {
-		var err error
-		k8sClient, err = k8s.NewClient()
-		if err != nil {
-			return err
-		}
-	}
-
 	queue := infprocessor.NewTaskQueue()
 	s := server.New(m, mclient, queue)
 
@@ -141,11 +110,7 @@ func run(ctx context.Context, c *config.Config) error {
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
-	r := router.New(c.InferenceManagerEngineConfig, k8sClient)
-	go func() {
-		errCh <- r.Run(ctx, errCh)
-	}()
-
+	r := router.New()
 	infProcessor := infprocessor.NewP(queue, r)
 	go func() {
 		errCh <- infProcessor.Run(ctx)

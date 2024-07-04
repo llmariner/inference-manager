@@ -11,12 +11,6 @@ data:
     workerServiceGrpcPort: {{ .Values.workerServiceGrpcPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
-    inferenceManagerEngine:
-      ollamaPort: {{ .Values.inferenceManagerEngine.ollamaPort }}
-      internalGrpcPort: {{ .Values.inferenceManagerEngine.internalGrpcPort }}
-      namespace: {{ .Values.inferenceManagerEngine.namespace | default .Release.Namespace | quote }}
-      labelKey: {{ .Values.inferenceManagerEngine.labelKey }}
-      labelValue: {{ .Values.inferenceManagerEngine.labelValue }}
     auth:
       enable: {{ .Values.global.auth.enable }}
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}

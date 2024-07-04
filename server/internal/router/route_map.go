@@ -7,9 +7,10 @@ import (
 )
 
 type routeMap struct {
-	// m maps a model to a list of engine IPs.
-	m map[model][]string
-	// engines is the collections of engine IPs.
+	// m maps a model to engine IDs.
+	m map[model]map[string]struct{}
+
+	// engines is the collections of engine IDs.
 	engines map[string]struct{}
 
 	// mu protects m and engines.
@@ -18,81 +19,79 @@ type routeMap struct {
 
 func newRouteMap() *routeMap {
 	return &routeMap{
-		m:       make(map[model][]string),
+		m:       make(map[model]map[string]struct{}),
 		engines: make(map[string]struct{}),
 	}
 }
 
 func (r *routeMap) getRoute(model model) []string {
-	var rs []string
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	found := r.m[model]
-	rs = append(rs, found...)
-	return rs
+	engines := r.m[model]
+	var engineIDs []string
+	for e := range engines {
+		engineIDs = append(engineIDs, e)
+	}
+	return engineIDs
 }
 
-func (r *routeMap) addRoute(model model, ip string) {
+func (r *routeMap) addRoute(model model, engineID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	found, ok := r.m[model]
+	engines, ok := r.m[model]
 	if !ok {
-		r.m[model] = []string{ip}
+		engines = make(map[string]struct{})
+		r.m[model] = engines
+	}
+	engines[engineID] = struct{}{}
+
+	r.engines[engineID] = struct{}{}
+}
+
+func (r *routeMap) deleteRoute(model model, engineID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	engines, ok := r.m[model]
+	if !ok {
 		return
 	}
-	for _, v := range found {
-		if v == ip {
-			return
-		}
-	}
-	r.m[model] = append(found, ip)
+	delete(engines, engineID)
 }
 
-func (r *routeMap) deleteRoute(model model) error {
+func (r *routeMap) addOrUpdateEngine(engineID string, modelIDs []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for k := range r.m {
-		if k.id == model.id {
-			delete(r.m, k)
-			return nil
-		}
-	}
-	return fmt.Errorf("model %s not found", model)
-}
-
-func (r *routeMap) addServer(ip string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.engines[ip] = struct{}{}
-}
-
-func (r *routeMap) deleteServer(ip string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for k, ips := range r.m {
-		for i, v := range ips {
-			if v == ip {
-				r.m[k] = append(ips[:i], ips[i+1:]...)
-				continue
-			}
-		}
+	// First delete the engine from the model map.
+	for _, engines := range r.m {
+		delete(engines, engineID)
 	}
 
-	delete(r.engines, ip)
+	// Add the engine back to the model map.
+	for _, id := range modelIDs {
+		model := model{id: id}
+		engines, ok := r.m[model]
+		if !ok {
+			engines = make(map[string]struct{})
+			r.m[model] = engines
+		}
+		engines[engineID] = struct{}{}
+	}
+
+	r.engines[engineID] = struct{}{}
 }
 
-func (r *routeMap) replace(nr *routeMap) {
+func (r *routeMap) deleteEngine(engineID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.m = nr.m
-	r.engines = nr.engines
+	for _, engines := range r.m {
+		delete(engines, engineID)
+	}
+	delete(r.engines, engineID)
 }
 
 // findLeastLoadedEngine finds the engine with the least number of loaded models.
@@ -104,28 +103,28 @@ func (r *routeMap) findLeastLoadedEngine() (string, error) {
 		return "", fmt.Errorf("no engine available")
 	}
 
-	// modelsIP is a list of models keyed by engine IPs. This includes engines that don't have any models
-	modelsByIP := make(map[string][]model)
-	for ip := range r.engines {
-		modelsByIP[ip] = []model{}
+	// modelsByID is a list of models keyed by engine IDs. This includes engines that don't have any models
+	modelsByID := make(map[string][]model)
+	for id := range r.engines {
+		modelsByID[id] = []model{}
 	}
 
-	for k, v := range r.m {
-		for _, ip := range v {
-			modelsByIP[ip] = append(modelsByIP[ip], k)
+	for model, engines := range r.m {
+		for id := range engines {
+			modelsByID[id] = append(modelsByID[id], model)
 		}
 	}
 
 	// Find the engine that does not have the least number of models pulled.
 	min := 0
-	ip := ""
-	for k, v := range modelsByIP {
-		if len(v) < min || ip == "" {
+	id := ""
+	for k, v := range modelsByID {
+		if len(v) < min || id == "" {
 			min = len(v)
-			ip = k
+			id = k
 		}
 	}
-	return ip, nil
+	return id, nil
 }
 
 func (r *routeMap) printRoute() {

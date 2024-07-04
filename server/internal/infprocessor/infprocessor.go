@@ -68,15 +68,16 @@ func (q *TaskQueue) Dequeue(ctx context.Context) (*Task, error) {
 	}
 }
 
-type engineGetter interface {
-	GetEngineForModel(ctx context.Context, modelID string) (string, error)
+type engineRouter interface {
+	GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error)
+	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
 }
 
 // NewP creates a new processor.
-func NewP(queue *TaskQueue, engineGetter engineGetter) *P {
+func NewP(queue *TaskQueue, engineRouter engineRouter) *P {
 	return &P{
 		queue:               queue,
-		engineGetter:        engineGetter,
+		engineRouter:        engineRouter,
 		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*Task{},
 	}
@@ -95,7 +96,7 @@ type engine struct {
 type P struct {
 	queue *TaskQueue
 
-	engineGetter engineGetter
+	engineRouter engineRouter
 
 	// engines is a map from tenant ID and engine ID to engine.
 	engines             map[string]map[string]*engine
@@ -115,25 +116,22 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *Task) {
-	engines := p.engines[t.TenantID]
-	if len(engines) == 0 {
-		t.ErrCh <- fmt.Errorf("no engine found")
-		return
-	}
-
-	dest, err := p.engineGetter.GetEngineForModel(ctx, t.Req.Model)
+	engineID, err := p.engineRouter.GetEngineForModel(ctx, t.Req.Model, t.TenantID)
 	if err != nil {
 		t.ErrCh <- fmt.Errorf("find pod to route the request: %s", err)
 		return
 	}
 
-	log.Printf("Forwarding completion request to Inference Manager Engine (IP: %s)\n", dest)
-
-	// TODO(kenji): Use the above routing algorithm properly.
-	var engine *engine
-	for _, e := range engines {
-		engine = e
-		break
+	log.Printf("Forwarding completion request to Inference Manager Engine (EngineID: %s)\n", engineID)
+	engines := p.engines[t.TenantID]
+	if len(engines) == 0 {
+		t.ErrCh <- fmt.Errorf("no engine found")
+		return
+	}
+	engine, ok := engines[engineID]
+	if !ok {
+		t.ErrCh <- fmt.Errorf("engine not found: %s", engineID)
+		return
 	}
 
 	p.mu.Lock()
@@ -181,7 +179,7 @@ func (p *P) AddOrUpdateEngineStatus(
 		engines[engineStatus.EngineId] = e
 	}
 
-	// TODO(kenji): Update registered models.
+	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
 
 // ProcessTaskResult processes the task result.

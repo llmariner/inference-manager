@@ -14,7 +14,9 @@ type Config struct {
 	WorkerServiceGRPCPort int `yaml:"workerServiceGrpcPort"`
 	MonitoringPort        int `yaml:"monitoringPort"`
 
-	ModelManagerServerAddr string `yaml:"modelManagerServerAddr"`
+	ModelManagerServerAddr               string `yaml:"modelManagerServerAddr"`
+	VectorStoreManagerServerAddr         string `yaml:"vectorStoreManagerServerAddr"`
+	VectorStoreManagerInternalServerAddr string `yaml:"vectorStoreManagerInternalServerAddr"`
 
 	AuthConfig AuthConfig `yaml:"auth"`
 
@@ -40,7 +42,7 @@ func (c *AuthConfig) validate() error {
 
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
-	UseNoopModelClient bool `yaml:"useNoopModelClient"`
+	UseNoopClient bool `yaml:"useNoopClient"`
 }
 
 // Validate validates the configuration.

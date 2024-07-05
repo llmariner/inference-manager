@@ -11,6 +11,8 @@ data:
     workerServiceGrpcPort: {{ .Values.workerServiceGrpcPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
+    vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
+    vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}
     auth:
       enable: {{ .Values.global.auth.enable }}
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}

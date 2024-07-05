@@ -44,6 +44,16 @@ message CreateChatCompletionRequest {
     Function function = 2;
   }
 
+  message ToolChoice {
+    // TODO(guangrui): revisit on how to assign string value of ToolChoice.
+    string choice = 1;
+    string type = 2;
+    message Function {
+      string name = 1;
+    }
+    Function function = 3;
+  }
+
   // TODO(kenji): Revisit this.
   repeated Message messages = 1;
   string model = 2;
@@ -62,8 +72,7 @@ message CreateChatCompletionRequest {
   double temperature = 14;
   double top_p = 15;
   repeated Tool tools = 16;
-  // string or object
-  bool tool_chocise = 17;
+  ToolChoice tool_choice = 17;
   string user = 18;
 }
 
@@ -121,6 +130,11 @@ message ChatCompletion {
   string system_fingerprint = 5;
   string object = 6;
   Usage usage = 7;
+}
+
+// RagFunction is used to unmarshal the json string specified in `Parameters` of Tool message.
+message RagFunction {
+  string vector_store_name = 1;
 }
 
 service ChatService {

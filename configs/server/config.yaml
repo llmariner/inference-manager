@@ -4,4 +4,4 @@ workerServiceGrpcPort: 8082
 monitoringPort: 8083
 
 debug:
-  useNoopModelClient: true
+  useNoopClient: true

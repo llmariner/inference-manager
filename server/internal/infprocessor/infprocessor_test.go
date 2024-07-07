@@ -72,6 +72,22 @@ func TestP(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
+
+	// Remove the engien and check if the task fails.
+	iprocessor.RemoveEngine("engine_id0", clusterInfo)
+
+	task = &Task{
+		ID:       "task1",
+		TenantID: "tenant0",
+		Req: &v1.CreateChatCompletionRequest{
+			Model: modelID,
+		},
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
+	}
+	queue.Enqueue(task)
+	_, err = task.WaitForCompletion(context.Background())
+	assert.Error(t, err)
 }
 
 type fakeEngineRouter struct {
@@ -84,6 +100,10 @@ func (r *fakeEngineRouter) GetEngineForModel(ctx context.Context, modelID, tenan
 
 func (r *fakeEngineRouter) AddOrUpdateEngine(engineID, tenantID string, modelIDs []string) {
 	r.engineID = engineID
+}
+
+func (r *fakeEngineRouter) DeleteEngine(engineID, tenantID string) {
+	r.engineID = ""
 }
 
 type fakeEngineCommunicator struct {

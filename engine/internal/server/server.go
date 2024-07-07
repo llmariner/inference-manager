@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -17,9 +18,9 @@ import (
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
-	 PullModel(ctx context.Context, modelID string) error
-	 ListSyncedModelIDs(ctx context.Context) []string
-	 DeleteModel(ctx context.Context, modelID string) error
+	PullModel(ctx context.Context, modelID string) error
+	ListSyncedModelIDs(ctx context.Context) []string
+	DeleteModel(ctx context.Context, modelID string) error
 }
 
 // NewFakeModelSyncer returns a FakeModelSyncer.
@@ -32,7 +33,7 @@ func NewFakeModelSyncer() *FakeModelSyncer {
 // FakeModelSyncer is a fake implementation of model syncer.
 type FakeModelSyncer struct {
 	modelIDs map[string]struct{}
-	mu sync.Mutex
+	mu       sync.Mutex
 }
 
 // PullModel downloads and registers a model from model manager.
@@ -111,6 +112,7 @@ func (s *S) PullModel(ctx context.Context, req *v1.PullModelRequest) (*emptypb.E
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	if err := s.syncer.PullModel(ctx, req.Id); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to sync the model: %s", err)
 	}
@@ -122,6 +124,7 @@ func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*empty
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	if err := s.syncer.DeleteModel(ctx, req.Id); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete the model: %s", err)
 	}
@@ -131,6 +134,7 @@ func (s *S) DeleteModel(ctx context.Context, req *v1.DeleteModelRequest) (*empty
 
 // ListModels lists all downloaded models in the engine.
 func (s *S) ListModels(ctx context.Context, req *v1.ListModelsRequest) (*v1.ListModelsResponse, error) {
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	ids := s.syncer.ListSyncedModelIDs(ctx)
 	var models []*v1.Model
 	for _, id := range ids {

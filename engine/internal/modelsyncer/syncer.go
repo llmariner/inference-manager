@@ -12,7 +12,6 @@ import (
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 )
 
@@ -74,7 +73,6 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
 	// Consider changing Model Manager gRPC interface to simplify the interaction (e.g.,
 	// add an RPC method that returns a model path for both base model and fine-tuning model).
-	ctx = auth.AppendWorkerAuthorization(ctx)
 	model, err := s.miClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})
@@ -89,7 +87,6 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 }
 
 func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
-
 	log.Printf("Registering base model %q\n", modelID)
 
 	resp, err := s.miClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{

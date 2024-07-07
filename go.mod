@@ -7,7 +7,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/llm-operator/common v0.3.0
 	github.com/llm-operator/model-manager v0.76.0
-	github.com/llm-operator/rbac-manager v0.73.0
+	github.com/llm-operator/rbac-manager v0.82.1-0.20240707221022-51bc281e307a
 	github.com/ollama/ollama v0.1.38
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cobra v1.8.0

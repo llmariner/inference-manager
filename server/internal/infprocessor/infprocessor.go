@@ -172,11 +172,11 @@ func (p *P) AddOrUpdateEngineStatus(
 	}
 
 	if _, ok := engines[engineStatus.EngineId]; !ok {
-		log.Printf("Registering new engine: %s\n", engineStatus.EngineId)
 		e := &engine{
 			srv: srv,
 		}
 		engines[engineStatus.EngineId] = e
+		log.Printf("Registered new engine: %s\n", engineStatus.EngineId)
 	}
 
 	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)

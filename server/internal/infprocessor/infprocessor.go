@@ -71,6 +71,7 @@ func (q *TaskQueue) Dequeue(ctx context.Context) (*Task, error) {
 type engineRouter interface {
 	GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error)
 	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
+	DeleteEngine(engineID, tenantID string)
 }
 
 // NewP creates a new processor.

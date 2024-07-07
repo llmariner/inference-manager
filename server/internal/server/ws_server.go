@@ -86,7 +86,7 @@ func (ws *WS) extractClusterInfoFromContext(ctx context.Context) (*auth.ClusterI
 	}
 	clusterInfo, ok := auth.ExtractClusterInfoFromContext(ctx)
 	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "user info not found")
+		return nil, status.Error(codes.Unauthenticated, "cluster info not found")
 	}
 	return clusterInfo, nil
 }

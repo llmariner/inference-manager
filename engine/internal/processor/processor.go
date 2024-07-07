@@ -59,6 +59,7 @@ func (p *P) Run(ctx context.Context) error {
 	if err := p.sendEngineStatus(ctx, stream); err != nil {
 		return err
 	}
+	log.Printf("Registered engine: %s\n", p.engineID)
 
 	// TODO(kenji): Periodically send engine status.
 

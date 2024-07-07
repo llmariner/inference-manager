@@ -49,7 +49,7 @@ type P struct {
 
 // Run runs the processor.
 func (p *P) Run(ctx context.Context) error {
-	auth.AppendWorkerAuthorization(ctx)
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	stream, err := p.client.ProcessTasks(ctx)
 	if err != nil {
 		return err

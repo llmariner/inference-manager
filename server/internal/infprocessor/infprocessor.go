@@ -192,6 +192,8 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 		return
 	}
 
+	p.engineRouter.DeleteEngine(engineID, clusterInfo.TenantID)
+
 	delete(engines, engineID)
 }
 

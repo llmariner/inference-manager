@@ -52,7 +52,7 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig) e
 		if err != nil {
 			return err
 		}
-		opts = append(opts, grpc.ChainUnaryInterceptor(ai.Unary()))
+		opts = append(opts, grpc.StreamInterceptor(ai.Stream()))
 		ws.enableAuth = true
 	}
 

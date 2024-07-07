@@ -59,8 +59,8 @@ github.com/llm-operator/common v0.3.0 h1:xkZfXIzfXYKxK6pqInWnrDPrZ9fb54i5OPs1y6V
 github.com/llm-operator/common v0.3.0/go.mod h1:NQpm0/EQnyXz/a67TftLWF3Ju0hgaalViND67s2sRVs=
 github.com/llm-operator/model-manager v0.76.0 h1:UCKFT8gUpOD2R2+cBqXKkmDEJiqhFZ5RhRd3gIdTe+g=
 github.com/llm-operator/model-manager v0.76.0/go.mod h1:VB2M+eUtRsUtpzY2eWayswXtrgfdTMK8C98t5bRcUfM=
-github.com/llm-operator/rbac-manager v0.73.0 h1:4KeK85l7dr2JHwEzaszsEw+fnSSuIA3oC91MKUONO9k=
-github.com/llm-operator/rbac-manager v0.73.0/go.mod h1:fDJPucbAZE+R1m3VaU+vF7alVgrSirUoWqxnPKvMAGc=
+github.com/llm-operator/rbac-manager v0.83.0 h1:UzBItVUEgH7xiWKh+US56lFst5aRX3u4OYDbj5RlZx0=
+github.com/llm-operator/rbac-manager v0.83.0/go.mod h1:fDJPucbAZE+R1m3VaU+vF7alVgrSirUoWqxnPKvMAGc=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=

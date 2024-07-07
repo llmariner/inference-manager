@@ -58,3 +58,14 @@ func (r *R) AddOrUpdateEngine(engineID, tenantID string, modelIDs []string) {
 
 	m.addOrUpdateEngine(engineID, modelIDs)
 }
+
+// DeleteEngine deletes the engine.
+func (r *R) DeleteEngine(engineID, tenantID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	m, ok := r.mapsByTenantID[tenantID]
+	if !ok {
+		return
+	}
+	m.deleteEngine(engineID)
+}

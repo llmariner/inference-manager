@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -90,18 +91,18 @@ func (p *P) processTask(
 
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
-		return err
+		return fmt.Errorf("pull model: %s", err)
 	}
 
 	req, err := p.buildRequest(ctx, t)
 	if err != nil {
-		return err
+		return fmt.Errorf("build request: %s", err)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		// TODO(kenji): Send the error back to the server?
-		return err
+		return fmt.Errorf("send request to ollama: %s", err)
 	}
 
 	defer func() {
@@ -227,7 +228,7 @@ func (p *P) sendHTTPResponse(
 		},
 	}
 	if err := p.sendTaskResult(ctx, stream, result); err != nil {
-		return err
+		return fmt.Errorf("send task result: %s", err)
 	}
 	return nil
 }
@@ -245,7 +246,7 @@ func (p *P) sendServerSentEvent(
 		},
 	}
 	if err := p.sendTaskResult(ctx, stream, result); err != nil {
-		return err
+		return fmt.Errorf("send task result: %s", err)
 	}
 	return nil
 }

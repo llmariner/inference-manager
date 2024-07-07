@@ -98,6 +98,7 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		return err
 	}
 
+	var registered bool
 	for {
 		// Check if the context is done with a non-blocking select.
 		ctx := srv.Context()
@@ -107,11 +108,19 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		default:
 		}
 
-		if err := ws.processMessagesFromEngine(srv, clusterInfo); err != nil {
+		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo)
+		if err != nil {
 			if err != io.EOF {
 				log.Printf("processTasks error: %s\n", err)
 			}
 			return err
+		}
+		if !registered && engineID != "" {
+			defer func() {
+				ws.infProcessor.RemoveEngine(engineID, clusterInfo)
+				log.Printf("Unregistered engine: %s\n", engineID)
+			}()
+			registered = true
 		}
 	}
 }
@@ -119,22 +128,24 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 func (ws *WS) processMessagesFromEngine(
 	srv v1.InferenceWorkerService_ProcessTasksServer,
 	clusterInfo *auth.ClusterInfo,
-) error {
+) (string, error) {
 	req, err := srv.Recv()
 	if err != nil {
-		return err
+		return "", err
 	}
 
+	var engineID string
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
+		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
 		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
-			return err
+			return "", err
 		}
 	default:
-		return fmt.Errorf("unknown message type: %T", msg)
+		return "", fmt.Errorf("unknown message type: %T", msg)
 	}
 
-	return nil
+	return engineID, nil
 }

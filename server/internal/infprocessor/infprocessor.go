@@ -182,6 +182,19 @@ func (p *P) AddOrUpdateEngineStatus(
 	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
 
+// RemoveEngine removes the engine.
+func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	engines, ok := p.engines[clusterInfo.TenantID]
+	if !ok {
+		return
+	}
+
+	delete(engines, engineID)
+}
+
 // ProcessTaskResult processes the task result.
 func (p *P) ProcessTaskResult(
 	taskResult *v1.TaskResult,

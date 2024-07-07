@@ -26,12 +26,6 @@ grpcPort: 8081
 workerServiceGrpcPort: 8082
 monitoringPort: 8083
 
-inferenceManagerEngine:
-  ollamaPort: 8080
-  internalGrpcPort: 8082
-  labelKey: app.kubernetes.io/name
-  labelValue: inference-manager-engine
-
 # The following default values work if model manager server runs in the same namespace.
 modelManagerServerAddr: model-manager-server-grpc:8081
 

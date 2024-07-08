@@ -31,7 +31,7 @@ modelManagerServerAddr: model-manager-server-grpc:8081
 
 replicaCount: 1
 image:
-  repository: public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server
+  repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-server
   pullPolicy: IfNotPresent
   version:
 

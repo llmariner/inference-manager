@@ -36,6 +36,29 @@
         }
       }
     },
+    "CreateChatCompletionRequestToolChoice": {
+      "type": "object",
+      "properties": {
+        "choice": {
+          "type": "string",
+          "description": "TODO(guangrui): revisit on how to assign string value of ToolChoice."
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolChoiceFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolChoiceFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "CreateChatCompletionRequestToolFunction": {
       "type": "object",
       "properties": {
@@ -152,9 +175,8 @@
             "$ref": "#/definitions/CreateChatCompletionRequestTool"
           }
         },
-        "toolChocise": {
-          "type": "boolean",
-          "title": "string or object"
+        "toolChoice": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolChoice"
         },
         "user": {
           "type": "string"

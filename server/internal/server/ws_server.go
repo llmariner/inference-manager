@@ -19,6 +19,7 @@ import (
 
 const (
 	defaultClusterID = "default"
+	defaultProjectID = "default"
 	defaultTenantID  = "default-tenant-id"
 )
 

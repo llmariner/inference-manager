@@ -40,13 +40,46 @@ type noopReqIntercepter struct {
 
 // InterceptHTTPRequest is a no-op implementation of InterceptHTTPRequest.
 func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.UserInfo, error) {
-	return http.StatusOK, auth.UserInfo{}, nil
+	return http.StatusOK, auth.UserInfo{
+		OrganizationID: "default",
+		ProjectID:      defaultProjectID,
+		AssignedKubernetesEnvs: []auth.AssignedKubernetesEnv{
+			{
+				ClusterID: defaultClusterID,
+				Namespace: "default",
+			},
+		},
+		TenantID: defaultTenantID,
+	}, nil
+}
+
+// Rewriter is an interface for rag.
+type Rewriter interface {
+	ProcessMessages(
+		ctx context.Context,
+		vectorStoreName string,
+		messages []*v1.CreateChatCompletionRequest_Message,
+	) ([]*v1.CreateChatCompletionRequest_Message, error)
+}
+
+// NoopRewriter is a no-op rewriter.
+type NoopRewriter struct {
+}
+
+// ProcessMessages is a no-op implementation of ProcessMessages.
+func (r *NoopRewriter) ProcessMessages(
+	ctx context.Context,
+	vectorStoreName string,
+	messages []*v1.CreateChatCompletionRequest_Message,
+) ([]*v1.CreateChatCompletionRequest_Message, error) {
+	return messages, nil
 }
 
 // New creates a server.
 func New(
 	m monitoring.MetricsMonitoring,
 	modelClient ModelClient,
+	r Rewriter,
 	taskQueue *infprocessor.TaskQueue,
 ) *S {
 	return &S{
@@ -54,6 +87,7 @@ func New(
 		modelClient:    modelClient,
 		reqIntercepter: noopReqIntercepter{},
 		taskQueue:      taskQueue,
+		rewriter:       r,
 	}
 }
 
@@ -66,6 +100,8 @@ type S struct {
 	metricsMonitor monitoring.MetricsMonitoring
 
 	modelClient ModelClient
+
+	rewriter Rewriter
 
 	taskQueue *infprocessor.TaskQueue
 

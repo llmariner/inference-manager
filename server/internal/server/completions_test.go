@@ -33,6 +33,7 @@ func TestCreateChatCompletion(t *testing.T) {
 				modelID: {},
 			},
 		},
+		&fakeRewriter{},
 		queue,
 	)
 	srv.enableAuth = true
@@ -72,6 +73,110 @@ func TestCreateChatCompletion(t *testing.T) {
 			},
 			code: http.StatusBadRequest,
 		},
+		{
+			name: "valid tools",
+			req: &v1.CreateChatCompletionRequest{
+				Model: modelID,
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
+						Name: "test",
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role:    "user",
+						Content: "test",
+					},
+				},
+			},
+			code: http.StatusOK,
+		},
+		{
+			name: "valid rag",
+			req: &v1.CreateChatCompletionRequest{
+				Model: modelID,
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
+						Name: ragToolName,
+					},
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:       ragToolName,
+							Parameters: `{"vector_store_name":"test"}`,
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role:    "user",
+						Content: "test",
+					},
+				},
+			},
+			code: http.StatusOK,
+		},
+		{
+			name: "skip rag",
+			req: &v1.CreateChatCompletionRequest{
+				Model: modelID,
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(noneToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:       ragToolName,
+							Parameters: `{"vector_store_name":"test"}`,
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role:    "user",
+						Content: "test",
+					},
+				},
+			},
+			code: http.StatusOK,
+		},
+		{
+			name: "invalid rag parameter",
+			req: &v1.CreateChatCompletionRequest{
+				Model: modelID,
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
+						Name: ragToolName,
+					},
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:       ragToolName,
+							Parameters: `{"vector_store":"test"}`,
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role:    "user",
+						Content: "test",
+					},
+				},
+			},
+			code: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tc := range tcs {
@@ -102,6 +207,17 @@ func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest,
 		return nil, status.Errorf(codes.NotFound, "model not found")
 	}
 	return model, nil
+}
+
+type fakeRewriter struct {
+}
+
+func (c *fakeRewriter) ProcessMessages(
+	ctx context.Context,
+	vectorStoreName string,
+	messages []*v1.CreateChatCompletionRequest_Message,
+) ([]*v1.CreateChatCompletionRequest_Message, error) {
+	return messages, nil
 }
 
 type fakeMetricsMonitor struct {

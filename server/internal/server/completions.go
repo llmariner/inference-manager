@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,17 @@ import (
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+type toolChoiceType string
+
+const (
+	functionObjectType string = "function"
+	ragToolName        string = "rag"
+
+	autoToolChoice     toolChoiceType = "auto"
+	requiredToolChoice toolChoiceType = "required"
+	noneToolChoice     toolChoiceType = "none"
 )
 
 // CreateChatCompletion creates a chat completion.
@@ -70,6 +82,11 @@ func (s *S) CreateChatCompletion(
 			return
 		}
 		http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.handleTools(ctx, &createReq); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -142,4 +159,45 @@ func (s *S) CreateChatCompletion(
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+// handleTools uses tools to process and modify the request messages.
+// Refer to https://platform.openai.com/docs/guides/function-calling for the details of the tools and the tool choice.
+func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest) error {
+	if req.ToolChoice == nil || req.ToolChoice.Choice == string(noneToolChoice) {
+		return nil
+	}
+	if req.ToolChoice.Type != functionObjectType {
+		return fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
+	}
+
+	var messages []*v1.CreateChatCompletionRequest_Message
+	for _, tool := range req.Tools {
+		if tool.Type != functionObjectType {
+			return fmt.Errorf("unsupported tool type: %s", tool.Type)
+		}
+		if tool.Function == nil {
+			return fmt.Errorf("function is required")
+		}
+		switch tool.Function.Name {
+		case ragToolName:
+			var ragFunction v1.RagFunction
+			if err := json.Unmarshal([]byte(tool.Function.Parameters), &ragFunction); err != nil {
+				return err
+			}
+			if ragFunction.VectorStoreName == "" {
+				return fmt.Errorf("vector store name is required")
+			}
+			msgs, err := s.rewriter.ProcessMessages(ctx, ragFunction.VectorStoreName, req.Messages)
+			if err != nil {
+				return err
+			}
+			messages = append(messages, msgs...)
+			continue
+		default:
+			return fmt.Errorf("unsupported function name: %s", tool.Function.Name)
+		}
+	}
+	req.Messages = messages
+	return nil
 }

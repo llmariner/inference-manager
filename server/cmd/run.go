@@ -10,10 +10,12 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
+	"github.com/llm-operator/inference-manager/server/internal/rag"
 	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -68,21 +70,37 @@ func run(ctx context.Context, c *config.Config) error {
 	// with gRPC gateway.
 
 	var mclient server.ModelClient
-	if c.Debug.UseNoopModelClient {
+	var rwt server.Rewriter
+	if c.Debug.UseNoopClient {
 		mclient = &server.NoopModelClient{}
+		rwt = &server.NoopRewriter{}
 	} else {
-		conn, err := grpc.Dial(c.ModelManagerServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		options := grpc.WithTransportCredentials(insecure.NewCredentials())
+		conn, err := grpc.NewClient(c.ModelManagerServerAddr, options)
 		if err != nil {
 			return err
 		}
 		mclient = mv1.NewModelsServiceClient(conn)
+
+		conn, err = grpc.NewClient(c.VectorStoreManagerServerAddr, options)
+		if err != nil {
+			return err
+		}
+		vsClient := vsv1.NewVectorStoreServiceClient(conn)
+
+		conn, err = grpc.NewClient(c.VectorStoreManagerInternalServerAddr, options)
+		if err != nil {
+			return err
+		}
+		vsInternalClient := vsv1.NewVectorStoreInternalServiceClient(conn)
+		rwt = rag.NewR(c.AuthConfig.Enable, vsClient, vsInternalClient)
 	}
 
 	m := monitoring.NewMetricsMonitor()
 	defer m.UnregisterAllCollectors()
 
 	queue := infprocessor.NewTaskQueue()
-	s := server.New(m, mclient, queue)
+	s := server.New(m, mclient, rwt, queue)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(

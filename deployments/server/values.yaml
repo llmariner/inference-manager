@@ -29,6 +29,9 @@ monitoringPort: 8083
 # The following default values work if model manager server runs in the same namespace.
 modelManagerServerAddr: model-manager-server-grpc:8081
 
+vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
+vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
+
 replicaCount: 1
 image:
   repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-server

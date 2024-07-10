@@ -175,7 +175,7 @@ func TestCreateChatCompletion(t *testing.T) {
 					},
 				},
 			},
-			code: http.StatusInternalServerError,
+			code: http.StatusBadRequest,
 		},
 	}
 

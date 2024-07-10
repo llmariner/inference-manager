@@ -85,8 +85,8 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	if err := s.handleTools(ctx, &createReq); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if code, err := s.handleTools(ctx, &createReq); err != nil {
+		http.Error(w, err.Error(), code)
 		return
 	}
 
@@ -163,40 +163,44 @@ func (s *S) CreateChatCompletion(
 
 // handleTools uses tools to process and modify the request messages.
 // Refer to https://platform.openai.com/docs/guides/function-calling for the details of the tools and the tool choice.
-func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest) error {
+//
+// The function returns an HTTP status code and an error.
+func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest) (int, error) {
 	if req.ToolChoice == nil || req.ToolChoice.Choice == string(noneToolChoice) {
-		return nil
+		return http.StatusOK, nil
 	}
 	if req.ToolChoice.Type != functionObjectType {
-		return fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
+		return http.StatusBadRequest, fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
 	}
 
 	var messages []*v1.CreateChatCompletionRequest_Message
 	for _, tool := range req.Tools {
 		if tool.Type != functionObjectType {
-			return fmt.Errorf("unsupported tool type: %s", tool.Type)
+			return http.StatusBadRequest, fmt.Errorf("unsupported tool type: %s", tool.Type)
 		}
 		if tool.Function == nil {
-			return fmt.Errorf("function is required")
+			return http.StatusBadRequest, fmt.Errorf("function is required")
 		}
 		switch tool.Function.Name {
 		case ragToolName:
 			var ragFunction v1.RagFunction
 			if err := json.Unmarshal([]byte(tool.Function.Parameters), &ragFunction); err != nil {
-				return err
+				return http.StatusBadRequest, err
 			}
 			if ragFunction.VectorStoreName == "" {
-				return fmt.Errorf("vector store name is required")
+				return http.StatusBadRequest, fmt.Errorf("vector store name is required")
 			}
+			// TODO(kenji): Check if the request is allowed to access the specified vector store.
+
 			msgs, err := s.rewriter.ProcessMessages(ctx, ragFunction.VectorStoreName, req.Messages)
 			if err != nil {
-				return err
+				return http.StatusInternalServerError, err
 			}
 			messages = append(messages, msgs...)
 		default:
-			return fmt.Errorf("unsupported function name: %s", tool.Function.Name)
+			return http.StatusBadRequest, fmt.Errorf("unsupported function name: %s", tool.Function.Name)
 		}
 	}
 	req.Messages = messages
-	return nil
+	return http.StatusOK, nil
 }

@@ -193,7 +193,6 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 				return err
 			}
 			messages = append(messages, msgs...)
-			continue
 		default:
 			return fmt.Errorf("unsupported function name: %s", tool.Function.Name)
 		}

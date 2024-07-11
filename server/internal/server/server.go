@@ -13,6 +13,7 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -29,6 +30,20 @@ type NoopModelClient struct {
 // GetModel is a no-op implementation of GetModel.
 func (c *NoopModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
 	return &mv1.Model{}, nil
+}
+
+// VectorStoreClient is an interface for a vector store client.
+type VectorStoreClient interface {
+	GetVectorStoreByName(ctx context.Context, req *vsv1.GetVectorStoreByNameRequest, opts ...grpc.CallOption) (*vsv1.VectorStore, error)
+}
+
+// NoopVectorStoreClient is a no-op vector store client.
+type NoopVectorStoreClient struct {
+}
+
+// GetVectorStoreByName is a no-op implementation of GetVectorStoreByName.
+func (c *NoopVectorStoreClient) GetVectorStoreByName(ctx context.Context, req *vsv1.GetVectorStoreByNameRequest, opts ...grpc.CallOption) (*vsv1.VectorStore, error) {
+	return &vsv1.VectorStore{}, nil
 }
 
 type reqIntercepter interface {
@@ -57,7 +72,7 @@ func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.U
 type Rewriter interface {
 	ProcessMessages(
 		ctx context.Context,
-		vectorStoreName string,
+		vstore *vsv1.VectorStore,
 		messages []*v1.CreateChatCompletionRequest_Message,
 	) ([]*v1.CreateChatCompletionRequest_Message, error)
 }
@@ -69,7 +84,7 @@ type NoopRewriter struct {
 // ProcessMessages is a no-op implementation of ProcessMessages.
 func (r *NoopRewriter) ProcessMessages(
 	ctx context.Context,
-	vectorStoreName string,
+	vstore *vsv1.VectorStore,
 	messages []*v1.CreateChatCompletionRequest_Message,
 ) ([]*v1.CreateChatCompletionRequest_Message, error) {
 	return messages, nil
@@ -79,12 +94,14 @@ func (r *NoopRewriter) ProcessMessages(
 func New(
 	m monitoring.MetricsMonitoring,
 	modelClient ModelClient,
+	vsClient VectorStoreClient,
 	r Rewriter,
 	taskQueue *infprocessor.TaskQueue,
 ) *S {
 	return &S{
 		metricsMonitor: m,
 		modelClient:    modelClient,
+		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
 		taskQueue:      taskQueue,
 		rewriter:       r,
@@ -100,6 +117,8 @@ type S struct {
 	metricsMonitor monitoring.MetricsMonitoring
 
 	modelClient ModelClient
+
+	vsClient VectorStoreClient
 
 	rewriter Rewriter
 

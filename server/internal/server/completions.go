@@ -14,6 +14,7 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -191,8 +192,17 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 				return http.StatusBadRequest, fmt.Errorf("vector store name is required")
 			}
 			// TODO(kenji): Check if the request is allowed to access the specified vector store.
+			vstore, err := s.vsClient.GetVectorStoreByName(ctx, &vsv1.GetVectorStoreByNameRequest{
+				Name: ragFunction.VectorStoreName,
+			})
+			if err != nil {
+				if status.Code(err) == codes.NotFound {
+					return http.StatusBadRequest, fmt.Errorf("vector store not found: %s", ragFunction.VectorStoreName)
+				}
+				return http.StatusInternalServerError, fmt.Errorf("failed to get vector store: %s", err)
+			}
 
-			msgs, err := s.rewriter.ProcessMessages(ctx, ragFunction.VectorStoreName, req.Messages)
+			msgs, err := s.rewriter.ProcessMessages(ctx, vstore, req.Messages)
 			if err != nil {
 				return http.StatusInternalServerError, err
 			}

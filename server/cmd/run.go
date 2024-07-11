@@ -70,9 +70,11 @@ func run(ctx context.Context, c *config.Config) error {
 	// with gRPC gateway.
 
 	var mclient server.ModelClient
+	var vsClient server.VectorStoreClient
 	var rwt server.Rewriter
 	if c.Debug.UseNoopClient {
 		mclient = &server.NoopModelClient{}
+		vsClient = &server.NoopVectorStoreClient{}
 		rwt = &server.NoopRewriter{}
 	} else {
 		options := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -86,21 +88,21 @@ func run(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		vsClient := vsv1.NewVectorStoreServiceClient(conn)
+		vsClient = vsv1.NewVectorStoreServiceClient(conn)
 
 		conn, err = grpc.NewClient(c.VectorStoreManagerInternalServerAddr, options)
 		if err != nil {
 			return err
 		}
 		vsInternalClient := vsv1.NewVectorStoreInternalServiceClient(conn)
-		rwt = rag.NewR(c.AuthConfig.Enable, vsClient, vsInternalClient)
+		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient)
 	}
 
 	m := monitoring.NewMetricsMonitor()
 	defer m.UnregisterAllCollectors()
 
 	queue := infprocessor.NewTaskQueue()
-	s := server.New(m, mclient, rwt, queue)
+	s := server.New(m, mclient, vsClient, rwt, queue)
 
 	createFile := runtime.MustPattern(
 		runtime.NewPattern(

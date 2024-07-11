@@ -14,19 +14,16 @@ func TestProcessMessages(t *testing.T) {
 	query := "what sky is red?"
 	r := NewR(
 		true,
-		&fakeVectorStoreClient{
-			vs: []*vsv1.VectorStore{
-				{
-					Id:   "default-id",
-					Name: "default",
-				},
-			},
-		},
 		&fakeVectorStoreInternalClient{
 			query: query,
 			docs:  []string{"sky is red when the sun is setting", "sky is blue when the sun is shining"},
 		},
 	)
+
+	vs := &vsv1.VectorStore{
+		Id:   "default-id",
+		Name: "default",
+	}
 
 	tcs := []struct {
 		name   string
@@ -66,19 +63,6 @@ func TestProcessMessages(t *testing.T) {
 			},
 		},
 		{
-			name:   "vector store not found",
-			vsName: "unknown",
-			req: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role:    "user",
-						Content: query,
-					},
-				},
-			},
-			err: true,
-		},
-		{
 			name:   "docs not found",
 			vsName: "default",
 			req: &v1.CreateChatCompletionRequest{
@@ -100,7 +84,7 @@ func TestProcessMessages(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := r.ProcessMessages(context.Background(), tc.vsName, tc.req.Messages)
+			got, err := r.ProcessMessages(context.Background(), vs, tc.req.Messages)
 			assert.Equal(t, tc.err, err != nil)
 			if err != nil {
 				return
@@ -108,23 +92,6 @@ func TestProcessMessages(t *testing.T) {
 			assert.Equal(t, tc.exp, got)
 		})
 	}
-}
-
-type fakeVectorStoreClient struct {
-	vs []*vsv1.VectorStore
-}
-
-func (c *fakeVectorStoreClient) ListVectorStores(
-	ctx context.Context,
-	req *vsv1.ListVectorStoresRequest,
-	opts ...grpc.CallOption,
-) (*vsv1.ListVectorStoresResponse, error) {
-	return &vsv1.ListVectorStoresResponse{
-		Data:    c.vs,
-		FirstId: c.vs[0].Id,
-		LastId:  c.vs[len(c.vs)-1].Id,
-		HasMore: false,
-	}, nil
 }
 
 type fakeVectorStoreInternalClient struct {

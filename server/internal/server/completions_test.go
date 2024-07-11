@@ -14,6 +14,7 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -31,6 +32,11 @@ func TestCreateChatCompletion(t *testing.T) {
 		&fakeModelClient{
 			models: map[string]*mv1.Model{
 				modelID: {},
+			},
+		},
+		&fakeVectorStoreClient{
+			vs: &vsv1.VectorStore{
+				Name: "test",
 			},
 		},
 		&fakeRewriter{},
@@ -121,6 +127,35 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 			},
 			code: http.StatusOK,
+		},
+		{
+			name: "invalid vector store name",
+			req: &v1.CreateChatCompletionRequest{
+				Model: modelID,
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
+						Name: ragToolName,
+					},
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:       ragToolName,
+							Parameters: `{"vector_store_name":"invalid_name"}`,
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role:    "user",
+						Content: "test",
+					},
+				},
+			},
+			code: http.StatusBadRequest,
 		},
 		{
 			name: "skip rag",
@@ -214,7 +249,7 @@ type fakeRewriter struct {
 
 func (c *fakeRewriter) ProcessMessages(
 	ctx context.Context,
-	vectorStoreName string,
+	vstore *vsv1.VectorStore,
 	messages []*v1.CreateChatCompletionRequest_Message,
 ) ([]*v1.CreateChatCompletionRequest_Message, error) {
 	return messages, nil
@@ -227,4 +262,19 @@ func (m *fakeMetricsMonitor) ObserveCompletionLatency(modelID string, latency ti
 }
 
 func (m *fakeMetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
+}
+
+type fakeVectorStoreClient struct {
+	vs *vsv1.VectorStore
+}
+
+func (c *fakeVectorStoreClient) GetVectorStoreByName(
+	ctx context.Context,
+	req *vsv1.GetVectorStoreByNameRequest,
+	opts ...grpc.CallOption,
+) (*vsv1.VectorStore, error) {
+	if req.Name != c.vs.Name {
+		return nil, status.Errorf(codes.NotFound, "%s not found", req.Name)
+	}
+	return c.vs, nil
 }

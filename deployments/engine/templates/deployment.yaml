@@ -25,9 +25,6 @@ spec:
         - --config
         - /etc/config/config.yaml
         ports:
-        - name: internal-grpc
-          containerPort: {{ .Values.internalGrpcPort }}
-          protocol: TCP
         - name: ollama
           containerPort: {{ .Values.ollamaPort }}
           protocol: TCP

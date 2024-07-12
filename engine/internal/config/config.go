@@ -56,8 +56,7 @@ type WorkerConfig struct {
 
 // Config is the configuration.
 type Config struct {
-	InternalGRPCPort int `yaml:"internalGrpcPort"`
-	OllamaPort       int `yaml:"ollamaPort"`
+	OllamaPort int `yaml:"ollamaPort"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -71,9 +70,6 @@ type Config struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	if c.InternalGRPCPort <= 0 {
-		return fmt.Errorf("internalGrpcPort must be greater than 0")
-	}
 	if c.OllamaPort <= 0 {
 		return fmt.Errorf("ollamaPort must be greater than 0")
 	}

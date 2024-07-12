@@ -1,26 +1,6 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "inference-manager-engine.fullname" . }}-internal-grpc
-  labels:
-    {{- include "inference-manager-engine.labels" . | nindent 4 }}
-  annotations:
-    konghq.com/protocol: grpc
-spec:
-  type: ClusterIP
-  ports:
-  - name: internal-grpc
-    port: {{ .Values.internalGrpcPort }}
-    protocol: TCP
-    targetPort: internal-grpc
-  selector:
-    {{- include "inference-manager-engine.selectorLabels" . | nindent 4 }}
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
   name: {{ include "inference-manager-engine.fullname" . }}-ollama
   labels:
     {{- include "inference-manager-engine.labels" . | nindent 4 }}

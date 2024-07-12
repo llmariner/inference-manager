@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
@@ -20,9 +21,42 @@ const (
 	completionPath = "/v1/chat/completions"
 )
 
-type modelSyncer interface {
+// ModelSyncer syncs models.
+type ModelSyncer interface {
 	ListSyncedModelIDs(ctx context.Context) []string
 	PullModel(ctx context.Context, modelID string) error
+}
+
+// NewFakeModelSyncer returns a FakeModelSyncer.
+func NewFakeModelSyncer() *FakeModelSyncer {
+	return &FakeModelSyncer{
+		modelIDs: map[string]struct{}{},
+	}
+}
+
+// FakeModelSyncer is a fake implementation of model syncer.
+type FakeModelSyncer struct {
+	modelIDs map[string]struct{}
+	mu       sync.Mutex
+}
+
+// ListSyncedModelIDs lists all models that have been synced.
+func (s *FakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ids []string
+	for id := range s.modelIDs {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// PullModel downloads and registers a model from model manager.
+func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.modelIDs[modelID] = struct{}{}
+	return nil
 }
 
 // NewP returns a new processor.
@@ -30,7 +64,7 @@ func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
 	ollamaAddr string,
-	modelSyncer modelSyncer,
+	modelSyncer ModelSyncer,
 ) *P {
 	return &P{
 		engineID:    engineID,
@@ -45,7 +79,7 @@ type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
 	ollamaAddr  string
-	modelSyncer modelSyncer
+	modelSyncer ModelSyncer
 }
 
 // Run runs the processor.

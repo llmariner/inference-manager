@@ -20,7 +20,6 @@ global:
     tls:
       enable: false
 
-internalGrpcPort: 8082
 ollamaPort: 8080
 
 # The following default values work if model-manager-server runs in the same namespace.

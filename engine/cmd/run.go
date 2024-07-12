@@ -14,7 +14,6 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
-	"github.com/llm-operator/inference-manager/engine/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -63,9 +62,9 @@ func run(ctx context.Context, c *config.Config) error {
 		errCh <- om.Run()
 	}()
 
-	var syncer server.ModelSyncer
+	var syncer processor.ModelSyncer
 	if c.Debug.Standalone {
-		syncer = server.NewFakeModelSyncer()
+		syncer = processor.NewFakeModelSyncer()
 	} else {
 
 		sc := s3.NewClient(c.ObjectStore.S3)
@@ -77,11 +76,6 @@ func run(ctx context.Context, c *config.Config) error {
 		mc := mv1.NewModelsWorkerServiceClient(conn)
 		syncer = modelsyncer.New(om, sc, mc)
 	}
-
-	go func() {
-		s := server.New(syncer)
-		errCh <- s.Run(c.InternalGRPCPort)
-	}()
 
 	if err := om.WaitForReady(); err != nil {
 		return err

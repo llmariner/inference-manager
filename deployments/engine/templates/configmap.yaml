@@ -6,7 +6,6 @@ metadata:
     {{- include "inference-manager-engine.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    internalGrpcPort: {{ .Values.internalGrpcPort }}
     ollamaPort: {{ .Values.ollamaPort }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.modelManagerServerWorkerServiceAddr }}

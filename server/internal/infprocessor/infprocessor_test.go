@@ -73,7 +73,7 @@ func TestP(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
 
-	// Remove the engien and check if the task fails.
+	// Remove the engine. Check if a newly created task will fail.
 	iprocessor.RemoveEngine("engine_id0", clusterInfo)
 
 	task = &Task{
@@ -86,6 +86,63 @@ func TestP(t *testing.T) {
 		ErrCh:  make(chan error),
 	}
 	queue.Enqueue(task)
+	_, err = task.WaitForCompletion(context.Background())
+	assert.Error(t, err)
+}
+
+func TestRemoveEngineWithInProgressTask(t *testing.T) {
+	const (
+		modelID = "m0"
+	)
+
+	queue := NewTaskQueue()
+	iprocessor := NewP(
+		queue,
+		&fakeEngineRouter{},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	comm := &fakeEngineCommunicator{
+		taskCh:   make(chan *v1.Task),
+		resultCh: make(chan *v1.TaskResult),
+	}
+	go comm.run(ctx)
+
+	clusterInfo := &auth.ClusterInfo{
+		TenantID: "tenant0",
+	}
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+		},
+		clusterInfo,
+	)
+
+	go func() {
+		_ = iprocessor.Run(ctx)
+	}()
+
+	task := &Task{
+		ID:       "task0",
+		TenantID: "tenant0",
+		Req: &v1.CreateChatCompletionRequest{
+			Model: modelID,
+		},
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
+	}
+	queue.Enqueue(task)
+
+	// Wait for the task to be scheduled.
+	_, err := comm.Recv()
+	assert.NoError(t, err)
+
+	iprocessor.RemoveEngine("engine_id0", clusterInfo)
+
 	_, err = task.WaitForCompletion(context.Background())
 	assert.Error(t, err)
 }

@@ -27,6 +27,8 @@ type Task struct {
 	ErrCh  chan error
 
 	bodyWriter pipeReadWriteCloser
+
+	EngineID string
 }
 
 // WaitForCompletion waits for the completion of the task.
@@ -136,6 +138,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 	}
 
 	p.mu.Lock()
+	t.EngineID = engineID
 	p.inProgressTasksByID[t.ID] = t
 	p.mu.Unlock()
 
@@ -187,6 +190,18 @@ func (p *P) AddOrUpdateEngineStatus(
 func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	// Cancel in-progress tasks allocated to this engine.
+	for _, t := range p.inProgressTasksByID {
+		if t.EngineID != engineID {
+			continue
+		}
+		// Write to the error channel in a goroutine to avoid channel block while
+		// acquiring the lock.
+		go func(t *Task) {
+			t.ErrCh <- fmt.Errorf("engine %s is removed", engineID)
+		}(t)
+	}
 
 	engines, ok := p.engines[clusterInfo.TenantID]
 	if !ok {

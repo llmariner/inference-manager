@@ -42,7 +42,17 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
+        {{- if .Values.workerServiceTls.enable }}
+        - name: tls
+          mountPath: /var/run/tls
+          readOnly: true
+        {{- end }}
       volumes:
       - name: config
         configMap:
           name: {{ include "inference-manager-server.fullname" . }}
+      {{- if .Values.workerServiceTls.enable }}
+      - name: tls
+        secret:
+          secretName: {{ .Values.workerServiceTls.secretName }}
+      {{- end }}

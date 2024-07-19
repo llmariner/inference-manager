@@ -9,6 +9,11 @@ data:
     grpcPort: {{ .Values.grpcPort }}
     httpPort: {{ .Values.httpPort }}
     workerServiceGrpcPort: {{ .Values.workerServiceGrpcPort }}
+    {{- if .Values.workerServiceTls.enable }}
+    workerServiceTls:
+      cert: /var/run/tls/tls.crt
+      key: /var/run/tls/tls.key
+    {{- end }}
     monitoringPort: {{ .Values.monitoringPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}

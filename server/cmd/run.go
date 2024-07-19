@@ -138,7 +138,7 @@ func run(ctx context.Context, c *config.Config) error {
 
 	go func() {
 		s := server.NewWorkerServiceServer(infProcessor)
-		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig)
+		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
 	}()
 
 	return <-errCh

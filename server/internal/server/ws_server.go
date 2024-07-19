@@ -2,17 +2,20 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net"
 
+	"github.com/llm-operator/common/pkg/certlib/store"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
@@ -42,7 +45,7 @@ type WS struct {
 }
 
 // Run runs the worker service server.
-func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig) error {
+func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, tlsConfig *config.TLS) error {
 	log.Printf("Starting worker service server on port %d", port)
 
 	var opts []grpc.ServerOption
@@ -55,6 +58,22 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig) e
 		}
 		opts = append(opts, grpc.StreamInterceptor(ai.Stream()))
 		ws.enableAuth = true
+	}
+
+	// Create a reloading TLS certificate store to pick up any updates to the
+	// TLS certificates.
+	//
+	// We only need this for the worker service as the rest of the endpoints are under an ingress controller that terminates TLS
+	// before requests hit the endpoints.
+	//
+	// The worker service endpoint is different from the rest of the endpoints as they can be directly hit by clients (as
+	// an ingress controller might not support gRPC streaming).
+	if tlsConfig != nil {
+		c, err := buildTLSConfig(ctx, tlsConfig)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, grpc.Creds(credentials.NewTLS(c)))
 	}
 
 	srv := grpc.NewServer(opts...)
@@ -149,4 +168,36 @@ func (ws *WS) processMessagesFromEngine(
 	}
 
 	return engineID, nil
+}
+
+func buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, error) {
+	st, err := store.NewReloadingFileStore(store.ReloadingFileStoreOpts{
+		KeyPath:  tlsConfig.Key,
+		CertPath: tlsConfig.Cert,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		log.Printf("Starting reloading certificate store.\n")
+		if err := st.Run(ctx); err != nil {
+			// Ensure we fail fast if the cert store can not be reloaded.
+			log.Fatalf("Server run: run certificate store reloader: %s\n", err)
+		}
+	}()
+
+	var cipherSuites []uint16
+	// CipherSuites returns only secure ciphers.
+	for _, c := range tls.CipherSuites() {
+		cipherSuites = append(cipherSuites, c.ID)
+	}
+
+	return &tls.Config{
+		GetCertificate: st.GetCertificateFunc(),
+		// Support v1.2 as at least intruder.io needs v1.2 to run its scan.
+		MinVersion: tls.VersionTLS12,
+		// Exclude insecure ciphers.
+		CipherSuites: cipherSuites,
+	}, nil
 }

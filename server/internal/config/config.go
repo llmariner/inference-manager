@@ -20,6 +20,8 @@ type Config struct {
 
 	AuthConfig AuthConfig `yaml:"auth"`
 
+	WorkerServiceTLS *TLS `yaml:"workerServiceTls"`
+
 	Debug DebugConfig `yaml:"debug"`
 }
 
@@ -29,13 +31,30 @@ type AuthConfig struct {
 	RBACInternalServerAddr string `yaml:"rbacInternalServerAddr"`
 }
 
-// Validate validates the configuration.
+// validate validates the configuration.
 func (c *AuthConfig) validate() error {
 	if !c.Enable {
 		return nil
 	}
 	if c.RBACInternalServerAddr == "" {
 		return fmt.Errorf("rbacInternalServerAddr must be set")
+	}
+	return nil
+}
+
+// TLS is the TLS configuration for the proxy.
+type TLS struct {
+	Key  string `yaml:"key"`
+	Cert string `yaml:"cert"`
+}
+
+// validate validates the configuration.
+func (c *TLS) validate() error {
+	if c.Key == "" {
+		return fmt.Errorf("key must be set")
+	}
+	if c.Cert == "" {
+		return fmt.Errorf("cert must be set")
 	}
 	return nil
 }
@@ -62,6 +81,12 @@ func (c *Config) Validate() error {
 
 	if err := c.AuthConfig.validate(); err != nil {
 		return err
+	}
+
+	if t := c.WorkerServiceTLS; t != nil {
+		if err := t.validate(); err != nil {
+			return err
+		}
 	}
 
 	return nil

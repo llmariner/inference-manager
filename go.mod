@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/aws/aws-sdk-go v1.51.23
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
-	github.com/llm-operator/common v0.3.0
+	github.com/llm-operator/common v0.4.0
 	github.com/llm-operator/model-manager v0.76.0
 	github.com/llm-operator/rbac-manager v0.83.0
 	github.com/llm-operator/vector-store-manager v0.30.0

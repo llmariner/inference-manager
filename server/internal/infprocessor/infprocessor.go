@@ -33,12 +33,14 @@ type Task struct {
 
 // WaitForCompletion waits for the completion of the task.
 func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
+	log.Printf("Waiting for the completion of the task: %s\n", t.ID)
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case resp := <-t.RespCh:
 		return resp, nil
 	case err := <-t.ErrCh:
+		log.Printf("Task failed: %s\n", err)
 		return nil, err
 	}
 }
@@ -125,7 +127,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 		return
 	}
 
-	log.Printf("Forwarding completion request to Inference Manager Engine (EngineID: %s)\n", engineID)
+	log.Printf("Forwarding completion task (id: %q) to Inference Manager Engine (EngineID: %q)\n", t.ID, engineID)
 	engines := p.engines[t.TenantID]
 	if len(engines) == 0 {
 		t.ErrCh <- fmt.Errorf("no engine found")

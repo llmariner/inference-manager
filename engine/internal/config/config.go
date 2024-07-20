@@ -65,7 +65,7 @@ type Config struct {
 	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`
 	ModelManagerServerWorkerServiceAddr     string `yaml:"modelManagerServerWorkerServiceAddr"`
 
-	Worker WorkerConfig `yaml:"workerConfig"`
+	Worker WorkerConfig `yaml:"worker"`
 }
 
 // Validate validates the configuration.

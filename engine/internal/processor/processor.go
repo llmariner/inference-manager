@@ -106,9 +106,12 @@ func (p *P) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
+		log.Printf("Started rocessing task: %s\n", resp.NewTask.Id)
 		if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
 			return err
 		}
+		log.Printf("Completed task: %s\n", resp.NewTask.Id)
 	}
 }
 
@@ -121,8 +124,6 @@ func (p *P) processTask(
 	stream sender,
 	t *v1.Task,
 ) error {
-	log.Printf("Processing task: %s\n", t.Id)
-
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
 		return fmt.Errorf("pull model: %s", err)

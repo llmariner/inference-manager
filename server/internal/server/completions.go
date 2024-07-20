@@ -212,5 +212,8 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 		}
 	}
 	req.Messages = messages
+	// Clear the tool related fields as we don't want to pass this to Ollama.
+	req.ToolChoice = nil
+	req.Tools = nil
 	return http.StatusOK, nil
 }

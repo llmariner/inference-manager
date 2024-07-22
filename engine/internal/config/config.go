@@ -21,9 +21,6 @@ type ObjectStoreConfig struct {
 
 // Validate validates the object store configuration.
 func (c *ObjectStoreConfig) Validate() error {
-	if c.S3.EndpointURL == "" {
-		return fmt.Errorf("s3 endpoint url must be set")
-	}
 	if c.S3.Region == "" {
 		return fmt.Errorf("s3 region must be set")
 	}

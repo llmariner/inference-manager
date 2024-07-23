@@ -3,6 +3,7 @@ package infprocessor
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -33,15 +34,29 @@ type Task struct {
 
 // WaitForCompletion waits for the completion of the task.
 func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
-	log.Printf("Waiting for the completion of the task: %s\n", t.ID)
+	log.Printf("Waiting for the completion of the task (ID: %q)\n", t.ID)
 	select {
 	case <-ctx.Done():
+		// When a task result comes, the processor still attempts to
+		// write a response/error to a channel. We need to read
+		// from the channel to avoid a goroutine leak.
+		go t.discardResp()
 		return nil, ctx.Err()
 	case resp := <-t.RespCh:
 		return resp, nil
 	case err := <-t.ErrCh:
-		log.Printf("Task failed: %s\n", err)
+		log.Printf("Task (ID: %q) failed: %s\n", t.ID, err)
 		return nil, err
+	}
+}
+
+func (t *Task) discardResp() {
+	select {
+	case resp := <-t.RespCh:
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	case err := <-t.ErrCh:
+		log.Printf("Task (ID: %q) failed: %s\n", t.ID, err)
 	}
 }
 

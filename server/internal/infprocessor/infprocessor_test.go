@@ -147,6 +147,65 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestProcessTaskResultAfterContextCancel(t *testing.T) {
+	const (
+		modelID = "m0"
+	)
+
+	queue := NewTaskQueue()
+	iprocessor := NewP(
+		queue,
+		&fakeEngineRouter{},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	comm := &fakeEngineCommunicator{
+		taskCh:   make(chan *v1.Task),
+		resultCh: make(chan *v1.TaskResult),
+	}
+	go comm.run(ctx)
+
+	clusterInfo := &auth.ClusterInfo{
+		TenantID: "tenant0",
+	}
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+		},
+		clusterInfo,
+	)
+
+	go func(ctx context.Context) {
+		_ = iprocessor.Run(ctx)
+	}(ctx)
+
+	task := &Task{
+		ID:       "task0",
+		TenantID: "tenant0",
+		Req: &v1.CreateChatCompletionRequest{
+			Model: modelID,
+		},
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
+	}
+	queue.Enqueue(task)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	cancel()
+	_, err := task.WaitForCompletion(ctx)
+	assert.Error(t, err)
+
+	// Simulate a case where the task result is received after the context is canceled.
+	resp, err := comm.Recv()
+	assert.NoError(t, err)
+	err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
+	assert.NoError(t, err)
+}
+
 type fakeEngineRouter struct {
 	engineID string
 }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
@@ -19,6 +20,8 @@ import (
 
 const (
 	completionPath = "/v1/chat/completions"
+
+	statusReportInterval = 30 * time.Second
 )
 
 // ModelSyncer syncs models.
@@ -96,7 +99,19 @@ func (p *P) Run(ctx context.Context) error {
 	}
 	log.Printf("Registered engine: %s\n", p.engineID)
 
-	// TODO(kenji): Periodically send engine status.
+	go func() {
+		// Periodically send engine status.
+		for {
+			if err := p.sendEngineStatus(ctx, stream); err != nil {
+				log.Fatalf("Failed to send engine status: %s\n", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(statusReportInterval):
+			}
+		}
+	}()
 
 	for {
 		resp, err := stream.Recv()
@@ -107,7 +122,7 @@ func (p *P) Run(ctx context.Context) error {
 			return err
 		}
 
-		log.Printf("Started rocessing task: %s\n", resp.NewTask.Id)
+		log.Printf("Started processing task: %s\n", resp.NewTask.Id)
 		if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
 			return err
 		}

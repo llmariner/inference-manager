@@ -15,11 +15,14 @@ spec:
         {{- include "inference-manager-server.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ sha256sum (toJson .Values) }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "inference-manager-server.serviceAccountName" . }}
       containers:
       - name: inference-manager-server
-        image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.version }}"
+        image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - run
@@ -47,6 +50,18 @@ spec:
           mountPath: /var/run/tls
           readOnly: true
         {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
       - name: config
         configMap:

@@ -36,7 +36,6 @@ func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
 	log.Printf("Waiting for the completion of the task: %s\n", t.ID)
 	select {
 	case <-ctx.Done():
-		log.Printf("Context done: %s\n", ctx.Err())
 		return nil, ctx.Err()
 	case resp := <-t.RespCh:
 		return resp, nil

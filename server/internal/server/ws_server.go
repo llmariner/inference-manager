@@ -157,9 +157,11 @@ func (ws *WS) processMessagesFromEngine(
 	var engineID string
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
+		log.Printf("Received engine status: engineID=%s\n", msg.EngineStatus.EngineId)
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
+		log.Printf("Received task result: taskID=%s\n", msg.TaskResult.TaskId)
 		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
 			return "", err
 		}

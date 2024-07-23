@@ -21,6 +21,9 @@ import (
 const (
 	completionPath = "/v1/chat/completions"
 
+	// statusReportInterval is the interval to report engine status.
+	// This needs to be shorter than an idle connection timeout period of
+	// the server or the load balancer.
 	statusReportInterval = 30 * time.Second
 )
 

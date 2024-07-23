@@ -15,6 +15,9 @@ spec:
         {{- include "inference-manager-engine.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ sha256sum (toJson .Values) }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       containers:
       - name: inference-manager-engine
@@ -61,6 +64,18 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
       - name: config
         configMap:

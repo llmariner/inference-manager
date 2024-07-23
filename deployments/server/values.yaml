@@ -40,7 +40,13 @@ replicaCount: 1
 image:
   repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-server
   pullPolicy: IfNotPresent
-  version:
+
+podAnnotations:
+nodeSelector:
+affinity:
+tolerations:
+
+version:
 
 enableServiceMonitor: false
 

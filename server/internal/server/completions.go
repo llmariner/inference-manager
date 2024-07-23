@@ -100,8 +100,9 @@ func (s *S) CreateChatCompletion(
 		TenantID: userInfo.TenantID,
 		Req:      &createReq,
 		Header:   req.Header,
-		RespCh:   make(chan *http.Response),
-		ErrCh:    make(chan error),
+		// TODO(kenji): Fix the buffer size.
+		RespCh: make(chan *http.Response, 1000),
+		ErrCh:  make(chan error, 1),
 	}
 
 	s.taskQueue.Enqueue(task)

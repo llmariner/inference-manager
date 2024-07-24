@@ -19,6 +19,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
       containers:
       - name: inference-manager-engine
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"

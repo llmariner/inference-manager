@@ -31,6 +31,10 @@ image:
   repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-engine
   pullPolicy: IfNotPresent
 
+serviceAccount:
+  create: false
+  name: ""
+
 podAnnotations:
 nodeSelector:
 affinity:

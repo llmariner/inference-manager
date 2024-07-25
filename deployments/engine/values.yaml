@@ -10,9 +10,6 @@ global:
     accessKeyIdKey:
     secretAccessKeyKey:
 
-  ingress:
-    ingressClassName:
-
   worker:
     registrationKeySecret:
       name:

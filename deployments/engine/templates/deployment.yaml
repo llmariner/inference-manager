@@ -32,7 +32,7 @@ spec:
         - name: ollama
           containerPort: {{ .Values.ollamaPort }}
           protocol: TCP
-        {{ if (gt (int .Values.resources.gpu) 0) }}
+        {{- if (gt (int .Values.resources.gpu) 0) }}
         resources:
           limits:
             nvidia.com/gpu: {{ .Values.resources.gpu }}

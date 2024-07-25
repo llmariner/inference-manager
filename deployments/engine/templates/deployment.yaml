@@ -37,9 +37,9 @@ spec:
           limits:
             nvidia.com/gpu: {{ .Values.resources.gpu }}
         {{- end }}
+        env:
         {{- with .Values.global.awsSecret }}
         {{- if .name }}
-        env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:

@@ -9,8 +9,8 @@ import (
 const (
 	metricNamespace = "llm_operator"
 
-	metricsNameCompletionLatency = "inference_manager_serever_completion_latency"
-	metricsNameCompletionRequest = "inference_manager_serever_completion_num_active_requests"
+	metricsNameCompletionLatency = "inference_manager_server_completion_latency"
+	metricsNameCompletionRequest = "inference_manager_server_completion_num_active_requests"
 	metricLabelModelID           = "model_id"
 )
 

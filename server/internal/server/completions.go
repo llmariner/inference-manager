@@ -96,12 +96,13 @@ func (s *S) CreateChatCompletion(
 		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
 	}
 	task := &infprocessor.Task{
-		ID:       taskID,
-		TenantID: userInfo.TenantID,
-		Req:      &createReq,
-		Header:   req.Header,
-		RespCh:   make(chan *http.Response),
-		ErrCh:    make(chan error),
+		ID:        taskID,
+		TenantID:  userInfo.TenantID,
+		Req:       &createReq,
+		Header:    req.Header,
+		RespCh:    make(chan *http.Response),
+		ErrCh:     make(chan error),
+		CreatedAt: time.Now(),
 	}
 
 	s.taskQueue.Enqueue(task)

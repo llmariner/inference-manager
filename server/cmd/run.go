@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/config"
@@ -23,7 +24,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const flagConfig = "config"
+const (
+	flagConfig = "config"
+
+	monitoringRunnerInterval = 10 * time.Second
+)
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -98,10 +103,21 @@ func run(ctx context.Context, c *config.Config) error {
 		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient)
 	}
 
-	m := monitoring.NewMetricsMonitor()
+	queue := infprocessor.NewTaskQueue()
+
+	r := router.New()
+	infProcessor := infprocessor.NewP(queue, r)
+	go func() {
+		errCh <- infProcessor.Run(ctx)
+	}()
+
+	m := monitoring.NewMetricsMonitor(infProcessor)
+	go func() {
+		errCh <- m.Run(ctx, monitoringRunnerInterval)
+	}()
+
 	defer m.UnregisterAllCollectors()
 
-	queue := infprocessor.NewTaskQueue()
 	s := server.New(m, mclient, vsClient, rwt, queue)
 
 	createFile := runtime.MustPattern(
@@ -128,12 +144,6 @@ func run(ctx context.Context, c *config.Config) error {
 
 	go func() {
 		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
-	}()
-
-	r := router.New()
-	infProcessor := infprocessor.NewP(queue, r)
-	go func() {
-		errCh <- infProcessor.Run(ctx)
 	}()
 
 	go func() {

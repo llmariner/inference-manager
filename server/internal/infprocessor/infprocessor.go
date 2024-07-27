@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
@@ -30,6 +32,8 @@ type Task struct {
 	bodyWriter pipeReadWriteCloser
 
 	EngineID string
+
+	CreatedAt time.Time
 }
 
 // WaitForCompletion waits for the completion of the task.
@@ -69,11 +73,13 @@ func NewTaskQueue() *TaskQueue {
 
 // TaskQueue is a queue for inference tasks.
 type TaskQueue struct {
-	tasks chan *Task
+	tasks    chan *Task
+	numTasks atomic.Int32
 }
 
 // Enqueue inserts a task into the queue.
 func (q *TaskQueue) Enqueue(t *Task) {
+	q.numTasks.Add(1)
 	q.tasks <- t
 }
 
@@ -83,6 +89,7 @@ func (q *TaskQueue) Dequeue(ctx context.Context) (*Task, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case t := <-q.tasks:
+		q.numTasks.Add(-1)
 		return t, nil
 	}
 }
@@ -314,4 +321,30 @@ func (p *P) writeTaskResultToChan(
 	default:
 		return false, fmt.Errorf("unexpected message type: %T", msg)
 	}
+}
+
+// NumQueuedTasks returns the number of queued tasks.
+func (p *P) NumQueuedTasks() int32 {
+	return p.queue.numTasks.Load()
+}
+
+// NumInProgressTasks returns the number of in-progress tasks.
+func (p *P) NumInProgressTasks() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.inProgressTasksByID)
+}
+
+// MaxInProgressTaskDuration returns the maximum duration of in-progress tasks.
+func (p *P) MaxInProgressTaskDuration() time.Duration {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var maxD time.Duration
+	for _, t := range p.inProgressTasksByID {
+		d := time.Since(t.CreatedAt)
+		if d > maxD {
+			maxD = d
+		}
+	}
+	return maxD
 }

@@ -225,6 +225,7 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 		go func(t *Task) {
 			t.ErrCh <- fmt.Errorf("engine %s is removed", engineID)
 		}(t)
+		delete(p.inProgressTasksByID, t.ID)
 	}
 
 	engines, ok := p.engines[clusterInfo.TenantID]

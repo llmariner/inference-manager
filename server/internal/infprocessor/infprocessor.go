@@ -294,7 +294,9 @@ func (p *P) writeTaskResultToChan(
 
 		if d := resp.Body; len(d) > 0 {
 			if _, err := p.Write(d); err != nil {
-				return false, fmt.Errorf("write the body writer: %s", err)
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Printf("Failed to write the body writer: %s\n", err)
 			}
 		}
 
@@ -306,7 +308,9 @@ func (p *P) writeTaskResultToChan(
 
 		if d := msg.ServerSentEvent.Data; len(d) > 0 {
 			if _, err := t.bodyWriter.Write(d); err != nil {
-				return false, fmt.Errorf("write the body writer: %s", err)
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Printf("Failed to write the body writer: %s\n", err)
 			}
 		}
 

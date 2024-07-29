@@ -16,5 +16,5 @@ spec:
         severity: critical
       annotations:
         title: Inference Manager Server in-progress task duration
-        description: Inference Manager Server is taking more than 5 to process tasks.
+        description: Inference Manager Server is taking more than 5 minutes to process tasks.
 {{- end }}

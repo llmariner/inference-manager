@@ -16,8 +16,11 @@ const (
 	metricsNameNumQueuedTasks            = "inference_manager_server_num_queued_tasks"
 	metricsNameNumInProgressTasks        = "inference_manager_server_num_in_progress_tasks"
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
+	metricsNameNumEngines                = "inference_manager_server_num_engines"
 
 	metricLabelModelID = "model_id"
+
+	metricLabelTenantID = "tenant_id"
 )
 
 // MetricsMonitoring is an interface for monitoring metrics.
@@ -35,6 +38,7 @@ type MetricsMonitor struct {
 	numQueuedTasksGauge            prometheus.Gauge
 	numInProgressTasksGauge        prometheus.Gauge
 	maxInProgressTaskDurationGauge prometheus.Gauge
+	numEnginesGaugeVec             *prometheus.GaugeVec
 }
 
 // latencyBuckets are the buckets for the latencies from 100ms to 5 minutes.
@@ -86,6 +90,16 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 		},
 	)
 
+	numEnginesGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameNumEngines,
+		},
+		[]string{
+			metricLabelTenantID,
+		},
+	)
+
 	m := &MetricsMonitor{
 		p: p,
 
@@ -94,6 +108,7 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 		numQueuedTasksGauge:            numQueuedTasksGauge,
 		numInProgressTasksGauge:        numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge: maxInProgressTaskDurationGauge,
+		numEnginesGaugeVec:             numEnginesGaugeVec,
 	}
 
 	prometheus.MustRegister(
@@ -102,6 +117,7 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 		numQueuedTasksGauge,
 		numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge,
+		numEnginesGaugeVec,
 	)
 
 	return m
@@ -134,6 +150,11 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 	m.numQueuedTasksGauge.Set(float64(m.p.NumQueuedTasks()))
 	m.numInProgressTasksGauge.Set(float64(m.p.NumInProgressTasks()))
 	m.maxInProgressTaskDurationGauge.Set(float64(m.p.MaxInProgressTaskDuration().Seconds()))
+
+	m.numEnginesGaugeVec.Reset()
+	for tenantID, numEngines := range m.p.NumEnginesByTenantID() {
+		m.numEnginesGaugeVec.WithLabelValues(tenantID).Set(float64(numEngines))
+	}
 }
 
 // UnregisterAllCollectors unregisters all connectors.
@@ -142,4 +163,5 @@ func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.completionRequestGaugeVec)
 	prometheus.Unregister(m.numInProgressTasksGauge)
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
+	prometheus.Unregister(m.numEnginesGaugeVec)
 }

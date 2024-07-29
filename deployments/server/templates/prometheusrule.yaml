@@ -1,0 +1,20 @@
+{{- if .Values.enablePrometheusRule }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "inference-manager-server.fullname" . }}
+  labels:
+    {{- include "inference-manager-server.labels" . | nindent 4 }}
+spec:
+  groups:
+  - name: LLM Operator alerts
+    rules:
+    - alert: Inference Manager Server in-progress task duration
+      expr: llm_operator_inference_manager_server_max_in_progress_task_duration > 300
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        title: Inference Manager Server in-progress task duration
+        description: Inference Manager Server is taking more than 5 to process tasks.
+{{- end }}

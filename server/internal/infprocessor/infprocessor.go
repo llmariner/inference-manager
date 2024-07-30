@@ -353,3 +353,14 @@ func (p *P) MaxInProgressTaskDuration() time.Duration {
 	}
 	return maxD
 }
+
+// NumEnginesByTenantID returns the number of engines by tenant ID.
+func (p *P) NumEnginesByTenantID() map[string]int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	m := make(map[string]int, len(p.engines))
+	for tenantID, engines := range p.engines {
+		m[tenantID] = len(engines)
+	}
+	return m
+}

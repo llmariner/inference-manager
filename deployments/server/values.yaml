@@ -49,6 +49,7 @@ tolerations:
 version:
 
 enableServiceMonitor: false
+enablePrometheusRule: false
 
 service:
   annotations:

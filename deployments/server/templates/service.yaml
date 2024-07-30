@@ -3,7 +3,9 @@ kind: Service
 metadata:
   name: {{ include "inference-manager-server.fullname" . }}-http
   annotations:
-    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
 spec:
@@ -29,8 +31,12 @@ metadata:
   labels:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
   annotations:
-    {{- toYaml .Values.global.workerServiceGrpcService.annotations | nindent 4 }}
-    {{- toYaml .Values.workerServiceGrpcService.annotations | nindent 4 }}
+    {{- with .Values.global.workerServiceGrpcService.annotations }}
+    {{- toYaml .| nindent 4 }}
+    {{- end }}
+    {{- with .Values.workerServiceGrpcService.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   type: {{ .Values.workerServiceGrpcService.type }}
   ports:

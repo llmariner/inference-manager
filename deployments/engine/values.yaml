@@ -16,6 +16,8 @@ global:
       key:
     tls:
       enable: false
+    # If specified, use this as the address for accessing the control-plane services.
+    controlPlaneAddr: ""
 
 ollamaPort: 8080
 

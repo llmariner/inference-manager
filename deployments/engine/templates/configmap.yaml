@@ -8,7 +8,7 @@ data:
   config.yaml: |
     ollamaPort: {{ .Values.ollamaPort }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
-    modelManagerServerWorkerServiceAddr: {{ .Values.modelManagerServerWorkerServiceAddr }}
+    modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
     worker:
       tls:
         enable: {{ .Values.global.worker.tls.enable }}

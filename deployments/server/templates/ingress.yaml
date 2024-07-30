@@ -5,7 +5,9 @@ metadata:
   labels:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
   annotations:
-    {{- toYaml .Values.global.ingress.annotations | nindent 4 }}
+    {{- with .Values.global.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.global.ingress.ingressClassName }}
   {{- with .Values.global.ingress.tls }}
@@ -37,7 +39,9 @@ metadata:
   labels:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
   annotations:
-    {{- toYaml .Values.global.workerServiceIngress.annotations | nindent 4 }}
+    {{- with .Values.global.workerServiceIngress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.global.workerServiceIngress.ingressClassName }}
   {{- with .Values.global.workerServiceIngress.tls }}

@@ -19,6 +19,9 @@ global:
     # If specified, use this as the address for accessing the control-plane services.
     controlPlaneAddr: ""
 
+  controlPlaneAddr: ""
+
+
 ollamaPort: 8080
 
 # The following default values work if model-manager-server runs in the same namespace.

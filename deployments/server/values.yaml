@@ -26,6 +26,12 @@ grpcPort: 8081
 workerServiceGrpcPort: 8082
 monitoringPort: 8083
 
+workerServiceGrpcService:
+  type: ClusterIP
+  port: 8082
+  nodePort:
+  annotations:
+
 workerServiceTls:
   enable: false
   secretName:

@@ -30,12 +30,16 @@ metadata:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
   annotations:
     {{- toYaml .Values.global.workerServiceGrpcService.annotations | nindent 4 }}
+    {{- toYaml .Values.workerServiceGrpcService.annotations | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.workerServiceGrpcService.type }}
   ports:
   - name: ws-grpc
-    port: {{ .Values.workerServiceGrpcPort }}
+    port: {{ .Values.workerServiceGrpcService.port }}
     protocol: TCP
     targetPort: ws-grpc
+    {{- if .Values.workerServiceGrpcService.nodePort }}
+    nodePort: {{ .Values.workerServiceGrpcService.nodePort }}
+    {{- end }}
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}

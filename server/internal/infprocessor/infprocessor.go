@@ -358,7 +358,7 @@ func (p *P) MaxInProgressTaskDuration() time.Duration {
 func (p *P) NumEnginesByTenantID() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	m := map[string]int{}
+	m := make(map[string]int, len(p.engines))
 	for tenantID, engines := range p.engines {
 		m[tenantID] = len(engines)
 	}

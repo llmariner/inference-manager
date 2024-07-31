@@ -163,6 +163,9 @@ PARAMETER stop "[/INST]"`, nil
 
 	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
 		// Output of "ollama show llama3.1 --modelfile".
+		//
+		// TODO(kenji): Might need to update the template once
+		// https://github.com/ollama/ollama/issues/6060 is fixed.
 		return `
 TEMPLATE """{{ if .Messages }}
 {{- if or .System .Tools }}<|start_header_id|>system<|end_header_id|>

@@ -107,6 +107,7 @@ func (m *Manager) runCommand(args []string) error {
 	log.Printf("Running Ollama command: %v", args)
 	cmd := exec.Command("ollama", args...)
 	var errb bytes.Buffer
+	cmd.Stdout = os.Stdout
 	cmd.Stderr = &errb
 	if err := cmd.Run(); err != nil {
 		log.Printf("Failed to run %v: %s", args, errb.String())

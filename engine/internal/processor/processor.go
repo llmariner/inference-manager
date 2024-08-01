@@ -195,7 +195,7 @@ func (p *P) processTask(
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		log.Printf("Received an error response from Ollama: req=%+v, resp=%+v\n", req, resp)
+		log.Printf("Received an error response from Ollama: statusCode=%d, status=%q\n", resp.StatusCode, resp.Status)
 		httpResp := &v1.HttpResponse{
 			StatusCode: int32(resp.StatusCode),
 			Status:     resp.Status,

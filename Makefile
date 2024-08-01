@@ -30,4 +30,4 @@ build-docker-engine:
 
 .PHONY: build-docker-engine-vllm
 build-docker-engine-vllm:
-	docker build --build-arg TARGETARCH=amd64 --target vllm -t llm-operator/inference-manager-engine-vllm:latest -f build/engine/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 --target vllm -t llm-operator/inference-manager-engine:vllm_latest -f build/engine/Dockerfile .

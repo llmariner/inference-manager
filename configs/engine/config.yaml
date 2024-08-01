@@ -3,5 +3,7 @@ objectStore:
 inferenceManagerServerWorkerServiceAddr: server:8082
 modelManagerServerWorkerServiceAddr:
 
+llmEngine: ollama
+
 debug:
   standalone: true

@@ -10,10 +10,12 @@ import (
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
+	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -51,24 +53,31 @@ var runCmd = &cobra.Command{
 }
 
 func run(ctx context.Context, c *config.Config) error {
-	ollamaAddr := fmt.Sprintf("0.0.0.0:%d", c.Ollama.Port)
-	if err := os.Setenv("OLLAMA_HOST", ollamaAddr); err != nil {
-		return err
-	}
-	if err := os.Setenv("OLLAMA_KEEP_ALIVE", c.Ollama.KeepAlive.String()); err != nil {
-		return err
-	}
+	var llmAddr string
+	var m manager.M
+	switch c.LLMEngine {
+	case "ollama":
+		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.Ollama.Port)
+		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
+			return err
+		}
+		m = ollama.New(llmAddr)
 
-	om := ollama.NewManager(ollamaAddr)
+	case "vllm":
+		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.VLLM.Port)
+		m = vllm.New(c)
+	default:
+		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
+	}
 
 	errCh := make(chan error)
 
 	go func() {
-		errCh <- om.Run()
+		errCh <- m.Run()
 	}()
 
 	var syncer processor.ModelSyncer
-	if c.Debug.Standalone {
+	if c.Debug.Standalone || c.LLMEngine == "vllm" {
 		syncer = processor.NewFakeModelSyncer()
 	} else {
 
@@ -79,10 +88,10 @@ func run(ctx context.Context, c *config.Config) error {
 			return err
 		}
 		mc := mv1.NewModelsWorkerServiceClient(conn)
-		syncer = modelsyncer.New(om, sc, mc)
+		syncer = modelsyncer.New(m, sc, mc)
 	}
 
-	if err := om.WaitForReady(); err != nil {
+	if err := m.WaitForReady(); err != nil {
 		return err
 	}
 
@@ -109,7 +118,8 @@ func run(ctx context.Context, c *config.Config) error {
 	p := processor.NewP(
 		engineID,
 		v1.NewInferenceWorkerServiceClient(conn),
-		ollamaAddr,
+		llmAddr,
+		c.LLMEngine,
 		syncer,
 	)
 

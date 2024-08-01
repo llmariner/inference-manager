@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/llm-operator/inference-manager/common/pkg/models"
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
 )
@@ -19,8 +19,8 @@ const (
 	systemOwner = "system"
 )
 
-type ollamaManager interface {
-	CreateNewModel(modelName string, spec *ollama.ModelSpec) error
+type modelManager interface {
+	CreateNewModel(modelName string, spec *manager.ModelSpec) error
 	DeleteModel(ctx context.Context, modelName string) error
 }
 
@@ -36,12 +36,12 @@ type modelClient interface {
 
 // New creates a syncer..
 func New(
-	om ollamaManager,
+	mm modelManager,
 	s3Client s3Client,
 	miClient modelClient,
 ) *S {
 	return &S{
-		om:               om,
+		mm:               mm,
 		s3Client:         s3Client,
 		miClient:         miClient,
 		registeredModels: map[string]bool{},
@@ -50,7 +50,7 @@ func New(
 
 // S is a syncer.
 type S struct {
-	om       ollamaManager
+	mm       modelManager
 	s3Client s3Client
 
 	miClient modelClient
@@ -114,11 +114,11 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	ms := &ollama.ModelSpec{
+	ms := &manager.ModelSpec{
 		From: f.Name(),
 	}
 
-	if err := s.om.CreateNewModel(modelID, ms); err != nil {
+	if err := s.mm.CreateNewModel(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 
@@ -174,11 +174,11 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	ms := &ollama.ModelSpec{
+	ms := &manager.ModelSpec{
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	if err := s.om.CreateNewModel(models.OllamaModelName(modelID), ms); err != nil {
+	if err := s.mm.CreateNewModel(models.OllamaModelName(modelID), ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 
@@ -212,7 +212,7 @@ func (s *S) DeleteModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	if err := s.om.DeleteModel(ctx, models.OllamaModelName(modelID)); err != nil {
+	if err := s.mm.DeleteModel(ctx, models.OllamaModelName(modelID)); err != nil {
 		return err
 	}
 

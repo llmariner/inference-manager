@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -105,7 +105,7 @@ type fakeOllamaManager struct {
 	created []string
 }
 
-func (n *fakeOllamaManager) CreateNewModel(modelName string, spec *ollama.ModelSpec) error {
+func (n *fakeOllamaManager) CreateNewModel(modelName string, spec *manager.ModelSpec) error {
 	n.created = append(n.created, modelName)
 	return nil
 }

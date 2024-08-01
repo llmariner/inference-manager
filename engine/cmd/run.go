@@ -50,10 +50,14 @@ var runCmd = &cobra.Command{
 }
 
 func run(ctx context.Context, c *config.Config) error {
-	ollamaAddr := fmt.Sprintf("0.0.0.0:%d", c.OllamaPort)
+	ollamaAddr := fmt.Sprintf("0.0.0.0:%d", c.Ollama.Port)
 	if err := os.Setenv("OLLAMA_HOST", ollamaAddr); err != nil {
 		return err
 	}
+	if err := os.Setenv("OLLAMA_KEEP_ALIVE", c.Ollama.KeepAlive.String()); err != nil {
+		return err
+	}
+
 	om := ollama.NewManager(ollamaAddr)
 
 	errCh := make(chan error)

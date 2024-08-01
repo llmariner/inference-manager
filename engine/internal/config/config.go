@@ -3,9 +3,30 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+// OllamaConfig is the Ollama configuration.
+type OllamaConfig struct {
+	// Port is the port to listen on.
+	Port int `yaml:"port"`
+
+	// KeepAlive is the keep-alive duration for Ollama.
+	// This controls how long Ollama keeps models in GPU memory.
+	KeepAlive time.Duration `yaml:"keepAlive"`
+}
+
+func (c *OllamaConfig) validate() error {
+	if c.Port <= 0 {
+		return fmt.Errorf("port must be greater than 0")
+	}
+	if c.KeepAlive <= 0 {
+		return fmt.Errorf("keepAlive must be greater than 0")
+	}
+	return nil
+}
 
 // S3Config is the S3 configuration.
 type S3Config struct {
@@ -53,7 +74,7 @@ type WorkerConfig struct {
 
 // Config is the configuration.
 type Config struct {
-	OllamaPort int `yaml:"ollamaPort"`
+	Ollama OllamaConfig `yaml:"ollama"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -67,8 +88,8 @@ type Config struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	if c.OllamaPort <= 0 {
-		return fmt.Errorf("ollamaPort must be greater than 0")
+	if err := c.Ollama.validate(); err != nil {
+		return fmt.Errorf("ollama: %s", err)
 	}
 
 	if c.InferenceManagerServerWorkerServiceAddr == "" {

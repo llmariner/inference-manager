@@ -6,7 +6,9 @@ metadata:
     {{- include "inference-manager-engine.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    ollamaPort: {{ .Values.ollamaPort }}
+    ollama:
+      port: {{ .Values.ollama.port }}
+      keepAlive: {{ .Values.ollama.keepAlive }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
     worker:

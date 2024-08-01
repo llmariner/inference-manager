@@ -89,6 +89,8 @@ type P struct {
 }
 
 // Run runs the processor.
+//
+// TODO(kenji): Gracefully handle an error from the server.
 func (p *P) Run(ctx context.Context) error {
 	ctx = auth.AppendWorkerAuthorization(ctx)
 	stream, err := p.client.ProcessTasks(ctx)
@@ -96,40 +98,70 @@ func (p *P) Run(ctx context.Context) error {
 		return err
 	}
 
-	log.Printf("Registering engine: %s\n", p.engineID)
-	if err := p.sendEngineStatus(ctx, stream); err != nil {
-		return err
-	}
-	log.Printf("Registered engine: %s\n", p.engineID)
-
+	errCh := make(chan error, 1)
 	go func() {
-		// Periodically send engine status.
-		for {
-			if err := p.sendEngineStatus(ctx, stream); err != nil {
-				log.Fatalf("Failed to send engine status: %s\n", err)
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(statusReportInterval):
-			}
+		if err := p.sendEngineStatusPeriodicaly(ctx, stream); err != nil {
+			errCh <- fmt.Errorf("send engine status: %s", err)
 		}
 	}()
 
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			return nil
+	go func() {
+		if err := p.processTasks(ctx, stream, errCh); err != nil {
+			errCh <- fmt.Errorf("process tasks: %s", err)
 		}
-		if err != nil {
+	}()
+	return <-errCh
+}
+
+func (p *P) sendEngineStatusPeriodicaly(
+	ctx context.Context,
+	stream v1.InferenceWorkerService_ProcessTasksClient,
+) error {
+	var isFirst bool
+
+	log.Printf("Registering engine: %s\n", p.engineID)
+	for {
+		if err := p.sendEngineStatus(ctx, stream); err != nil {
 			return err
 		}
 
-		log.Printf("Started processing task: %s\n", resp.NewTask.Id)
-		if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
-			return err
+		if isFirst {
+			isFirst = false
+			log.Printf("Registered engine: %s\n", p.engineID)
 		}
-		log.Printf("Completed task: %s\n", resp.NewTask.Id)
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(statusReportInterval):
+		}
+	}
+}
+
+func (p *P) processTasks(
+	ctx context.Context,
+	stream v1.InferenceWorkerService_ProcessTasksClient,
+	errCh chan<- error,
+) error {
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			return fmt.Errorf("connection closed")
+		}
+		if err != nil {
+			return fmt.Errorf("receive task: %s", err)
+		}
+
+		// Create a goroutine to process the task so that we can receive the
+		// next task. Ollama then might process requests in parallel.
+		go func() {
+			log.Printf("Started processing task: %s\n", resp.NewTask.Id)
+			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
+				errCh <- fmt.Errorf("process task: %s", err)
+				return
+			}
+			log.Printf("Completed task: %s\n", resp.NewTask.Id)
+		}()
 	}
 }
 

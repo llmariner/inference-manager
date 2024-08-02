@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/llm-operator/common/pkg/id"
@@ -83,19 +82,6 @@ func run(ctx context.Context, c *config.Config) error {
 
 	if err := om.WaitForReady(); err != nil {
 		return err
-	}
-
-	if c.Debug.Standalone {
-		for _, b := range c.Debug.BaseModels {
-			ob, err := ollama.ConvertHuggingFaceModelNameToOllama(b)
-			if err != nil {
-				return err
-			}
-			if err := om.PullBaseModel(ob); err != nil {
-				return err
-			}
-		}
-		log.Printf("Finished pulling base models\n")
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)

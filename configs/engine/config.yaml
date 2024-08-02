@@ -5,5 +5,3 @@ modelManagerServerWorkerServiceAddr:
 
 debug:
   standalone: true
-  baseModels:
-  - google/gemma-2b

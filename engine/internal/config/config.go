@@ -56,10 +56,6 @@ type DebugConfig struct {
 	// Standalone is true if the service is running in standalone mode (except the
 	// dependency to inference-manager-server).
 	Standalone bool `yaml:"standalone"`
-
-	// BaseModels is a list of base models to pull. The model names follow HuggingFace's.
-	// This is only used in standalone mode.
-	BaseModels []string `yaml:"baseModels"`
 }
 
 // WorkerTLSConfig is the worker TLS configuration.

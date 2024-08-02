@@ -196,9 +196,16 @@ func (p *P) processTask(
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		log.Printf("Received an error response from Ollama: statusCode=%d, status=%q\n", resp.StatusCode, resp.Status)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		log.Printf("Error response body: %q\n", body)
+
 		httpResp := &v1.HttpResponse{
 			StatusCode: int32(resp.StatusCode),
 			Status:     resp.Status,
+			Body:       body,
 		}
 		if err := p.sendHTTPResponse(ctx, stream, t, httpResp); err != nil {
 			return err

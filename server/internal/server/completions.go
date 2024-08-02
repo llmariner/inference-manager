@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -118,7 +119,13 @@ func (s *S) CreateChatCompletion(
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		http.Error(w, resp.Status, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			// Gracefully handle the error.
+			log.Printf("Failed toread the body: %s\n", err)
+		}
+		log.Printf("Received an error response: statusCode=%d, status=%q, body=%q\n", resp.StatusCode, resp.Status, string(body))
+		http.Error(w, string(body), resp.StatusCode)
 		return
 	}
 

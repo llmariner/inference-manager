@@ -17,6 +17,12 @@ RUN --mount=type=cache,target=${GOCACHE} \
 FROM --platform=$BUILDPLATFORM ollama/ollama:0.3.1 as ollama
 ARG TARGETARCH
 
+WORKDIR /run
+
+COPY --from=builder /workspace/bin/engine .
+
+ENTRYPOINT ["./engine"]
+
 # vLLM requires GPU.
 FROM --platform=$BUILDPLATFORM vllm/vllm-openai:v0.5.3 as vllm
 ARG TARGETARCH

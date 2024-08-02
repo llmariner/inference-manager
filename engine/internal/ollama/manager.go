@@ -221,7 +221,7 @@ PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>`, nil
 
-	case name == "deepseek-ai-deepseek-coder-6.7b-base":
+	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
 		// Output of "ollama show deepseek-coder --modelfile".
 		return `
 TEMPLATE "{{ .System }}

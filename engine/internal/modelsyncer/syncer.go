@@ -45,6 +45,7 @@ func New(
 		s3Client:         s3Client,
 		miClient:         miClient,
 		registeredModels: map[string]bool{},
+		inProgressModels: map[string]chan struct{}{},
 	}
 }
 
@@ -56,16 +57,21 @@ type S struct {
 	miClient modelClient
 
 	registeredModels map[string]bool
-	// mu protects registeredModels.
+
+	// inProgressModels is a map from model ID to a channel that is closed when the model is registered.
+	inProgressModels map[string]chan struct{}
+
+	// mu protects registeredModels and inProgressModels.
 	mu sync.Mutex
 }
 
 // PullModel downloads and registers a model from model manager.
 func (s *S) PullModel(ctx context.Context, modelID string) error {
 	s.mu.Lock()
-	registerd := s.registeredModels[modelID]
+	registered := s.registeredModels[modelID]
 	s.mu.Unlock()
-	if registerd {
+	if registered {
+		s.mu.Unlock()
 		return nil
 	}
 
@@ -87,6 +93,15 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 
 func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	log.Printf("Registering base model %q\n", modelID)
+
+	result, err := s.checkInProgressRegistration(modelID)
+	if err != nil {
+		return err
+	}
+	if result.registered {
+		return nil
+	}
+	defer result.notifyCompletion()
 
 	resp, err := s.miClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
 		Id: modelID,
@@ -139,14 +154,18 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	}
 
 	// Registesr the base model if it has not yet.
-	s.mu.Lock()
-	registerd := s.registeredModels[baseModel]
-	s.mu.Unlock()
-	if !registerd {
-		if err := s.registerBaseModel(ctx, baseModel); err != nil {
-			return err
-		}
+	if err := s.registerBaseModel(ctx, baseModel); err != nil {
+		return err
 	}
+
+	result, err := s.checkInProgressRegistration(modelID)
+	if err != nil {
+		return err
+	}
+	if result.registered {
+		return nil
+	}
+	defer result.notifyCompletion()
 
 	resp, err := s.miClient.GetModelPath(ctx, &mv1.GetModelPathRequest{
 		Id: modelID,
@@ -188,7 +207,61 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 
 	log.Printf("Registered the model successfully\n")
 
+	// write to the notification channel.
+
 	return nil
+}
+
+type checkInProgressRegistrationResult struct {
+	registered       bool
+	notifyCompletion func()
+}
+
+// checkInProgressRegistration checks if the registration is in-progress or completed.
+// If the registration has completed, do nothing.
+// If the registration is in-progress, wait for its completion.
+// If the registration has not started, create a channel that is used to notify the completion.
+//
+// Note that the channel needs to be created in the same critical section to avoid the race condition.
+func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistrationResult, error) {
+	s.mu.Lock()
+	if s.registeredModels[modelID] {
+		s.mu.Unlock()
+		return &checkInProgressRegistrationResult{
+			registered: true,
+		}, nil
+	}
+
+	if ch, ok := s.inProgressModels[modelID]; ok {
+		s.mu.Unlock()
+		log.Printf("Waiting for the completion of the in-progress registration\n")
+		<-ch
+
+		s.mu.Lock()
+		registered := s.registeredModels[modelID]
+		s.mu.Unlock()
+		if !registered {
+			return nil, fmt.Errorf("register the model: %q", modelID)
+		}
+		return &checkInProgressRegistrationResult{
+			registered: true,
+		}, nil
+	}
+
+	defer s.mu.Unlock()
+
+	ch := make(chan struct{})
+	s.inProgressModels[modelID] = ch
+	return &checkInProgressRegistrationResult{
+		registered: false,
+		notifyCompletion: func() {
+			s.mu.Lock()
+			delete(s.inProgressModels, modelID)
+			s.mu.Unlock()
+
+			close(ch)
+		},
+	}, nil
 }
 
 // ListSyncedModelIDs lists all models that have been synced.

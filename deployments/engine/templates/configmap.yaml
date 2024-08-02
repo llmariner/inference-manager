@@ -9,6 +9,10 @@ data:
     ollama:
       port: {{ .Values.ollama.port }}
       keepAlive: {{ .Values.ollama.keepAlive }}
+    {{- with .Values.preloadedModelIds }}
+    preloadedModelIds:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
     worker:

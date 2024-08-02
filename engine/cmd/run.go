@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/llm-operator/common/pkg/id"
@@ -82,6 +83,14 @@ func run(ctx context.Context, c *config.Config) error {
 
 	if err := om.WaitForReady(); err != nil {
 		return err
+	}
+
+	for _, id := range c.PreloadedModelIDs {
+		log.Printf("Preloading model %q", id)
+		if err := syncer.PullModel(ctx, id); err != nil {
+			return err
+		}
+		log.Printf("Completed preloading model %q", id)
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)

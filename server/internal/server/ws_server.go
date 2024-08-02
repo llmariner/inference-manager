@@ -165,6 +165,7 @@ func (ws *WS) processMessagesFromEngine(
 		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
 			return "", err
 		}
+		log.Printf("Finished processing task result: taskID=%s\n", msg.TaskResult.TaskId)
 	default:
 		return "", fmt.Errorf("unknown message type: %T", msg)
 	}

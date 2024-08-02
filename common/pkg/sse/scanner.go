@@ -26,12 +26,8 @@ type Scanner struct {
 // The return values are the number of bytes to advance the input and the next token to return to the user,
 // if any, plus an error, if any.
 func split(data []byte, atEOF bool) (int, []byte, error) {
-	if atEOF {
-		var nextToken []byte
-		if len(data) > 0 {
-			nextToken = data
-		}
-		return len(data), nextToken, nil
+	if len(data) == 0 {
+		return 0, nil, nil
 	}
 
 	// Find a double newline.
@@ -39,6 +35,7 @@ func split(data []byte, atEOF bool) (int, []byte, error) {
 		[]byte("\r\r"),
 		[]byte("\n\n"),
 		[]byte("\r\n\r\n"),
+		[]byte("\n\n\n\n"),
 	}
 	pos := -1
 	var dlen int
@@ -54,5 +51,5 @@ func split(data []byte, atEOF bool) (int, []byte, error) {
 		return pos + dlen, data[0:pos], nil
 	}
 
-	return 0, nil, nil
+	return len(data), data, nil
 }

@@ -21,7 +21,6 @@ const (
 
 type ollamaManager interface {
 	CreateNewModel(modelName string, spec *ollama.ModelSpec) error
-	PullBaseModel(modelName string) error
 	DeleteModel(ctx context.Context, modelName string) error
 }
 

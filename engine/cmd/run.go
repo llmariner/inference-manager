@@ -15,6 +15,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -85,12 +86,16 @@ func run(ctx context.Context, c *config.Config) error {
 		return err
 	}
 
-	for _, id := range c.PreloadedModelIDs {
-		log.Printf("Preloading model %q", id)
-		if err := syncer.PullModel(ctx, id); err != nil {
-			return err
+	if ids := c.PreloadedModelIDs; len(ids) > 0 {
+		log.Printf("Preloading %d model(s)", len(ids))
+		ctx := auth.AppendWorkerAuthorization(ctx)
+		for _, id := range ids {
+			log.Printf("Preloading model %q", id)
+			if err := syncer.PullModel(ctx, id); err != nil {
+				return err
+			}
 		}
-		log.Printf("Completed preloading model %q", id)
+		log.Printf("Completed the preloading")
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)

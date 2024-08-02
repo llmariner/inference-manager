@@ -74,6 +74,10 @@ type Config struct {
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
+	// PreloadedModelIDs is a list of model IDs to preload. These models are downloaded locally
+	// at the startup time.
+	PreloadedModelIDs []string `yaml:"preloadedModelIds"`
+
 	Debug DebugConfig `yaml:"debug"`
 
 	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`

@@ -149,7 +149,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 		return
 	}
 
-	log.Printf("Forwarding completion task (id: %q) to Inference Manager Engine (EngineID: %q)\n", t.ID, engineID)
+	log.Printf("Scheduling the task (ID: %q) to Inference Manager Engine (ID: %q)\n", t.ID, engineID)
 	engines := p.engines[t.TenantID]
 	if len(engines) == 0 {
 		t.ErrCh <- fmt.Errorf("no engine found")
@@ -308,7 +308,8 @@ func (p *P) writeTaskResultToChan(
 			}
 		}
 
-		return !t.Req.Stream, nil
+		isErr := resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest
+		return isErr || (!t.Req.Stream), nil
 	case *v1.TaskResult_ServerSentEvent:
 		if !t.Req.Stream {
 			return false, fmt.Errorf("unexpected chunked response for non-streaming request")

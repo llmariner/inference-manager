@@ -11,6 +11,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +29,7 @@ func TestP(t *testing.T) {
 		"engine_id0",
 		nil,
 		fmt.Sprintf("localhost:%d", ollamaSrv.port()),
-		"ollama",
+		llmkind.Ollama,
 		&fakeModelSyncer{},
 	)
 

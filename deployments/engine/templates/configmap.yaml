@@ -9,6 +9,11 @@ data:
     ollama:
       port: {{ .Values.ollama.port }}
       keepAlive: {{ .Values.ollama.keepAlive }}
+    vllm:
+      port: {{ .Values.ollama.port }}
+      model: {{ .Values.vllm.model }}
+      numGpus: {{ .Values.vllm.numGpus }}
+    llmEngine: {{ .Values.llmEngine }}
     {{- with .Values.preloadedModelIds }}
     preloadedModelIds:
       {{- toYaml . | nindent 6 }}

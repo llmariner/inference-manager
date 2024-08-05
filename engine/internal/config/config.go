@@ -28,6 +28,27 @@ func (c *OllamaConfig) validate() error {
 	return nil
 }
 
+// VLLMConfig is the configuration for vLLM.
+type VLLMConfig struct {
+	// Port is the port to listen on.
+	Port int `yaml:"port"`
+	Model  string `yaml:"model"`
+	NumGPUs int    `yaml:"numGpus"`
+}
+
+func (c *VLLMConfig) validate() error {
+	if c.Port <= 0 {
+		return fmt.Errorf("port must be greater than 0")
+	}
+	if c.Model == "" {
+		return fmt.Errorf("vllm model must be set")
+	}
+	if c.NumGPUs <= 0 {
+		return fmt.Errorf("numGPUs must be positive")
+	}
+	return nil
+}
+
 // S3Config is the S3 configuration.
 type S3Config struct {
 	EndpointURL string `yaml:"endpointUrl"`
@@ -71,6 +92,8 @@ type WorkerConfig struct {
 // Config is the configuration.
 type Config struct {
 	Ollama OllamaConfig `yaml:"ollama"`
+	VLLM VLLMConfig `yaml:"vllm"`
+	LLMEngine string `yaml:"llmEngine"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -88,10 +111,6 @@ type Config struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	if err := c.Ollama.validate(); err != nil {
-		return fmt.Errorf("ollama: %s", err)
-	}
-
 	if c.InferenceManagerServerWorkerServiceAddr == "" {
 		return fmt.Errorf("inference manager server worker service address must be set")
 	}
@@ -104,6 +123,19 @@ func (c *Config) Validate() error {
 		if err := c.ObjectStore.Validate(); err != nil {
 			return fmt.Errorf("object store: %s", err)
 		}
+	}
+
+	switch c.LLMEngine {
+	case "vllm":
+		if err := c.VLLM.validate(); err != nil {
+			return fmt.Errorf("vllm: %s", err)
+		}
+	case "ollama":
+		if err := c.Ollama.validate(); err != nil {
+			return fmt.Errorf("ollama: %s", err)
+		}
+	default:
+		return fmt.Errorf("unsupported serving engine: %q", c.LLMEngine)
 	}
 
 	return nil

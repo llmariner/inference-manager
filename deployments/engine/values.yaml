@@ -25,6 +25,12 @@ ollama:
   port: 8080
   keepAlive: 10m
 
+vllm:
+  port: 8080
+  numGpus: 1
+
+llmEngine: ollama
+
 preloadedModelIds:
 
 # The following default values work if model-manager-server runs in the same namespace.

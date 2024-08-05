@@ -71,7 +71,6 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 	registered := s.registeredModels[modelID]
 	s.mu.Unlock()
 	if registered {
-		s.mu.Unlock()
 		return nil
 	}
 

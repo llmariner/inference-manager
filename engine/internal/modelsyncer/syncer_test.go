@@ -3,7 +3,9 @@ package modelsyncer
 import (
 	"context"
 	"io"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -69,8 +71,69 @@ func TestPullModel(t *testing.T) {
 				registered = append(registered, k)
 			}
 			assert.ElementsMatch(t, tc.wantRegisteredModels, registered)
+			assert.Empty(t, om.inProgressModels)
 		})
 	}
+}
+
+func TestPullModelInProgress(t *testing.T) {
+	const (
+		modelID = "google-gemma-2b"
+	)
+	waitCh := make(chan struct{})
+
+	fom := &fakeOllamaManager{}
+	om := New(
+		fom,
+		&blockingS3Client{
+			waitcCh: waitCh,
+		},
+		&fakeModelInternalClient{
+			model: &mv1.Model{
+				Id:      modelID,
+				OwnedBy: systemOwner,
+			},
+		},
+	)
+
+	// Start two goroutines to pull the same model.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		err := om.PullModel(context.Background(), modelID)
+		assert.NoError(t, err)
+		wg.Done()
+	}()
+	go func() {
+		err := om.PullModel(context.Background(), modelID)
+		assert.NoError(t, err)
+		wg.Done()
+	}()
+
+	// Wait until the pull starts.
+	assert.Eventually(
+		t,
+		func() bool {
+			om.mu.Lock()
+			b := len(om.inProgressModels) == 1
+			om.mu.Unlock()
+			return b
+		},
+		time.Second,
+		10*time.Millisecond,
+	)
+
+	close(waitCh)
+	wg.Wait()
+
+	assert.ElementsMatch(t, []string{modelID}, fom.created)
+
+	var registered []string
+	for k := range om.registeredModels {
+		registered = append(registered, k)
+	}
+	assert.ElementsMatch(t, []string{modelID}, registered)
+	assert.Empty(t, om.inProgressModels)
 }
 
 func TestExtractBaseModel(t *testing.T) {
@@ -142,4 +205,13 @@ func (n *fakeModelInternalClient) GetModelPath(ctx context.Context, in *mv1.GetM
 	return &mv1.GetModelPathResponse{
 		Path: "fake-path",
 	}, nil
+}
+
+type blockingS3Client struct {
+	waitcCh chan struct{}
+}
+
+func (b *blockingS3Client) Download(f io.WriterAt, path string) error {
+	<-b.waitcCh
+	return nil
 }

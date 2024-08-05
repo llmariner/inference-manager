@@ -11,7 +11,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/engine/internal/llmkind"
+	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/stretchr/testify/assert"
 )
 

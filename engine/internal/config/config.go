@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/llm-operator/inference-manager/engine/internal/llmkind"
+	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"gopkg.in/yaml.v3"
 )
 

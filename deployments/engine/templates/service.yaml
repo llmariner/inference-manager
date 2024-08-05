@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}-ollama
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.ollama.Port }}
+      targetPort: ollama
+      protocol: TCP
+      name: ollama
+  selector:
+    {{- include "inference-manager-engine.selectorLabels" . | nindent 4 }}

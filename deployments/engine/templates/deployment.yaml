@@ -28,6 +28,10 @@ spec:
         - run
         - --config
         - /etc/config/config.yaml
+        ports:
+        - name: ollama
+          containerPort: {{ .Values.ollama.Port }}
+          protocol: TCP
         {{- if (gt (int .Values.resources.gpu) 0) }}
         resources:
           limits:

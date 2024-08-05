@@ -28,6 +28,7 @@ func TestP(t *testing.T) {
 		"engine_id0",
 		nil,
 		fmt.Sprintf("localhost:%d", ollamaSrv.port()),
+		"ollama",
 		&fakeModelSyncer{},
 	)
 

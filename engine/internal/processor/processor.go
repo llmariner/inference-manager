@@ -69,13 +69,15 @@ func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
-	ollamaAddr string,
+	llmAddr string,
+	llm string,
 	modelSyncer ModelSyncer,
 ) *P {
 	return &P{
 		engineID:    engineID,
 		client:      client,
-		ollamaAddr:  ollamaAddr,
+		llmAddr:  llmAddr,
+		llmKind: llm,
 		modelSyncer: modelSyncer,
 	}
 }
@@ -84,7 +86,8 @@ func NewP(
 type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
-	ollamaAddr  string
+	llmAddr  string
+	llmKind string
 	modelSyncer ModelSyncer
 }
 
@@ -153,7 +156,7 @@ func (p *P) processTasks(
 		}
 
 		// Create a goroutine to process the task so that we can receive the
-		// next task. Ollama then might process requests in parallel.
+		// next task. llm then might process requests in parallel.
 		go func() {
 			log.Printf("Started processing task: %s\n", resp.NewTask.Id)
 			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
@@ -187,7 +190,7 @@ func (p *P) processTask(
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		// TODO(kenji): Send the error back to the server?
-		return fmt.Errorf("send request to ollama: %s", err)
+		return fmt.Errorf("send request to llm: %s", err)
 	}
 
 	defer func() {
@@ -195,7 +198,7 @@ func (p *P) processTask(
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		log.Printf("Received an error response from Ollama: statusCode=%d, status=%q\n", resp.StatusCode, resp.Status)
+		log.Printf("Received an error response from llm: statusCode=%d, status=%q\n", resp.StatusCode, resp.Status)
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
@@ -268,7 +271,19 @@ func (p *P) processTask(
 }
 
 func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error) {
-	t.Request.Model = models.OllamaModelName(t.Request.Model)
+	switch p.llmKind {
+	case "ollama":
+		t.Request.Model = models.OllamaModelName(t.Request.Model)
+	case "vllm":
+		modelName, err := models.VLLMModelName(t.Request.Model)
+		if err != nil {
+			return nil, err
+		}
+		t.Request.Model = modelName
+	default:
+		return nil, fmt.Errorf("unsupported serving engine: %q", p.llmKind)
+	}
+
 	reqBody, err := json.Marshal(t.Request)
 	if err != nil {
 		return nil, err
@@ -276,7 +291,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   p.ollamaAddr,
+		Host:   p.llmAddr,
 	}
 	requestURL := baseURL.JoinPath(completionPath).String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))

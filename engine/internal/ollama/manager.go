@@ -12,11 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	"github.com/ollama/ollama/api"
 )
 
-// NewManager returns a new Manager.
-func NewManager(addr string) *Manager {
+// New returns a new Manager.
+func New(addr string) *Manager {
 	url := &url.URL{
 		Scheme: "http",
 		Host:   addr,
@@ -38,14 +39,8 @@ func (m *Manager) Run() error {
 	return m.runCommand([]string{"serve"})
 }
 
-// ModelSpec is the specification for a new model.
-type ModelSpec struct {
-	From        string
-	AdapterPath string
-}
-
 // CreateNewModel creates a new model with the given name and spec.
-func (m *Manager) CreateNewModel(modelName string, spec *ModelSpec) error {
+func (m *Manager) CreateNewModel(modelName string, spec *manager.ModelSpec) error {
 	file, err := os.CreateTemp("/tmp", "model")
 	if err != nil {
 		return err

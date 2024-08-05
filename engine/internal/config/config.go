@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/llm-operator/inference-manager/engine/internal/llmkind"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,8 +32,8 @@ func (c *OllamaConfig) validate() error {
 // VLLMConfig is the configuration for vLLM.
 type VLLMConfig struct {
 	// Port is the port to listen on.
-	Port int `yaml:"port"`
-	Model  string `yaml:"model"`
+	Port    int    `yaml:"port"`
+	Model   string `yaml:"model"`
 	NumGPUs int    `yaml:"numGpus"`
 }
 
@@ -91,9 +92,9 @@ type WorkerConfig struct {
 
 // Config is the configuration.
 type Config struct {
-	Ollama OllamaConfig `yaml:"ollama"`
-	VLLM VLLMConfig `yaml:"vllm"`
-	LLMEngine string `yaml:"llmEngine"`
+	Ollama    OllamaConfig `yaml:"ollama"`
+	VLLM      VLLMConfig   `yaml:"vllm"`
+	LLMEngine llmkind.K    `yaml:"llmEngine"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -126,11 +127,11 @@ func (c *Config) Validate() error {
 	}
 
 	switch c.LLMEngine {
-	case "vllm":
+	case llmkind.VLLM:
 		if err := c.VLLM.validate(); err != nil {
 			return fmt.Errorf("vllm: %s", err)
 		}
-	case "ollama":
+	case llmkind.Ollama:
 		if err := c.Ollama.validate(); err != nil {
 			return fmt.Errorf("ollama: %s", err)
 		}

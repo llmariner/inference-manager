@@ -10,6 +10,7 @@ import (
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"github.com/llm-operator/inference-manager/engine/internal/llmkind"
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
@@ -56,14 +57,13 @@ func run(ctx context.Context, c *config.Config) error {
 	var llmAddr string
 	var m manager.M
 	switch c.LLMEngine {
-	case "ollama":
+	case llmkind.Ollama:
 		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.Ollama.Port)
 		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
 			return err
 		}
 		m = ollama.New(llmAddr)
-
-	case "vllm":
+	case llmkind.VLLM:
 		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.VLLM.Port)
 		m = vllm.New(c)
 	default:

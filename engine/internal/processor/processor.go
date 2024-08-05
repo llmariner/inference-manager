@@ -15,6 +15,7 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
+	"github.com/llm-operator/inference-manager/engine/internal/llmkind"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
 
@@ -70,14 +71,14 @@ func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
 	llmAddr string,
-	llm string,
+	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
 ) *P {
 	return &P{
 		engineID:    engineID,
 		client:      client,
-		llmAddr:  llmAddr,
-		llmKind: llm,
+		llmAddr:     llmAddr,
+		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
 	}
 }
@@ -86,8 +87,8 @@ func NewP(
 type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
-	llmAddr  string
-	llmKind string
+	llmAddr     string
+	llmKind     llmkind.K
 	modelSyncer ModelSyncer
 }
 
@@ -272,9 +273,9 @@ func (p *P) processTask(
 
 func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error) {
 	switch p.llmKind {
-	case "ollama":
+	case llmkind.Ollama:
 		t.Request.Model = models.OllamaModelName(t.Request.Model)
-	case "vllm":
+	case llmkind.VLLM:
 		modelName, err := models.VLLMModelName(t.Request.Model)
 		if err != nil {
 			return nil, err

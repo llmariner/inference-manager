@@ -49,7 +49,7 @@ spec:
     {{- end }}
   {{- with .Values.workerServiceGrpcService.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
-    {{- include . | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}

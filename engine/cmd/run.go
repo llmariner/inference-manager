@@ -54,17 +54,15 @@ var runCmd = &cobra.Command{
 }
 
 func run(ctx context.Context, c *config.Config) error {
-	var llmAddr string
+	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
 	var m manager.M
 	switch c.LLMEngine {
 	case llmkind.Ollama:
-		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.Ollama.Port)
 		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
 			return err
 		}
 		m = ollama.New(llmAddr)
 	case llmkind.VLLM:
-		llmAddr = fmt.Sprintf("0.0.0.0:%d", c.VLLM.Port)
 		m = vllm.New(c)
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)

@@ -15,7 +15,7 @@ import (
 func New(c *config.Config) *Manager {
 	return &Manager{
 		host:   "0.0.0.0",
-		port:   c.VLLM.Port,
+		port:   c.LLMPort,
 		model:  c.VLLM.Model,
 		numGPUs: c.VLLM.NumGPUs,
 	}

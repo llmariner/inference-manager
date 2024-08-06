@@ -206,12 +206,59 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestFindLeastLoadedEngine(t *testing.T) {
+	p := NewP(
+		NewTaskQueue(),
+		&fakeEngineRouter{},
+	)
+
+	ts := []*Task{
+		{
+			ID:       "t0",
+			EngineID: "e0",
+		},
+		{
+			ID:       "t1",
+			EngineID: "e0",
+		},
+		{
+			ID:       "t2",
+			EngineID: "e1",
+		},
+	}
+	for _, t := range ts {
+		p.inProgressTasksByID[t.ID] = t
+	}
+
+	tcs := []struct {
+		engineIDs []string
+		want      string
+	}{
+		{
+			engineIDs: []string{"e0", "e1", "e2"},
+			want:      "e2",
+		},
+		{
+			engineIDs: []string{"e0", "e1"},
+			want:      "e1",
+		},
+		{
+			engineIDs: []string{"e0"},
+			want:      "e0",
+		},
+	}
+	for _, tc := range tcs {
+		engineID := p.findLeastLoadedEngine(tc.engineIDs)
+		assert.Equal(t, tc.want, engineID)
+	}
+}
+
 type fakeEngineRouter struct {
 	engineID string
 }
 
-func (r *fakeEngineRouter) GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error) {
-	return r.engineID, nil
+func (r *fakeEngineRouter) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error) {
+	return []string{r.engineID}, nil
 }
 
 func (r *fakeEngineRouter) AddOrUpdateEngine(engineID, tenantID string, modelIDs []string) {

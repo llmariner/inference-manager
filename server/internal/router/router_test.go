@@ -38,11 +38,11 @@ func TestGetEngineForModel(t *testing.T) {
 	r := New()
 	r.AddOrUpdateEngine("engine0", tenantID, []string{"model1"})
 
-	engineID, err := r.GetEngineForModel(context.Background(), "model1", tenantID)
+	engineIDs, err := r.GetEnginesForModel(context.Background(), "model1", tenantID)
 	assert.NoError(t, err)
-	assert.Equal(t, "engine0", engineID)
+	assert.ElementsMatch(t, []string{"engine0"}, engineIDs)
 
-	_, err = r.GetEngineForModel(context.Background(), "model2", tenantID)
+	_, err = r.GetEnginesForModel(context.Background(), "model2", tenantID)
 	assert.NoError(t, err)
-	assert.Equal(t, "engine0", engineID)
+	assert.ElementsMatch(t, []string{"engine0"}, engineIDs)
 }

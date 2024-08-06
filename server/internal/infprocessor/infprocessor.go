@@ -95,7 +95,7 @@ func (q *TaskQueue) Dequeue(ctx context.Context) (*Task, error) {
 }
 
 type engineRouter interface {
-	GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error)
+	GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error)
 	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
 	DeleteEngine(engineID, tenantID string)
 }
@@ -143,11 +143,13 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *Task) {
-	engineID, err := p.engineRouter.GetEngineForModel(ctx, t.Req.Model, t.TenantID)
+	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.Req.Model, t.TenantID)
 	if err != nil {
 		t.ErrCh <- fmt.Errorf("find pod to route the request: %s", err)
 		return
 	}
+
+	engineID := p.findLeastLoadedEngine(engineIDs)
 
 	log.Printf("Scheduling the task (ID: %q) to Inference Manager Engine (ID: %q)\n", t.ID, engineID)
 	engines := p.engines[t.TenantID]
@@ -182,6 +184,29 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 		t.ErrCh <- fmt.Errorf("failed to send the task: %s", err)
 		return
 	}
+}
+
+// findLeastLoadedEngine finds the least loaded engine from the given engine IDs.
+func (p *P) findLeastLoadedEngine(engineIDs []string) string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	numTasksByEngine := map[string]int{}
+	for _, t := range p.inProgressTasksByID {
+		numTasksByEngine[t.EngineID]++
+	}
+
+	var minTasks int
+	var leastLoaded string
+	for _, engineID := range engineIDs {
+		n := numTasksByEngine[engineID]
+		if leastLoaded == "" || n < minTasks {
+			minTasks = n
+			leastLoaded = engineID
+		}
+	}
+
+	return leastLoaded
 }
 
 // AddOrUpdateEngineStatus adds or updates the engine status.

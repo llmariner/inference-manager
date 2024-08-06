@@ -7,7 +7,7 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.ollama.Port }}
+    - port: {{ .Values.ollama.port }}
       targetPort: ollama
       protocol: TCP
       name: ollama

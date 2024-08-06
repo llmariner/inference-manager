@@ -30,7 +30,7 @@ spec:
         - /etc/config/config.yaml
         ports:
         - name: ollama
-          containerPort: {{ .Values.ollama.Port }}
+          containerPort: {{ .Values.ollama.port }}
           protocol: TCP
         {{- if (gt (int .Values.resources.gpu) 0) }}
         resources:

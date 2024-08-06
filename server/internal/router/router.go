@@ -23,27 +23,26 @@ func New() *R {
 	}
 }
 
-// GetEngineForModel returns the engine ID for the given model.
-func (r *R) GetEngineForModel(ctx context.Context, modelID, tenantID string) (string, error) {
+// GetEnginesForModel returns the engine IDs for the given model.
+func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	m, ok := r.mapsByTenantID[tenantID]
 	if !ok {
-		return "", fmt.Errorf("tenant %q not found", tenantID)
+		return nil, fmt.Errorf("tenant %q not found", tenantID)
 	}
 
 	routes := m.getRoute(model{id: modelID})
 	if len(routes) != 0 {
-		// TODO(guangrui): handle load balance.
-		return routes[0], nil
+		return routes, nil
 	}
 
 	engine, err := m.findLeastLoadedEngine()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	m.addRoute(model{id: modelID}, engine)
-	return engine, nil
+	return []string{engine}, nil
 }
 
 // AddOrUpdateEngine adds or updates the engine with the given model IDs.

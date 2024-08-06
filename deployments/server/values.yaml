@@ -31,6 +31,7 @@ workerServiceGrpcService:
   port: 8082
   nodePort:
   annotations:
+  loadBalancerSourceRanges:
 
 workerServiceTls:
   enable: false

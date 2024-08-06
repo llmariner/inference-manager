@@ -47,5 +47,9 @@ spec:
     {{- if .Values.workerServiceGrpcService.nodePort }}
     nodePort: {{ .Values.workerServiceGrpcService.nodePort }}
     {{- end }}
+  {{- with .Values.workerServiceGrpcService.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- include . | nindent 4 }}
+  {{- end }}
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}

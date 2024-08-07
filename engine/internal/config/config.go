@@ -11,18 +11,12 @@ import (
 
 // OllamaConfig is the Ollama configuration.
 type OllamaConfig struct {
-	// Port is the port to listen on.
-	Port int `yaml:"port"`
-
 	// KeepAlive is the keep-alive duration for Ollama.
 	// This controls how long Ollama keeps models in GPU memory.
 	KeepAlive time.Duration `yaml:"keepAlive"`
 }
 
 func (c *OllamaConfig) validate() error {
-	if c.Port <= 0 {
-		return fmt.Errorf("port must be greater than 0")
-	}
 	if c.KeepAlive <= 0 {
 		return fmt.Errorf("keepAlive must be greater than 0")
 	}
@@ -31,16 +25,11 @@ func (c *OllamaConfig) validate() error {
 
 // VLLMConfig is the configuration for vLLM.
 type VLLMConfig struct {
-	// Port is the port to listen on.
-	Port    int    `yaml:"port"`
 	Model   string `yaml:"model"`
 	NumGPUs int    `yaml:"numGpus"`
 }
 
 func (c *VLLMConfig) validate() error {
-	if c.Port <= 0 {
-		return fmt.Errorf("port must be greater than 0")
-	}
 	if c.Model == "" {
 		return fmt.Errorf("vllm model must be set")
 	}
@@ -95,6 +84,8 @@ type Config struct {
 	Ollama    OllamaConfig `yaml:"ollama"`
 	VLLM      VLLMConfig   `yaml:"vllm"`
 	LLMEngine llmkind.K    `yaml:"llmEngine"`
+	// LLMPort is the port llm listens on.
+	LLMPort int `yaml:"llmPort"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
@@ -126,6 +117,9 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.LLMPort <= 0 {
+		return fmt.Errorf("llmPort must be greater than 0")
+	}
 	switch c.LLMEngine {
 	case llmkind.VLLM:
 		if err := c.VLLM.validate(); err != nil {

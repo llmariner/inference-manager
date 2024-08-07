@@ -22,14 +22,13 @@ global:
   controlPlaneAddr: ""
 
 ollama:
-  port: 8080
   keepAlive: 10m
 
 vllm:
-  port: 8080
   numGpus: 1
 
 llmEngine: ollama
+llmPort: 8080
 
 preloadedModelIds:
 

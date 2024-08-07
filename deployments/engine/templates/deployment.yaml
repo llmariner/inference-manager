@@ -29,8 +29,8 @@ spec:
         - --config
         - /etc/config/config.yaml
         ports:
-        - name: ollama
-          containerPort: {{ .Values.ollama.port }}
+        - name: llm
+          containerPort: {{ .Values.llmPort }}
           protocol: TCP
         {{- if (gt (int .Values.resources.gpu) 0) }}
         resources:

@@ -20,8 +20,12 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: inference-manager-engine
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
@@ -69,6 +73,12 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: tmp
+          mountPath: /.ollama
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -85,3 +95,5 @@ spec:
       - name: config
         configMap:
           name: {{ include "inference-manager-engine.fullname" . }}
+      - name: tmp
+        emptyDir:

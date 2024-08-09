@@ -216,15 +216,12 @@ PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>`, nil
 
-	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
-		// Output of "ollama show deepseek-coder --modelfile".
+	case strings.HasPrefix(name, ""):
+		// This is different from the output of "ollama show deepseek-coder --modelfile".
+		// Instead, this is tailored for auto completion for continue.dev.
 		return `
-TEMPLATE "{{ .System }}
-### Instruction:
-{{ .Prompt }}
-### Response:
-"
-SYSTEM You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer.
+TEMPLATE {{ .Prompt }}
+PARAMETER stop <｜end▁of▁sentence｜>
 `, nil
 
 	default:

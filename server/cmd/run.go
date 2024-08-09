@@ -135,6 +135,15 @@ func run(ctx context.Context, c *config.Config) error {
 		))
 	mux.Handle("POST", createFile, s.CreateChatCompletion)
 
+	createFile = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1},
+			[]string{"v1", "completions"},
+			"",
+		))
+	mux.Handle("POST", createFile, s.CreateCompletion)
+
 	go func() {
 		log.Printf("Starting HTTP server on port %d", c.HTTPPort)
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.HTTPPort), mux)

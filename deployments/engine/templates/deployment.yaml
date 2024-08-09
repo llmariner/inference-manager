@@ -36,7 +36,6 @@ spec:
         - name: llm
           containerPort: {{ .Values.llmPort }}
           protocol: TCP
-        {{- end }}
         env:
         {{- with .Values.global.awsSecret }}
         {{- if .name }}

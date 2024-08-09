@@ -17,6 +17,31 @@
   ],
   "paths": {},
   "definitions": {
+    "CreateChatCompletionRequestMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCallFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    },
     "CreateChatCompletionRequestResponseFormat": {
       "type": "object",
       "properties": {
@@ -199,36 +224,11 @@
         "toolCalls": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCall"
+            "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCall"
           }
         }
       },
       "description": "Message has fields for system message, user message, assistant message, and tool message."
-    },
-    "v1CreateChatCompletionRequestMessageToolCall": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "function": {
-          "$ref": "#/definitions/v1CreateChatCompletionRequestMessageToolCallFunction"
-        }
-      }
-    },
-    "v1CreateChatCompletionRequestMessageToolCallFunction": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "arguments": {
-          "type": "string"
-        }
-      }
     },
     "v1EngineStatus": {
       "type": "object",

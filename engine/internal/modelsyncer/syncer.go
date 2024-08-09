@@ -259,7 +259,7 @@ func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistr
 			delete(s.inProgressModels, modelID)
 			s.mu.Unlock()
 
-			log.Infof("Notifying the completion of the registration\n")
+			log.Printf("Notifying the completion of the registration\n")
 			close(ch)
 		},
 	}, nil

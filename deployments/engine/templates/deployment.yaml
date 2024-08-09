@@ -36,10 +36,6 @@ spec:
         - name: llm
           containerPort: {{ .Values.llmPort }}
           protocol: TCP
-        {{- if (gt (int .Values.resources.gpu) 0) }}
-        resources:
-          limits:
-            nvidia.com/gpu: {{ .Values.resources.gpu }}
         {{- end }}
         env:
         {{- with .Values.global.awsSecret }}

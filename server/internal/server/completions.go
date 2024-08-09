@@ -95,6 +95,7 @@ func (s *S) CreateChatCompletion(
 	taskID, err := id.GenerateID("inf_", 24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
+		return
 	}
 	task := &infprocessor.Task{
 		ID:        taskID,

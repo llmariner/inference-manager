@@ -286,6 +286,7 @@ func (p *P) ProcessTaskResult(
 		return nil
 	}
 
+	log.Printf("Completed task: ID=%s\n", taskID)
 	if err := t.bodyWriter.closeWrite(); err != nil {
 		return fmt.Errorf("close the body writer: %s", err)
 	}

@@ -235,6 +235,7 @@ func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistr
 		s.mu.Unlock()
 		log.Printf("Waiting for the completion of the in-progress registration\n")
 		<-ch
+		log.Printf("The in-progress registration has completed\n")
 
 		s.mu.Lock()
 		registered := s.registeredModels[modelID]
@@ -258,6 +259,7 @@ func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistr
 			delete(s.inProgressModels, modelID)
 			s.mu.Unlock()
 
+			log.Infof("Notifying the completion of the registration\n")
 			close(ch)
 		},
 	}, nil

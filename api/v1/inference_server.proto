@@ -76,9 +76,66 @@ message CreateChatCompletionRequest {
   string user = 18;
 }
 
+message ToolCall {
+  message Function {
+    string name  = 1;
+    string arguments = 2;
+  }
+  string id = 1;
+  string type = 2;
+  Function function = 3;
+}
+
+message Logprobs {
+  message Content {
+    message TopLogprobs {
+      string token = 1;
+      double logprob = 2;
+      bytes bytes = 3;
+    }
+
+    string token = 1;
+    double logprob = 2;
+    // A list of integers representing the UTF-8 bytes representation of the token.
+    bytes bytes = 3;
+    TopLogprobs top_logprobs = 4;
+  }
+  repeated Content content = 1;
+}
+
+message Usage {
+  int32 completion_tokens = 1;
+  int32 prompt_tokens = 2;
+  int32 total_tokens = 3;
+}
+
 message ChatCompletion {
   message Choice {
     message Message {
+
+      string content = 1;
+      repeated ToolCall tool_calls = 2;
+      string role = 3;
+    }
+
+    string finish_reason = 1;
+    int32 index = 2;
+    Message message = 3;
+    Logprobs logprobs = 4;
+  }
+
+  string id = 1;
+  repeated Choice choices = 2;
+  int32 created = 3;
+  string model = 4;
+  string system_fingerprint = 5;
+  string object = 6;
+  Usage usage = 7;
+}
+
+message ChatCompletionChunk {
+  message Choice {
+    message Delta {
       message ToolCall {
 	message Function {
 	  string name  = 1;
@@ -94,33 +151,10 @@ message ChatCompletion {
       string role = 3;
     }
 
-    message Logprobs {
-      message Content {
-	message TopLogprobs {
-	  string token = 1;
-	  double logprob = 2;
-	  bytes bytes = 3;
-	}
-
-	string token = 1;
-	double logprob = 2;
-	// A list of integers representing the UTF-8 bytes representation of the token.
-	bytes bytes = 3;
-	TopLogprobs top_logprobs = 4;
-      }
-      repeated Content content = 1;
-    }
-
-    string finish_reason = 1;
-    int32 index = 2;
-    Message message = 3;
+    Delta delta = 1;
+    string finish_reason = 2;
+    int32 index = 3;
     Logprobs logprobs = 4;
-  }
-
-  message Usage {
-    int32 completion_tokens = 1;
-    int32 prompt_tokens = 2;
-    int32 total_tokens = 3;
   }
 
   string id = 1;

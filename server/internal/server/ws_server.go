@@ -161,11 +161,9 @@ func (ws *WS) processMessagesFromEngine(
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
-		log.Printf("Received task result: taskID=%s\n", msg.TaskResult.TaskId)
 		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
 			return "", err
 		}
-		log.Printf("Finished processing task result: taskID=%s\n", msg.TaskResult.TaskId)
 	default:
 		return "", fmt.Errorf("unknown message type: %T", msg)
 	}

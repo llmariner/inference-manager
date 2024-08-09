@@ -52,9 +52,6 @@ tolerations:
 
 version:
 
-resources:
-  gpu: 1
-
 autoscaling:
   # TODO(kenji): Enable once Keda installation is supported in the Terraform provisioning.
   enableKeda: false
@@ -69,6 +66,7 @@ resources:
     memory: "500Mi"
   limits:
     cpu: "250m"
+    nvidia.com/gpu: 1
 
 podSecurityContext:
   fsGroup: 2000

@@ -63,3 +63,29 @@ service:
 
 serviceAccount:
   create: true
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "500Mi"
+  limits:
+    cpu: "250m"
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 3
+  failureThreshold: 5
+  timeoutSeconds: 3
+
+podSecurityContext:
+  fsGroup: 2000
+securityContext:
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 1000

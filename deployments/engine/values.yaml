@@ -91,7 +91,7 @@ persistentVolume:
   # If defined, the engine uses the existing PV that has been provisioned in advance.
   volumeName:
 
-  size: 10Gi
+  size: 100Gi
   accessModes:
   - ReadWriteOnce
 

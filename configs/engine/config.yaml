@@ -1,4 +1,6 @@
-ollamaPort: 8080
+llmPort: 8080
+ollama:
+  keepAlive: 10m
 objectStore:
 inferenceManagerServerWorkerServiceAddr: server:8082
 modelManagerServerWorkerServiceAddr:

@@ -27,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: ./build/engine/Dockerfile
+      target: ollama
     command:
     - run
     - --config

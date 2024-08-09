@@ -9,11 +9,18 @@ docker-compose build
 docker-compose up
 ```
 
-You can hit `inference-manager-server` at port 8080.
+You then need to exec into the `engine` container and pull a model by running the following command:
+
+```bash
+export OLLAMA_HOST=0.0.0.0:8080
+ollama pull gemma:2b
+```
+
+Then you can hit `inference-manager-server` at port 8080.
 
 ```bash
 curl --request POST http://localhost:8080/v1/chat/completions -d '{
-  "model": "google-gemma-2b-it-q4",
+  "model": "gemma:2b",
   "messages": [{"role": "user", "content": "hello"}]
 }'
 ```

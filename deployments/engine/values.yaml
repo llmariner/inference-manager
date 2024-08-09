@@ -62,3 +62,20 @@ autoscaling:
     minReplicaCount: 1
     maxReplicaCount: 2
     prometheusServerAddr:
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "500Mi"
+  limits:
+    cpu: "250m"
+
+podSecurityContext:
+  fsGroup: 2000
+securityContext:
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 1000

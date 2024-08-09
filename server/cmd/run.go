@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -58,6 +59,11 @@ var runCmd = &cobra.Command{
 func run(ctx context.Context, c *config.Config) error {
 	errCh := make(chan error)
 
+	options := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpc.NewClient(fmt.Sprintf(":%d", c.GRPCPort), options)
+	if err != nil {
+		return err
+	}
 	mux := runtime.NewServeMux(
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			// Do not use the camel case for JSON fields to follow OpenAI API.
@@ -70,6 +76,7 @@ func run(ctx context.Context, c *config.Config) error {
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(auth.HeaderMatcher),
+		runtime.WithHealthzEndpoint(grpc_health_v1.NewHealthClient(conn)),
 	)
 	// TODO(kenji): Call v1.RegisterChatServiceHandlerFromEndpoint once the gRPC method is defined
 	// with gRPC gateway.
@@ -82,7 +89,6 @@ func run(ctx context.Context, c *config.Config) error {
 		vsClient = &server.NoopVectorStoreClient{}
 		rwt = &server.NoopRewriter{}
 	} else {
-		options := grpc.WithTransportCredentials(insecure.NewCredentials())
 		conn, err := grpc.NewClient(c.ModelManagerServerAddr, options)
 		if err != nil {
 			return err

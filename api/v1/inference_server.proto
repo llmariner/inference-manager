@@ -175,3 +175,57 @@ service ChatService {
   // CreateChatCompletion is implemented as an HTTP handler without gRPC
   // as gRPC gateway does not support server-sent events.
 }
+
+
+// Define legacy completion
+// (https://platform.openai.com/docs/api-reference/completions/create).
+
+message CreateCompletionRequest {
+  message StreamOption {
+    bool include_usage = 1;
+  }
+  string model = 1;
+  // This can be a string or an array of strings, but we use string assuming that it is more common.
+  string prompt = 2;
+  int32 best_of = 3;
+  bool echo = 4;
+  double frequency_penalty = 5;
+  map<string, double> logit_bias = 6;
+  int32 logprobs = 7;
+  int32 max_tokens = 8;
+  int32 n = 9;
+  double presence_penalty = 10;
+  int32 seed = 11;
+  repeated string stop = 12;
+  bool stream = 13;
+  StreamOption stream_option = 14;
+  string suffix = 15;
+  double temperature = 16;
+  double top_p = 17;
+  string user = 18;
+}
+
+message Completion {
+  message Choice {
+    message Logprobs {
+      // TODO: Revisit this. The types of the fields are not clearly specified in the spec.
+      int32 text_offset = 1;
+      double token_logprobs = 2;
+      string tokens = 3;
+      double top_logprobs = 4;
+    }
+    string finish_reason = 1;
+    int32 index = 2;
+    Logprobs logprobs = 3;
+    string text = 4;
+  }
+
+  string id = 1;
+  repeated Choice choices = 2;
+  int32 created = 3;
+  string model = 4;
+  string system_fingerprint = 5;
+  string object = 6;
+
+  Usage usage = 7;
+}

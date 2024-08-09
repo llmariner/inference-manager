@@ -617,6 +617,285 @@ func (x *RagFunction) GetVectorStoreName() string {
 	return ""
 }
 
+type CreateCompletionRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Model string `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
+	// This can be a string or an array of strings, but we use string assuming that it is more common.
+	Prompt           string                                `protobuf:"bytes,2,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	BestOf           int32                                 `protobuf:"varint,3,opt,name=best_of,json=bestOf,proto3" json:"best_of,omitempty"`
+	Echo             bool                                  `protobuf:"varint,4,opt,name=echo,proto3" json:"echo,omitempty"`
+	FrequencyPenalty float64                               `protobuf:"fixed64,5,opt,name=frequency_penalty,json=frequencyPenalty,proto3" json:"frequency_penalty,omitempty"`
+	LogitBias        map[string]float64                    `protobuf:"bytes,6,rep,name=logit_bias,json=logitBias,proto3" json:"logit_bias,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
+	Logprobs         int32                                 `protobuf:"varint,7,opt,name=logprobs,proto3" json:"logprobs,omitempty"`
+	MaxTokens        int32                                 `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	N                int32                                 `protobuf:"varint,9,opt,name=n,proto3" json:"n,omitempty"`
+	PresencePenalty  float64                               `protobuf:"fixed64,10,opt,name=presence_penalty,json=presencePenalty,proto3" json:"presence_penalty,omitempty"`
+	Seed             int32                                 `protobuf:"varint,11,opt,name=seed,proto3" json:"seed,omitempty"`
+	Stop             []string                              `protobuf:"bytes,12,rep,name=stop,proto3" json:"stop,omitempty"`
+	Stream           bool                                  `protobuf:"varint,13,opt,name=stream,proto3" json:"stream,omitempty"`
+	StreamOption     *CreateCompletionRequest_StreamOption `protobuf:"bytes,14,opt,name=stream_option,json=streamOption,proto3" json:"stream_option,omitempty"`
+	Suffix           string                                `protobuf:"bytes,15,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	Temperature      float64                               `protobuf:"fixed64,16,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	TopP             float64                               `protobuf:"fixed64,17,opt,name=top_p,json=topP,proto3" json:"top_p,omitempty"`
+	User             string                                `protobuf:"bytes,18,opt,name=user,proto3" json:"user,omitempty"`
+}
+
+func (x *CreateCompletionRequest) Reset() {
+	*x = CreateCompletionRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CreateCompletionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCompletionRequest) ProtoMessage() {}
+
+func (x *CreateCompletionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCompletionRequest.ProtoReflect.Descriptor instead.
+func (*CreateCompletionRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CreateCompletionRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *CreateCompletionRequest) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *CreateCompletionRequest) GetBestOf() int32 {
+	if x != nil {
+		return x.BestOf
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetEcho() bool {
+	if x != nil {
+		return x.Echo
+	}
+	return false
+}
+
+func (x *CreateCompletionRequest) GetFrequencyPenalty() float64 {
+	if x != nil {
+		return x.FrequencyPenalty
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetLogitBias() map[string]float64 {
+	if x != nil {
+		return x.LogitBias
+	}
+	return nil
+}
+
+func (x *CreateCompletionRequest) GetLogprobs() int32 {
+	if x != nil {
+		return x.Logprobs
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetMaxTokens() int32 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetN() int32 {
+	if x != nil {
+		return x.N
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetPresencePenalty() float64 {
+	if x != nil {
+		return x.PresencePenalty
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetSeed() int32 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetStop() []string {
+	if x != nil {
+		return x.Stop
+	}
+	return nil
+}
+
+func (x *CreateCompletionRequest) GetStream() bool {
+	if x != nil {
+		return x.Stream
+	}
+	return false
+}
+
+func (x *CreateCompletionRequest) GetStreamOption() *CreateCompletionRequest_StreamOption {
+	if x != nil {
+		return x.StreamOption
+	}
+	return nil
+}
+
+func (x *CreateCompletionRequest) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *CreateCompletionRequest) GetTemperature() float64 {
+	if x != nil {
+		return x.Temperature
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetTopP() float64 {
+	if x != nil {
+		return x.TopP
+	}
+	return 0
+}
+
+func (x *CreateCompletionRequest) GetUser() string {
+	if x != nil {
+		return x.User
+	}
+	return ""
+}
+
+type Completion struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id                string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Choices           []*Completion_Choice `protobuf:"bytes,2,rep,name=choices,proto3" json:"choices,omitempty"`
+	Created           int32                `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	Model             string               `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	SystemFingerprint string               `protobuf:"bytes,5,opt,name=system_fingerprint,json=systemFingerprint,proto3" json:"system_fingerprint,omitempty"`
+	Object            string               `protobuf:"bytes,6,opt,name=object,proto3" json:"object,omitempty"`
+	Usage             *Usage               `protobuf:"bytes,7,opt,name=usage,proto3" json:"usage,omitempty"`
+}
+
+func (x *Completion) Reset() {
+	*x = Completion{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Completion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Completion) ProtoMessage() {}
+
+func (x *Completion) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Completion.ProtoReflect.Descriptor instead.
+func (*Completion) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Completion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Completion) GetChoices() []*Completion_Choice {
+	if x != nil {
+		return x.Choices
+	}
+	return nil
+}
+
+func (x *Completion) GetCreated() int32 {
+	if x != nil {
+		return x.Created
+	}
+	return 0
+}
+
+func (x *Completion) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Completion) GetSystemFingerprint() string {
+	if x != nil {
+		return x.SystemFingerprint
+	}
+	return ""
+}
+
+func (x *Completion) GetObject() string {
+	if x != nil {
+		return x.Object
+	}
+	return ""
+}
+
+func (x *Completion) GetUsage() *Usage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
 // Message has fields for system message, user message, assistant message, and tool message.
 type CreateChatCompletionRequest_Message struct {
 	state         protoimpl.MessageState
@@ -633,7 +912,7 @@ type CreateChatCompletionRequest_Message struct {
 func (x *CreateChatCompletionRequest_Message) Reset() {
 	*x = CreateChatCompletionRequest_Message{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[7]
+		mi := &file_api_v1_inference_server_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -646,7 +925,7 @@ func (x *CreateChatCompletionRequest_Message) String() string {
 func (*CreateChatCompletionRequest_Message) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[7]
+	mi := &file_api_v1_inference_server_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +980,7 @@ type CreateChatCompletionRequest_ResponseFormat struct {
 func (x *CreateChatCompletionRequest_ResponseFormat) Reset() {
 	*x = CreateChatCompletionRequest_ResponseFormat{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[8]
+		mi := &file_api_v1_inference_server_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -714,7 +993,7 @@ func (x *CreateChatCompletionRequest_ResponseFormat) String() string {
 func (*CreateChatCompletionRequest_ResponseFormat) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_ResponseFormat) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[8]
+	mi := &file_api_v1_inference_server_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -749,7 +1028,7 @@ type CreateChatCompletionRequest_Tool struct {
 func (x *CreateChatCompletionRequest_Tool) Reset() {
 	*x = CreateChatCompletionRequest_Tool{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[9]
+		mi := &file_api_v1_inference_server_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -762,7 +1041,7 @@ func (x *CreateChatCompletionRequest_Tool) String() string {
 func (*CreateChatCompletionRequest_Tool) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_Tool) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[9]
+	mi := &file_api_v1_inference_server_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +1085,7 @@ type CreateChatCompletionRequest_ToolChoice struct {
 func (x *CreateChatCompletionRequest_ToolChoice) Reset() {
 	*x = CreateChatCompletionRequest_ToolChoice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[10]
+		mi := &file_api_v1_inference_server_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -819,7 +1098,7 @@ func (x *CreateChatCompletionRequest_ToolChoice) String() string {
 func (*CreateChatCompletionRequest_ToolChoice) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_ToolChoice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[10]
+	mi := &file_api_v1_inference_server_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -869,7 +1148,7 @@ type CreateChatCompletionRequest_Message_ToolCall struct {
 func (x *CreateChatCompletionRequest_Message_ToolCall) Reset() {
 	*x = CreateChatCompletionRequest_Message_ToolCall{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[12]
+		mi := &file_api_v1_inference_server_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -882,7 +1161,7 @@ func (x *CreateChatCompletionRequest_Message_ToolCall) String() string {
 func (*CreateChatCompletionRequest_Message_ToolCall) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_Message_ToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[12]
+	mi := &file_api_v1_inference_server_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -931,7 +1210,7 @@ type CreateChatCompletionRequest_Message_ToolCall_Function struct {
 func (x *CreateChatCompletionRequest_Message_ToolCall_Function) Reset() {
 	*x = CreateChatCompletionRequest_Message_ToolCall_Function{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[13]
+		mi := &file_api_v1_inference_server_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -944,7 +1223,7 @@ func (x *CreateChatCompletionRequest_Message_ToolCall_Function) String() string 
 func (*CreateChatCompletionRequest_Message_ToolCall_Function) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_Message_ToolCall_Function) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[13]
+	mi := &file_api_v1_inference_server_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -989,7 +1268,7 @@ type CreateChatCompletionRequest_Tool_Function struct {
 func (x *CreateChatCompletionRequest_Tool_Function) Reset() {
 	*x = CreateChatCompletionRequest_Tool_Function{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[14]
+		mi := &file_api_v1_inference_server_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1002,7 +1281,7 @@ func (x *CreateChatCompletionRequest_Tool_Function) String() string {
 func (*CreateChatCompletionRequest_Tool_Function) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_Tool_Function) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[14]
+	mi := &file_api_v1_inference_server_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1050,7 +1329,7 @@ type CreateChatCompletionRequest_ToolChoice_Function struct {
 func (x *CreateChatCompletionRequest_ToolChoice_Function) Reset() {
 	*x = CreateChatCompletionRequest_ToolChoice_Function{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[15]
+		mi := &file_api_v1_inference_server_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1063,7 +1342,7 @@ func (x *CreateChatCompletionRequest_ToolChoice_Function) String() string {
 func (*CreateChatCompletionRequest_ToolChoice_Function) ProtoMessage() {}
 
 func (x *CreateChatCompletionRequest_ToolChoice_Function) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[15]
+	mi := &file_api_v1_inference_server_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1377,7 @@ type ToolCall_Function struct {
 func (x *ToolCall_Function) Reset() {
 	*x = ToolCall_Function{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[16]
+		mi := &file_api_v1_inference_server_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1111,7 +1390,7 @@ func (x *ToolCall_Function) String() string {
 func (*ToolCall_Function) ProtoMessage() {}
 
 func (x *ToolCall_Function) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[16]
+	mi := &file_api_v1_inference_server_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1156,7 +1435,7 @@ type Logprobs_Content struct {
 func (x *Logprobs_Content) Reset() {
 	*x = Logprobs_Content{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[17]
+		mi := &file_api_v1_inference_server_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1169,7 +1448,7 @@ func (x *Logprobs_Content) String() string {
 func (*Logprobs_Content) ProtoMessage() {}
 
 func (x *Logprobs_Content) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[17]
+	mi := &file_api_v1_inference_server_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1505,7 @@ type Logprobs_Content_TopLogprobs struct {
 func (x *Logprobs_Content_TopLogprobs) Reset() {
 	*x = Logprobs_Content_TopLogprobs{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[18]
+		mi := &file_api_v1_inference_server_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1239,7 +1518,7 @@ func (x *Logprobs_Content_TopLogprobs) String() string {
 func (*Logprobs_Content_TopLogprobs) ProtoMessage() {}
 
 func (x *Logprobs_Content_TopLogprobs) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[18]
+	mi := &file_api_v1_inference_server_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1290,7 +1569,7 @@ type ChatCompletion_Choice struct {
 func (x *ChatCompletion_Choice) Reset() {
 	*x = ChatCompletion_Choice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[19]
+		mi := &file_api_v1_inference_server_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1303,7 +1582,7 @@ func (x *ChatCompletion_Choice) String() string {
 func (*ChatCompletion_Choice) ProtoMessage() {}
 
 func (x *ChatCompletion_Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[19]
+	mi := &file_api_v1_inference_server_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1360,7 +1639,7 @@ type ChatCompletion_Choice_Message struct {
 func (x *ChatCompletion_Choice_Message) Reset() {
 	*x = ChatCompletion_Choice_Message{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[20]
+		mi := &file_api_v1_inference_server_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1373,7 +1652,7 @@ func (x *ChatCompletion_Choice_Message) String() string {
 func (*ChatCompletion_Choice_Message) ProtoMessage() {}
 
 func (x *ChatCompletion_Choice_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[20]
+	mi := &file_api_v1_inference_server_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1424,7 +1703,7 @@ type ChatCompletionChunk_Choice struct {
 func (x *ChatCompletionChunk_Choice) Reset() {
 	*x = ChatCompletionChunk_Choice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[21]
+		mi := &file_api_v1_inference_server_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1437,7 +1716,7 @@ func (x *ChatCompletionChunk_Choice) String() string {
 func (*ChatCompletionChunk_Choice) ProtoMessage() {}
 
 func (x *ChatCompletionChunk_Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[21]
+	mi := &file_api_v1_inference_server_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1494,7 +1773,7 @@ type ChatCompletionChunk_Choice_Delta struct {
 func (x *ChatCompletionChunk_Choice_Delta) Reset() {
 	*x = ChatCompletionChunk_Choice_Delta{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[22]
+		mi := &file_api_v1_inference_server_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1507,7 +1786,7 @@ func (x *ChatCompletionChunk_Choice_Delta) String() string {
 func (*ChatCompletionChunk_Choice_Delta) ProtoMessage() {}
 
 func (x *ChatCompletionChunk_Choice_Delta) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[22]
+	mi := &file_api_v1_inference_server_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1557,7 +1836,7 @@ type ChatCompletionChunk_Choice_Delta_ToolCall struct {
 func (x *ChatCompletionChunk_Choice_Delta_ToolCall) Reset() {
 	*x = ChatCompletionChunk_Choice_Delta_ToolCall{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[23]
+		mi := &file_api_v1_inference_server_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1570,7 +1849,7 @@ func (x *ChatCompletionChunk_Choice_Delta_ToolCall) String() string {
 func (*ChatCompletionChunk_Choice_Delta_ToolCall) ProtoMessage() {}
 
 func (x *ChatCompletionChunk_Choice_Delta_ToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[23]
+	mi := &file_api_v1_inference_server_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1619,7 +1898,7 @@ type ChatCompletionChunk_Choice_Delta_ToolCall_Function struct {
 func (x *ChatCompletionChunk_Choice_Delta_ToolCall_Function) Reset() {
 	*x = ChatCompletionChunk_Choice_Delta_ToolCall_Function{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_proto_msgTypes[24]
+		mi := &file_api_v1_inference_server_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1632,7 +1911,7 @@ func (x *ChatCompletionChunk_Choice_Delta_ToolCall_Function) String() string {
 func (*ChatCompletionChunk_Choice_Delta_ToolCall_Function) ProtoMessage() {}
 
 func (x *ChatCompletionChunk_Choice_Delta_ToolCall_Function) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_proto_msgTypes[24]
+	mi := &file_api_v1_inference_server_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1660,6 +1939,196 @@ func (x *ChatCompletionChunk_Choice_Delta_ToolCall_Function) GetArguments() stri
 		return x.Arguments
 	}
 	return ""
+}
+
+type CreateCompletionRequest_StreamOption struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	IncludeUsage bool `protobuf:"varint,1,opt,name=include_usage,json=includeUsage,proto3" json:"include_usage,omitempty"`
+}
+
+func (x *CreateCompletionRequest_StreamOption) Reset() {
+	*x = CreateCompletionRequest_StreamOption{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_proto_msgTypes[27]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CreateCompletionRequest_StreamOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCompletionRequest_StreamOption) ProtoMessage() {}
+
+func (x *CreateCompletionRequest_StreamOption) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_proto_msgTypes[27]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCompletionRequest_StreamOption.ProtoReflect.Descriptor instead.
+func (*CreateCompletionRequest_StreamOption) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_proto_rawDescGZIP(), []int{7, 0}
+}
+
+func (x *CreateCompletionRequest_StreamOption) GetIncludeUsage() bool {
+	if x != nil {
+		return x.IncludeUsage
+	}
+	return false
+}
+
+type Completion_Choice struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	FinishReason string                      `protobuf:"bytes,1,opt,name=finish_reason,json=finishReason,proto3" json:"finish_reason,omitempty"`
+	Index        int32                       `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
+	Logprobs     *Completion_Choice_Logprobs `protobuf:"bytes,3,opt,name=logprobs,proto3" json:"logprobs,omitempty"`
+	Text         string                      `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+}
+
+func (x *Completion_Choice) Reset() {
+	*x = Completion_Choice{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_proto_msgTypes[29]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Completion_Choice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Completion_Choice) ProtoMessage() {}
+
+func (x *Completion_Choice) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_proto_msgTypes[29]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Completion_Choice.ProtoReflect.Descriptor instead.
+func (*Completion_Choice) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_proto_rawDescGZIP(), []int{8, 0}
+}
+
+func (x *Completion_Choice) GetFinishReason() string {
+	if x != nil {
+		return x.FinishReason
+	}
+	return ""
+}
+
+func (x *Completion_Choice) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *Completion_Choice) GetLogprobs() *Completion_Choice_Logprobs {
+	if x != nil {
+		return x.Logprobs
+	}
+	return nil
+}
+
+func (x *Completion_Choice) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type Completion_Choice_Logprobs struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// TODO: Revisit this. The types of the fields are not clearly specified in the spec.
+	TextOffset    int32   `protobuf:"varint,1,opt,name=text_offset,json=textOffset,proto3" json:"text_offset,omitempty"`
+	TokenLogprobs float64 `protobuf:"fixed64,2,opt,name=token_logprobs,json=tokenLogprobs,proto3" json:"token_logprobs,omitempty"`
+	Tokens        string  `protobuf:"bytes,3,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	TopLogprobs   float64 `protobuf:"fixed64,4,opt,name=top_logprobs,json=topLogprobs,proto3" json:"top_logprobs,omitempty"`
+}
+
+func (x *Completion_Choice_Logprobs) Reset() {
+	*x = Completion_Choice_Logprobs{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_proto_msgTypes[30]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Completion_Choice_Logprobs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Completion_Choice_Logprobs) ProtoMessage() {}
+
+func (x *Completion_Choice_Logprobs) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_proto_msgTypes[30]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Completion_Choice_Logprobs.ProtoReflect.Descriptor instead.
+func (*Completion_Choice_Logprobs) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_proto_rawDescGZIP(), []int{8, 0, 0}
+}
+
+func (x *Completion_Choice_Logprobs) GetTextOffset() int32 {
+	if x != nil {
+		return x.TextOffset
+	}
+	return 0
+}
+
+func (x *Completion_Choice_Logprobs) GetTokenLogprobs() float64 {
+	if x != nil {
+		return x.TokenLogprobs
+	}
+	return 0
+}
+
+func (x *Completion_Choice_Logprobs) GetTokens() string {
+	if x != nil {
+		return x.Tokens
+	}
+	return ""
+}
+
+func (x *Completion_Choice_Logprobs) GetTopLogprobs() float64 {
+	if x != nil {
+		return x.TopLogprobs
+	}
+	return 0
 }
 
 var File_api_v1_inference_server_proto protoreflect.FileDescriptor
@@ -1924,11 +2393,96 @@ var file_api_v1_inference_server_proto_rawDesc = []byte{
 	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2a, 0x0a, 0x11, 0x76, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x5f,
 	0x73, 0x74, 0x6f, 0x72, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x0f, 0x76, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x4e, 0x61, 0x6d,
-	0x65, 0x32, 0x0d, 0x0a, 0x0b, 0x43, 0x68, 0x61, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
-	0x42, 0x32, 0x5a, 0x30, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c,
-	0x6c, 0x6d, 0x2d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x69, 0x6e, 0x66, 0x65,
-	0x72, 0x65, 0x6e, 0x63, 0x65, 0x2d, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x2f, 0x61, 0x70,
-	0x69, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x22, 0xf5, 0x05, 0x0a, 0x17, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6d, 0x70,
+	0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a,
+	0x05, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6d, 0x6f,
+	0x64, 0x65, 0x6c, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x72, 0x6f, 0x6d, 0x70, 0x74, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x06, 0x70, 0x72, 0x6f, 0x6d, 0x70, 0x74, 0x12, 0x17, 0x0a, 0x07, 0x62,
+	0x65, 0x73, 0x74, 0x5f, 0x6f, 0x66, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x06, 0x62, 0x65,
+	0x73, 0x74, 0x4f, 0x66, 0x12, 0x12, 0x0a, 0x04, 0x65, 0x63, 0x68, 0x6f, 0x18, 0x04, 0x20, 0x01,
+	0x28, 0x08, 0x52, 0x04, 0x65, 0x63, 0x68, 0x6f, 0x12, 0x2b, 0x0a, 0x11, 0x66, 0x72, 0x65, 0x71,
+	0x75, 0x65, 0x6e, 0x63, 0x79, 0x5f, 0x70, 0x65, 0x6e, 0x61, 0x6c, 0x74, 0x79, 0x18, 0x05, 0x20,
+	0x01, 0x28, 0x01, 0x52, 0x10, 0x66, 0x72, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x79, 0x50, 0x65,
+	0x6e, 0x61, 0x6c, 0x74, 0x79, 0x12, 0x61, 0x0a, 0x0a, 0x6c, 0x6f, 0x67, 0x69, 0x74, 0x5f, 0x62,
+	0x69, 0x61, 0x73, 0x18, 0x06, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x42, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f,
+	0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72,
+	0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6d,
+	0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x4c,
+	0x6f, 0x67, 0x69, 0x74, 0x42, 0x69, 0x61, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x09, 0x6c,
+	0x6f, 0x67, 0x69, 0x74, 0x42, 0x69, 0x61, 0x73, 0x12, 0x1a, 0x0a, 0x08, 0x6c, 0x6f, 0x67, 0x70,
+	0x72, 0x6f, 0x62, 0x73, 0x18, 0x07, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x6c, 0x6f, 0x67, 0x70,
+	0x72, 0x6f, 0x62, 0x73, 0x12, 0x1d, 0x0a, 0x0a, 0x6d, 0x61, 0x78, 0x5f, 0x74, 0x6f, 0x6b, 0x65,
+	0x6e, 0x73, 0x18, 0x08, 0x20, 0x01, 0x28, 0x05, 0x52, 0x09, 0x6d, 0x61, 0x78, 0x54, 0x6f, 0x6b,
+	0x65, 0x6e, 0x73, 0x12, 0x0c, 0x0a, 0x01, 0x6e, 0x18, 0x09, 0x20, 0x01, 0x28, 0x05, 0x52, 0x01,
+	0x6e, 0x12, 0x29, 0x0a, 0x10, 0x70, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x5f, 0x70, 0x65,
+	0x6e, 0x61, 0x6c, 0x74, 0x79, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x01, 0x52, 0x0f, 0x70, 0x72, 0x65,
+	0x73, 0x65, 0x6e, 0x63, 0x65, 0x50, 0x65, 0x6e, 0x61, 0x6c, 0x74, 0x79, 0x12, 0x12, 0x0a, 0x04,
+	0x73, 0x65, 0x65, 0x64, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x73, 0x65, 0x65, 0x64,
+	0x12, 0x12, 0x0a, 0x04, 0x73, 0x74, 0x6f, 0x70, 0x18, 0x0c, 0x20, 0x03, 0x28, 0x09, 0x52, 0x04,
+	0x73, 0x74, 0x6f, 0x70, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x18, 0x0d,
+	0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x65, 0x0a, 0x0d,
+	0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x6f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x0e, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x40, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f,
+	0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31,
+	0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f,
+	0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x4f,
+	0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x4f, 0x70, 0x74,
+	0x69, 0x6f, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x75, 0x66, 0x66, 0x69, 0x78, 0x18, 0x0f, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x75, 0x66, 0x66, 0x69, 0x78, 0x12, 0x20, 0x0a, 0x0b, 0x74,
+	0x65, 0x6d, 0x70, 0x65, 0x72, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x10, 0x20, 0x01, 0x28, 0x01,
+	0x52, 0x0b, 0x74, 0x65, 0x6d, 0x70, 0x65, 0x72, 0x61, 0x74, 0x75, 0x72, 0x65, 0x12, 0x13, 0x0a,
+	0x05, 0x74, 0x6f, 0x70, 0x5f, 0x70, 0x18, 0x11, 0x20, 0x01, 0x28, 0x01, 0x52, 0x04, 0x74, 0x6f,
+	0x70, 0x50, 0x12, 0x12, 0x0a, 0x04, 0x75, 0x73, 0x65, 0x72, 0x18, 0x12, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x04, 0x75, 0x73, 0x65, 0x72, 0x1a, 0x33, 0x0a, 0x0c, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x23, 0x0a, 0x0d, 0x69, 0x6e, 0x63, 0x6c, 0x75, 0x64,
+	0x65, 0x5f, 0x75, 0x73, 0x61, 0x67, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0c, 0x69,
+	0x6e, 0x63, 0x6c, 0x75, 0x64, 0x65, 0x55, 0x73, 0x61, 0x67, 0x65, 0x1a, 0x3c, 0x0a, 0x0e, 0x4c,
+	0x6f, 0x67, 0x69, 0x74, 0x42, 0x69, 0x61, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a,
+	0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x01, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xd3, 0x04, 0x0a, 0x0a, 0x43, 0x6f,
+	0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x47, 0x0a, 0x07, 0x63, 0x68, 0x6f, 0x69,
+	0x63, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2d, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f,
+	0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72,
+	0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f,
+	0x6e, 0x2e, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x07, 0x63, 0x68, 0x6f, 0x69, 0x63, 0x65,
+	0x73, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x05, 0x52, 0x07, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x6d,
+	0x6f, 0x64, 0x65, 0x6c, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6d, 0x6f, 0x64, 0x65,
+	0x6c, 0x12, 0x2d, 0x0a, 0x12, 0x73, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x5f, 0x66, 0x69, 0x6e, 0x67,
+	0x65, 0x72, 0x70, 0x72, 0x69, 0x6e, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x11, 0x73,
+	0x79, 0x73, 0x74, 0x65, 0x6d, 0x46, 0x69, 0x6e, 0x67, 0x65, 0x72, 0x70, 0x72, 0x69, 0x6e, 0x74,
+	0x12, 0x16, 0x0a, 0x06, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x06, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x12, 0x37, 0x0a, 0x05, 0x75, 0x73, 0x61, 0x67,
+	0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x21, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65,
+	0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65,
+	0x72, 0x2e, 0x76, 0x31, 0x2e, 0x55, 0x73, 0x61, 0x67, 0x65, 0x52, 0x05, 0x75, 0x73, 0x61, 0x67,
+	0x65, 0x1a, 0xbb, 0x02, 0x0a, 0x06, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x23, 0x0a, 0x0d,
+	0x66, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x5f, 0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x0c, 0x66, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x52, 0x65, 0x61, 0x73, 0x6f,
+	0x6e, 0x12, 0x14, 0x0a, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05,
+	0x52, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x12, 0x52, 0x0a, 0x08, 0x6c, 0x6f, 0x67, 0x70, 0x72,
+	0x6f, 0x62, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x36, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f,
+	0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72,
+	0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f,
+	0x6e, 0x2e, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62,
+	0x73, 0x52, 0x08, 0x6c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x74,
+	0x65, 0x78, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x65, 0x78, 0x74, 0x1a,
+	0x8d, 0x01, 0x0a, 0x08, 0x4c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62, 0x73, 0x12, 0x1f, 0x0a, 0x0b,
+	0x74, 0x65, 0x78, 0x74, 0x5f, 0x6f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x05, 0x52, 0x0a, 0x74, 0x65, 0x78, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x12, 0x25, 0x0a,
+	0x0e, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x5f, 0x6c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62, 0x73, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x01, 0x52, 0x0d, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x4c, 0x6f, 0x67, 0x70,
+	0x72, 0x6f, 0x62, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x73, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x73, 0x12, 0x21, 0x0a, 0x0c,
+	0x74, 0x6f, 0x70, 0x5f, 0x6c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62, 0x73, 0x18, 0x04, 0x20, 0x01,
+	0x28, 0x01, 0x52, 0x0b, 0x74, 0x6f, 0x70, 0x4c, 0x6f, 0x67, 0x70, 0x72, 0x6f, 0x62, 0x73, 0x32,
+	0x0d, 0x0a, 0x0b, 0x43, 0x68, 0x61, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x42, 0x32,
+	0x5a, 0x30, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x6c, 0x6d,
+	0x2d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65,
+	0x6e, 0x63, 0x65, 0x2d, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x2f, 0x61, 0x70, 0x69, 0x2f,
+	0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1943,7 +2497,7 @@ func file_api_v1_inference_server_proto_rawDescGZIP() []byte {
 	return file_api_v1_inference_server_proto_rawDescData
 }
 
-var file_api_v1_inference_server_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_api_v1_inference_server_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_api_v1_inference_server_proto_goTypes = []interface{}{
 	(*CreateChatCompletionRequest)(nil),                // 0: llmoperator.chat.server.v1.CreateChatCompletionRequest
 	(*ToolCall)(nil),                                   // 1: llmoperator.chat.server.v1.ToolCall
@@ -1952,54 +2506,65 @@ var file_api_v1_inference_server_proto_goTypes = []interface{}{
 	(*ChatCompletion)(nil),                             // 4: llmoperator.chat.server.v1.ChatCompletion
 	(*ChatCompletionChunk)(nil),                        // 5: llmoperator.chat.server.v1.ChatCompletionChunk
 	(*RagFunction)(nil),                                // 6: llmoperator.chat.server.v1.RagFunction
-	(*CreateChatCompletionRequest_Message)(nil),        // 7: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message
-	(*CreateChatCompletionRequest_ResponseFormat)(nil), // 8: llmoperator.chat.server.v1.CreateChatCompletionRequest.ResponseFormat
-	(*CreateChatCompletionRequest_Tool)(nil),           // 9: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool
-	(*CreateChatCompletionRequest_ToolChoice)(nil),     // 10: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice
-	nil, // 11: llmoperator.chat.server.v1.CreateChatCompletionRequest.LogitBiasEntry
-	(*CreateChatCompletionRequest_Message_ToolCall)(nil),          // 12: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall
-	(*CreateChatCompletionRequest_Message_ToolCall_Function)(nil), // 13: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.Function
-	(*CreateChatCompletionRequest_Tool_Function)(nil),             // 14: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.Function
-	(*CreateChatCompletionRequest_ToolChoice_Function)(nil),       // 15: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.Function
-	(*ToolCall_Function)(nil),                                     // 16: llmoperator.chat.server.v1.ToolCall.Function
-	(*Logprobs_Content)(nil),                                      // 17: llmoperator.chat.server.v1.Logprobs.Content
-	(*Logprobs_Content_TopLogprobs)(nil),                          // 18: llmoperator.chat.server.v1.Logprobs.Content.TopLogprobs
-	(*ChatCompletion_Choice)(nil),                                 // 19: llmoperator.chat.server.v1.ChatCompletion.Choice
-	(*ChatCompletion_Choice_Message)(nil),                         // 20: llmoperator.chat.server.v1.ChatCompletion.Choice.Message
-	(*ChatCompletionChunk_Choice)(nil),                            // 21: llmoperator.chat.server.v1.ChatCompletionChunk.Choice
-	(*ChatCompletionChunk_Choice_Delta)(nil),                      // 22: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta
-	(*ChatCompletionChunk_Choice_Delta_ToolCall)(nil),             // 23: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall
-	(*ChatCompletionChunk_Choice_Delta_ToolCall_Function)(nil),    // 24: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.Function
+	(*CreateCompletionRequest)(nil),                    // 7: llmoperator.chat.server.v1.CreateCompletionRequest
+	(*Completion)(nil),                                 // 8: llmoperator.chat.server.v1.Completion
+	(*CreateChatCompletionRequest_Message)(nil),        // 9: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message
+	(*CreateChatCompletionRequest_ResponseFormat)(nil), // 10: llmoperator.chat.server.v1.CreateChatCompletionRequest.ResponseFormat
+	(*CreateChatCompletionRequest_Tool)(nil),           // 11: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool
+	(*CreateChatCompletionRequest_ToolChoice)(nil),     // 12: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice
+	nil, // 13: llmoperator.chat.server.v1.CreateChatCompletionRequest.LogitBiasEntry
+	(*CreateChatCompletionRequest_Message_ToolCall)(nil),          // 14: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall
+	(*CreateChatCompletionRequest_Message_ToolCall_Function)(nil), // 15: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.Function
+	(*CreateChatCompletionRequest_Tool_Function)(nil),             // 16: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.Function
+	(*CreateChatCompletionRequest_ToolChoice_Function)(nil),       // 17: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.Function
+	(*ToolCall_Function)(nil),                                     // 18: llmoperator.chat.server.v1.ToolCall.Function
+	(*Logprobs_Content)(nil),                                      // 19: llmoperator.chat.server.v1.Logprobs.Content
+	(*Logprobs_Content_TopLogprobs)(nil),                          // 20: llmoperator.chat.server.v1.Logprobs.Content.TopLogprobs
+	(*ChatCompletion_Choice)(nil),                                 // 21: llmoperator.chat.server.v1.ChatCompletion.Choice
+	(*ChatCompletion_Choice_Message)(nil),                         // 22: llmoperator.chat.server.v1.ChatCompletion.Choice.Message
+	(*ChatCompletionChunk_Choice)(nil),                            // 23: llmoperator.chat.server.v1.ChatCompletionChunk.Choice
+	(*ChatCompletionChunk_Choice_Delta)(nil),                      // 24: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta
+	(*ChatCompletionChunk_Choice_Delta_ToolCall)(nil),             // 25: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall
+	(*ChatCompletionChunk_Choice_Delta_ToolCall_Function)(nil),    // 26: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.Function
+	(*CreateCompletionRequest_StreamOption)(nil),                  // 27: llmoperator.chat.server.v1.CreateCompletionRequest.StreamOption
+	nil,                                // 28: llmoperator.chat.server.v1.CreateCompletionRequest.LogitBiasEntry
+	(*Completion_Choice)(nil),          // 29: llmoperator.chat.server.v1.Completion.Choice
+	(*Completion_Choice_Logprobs)(nil), // 30: llmoperator.chat.server.v1.Completion.Choice.Logprobs
 }
 var file_api_v1_inference_server_proto_depIdxs = []int32{
-	7,  // 0: llmoperator.chat.server.v1.CreateChatCompletionRequest.messages:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message
-	11, // 1: llmoperator.chat.server.v1.CreateChatCompletionRequest.logit_bias:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.LogitBiasEntry
-	8,  // 2: llmoperator.chat.server.v1.CreateChatCompletionRequest.response_format:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ResponseFormat
-	9,  // 3: llmoperator.chat.server.v1.CreateChatCompletionRequest.tools:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool
-	10, // 4: llmoperator.chat.server.v1.CreateChatCompletionRequest.tool_choice:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice
-	16, // 5: llmoperator.chat.server.v1.ToolCall.function:type_name -> llmoperator.chat.server.v1.ToolCall.Function
-	17, // 6: llmoperator.chat.server.v1.Logprobs.content:type_name -> llmoperator.chat.server.v1.Logprobs.Content
-	19, // 7: llmoperator.chat.server.v1.ChatCompletion.choices:type_name -> llmoperator.chat.server.v1.ChatCompletion.Choice
+	9,  // 0: llmoperator.chat.server.v1.CreateChatCompletionRequest.messages:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message
+	13, // 1: llmoperator.chat.server.v1.CreateChatCompletionRequest.logit_bias:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.LogitBiasEntry
+	10, // 2: llmoperator.chat.server.v1.CreateChatCompletionRequest.response_format:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ResponseFormat
+	11, // 3: llmoperator.chat.server.v1.CreateChatCompletionRequest.tools:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool
+	12, // 4: llmoperator.chat.server.v1.CreateChatCompletionRequest.tool_choice:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice
+	18, // 5: llmoperator.chat.server.v1.ToolCall.function:type_name -> llmoperator.chat.server.v1.ToolCall.Function
+	19, // 6: llmoperator.chat.server.v1.Logprobs.content:type_name -> llmoperator.chat.server.v1.Logprobs.Content
+	21, // 7: llmoperator.chat.server.v1.ChatCompletion.choices:type_name -> llmoperator.chat.server.v1.ChatCompletion.Choice
 	3,  // 8: llmoperator.chat.server.v1.ChatCompletion.usage:type_name -> llmoperator.chat.server.v1.Usage
-	21, // 9: llmoperator.chat.server.v1.ChatCompletionChunk.choices:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice
+	23, // 9: llmoperator.chat.server.v1.ChatCompletionChunk.choices:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice
 	3,  // 10: llmoperator.chat.server.v1.ChatCompletionChunk.usage:type_name -> llmoperator.chat.server.v1.Usage
-	12, // 11: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.tool_calls:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall
-	14, // 12: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.Function
-	15, // 13: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.Function
-	13, // 14: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.Function
-	18, // 15: llmoperator.chat.server.v1.Logprobs.Content.top_logprobs:type_name -> llmoperator.chat.server.v1.Logprobs.Content.TopLogprobs
-	20, // 16: llmoperator.chat.server.v1.ChatCompletion.Choice.message:type_name -> llmoperator.chat.server.v1.ChatCompletion.Choice.Message
-	2,  // 17: llmoperator.chat.server.v1.ChatCompletion.Choice.logprobs:type_name -> llmoperator.chat.server.v1.Logprobs
-	1,  // 18: llmoperator.chat.server.v1.ChatCompletion.Choice.Message.tool_calls:type_name -> llmoperator.chat.server.v1.ToolCall
-	22, // 19: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.delta:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta
-	2,  // 20: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.logprobs:type_name -> llmoperator.chat.server.v1.Logprobs
-	23, // 21: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.tool_calls:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall
-	24, // 22: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.function:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.Function
-	23, // [23:23] is the sub-list for method output_type
-	23, // [23:23] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	28, // 11: llmoperator.chat.server.v1.CreateCompletionRequest.logit_bias:type_name -> llmoperator.chat.server.v1.CreateCompletionRequest.LogitBiasEntry
+	27, // 12: llmoperator.chat.server.v1.CreateCompletionRequest.stream_option:type_name -> llmoperator.chat.server.v1.CreateCompletionRequest.StreamOption
+	29, // 13: llmoperator.chat.server.v1.Completion.choices:type_name -> llmoperator.chat.server.v1.Completion.Choice
+	3,  // 14: llmoperator.chat.server.v1.Completion.usage:type_name -> llmoperator.chat.server.v1.Usage
+	14, // 15: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.tool_calls:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall
+	16, // 16: llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Tool.Function
+	17, // 17: llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.ToolChoice.Function
+	15, // 18: llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.function:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest.Message.ToolCall.Function
+	20, // 19: llmoperator.chat.server.v1.Logprobs.Content.top_logprobs:type_name -> llmoperator.chat.server.v1.Logprobs.Content.TopLogprobs
+	22, // 20: llmoperator.chat.server.v1.ChatCompletion.Choice.message:type_name -> llmoperator.chat.server.v1.ChatCompletion.Choice.Message
+	2,  // 21: llmoperator.chat.server.v1.ChatCompletion.Choice.logprobs:type_name -> llmoperator.chat.server.v1.Logprobs
+	1,  // 22: llmoperator.chat.server.v1.ChatCompletion.Choice.Message.tool_calls:type_name -> llmoperator.chat.server.v1.ToolCall
+	24, // 23: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.delta:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta
+	2,  // 24: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.logprobs:type_name -> llmoperator.chat.server.v1.Logprobs
+	25, // 25: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.tool_calls:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall
+	26, // 26: llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.function:type_name -> llmoperator.chat.server.v1.ChatCompletionChunk.Choice.Delta.ToolCall.Function
+	30, // 27: llmoperator.chat.server.v1.Completion.Choice.logprobs:type_name -> llmoperator.chat.server.v1.Completion.Choice.Logprobs
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inference_server_proto_init() }
@@ -2093,7 +2658,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_Message); i {
+			switch v := v.(*CreateCompletionRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2105,7 +2670,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_ResponseFormat); i {
+			switch v := v.(*Completion); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2117,7 +2682,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_Tool); i {
+			switch v := v.(*CreateChatCompletionRequest_Message); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2129,7 +2694,19 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_ToolChoice); i {
+			switch v := v.(*CreateChatCompletionRequest_ResponseFormat); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CreateChatCompletionRequest_Tool); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2141,19 +2718,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_Message_ToolCall); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_v1_inference_server_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_Message_ToolCall_Function); i {
+			switch v := v.(*CreateChatCompletionRequest_ToolChoice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2165,7 +2730,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_Tool_Function); i {
+			switch v := v.(*CreateChatCompletionRequest_Message_ToolCall); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2177,7 +2742,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChatCompletionRequest_ToolChoice_Function); i {
+			switch v := v.(*CreateChatCompletionRequest_Message_ToolCall_Function); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2189,7 +2754,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ToolCall_Function); i {
+			switch v := v.(*CreateChatCompletionRequest_Tool_Function); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2201,7 +2766,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Logprobs_Content); i {
+			switch v := v.(*CreateChatCompletionRequest_ToolChoice_Function); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2213,7 +2778,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Logprobs_Content_TopLogprobs); i {
+			switch v := v.(*ToolCall_Function); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2225,7 +2790,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChatCompletion_Choice); i {
+			switch v := v.(*Logprobs_Content); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2237,7 +2802,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChatCompletion_Choice_Message); i {
+			switch v := v.(*Logprobs_Content_TopLogprobs); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2249,7 +2814,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChatCompletionChunk_Choice); i {
+			switch v := v.(*ChatCompletion_Choice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2261,7 +2826,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChatCompletionChunk_Choice_Delta); i {
+			switch v := v.(*ChatCompletion_Choice_Message); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2273,7 +2838,7 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChatCompletionChunk_Choice_Delta_ToolCall); i {
+			switch v := v.(*ChatCompletionChunk_Choice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2285,7 +2850,67 @@ func file_api_v1_inference_server_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChatCompletionChunk_Choice_Delta); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChatCompletionChunk_Choice_Delta_ToolCall); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChatCompletionChunk_Choice_Delta_ToolCall_Function); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CreateCompletionRequest_StreamOption); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Completion_Choice); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Completion_Choice_Logprobs); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2303,7 +2928,7 @@ func file_api_v1_inference_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_v1_inference_server_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

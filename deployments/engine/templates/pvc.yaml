@@ -1,0 +1,27 @@
+{{- if .Values.persistentVolume.enabled -}}
+{{- if not .Values.persistentVolume.existingClaim -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistentVolume.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: "{{ .Values.persistentVolume.size }}"
+  storageClassName: "{{ .Values.persistentVolume.storageClass }}"
+{{- if .Values.persistentVolume.volumeName }}
+  volumeName: "{{ .Values.persistentVolume.volumeName }}"
+{{- end -}}
+{{- if .Values.persistentVolume.volumeBindingMode }}
+  volumeBindingMode: "{{ .Values.persistentVolume.volumeBindingMode }}"
+{{- end }}
+{{- if .Values.persistentVolume.selector }}
+  selector:
+  {{- toYaml .Values.persistentVolume.selector | nindent 4 }}
+{{- end -}}
+{{- end -}}
+{{- end -}}

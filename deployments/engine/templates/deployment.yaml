@@ -73,7 +73,7 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
-        - name: tmp
+        - name: {{ if .Values.persistentVolume.enabled }}pvc{{- else }}tmp{{- end }}
           mountPath: /tmp
         - name: tmp
           mountPath: /.ollama
@@ -97,3 +97,8 @@ spec:
           name: {{ include "inference-manager-engine.fullname" . }}
       - name: tmp
         emptyDir:
+      {{- if .Values.persistentVolume.enabled }}
+      - name: pvc
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistentVolume.existingClaim | default (include "inference-manager-engine.fullname" .) }}
+      {{- end }}

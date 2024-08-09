@@ -79,3 +79,21 @@ securityContext:
     - ALL
   runAsNonRoot: true
   runAsUser: 1000
+
+persistentVolume:
+  # If true, engine will create/use a PVC. If false, use emptyDir
+  enabled: false
+  # If defined, the engine uses the given PVC and does not create a new one.
+  # NOTE: PVC must be manually created before the volume is bound.
+  existingClaim:
+
+  storageClassName:
+  # If defined, the engine uses the existing PV that has been provisioned in advance.
+  volumeName:
+
+  size: 10Gi
+  accessModes:
+  - ReadWriteOnce
+
+  volumeBindingMode:
+  selector:

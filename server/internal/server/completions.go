@@ -162,8 +162,8 @@ func (s *S) CreateChatCompletion(
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		flusher.Flush()
 	}
+	flusher.Flush()
 
 	if err := scanner.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

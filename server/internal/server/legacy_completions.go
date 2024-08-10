@@ -170,11 +170,19 @@ func (s *S) CreateCompletion(
 		resp := scanner.Text()
 		if !strings.HasPrefix(resp, "data: ") {
 			// TODO(kenji): Handle other case.
+			if _, err := w.Write([]byte(resp + sse.DoubleNewline)); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			continue
 		}
 
 		respD := resp[5:]
 		if respD == " [DONE]" {
+			if _, err := w.Write([]byte(resp + sse.DoubleNewline)); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			break
 		}
 
@@ -190,12 +198,12 @@ func (s *S) CreateCompletion(
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if _, err := w.Write([]byte(string(bs) + sse.DoubleNewline)); err != nil {
+		if _, err := w.Write([]byte("data: " + string(bs) + sse.DoubleNewline)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		flusher.Flush()
 	}
+	flusher.Flush()
 
 	if err := scanner.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -47,6 +47,7 @@ func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
 		go t.discardResp()
 		return nil, ctx.Err()
 	case resp := <-t.RespCh:
+		log.Printf("Received an initial response: taskID=%s, statusCode=%d, status=%q\n", t.ID, resp.StatusCode, resp.Status)
 		return resp, nil
 	case err := <-t.ErrCh:
 		log.Printf("Task (ID: %q) failed: %s\n", t.ID, err)

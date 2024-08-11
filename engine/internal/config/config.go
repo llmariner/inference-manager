@@ -87,6 +87,8 @@ type Config struct {
 	// LLMPort is the port llm listens on.
 	LLMPort int `yaml:"llmPort"`
 
+	HealthPort int `yaml:"healthPort"`
+
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 
 	// PreloadedModelIDs is a list of model IDs to preload. These models are downloaded locally
@@ -103,6 +105,10 @@ type Config struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
+	if c.HealthPort <= 0 {
+		return fmt.Errorf("healthPort must be greater than 0")
+	}
+
 	if c.InferenceManagerServerWorkerServiceAddr == "" {
 		return fmt.Errorf("inference manager server worker service address must be set")
 	}

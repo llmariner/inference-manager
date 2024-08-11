@@ -26,6 +26,8 @@ const (
 	// This needs to be shorter than an idle connection timeout period of
 	// the server or the load balancer.
 	statusReportInterval = 30 * time.Second
+
+	retryInterval = 10 * time.Second
 )
 
 // ModelSyncer syncs models.
@@ -90,38 +92,67 @@ type P struct {
 	llmAddr     string
 	llmKind     llmkind.K
 	modelSyncer ModelSyncer
+
+	// lastErr is the last error from run().
+	// It is cleared when the registration succeeds.
+	lastErr error
+	mu      sync.Mutex
 }
 
 // Run runs the processor.
 //
 // TODO(kenji): Gracefully handle an error from the server.
 func (p *P) Run(ctx context.Context) error {
+	for {
+		if err := p.run(ctx); err != nil {
+			log.Printf("Processor error: %s\n", err)
+			p.mu.Lock()
+			p.lastErr = err
+			p.mu.Unlock()
+
+			log.Printf("Will retry after %s", retryInterval)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(retryInterval):
+			}
+		}
+	}
+}
+
+func (p *P) run(ctx context.Context) error {
 	ctx = auth.AppendWorkerAuthorization(ctx)
 	stream, err := p.client.ProcessTasks(ctx)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = stream.CloseSend()
+	}()
 
-	errCh := make(chan error, 1)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error, 2)
 	go func() {
-		if err := p.sendEngineStatusPeriodicaly(ctx, stream); err != nil {
+		if err := p.sendEngineStatusPeriodically(ctx, stream); err != nil {
 			errCh <- fmt.Errorf("send engine status: %s", err)
 		}
 	}()
 
 	go func() {
-		if err := p.processTasks(ctx, stream, errCh); err != nil {
+		if err := p.processTasks(ctx, stream); err != nil {
 			errCh <- fmt.Errorf("process tasks: %s", err)
 		}
 	}()
 	return <-errCh
 }
 
-func (p *P) sendEngineStatusPeriodicaly(
+func (p *P) sendEngineStatusPeriodically(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
 ) error {
-	var isFirst bool
+	isFirst := true
 
 	log.Printf("Registering engine: %s\n", p.engineID)
 	for {
@@ -131,8 +162,14 @@ func (p *P) sendEngineStatusPeriodicaly(
 
 		if isFirst {
 			isFirst = false
-			log.Printf("Registered engine: %s\n", p.engineID)
+			log.Printf("Successfully registered engine: %s\n", p.engineID)
 		}
+
+		// Clear the last error.
+		// TODO(kenji): Revisit. This might hide an error in the process task.
+		p.mu.Lock()
+		p.lastErr = nil
+		p.mu.Unlock()
 
 		select {
 		case <-ctx.Done():
@@ -145,7 +182,6 @@ func (p *P) sendEngineStatusPeriodicaly(
 func (p *P) processTasks(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
-	errCh chan<- error,
 ) error {
 	for {
 		resp, err := stream.Recv()
@@ -161,7 +197,8 @@ func (p *P) processTasks(
 		go func() {
 			log.Printf("Started processing task: %s\n", resp.NewTask.Id)
 			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
-				errCh <- fmt.Errorf("process task: %s", err)
+				// Gracefully handle the error.
+				log.Printf("Failed to process task: %s\n", err)
 				return
 			}
 			log.Printf("Completed task: %s\n", resp.NewTask.Id)
@@ -318,9 +355,9 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 		},
 	}
 	if err := stream.Send(req); err != nil {
+		log.Printf("Sending<2>:%s\n", err)
 		return err
 	}
-
 	return nil
 }
 
@@ -374,4 +411,15 @@ func (p *P) sendTaskResult(
 		return err
 	}
 	return nil
+}
+
+// IsReady returns true if the processor is ready. If not,
+// it returns a message describing why it is not ready.
+func (p *P) IsReady() (bool, string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.lastErr != nil {
+		return false, p.lastErr.Error()
+	}
+	return true, ""
 }

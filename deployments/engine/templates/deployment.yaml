@@ -36,6 +36,9 @@ spec:
         - name: llm
           containerPort: {{ .Values.llmPort }}
           protocol: TCP
+        - name: health
+          containerPort: {{ .Values.healthPort }}
+          protocol: TCP
         env:
         {{- with .Values.global.awsSecret }}
         {{- if .name }}
@@ -72,6 +75,8 @@ spec:
           mountPath: /tmp
         - name: tmp
           mountPath: /.ollama
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
       {{- with .Values.nodeSelector }}

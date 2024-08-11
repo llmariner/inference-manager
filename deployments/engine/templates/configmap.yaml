@@ -13,6 +13,7 @@ data:
       numGpus: {{ .Values.vllm.numGpus }}
     llmEngine: {{ .Values.llmEngine }}
     llmPort: {{ .Values.llmPort }}
+    healthPort: {{ .Values.healthPort }}
     {{- with .Values.preloadedModelIds }}
     preloadedModelIds:
       {{- toYaml . | nindent 6 }}

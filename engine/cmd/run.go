@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"github.com/llm-operator/inference-manager/engine/internal/health"
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
@@ -70,8 +72,18 @@ func run(ctx context.Context, c *config.Config) error {
 
 	errCh := make(chan error)
 
+	healthHandler := health.NewProbeHandler()
+	healthHandler.AddProbe(m)
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("/ready", healthHandler.ProbeHandler)
+	srv := http.Server{
+		Addr:    fmt.Sprintf(":%d", c.HealthPort),
+		Handler: healthMux,
+	}
 	go func() {
-		errCh <- m.Run()
+		if err := srv.ListenAndServe(); err != nil {
+			errCh <- err
+		}
 	}()
 
 	var syncer processor.ModelSyncer
@@ -89,20 +101,12 @@ func run(ctx context.Context, c *config.Config) error {
 		syncer = modelsyncer.New(m, sc, mc)
 	}
 
+	go func() {
+		errCh <- m.Run()
+	}()
+
 	if err := m.WaitForReady(); err != nil {
 		return err
-	}
-
-	if ids := c.PreloadedModelIDs; len(ids) > 0 {
-		log.Printf("Preloading %d model(s)", len(ids))
-		ctx := auth.AppendWorkerAuthorization(ctx)
-		for _, id := range ids {
-			log.Printf("Preloading model %q", id)
-			if err := syncer.PullModel(ctx, id); err != nil {
-				return err
-			}
-		}
-		log.Printf("Completed the preloading")
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)
@@ -121,9 +125,23 @@ func run(ctx context.Context, c *config.Config) error {
 		syncer,
 	)
 
+	healthHandler.AddProbe(p)
+
 	go func() {
 		errCh <- p.Run(ctx)
 	}()
+
+	if ids := c.PreloadedModelIDs; len(ids) > 0 {
+		log.Printf("Preloading %d model(s)", len(ids))
+		ctx := auth.AppendWorkerAuthorization(ctx)
+		for _, id := range ids {
+			log.Printf("Preloading model %q", id)
+			if err := syncer.PullModel(ctx, id); err != nil {
+				return err
+			}
+		}
+		log.Printf("Completed the preloading")
+	}
 
 	return <-errCh
 }

@@ -18,4 +18,6 @@ type M interface {
 	WaitForReady() error
 	// DeleteModel deletes the model.
 	DeleteModel(ctx context.Context, modelName string) error
+
+	IsReady() (bool, string)
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
@@ -30,6 +31,9 @@ func New(addr string) *Manager {
 // Manager manages the Ollama service.
 type Manager struct {
 	client *api.Client
+
+	isReady bool
+	mu      sync.Mutex
 }
 
 // Run starts the Ollama service.
@@ -90,6 +94,10 @@ func (m *Manager) WaitForReady() error {
 		select {
 		case <-ticker.C:
 			if err := m.runCommand([]string{"list"}); err == nil {
+				// Ollama is ready.
+				m.mu.Lock()
+				defer m.mu.Unlock()
+				m.isReady = true
 				return nil
 			}
 		case <-time.After(timeout):
@@ -234,4 +242,15 @@ func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
 	return m.client.Delete(ctx, &api.DeleteRequest{
 		Model: modelName,
 	})
+}
+
+// IsReady returns true if the processor is ready. If not,
+// it returns a message describing why it is not ready.
+func (m *Manager) IsReady() (bool, string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.isReady {
+		return true, ""
+	}
+	return false, "Ollama is not ready"
 }

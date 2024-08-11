@@ -29,6 +29,7 @@ vllm:
 
 llmEngine: ollama
 llmPort: 8080
+healthPort: 8081
 
 preloadedModelIds:
 
@@ -95,3 +96,12 @@ persistentVolume:
 
   volumeBindingMode:
   selector:
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: health
+    scheme: HTTP
+  initialDelaySeconds: 3
+  failureThreshold: 5
+  timeoutSeconds: 3

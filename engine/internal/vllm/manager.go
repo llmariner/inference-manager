@@ -14,18 +14,18 @@ import (
 // New returns a new Manager.
 func New(c *config.Config) *Manager {
 	return &Manager{
-		host:   "0.0.0.0",
-		port:   c.LLMPort,
-		model:  c.VLLM.Model,
+		host:    "0.0.0.0",
+		port:    c.LLMPort,
+		model:   c.VLLM.Model,
 		numGPUs: c.VLLM.NumGPUs,
 	}
 }
 
 // Manager manages the Ollama service.
 type Manager struct {
-	host   string
-	port   int
-	model  string
+	host    string
+	port    int
+	model   string
 	numGPUs int
 }
 
@@ -72,4 +72,11 @@ func (m *Manager) runCommand(args []string) error {
 func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
 	log.Printf("DeleteModel is not implemented\n")
 	return nil
+}
+
+// IsReady returns true if the processor is ready. If not,
+// it returns a message describing why it is not ready.
+func (m *Manager) IsReady() (bool, string) {
+	// TODO(kenji): Implement this.
+	return true, ""
 }

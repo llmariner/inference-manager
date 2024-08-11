@@ -66,10 +66,10 @@ serviceAccount:
 
 resources:
   requests:
-    cpu: "250m"
+    cpu: "1000m"
     memory: "500Mi"
-  limits:
-    cpu: "250m"
+  # Do not specify limits as it varies on model and SLO requirements.
+  # Also most cases a GPU node is dedicated to the engine.
 
 livenessProbe:
   httpGet:

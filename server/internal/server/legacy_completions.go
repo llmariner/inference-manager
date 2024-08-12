@@ -202,8 +202,8 @@ func (s *S) CreateCompletion(
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		flusher.Flush()
 	}
-	flusher.Flush()
 
 	if err := scanner.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

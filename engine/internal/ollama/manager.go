@@ -166,7 +166,7 @@ PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
 
 	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
-		// Output of "ollama show llama3.1 --modelfile".
+		// Output of "ollama show llama3.1 --modelfile" except the context length parameter.
 		//
 		// TODO(kenji): Might need to update the template once
 		// https://github.com/ollama/ollama/issues/6060 is fixed.
@@ -222,7 +222,9 @@ Respond in the format {"name": function name, "parameters": dictionary of argume
 {{ end }}{{ .Response }}{{ if .Response }}<|eot_id|>{{ end }}"""
 PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
-PARAMETER stop <|eot_id|>`, nil
+PARAMETER stop <|eot_id|>
+PARAMETER num_ctx 131072
+`, nil
 
 	case strings.HasPrefix(name, ""):
 		// This is different from the output of "ollama show deepseek-coder --modelfile".
@@ -230,6 +232,7 @@ PARAMETER stop <|eot_id|>`, nil
 		return `
 TEMPLATE {{ .Prompt }}
 PARAMETER stop <｜end▁of▁sentence｜>
+PARAMETER num_ctx 16384
 `, nil
 
 	default:

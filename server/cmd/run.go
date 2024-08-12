@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/llm-operator/inference-manager/server/internal/admin"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/inference-manager/server/internal/monitoring"
@@ -164,6 +165,19 @@ func run(ctx context.Context, c *config.Config) error {
 	go func() {
 		s := server.NewWorkerServiceServer(infProcessor)
 		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
+	}()
+
+	adminHandler := admin.NewHandler(infProcessor)
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("/admin", adminHandler.AdminHandler)
+	srv := http.Server{
+		Addr:    fmt.Sprintf(":%d", c.AdminPort),
+		Handler: adminMux,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			errCh <- err
+		}
 	}()
 
 	return <-errCh

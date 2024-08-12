@@ -13,6 +13,7 @@ type Config struct {
 	HTTPPort              int `yaml:"httpPort"`
 	WorkerServiceGRPCPort int `yaml:"workerServiceGrpcPort"`
 	MonitoringPort        int `yaml:"monitoringPort"`
+	AdminPort             int `yaml:"adminPort"`
 
 	ModelManagerServerAddr               string `yaml:"modelManagerServerAddr"`
 	VectorStoreManagerServerAddr         string `yaml:"vectorStoreManagerServerAddr"`
@@ -77,6 +78,9 @@ func (c *Config) Validate() error {
 	}
 	if c.MonitoringPort <= 0 {
 		return fmt.Errorf("monitoringPort must be greater than 0")
+	}
+	if c.AdminPort <= 0 {
+		return fmt.Errorf("adminPort must be greater than 0")
 	}
 
 	if err := c.AuthConfig.validate(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"testing"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
@@ -251,6 +252,80 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 		engineID := p.findLeastLoadedEngine(tc.engineIDs)
 		assert.Equal(t, tc.want, engineID)
 	}
+}
+
+func TestDumpStatus(t *testing.T) {
+	iprocessor := &P{
+		engines: map[string]map[string]*engine{
+			"tenant0": {
+				"e0": {
+					modelIDs: []string{"m0", "m1"},
+				},
+				"e1": {
+					modelIDs: []string{"m2"},
+				},
+			},
+		},
+		inProgressTasksByID: map[string]*Task{
+			"task0": {
+				ID:       "task0",
+				EngineID: "e0",
+				TenantID: "tenant0",
+				Req: &v1.CreateChatCompletionRequest{
+					Model: "m0",
+				},
+			},
+			"task1": {
+				ID:       "task1",
+				EngineID: "e0",
+				TenantID: "tenant0",
+				Req: &v1.CreateChatCompletionRequest{
+					Model: "m1",
+				},
+			},
+			"task2": {
+				ID:       "task2",
+				EngineID: "e1",
+				TenantID: "tenant0",
+				Req: &v1.CreateChatCompletionRequest{
+					Model: "m2",
+				},
+			},
+		},
+	}
+
+	got := iprocessor.DumpStatus()
+	want := &Status{
+		Tenants: map[string]*TenantStatus{
+			"tenant0": {
+				Engines: map[string]*EngineStatus{
+					"e0": {
+						RegisteredModelIDs: []string{"m0", "m1"},
+						Tasks: []*TaskStatus{
+							{
+								ID:      "task0",
+								ModelID: "m0",
+							},
+							{
+								ID:      "task1",
+								ModelID: "m1",
+							},
+						},
+					},
+					"e1": {
+						RegisteredModelIDs: []string{"m2"},
+						Tasks: []*TaskStatus{
+							{
+								ID:      "task2",
+								ModelID: "m2",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.True(t, reflect.DeepEqual(want, got), "want: %v, got: %v", want, got)
 }
 
 type fakeEngineRouter struct {

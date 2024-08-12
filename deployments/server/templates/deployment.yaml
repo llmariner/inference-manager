@@ -45,6 +45,9 @@ spec:
         - name: monitoring
           containerPort: {{ .Values.monitoringPort }}
           protocol: TCP
+        - name: admin
+          containerPort: {{ .Values.adminPort }}
+          protocol: TCP
         volumeMounts:
         - name: config
           mountPath: /etc/config

@@ -15,6 +15,7 @@ data:
       key: /var/run/tls/tls.key
     {{- end }}
     monitoringPort: {{ .Values.monitoringPort }}
+    adminPort: {{ .Values.adminPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}

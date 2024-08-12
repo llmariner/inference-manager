@@ -17,6 +17,8 @@ import (
 
 const (
 	systemOwner = "system"
+
+	modelDir = "/.ollama/models/manifests/registry.ollama.ai/library/"
 )
 
 type modelManager interface {
@@ -39,14 +41,34 @@ func New(
 	mm modelManager,
 	s3Client s3Client,
 	miClient modelClient,
-) *S {
+) (*S, error) {
+	registered, err := registeredModels(modelDir)
+	if err != nil {
+		return nil, fmt.Errorf("registered models: %s", err)
+	}
 	return &S{
 		mm:               mm,
 		s3Client:         s3Client,
 		miClient:         miClient,
-		registeredModels: map[string]bool{},
+		registeredModels: registered,
 		inProgressModels: map[string]chan struct{}{},
+	}, nil
+}
+
+func registeredModels(dir string) (map[string]bool, error) {
+	registeredModels := map[string]bool{}
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return registeredModels, nil
 	}
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read directory: %s", err)
+	}
+	for _, file := range files {
+		log.Printf("Registered model %q", file.Name())
+		registeredModels[file.Name()] = true
+	}
+	return registeredModels, nil
 }
 
 // S is a syncer.

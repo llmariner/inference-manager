@@ -226,7 +226,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 	defer s.mu.Unlock()
 	s.registeredModels[modelID] = true
 
-	log.Printf("Registered the model successfully\n")
+	log.Printf("Registered %s successfully\n", modelID)
 
 	// write to the notification channel.
 
@@ -255,9 +255,9 @@ func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistr
 
 	if ch, ok := s.inProgressModels[modelID]; ok {
 		s.mu.Unlock()
-		log.Printf("Waiting for the completion of the in-progress registration\n")
+		log.Printf("Waiting for the completion of the in-progress registration of %s\n", modelID)
 		<-ch
-		log.Printf("The in-progress registration has completed\n")
+		log.Printf("The in-progress registration of %s has completed\n", modelID)
 
 		s.mu.Lock()
 		registered := s.registeredModels[modelID]
@@ -281,7 +281,7 @@ func (s *S) checkInProgressRegistration(modelID string) (*checkInProgressRegistr
 			delete(s.inProgressModels, modelID)
 			s.mu.Unlock()
 
-			log.Printf("Notifying the completion of the registration\n")
+			log.Printf("Notifying the completion of the registration of %s\n", modelID)
 			close(ch)
 		},
 	}, nil

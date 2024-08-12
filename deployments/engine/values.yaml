@@ -22,7 +22,9 @@ global:
   controlPlaneAddr: ""
 
 ollama:
-  keepAlive: 10m
+  # Keep models in memory for a long period of time as we don't want end users to
+  # hit slowness due to GPU memory loading.
+  keepAlive: 96h
 
 vllm:
   numGpus: 1

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -118,6 +119,8 @@ type engineCommunicator interface {
 
 type engine struct {
 	srv engineCommunicator
+
+	modelIDs []string
 }
 
 // P processes inference tasks.
@@ -225,13 +228,15 @@ func (p *P) AddOrUpdateEngineStatus(
 		p.engines[clusterInfo.TenantID] = engines
 	}
 
-	if _, ok := engines[engineStatus.EngineId]; !ok {
-		e := &engine{
+	e, ok := engines[engineStatus.EngineId]
+	if !ok {
+		e = &engine{
 			srv: srv,
 		}
 		engines[engineStatus.EngineId] = e
 		log.Printf("Registered new engine: %s\n", engineStatus.EngineId)
 	}
+	e.modelIDs = engineStatus.ModelIds
 
 	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
@@ -391,4 +396,84 @@ func (p *P) NumEnginesByTenantID() map[string]int {
 		m[tenantID] = len(engines)
 	}
 	return m
+}
+
+// TaskStatus is the status of a task.
+type TaskStatus struct {
+	ID      string `json:"id"`
+	ModelID string `json:"modelId"`
+}
+
+// EngineStatus is the status of an engine.
+type EngineStatus struct {
+	RegisteredModelIDs []string      `json:"registeredModelIds"`
+	Tasks              []*TaskStatus `json:"tasks"`
+}
+
+// TenantStatus is the status of a tenant.
+type TenantStatus struct {
+	Engines map[string]*EngineStatus `json:"engines"`
+}
+
+// Status is the status of the processor.
+type Status struct {
+	Tenants map[string]*TenantStatus `json:"tenants"`
+}
+
+// DumpStatus dumps the status of the processor.
+func (p *P) DumpStatus() *Status {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	status := &Status{
+		Tenants: map[string]*TenantStatus{},
+	}
+
+	for tenantID, engines := range p.engines {
+		t, ok := status.Tenants[tenantID]
+		if !ok {
+			t = &TenantStatus{
+				Engines: map[string]*EngineStatus{},
+			}
+			status.Tenants[tenantID] = t
+		}
+
+		for id, e := range engines {
+			t.Engines[id] = &EngineStatus{
+				RegisteredModelIDs: e.modelIDs,
+			}
+		}
+	}
+
+	for _, task := range p.inProgressTasksByID {
+		t, ok := status.Tenants[task.TenantID]
+		if !ok {
+			t = &TenantStatus{
+				Engines: map[string]*EngineStatus{},
+			}
+			status.Tenants[task.TenantID] = t
+		}
+		e, ok := t.Engines[task.EngineID]
+		if !ok {
+			e = &EngineStatus{}
+			t.Engines[task.EngineID] = e
+		}
+
+		e.Tasks = append(e.Tasks, &TaskStatus{
+			ID:      task.ID,
+			ModelID: task.Req.Model,
+		})
+	}
+
+	// Sort the modelIDs and task IDs for deterministic output.
+	for _, engines := range status.Tenants {
+		for _, e := range engines.Engines {
+			sort.Strings(e.RegisteredModelIDs)
+			sort.Slice(e.Tasks, func(i, j int) bool {
+				return e.Tasks[i].ID < e.Tasks[j].ID
+			})
+		}
+	}
+
+	return status
 }

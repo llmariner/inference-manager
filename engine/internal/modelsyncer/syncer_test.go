@@ -56,12 +56,13 @@ func TestPullModel(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			fom := &fakeOllamaManager{}
-			om := New(
+			om, err := New(
 				fom,
 				&noopS3Client{},
 				&fakeModelInternalClient{model: tc.model},
 			)
-			err := om.PullModel(context.Background(), tc.modelID)
+			assert.NoError(t, err)
+			err = om.PullModel(context.Background(), tc.modelID)
 			assert.NoError(t, err)
 
 			assert.ElementsMatch(t, tc.wantCreated, fom.created)
@@ -83,7 +84,7 @@ func TestPullModelInProgress(t *testing.T) {
 	waitCh := make(chan struct{})
 
 	fom := &fakeOllamaManager{}
-	om := New(
+	om, err := New(
 		fom,
 		&blockingS3Client{
 			waitcCh: waitCh,
@@ -95,6 +96,7 @@ func TestPullModelInProgress(t *testing.T) {
 			},
 		},
 	)
+	assert.NoError(t, err)
 
 	// Start two goroutines to pull the same model.
 	var wg sync.WaitGroup

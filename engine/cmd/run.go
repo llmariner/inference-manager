@@ -98,7 +98,10 @@ func run(ctx context.Context, c *config.Config) error {
 			return err
 		}
 		mc := mv1.NewModelsWorkerServiceClient(conn)
-		syncer = modelsyncer.New(m, sc, mc)
+		syncer, err = modelsyncer.New(m, sc, mc)
+		if err != nil {
+			return err
+		}
 	}
 
 	go func() {

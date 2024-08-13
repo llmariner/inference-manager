@@ -74,6 +74,12 @@ func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
 	return nil
 }
 
+// UpdateModelTemplateToLatest updates the model template to the latest.
+func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
+	log.Printf("UpdateModelTemplateToLatest is not implemented\n")
+	return nil
+}
+
 // IsReady returns true if the processor is ready. If not,
 // it returns a message describing why it is not ready.
 func (m *Manager) IsReady() (bool, string) {

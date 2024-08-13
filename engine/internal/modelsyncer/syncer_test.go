@@ -179,6 +179,10 @@ func (n *fakeOllamaManager) DeleteModel(ctx context.Context, modelName string) e
 	return nil
 }
 
+func (n *fakeOllamaManager) UpdateModelTemplateToLatest(modelName string) error {
+	return nil
+}
+
 type noopS3Client struct {
 }
 

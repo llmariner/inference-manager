@@ -24,6 +24,7 @@ const (
 type modelManager interface {
 	CreateNewModel(modelName string, spec *manager.ModelSpec) error
 	DeleteModel(ctx context.Context, modelName string) error
+	UpdateModelTemplateToLatest(modelname string) error
 }
 
 type s3Client interface {
@@ -42,7 +43,7 @@ func New(
 	s3Client s3Client,
 	miClient modelClient,
 ) (*S, error) {
-	registered, err := registeredModels(modelDir)
+	registered, err := registeredModels(mm, modelDir)
 	if err != nil {
 		return nil, fmt.Errorf("registered models: %s", err)
 	}
@@ -55,7 +56,7 @@ func New(
 	}, nil
 }
 
-func registeredModels(dir string) (map[string]bool, error) {
+func registeredModels(mm modelManager, dir string) (map[string]bool, error) {
 	registeredModels := map[string]bool{}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return registeredModels, nil
@@ -64,9 +65,15 @@ func registeredModels(dir string) (map[string]bool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read directory: %s", err)
 	}
+	log.Printf("Found %d model file(s) under %s", len(files), dir)
 	for _, file := range files {
-		log.Printf("Registered model %q", file.Name())
-		registeredModels[file.Name()] = true
+		mname := file.Name()
+		log.Printf("Registered model %q", mname)
+		// Update the model tempalte to the latest as it might have been updated.
+		if err := mm.UpdateModelTemplateToLatest(mname); err != nil {
+			return nil, fmt.Errorf("update model template if needed: %s", err)
+		}
+		registeredModels[mname] = true
 	}
 	return registeredModels, nil
 }

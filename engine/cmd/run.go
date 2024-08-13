@@ -69,8 +69,11 @@ func run(ctx context.Context, c *config.Config) error {
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
 	}
-
 	errCh := make(chan error)
+
+	go func() {
+		errCh <- m.Run()
+	}()
 
 	healthHandler := health.NewProbeHandler()
 	healthHandler.AddProbe(m)
@@ -86,11 +89,14 @@ func run(ctx context.Context, c *config.Config) error {
 		}
 	}()
 
+	if err := m.WaitForReady(); err != nil {
+		return err
+	}
+
 	var syncer processor.ModelSyncer
 	if c.Debug.Standalone || c.LLMEngine == "vllm" {
 		syncer = processor.NewFakeModelSyncer()
 	} else {
-
 		sc := s3.NewClient(c.ObjectStore.S3)
 
 		conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
@@ -102,14 +108,6 @@ func run(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	go func() {
-		errCh <- m.Run()
-	}()
-
-	if err := m.WaitForReady(); err != nil {
-		return err
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)

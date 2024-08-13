@@ -106,6 +106,21 @@ func (m *Manager) WaitForReady() error {
 	}
 }
 
+// UpdateModelTemplateToLatest updates the model template to the latest.
+func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
+	// TODO(kenji): Update only when there is actual delta. It requires a
+	// non-trival amount of work as Ollama makes modification to the original modelfile content
+	// (e.g., add comments).
+	log.Printf("Recreating model %q with the updated template.\n", modelName)
+	ms := &manager.ModelSpec{
+		From: modelName,
+	}
+	if err := m.CreateNewModel(modelName, ms); err != nil {
+		return fmt.Errorf("create new model: %s", err)
+	}
+	return nil
+}
+
 func (m *Manager) runCommand(args []string) error {
 	log.Printf("Running Ollama command: %v", args)
 	cmd := exec.Command("ollama", args...)

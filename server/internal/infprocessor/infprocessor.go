@@ -120,7 +120,8 @@ type engineCommunicator interface {
 type engine struct {
 	srv engineCommunicator
 
-	modelIDs []string
+	modelIDs           []string
+	inProgressModelIDs []string
 }
 
 // P processes inference tasks.
@@ -237,6 +238,10 @@ func (p *P) AddOrUpdateEngineStatus(
 		log.Printf("Registered new engine: %s\n", engineStatus.EngineId)
 	}
 	e.modelIDs = engineStatus.ModelIds
+	// Check if the sync status is set for backward compatibility.
+	if s := engineStatus.SyncStatus; s != nil {
+		e.inProgressModelIDs = s.InProgressModelIds
+	}
 
 	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
@@ -407,6 +412,7 @@ type TaskStatus struct {
 // EngineStatus is the status of an engine.
 type EngineStatus struct {
 	RegisteredModelIDs []string      `json:"registeredModelIds"`
+	InProgressModelIDs []string      `json:"inProgressModelIds"`
 	Tasks              []*TaskStatus `json:"tasks"`
 }
 
@@ -441,6 +447,7 @@ func (p *P) DumpStatus() *Status {
 		for id, e := range engines {
 			t.Engines[id] = &EngineStatus{
 				RegisteredModelIDs: e.modelIDs,
+				InProgressModelIDs: e.inProgressModelIDs,
 			}
 		}
 	}
@@ -469,6 +476,7 @@ func (p *P) DumpStatus() *Status {
 	for _, engines := range status.Tenants {
 		for _, e := range engines.Engines {
 			sort.Strings(e.RegisteredModelIDs)
+			sort.Strings(e.InProgressModelIDs)
 			sort.Slice(e.Tasks, func(i, j int) bool {
 				return e.Tasks[i].ID < e.Tasks[j].ID
 			})

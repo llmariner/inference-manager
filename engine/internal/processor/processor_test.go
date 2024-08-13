@@ -118,6 +118,10 @@ func (f *fakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+func (f *fakeModelSyncer) ListInProgressModels() []string {
+	return nil
+}
+
 type fakeProcessTasksClient struct {
 	gotReq *v1.ProcessTasksRequest
 }

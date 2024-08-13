@@ -99,6 +99,18 @@
         }
       }
     },
+    "EngineStatusSyncStatus": {
+      "type": "object",
+      "properties": {
+        "inProgressModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "in_progress_model_ids is a list of model ids that are currently being synced."
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -241,6 +253,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "syncStatus": {
+          "$ref": "#/definitions/EngineStatusSyncStatus"
         }
       }
     },

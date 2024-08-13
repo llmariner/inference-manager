@@ -34,6 +34,7 @@ const (
 type ModelSyncer interface {
 	ListSyncedModelIDs(ctx context.Context) []string
 	PullModel(ctx context.Context, modelID string) error
+	ListInProgressModels() []string
 }
 
 // NewFakeModelSyncer returns a FakeModelSyncer.
@@ -58,6 +59,13 @@ func (s *FakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+// ListInProgressModels lists all models that are in progress.
+func (s *FakeModelSyncer) ListInProgressModels() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return nil
 }
 
 // PullModel downloads and registers a model from model manager.
@@ -351,6 +359,9 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 			EngineStatus: &v1.EngineStatus{
 				EngineId: p.engineID,
 				ModelIds: p.modelSyncer.ListSyncedModelIDs(ctx),
+				SyncStatus: &v1.EngineStatus_SyncStatus{
+					InProgressModelIds: p.modelSyncer.ListInProgressModels(),
+				},
 			},
 		},
 	}

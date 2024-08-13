@@ -3,11 +3,17 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"gopkg.in/yaml.v3"
 )
+
+// preloadedModelIDsEnv is the environment variable for the preloaded model IDs.
+// If set, the environment variable is used instead of the value in the configuration file.
+// The value is a comma-separated list of model IDs.
+const preloadedModelIDsEnv = "PRELOADED_MODEL_IDS"
 
 // OllamaConfig is the Ollama configuration.
 type OllamaConfig struct {
@@ -155,5 +161,10 @@ func Parse(path string) (Config, error) {
 	if err = yaml.Unmarshal(b, &config); err != nil {
 		return config, fmt.Errorf("config: unmarshal: %s", err)
 	}
+
+	if val := os.Getenv(preloadedModelIDsEnv); val != "" {
+		config.PreloadedModelIDs = strings.Split(val, ",")
+	}
+
 	return config, nil
 }

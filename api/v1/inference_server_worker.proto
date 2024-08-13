@@ -7,8 +7,13 @@ import "api/v1/inference_server.proto";
 option go_package = "github.com/llm-operator/inference-manager/api/v1";
 
 message EngineStatus {
+  message SyncStatus {
+    // in_progress_model_ids is a list of model ids that are currently being synced.
+    repeated string in_progress_model_ids = 1;
+  }
   string engine_id = 1;
   repeated string model_ids = 2;
+  SyncStatus sync_status = 3;
 }
 
 message HeaderValue {

@@ -65,10 +65,11 @@ autoscaling:
 
 resources:
   requests:
-    cpu: "250m"
+    cpu: "1000m"
     memory: "500Mi"
+  # Do not specify CPU/memory limits as it varies on model and SLO requirements.
+  # Also most cases a GPU node is dedicated to the engine.
   limits:
-    cpu: "250m"
     nvidia.com/gpu: 1
 
 podSecurityContext:

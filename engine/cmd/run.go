@@ -139,12 +139,16 @@ func run(ctx context.Context, c *config.Config) error {
 		log.Printf("Preloading %d model(s)", len(ids))
 		ctx := auth.AppendWorkerAuthorization(ctx)
 		for _, id := range ids {
-			log.Printf("Preloading model %q", id)
-			if err := syncer.PullModel(ctx, id); err != nil {
-				return err
-			}
+			go func() {
+				log.Printf("Preloading model %q", id)
+				if err := syncer.PullModel(ctx, id); err != nil {
+					errCh <- err
+					return
+				}
+				log.Printf("Completed the preloading of %q", id)
+				return
+			}()
 		}
-		log.Printf("Completed the preloading")
 	}
 
 	return <-errCh

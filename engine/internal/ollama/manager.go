@@ -182,6 +182,8 @@ PARAMETER stop "[/INST]"`, nil
 
 	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
 		// Output of "ollama show llama3.1 --modelfile" except the context length parameter.
+		// The publicly announced max context length is 128K, but we limit the context length
+		// to 64K here to make this work smoothly in g5.48xlarge.
 		//
 		// TODO(kenji): Might need to update the template once
 		// https://github.com/ollama/ollama/issues/6060 is fixed.
@@ -238,7 +240,7 @@ Respond in the format {"name": function name, "parameters": dictionary of argume
 PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>
-PARAMETER num_ctx 131072
+PARAMETER num_ctx 65536
 `, nil
 
 	case strings.HasPrefix(name, ""):

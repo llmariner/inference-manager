@@ -318,6 +318,17 @@ func (s *S) DeleteModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+// ListInProgressModels lists all models that are in progress of registration.x
+func (s *S) ListInProgressModels() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ms []string
+	for m := range s.inProgressModels {
+		ms = append(ms, m)
+	}
+	return ms
+}
+
 func extractBaseModel(modelID string) (string, error) {
 	l := strings.Split(modelID, ":")
 	if len(l) <= 2 {

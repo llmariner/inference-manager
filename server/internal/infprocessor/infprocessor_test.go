@@ -262,7 +262,8 @@ func TestDumpStatus(t *testing.T) {
 					modelIDs: []string{"m0", "m1"},
 				},
 				"e1": {
-					modelIDs: []string{"m2"},
+					modelIDs:           []string{"m2"},
+					inProgressModelIDs: []string{"m3"},
 				},
 			},
 		},
@@ -314,6 +315,7 @@ func TestDumpStatus(t *testing.T) {
 					},
 					"e1": {
 						RegisteredModelIDs: []string{"m2"},
+						InProgressModelIDs: []string{"m3"},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task2",

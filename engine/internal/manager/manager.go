@@ -19,5 +19,7 @@ type M interface {
 	// DeleteModel deletes the model.
 	DeleteModel(ctx context.Context, modelName string) error
 
+	UpdateModelTemplateToLatest(modelname string) error
+
 	IsReady() (bool, string)
 }

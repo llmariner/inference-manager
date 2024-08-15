@@ -9,6 +9,7 @@ data:
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       forceSpreading: {{ .Values.ollama.forceSpreading }}
+      debug: {{ .Values.ollama.debug }}
     vllm:
       model: {{ .Values.vllm.model }}
       numGpus: {{ .Values.vllm.numGpus }}

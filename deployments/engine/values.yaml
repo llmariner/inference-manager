@@ -33,6 +33,7 @@ ollama:
   #
   # See https://github.com/ollama/ollama/issues/5494.
   forceSpreading: true
+  debug: false
 
 vllm:
   numGpus: 1

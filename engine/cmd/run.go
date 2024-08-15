@@ -69,6 +69,12 @@ func run(ctx context.Context, c *config.Config) error {
 				return err
 			}
 		}
+		if c.Ollama.Debug {
+			log.Printf("Ollama Debug is enabled\n")
+			if err := os.Setenv("OLLAMA_DEBUG", "true"); err != nil {
+				return err
+			}
+		}
 		m = ollama.New(llmAddr)
 	case llmkind.VLLM:
 		m = vllm.New(c)

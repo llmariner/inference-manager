@@ -10,6 +10,10 @@ import (
 
 // SetEnvVarsFromConfig sets environment variables from the given configuration.
 func SetEnvVarsFromConfig(c config.OllamaConfig) error {
+	if err := os.Setenv("OLLAMA_KEEP_ALIVE", c.KeepAlive.String()); err != nil {
+		return err
+	}
+
 	if c.NumParallel > 0 {
 		log.Printf("Setting Ollama NumParallel %d\n", c.NumParallel)
 		if err := os.Setenv("OLLAMA_NUM_PARALLEL", strconv.Itoa(c.NumParallel)); err != nil {

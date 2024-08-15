@@ -63,6 +63,12 @@ func run(ctx context.Context, c *config.Config) error {
 		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
 			return err
 		}
+		if c.Ollama.ForceSpreading {
+			log.Printf("Ollama Force spreading is enabled\n")
+			if err := os.Setenv("OLLAMA_SCHED_SPREAD", "true"); err != nil {
+				return err
+			}
+		}
 		m = ollama.New(llmAddr)
 	case llmkind.VLLM:
 		m = vllm.New(c)

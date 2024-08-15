@@ -25,6 +25,8 @@ ollama:
   # Keep models in memory for a long period of time as we don't want end users to
   # hit slowness due to GPU memory loading.
   keepAlive: 96h
+  # numParallel sets the number of parallel model requests.
+  numParallel: 0
   # If set, Ollama attemts to all GPUs in a node.
   # Setting this to true was mentioned in https://github.com/ollama/ollama/issues/5494
   # to support multiple H100s, but this setting didn't help.

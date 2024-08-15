@@ -21,6 +21,9 @@ type OllamaConfig struct {
 	// This controls how long Ollama keeps models in GPU memory.
 	KeepAlive time.Duration `yaml:"keepAlive"`
 
+	// NumParallel is the maximum number of requests procesed in parallel.
+	NumParallel int `yaml:"numParallel"`
+
 	// ForceSpreading is true if the models should be spread across all GPUs.
 	ForceSpreading bool `yaml:"forceSpreading"`
 
@@ -30,6 +33,9 @@ type OllamaConfig struct {
 func (c *OllamaConfig) validate() error {
 	if c.KeepAlive <= 0 {
 		return fmt.Errorf("keepAlive must be greater than 0")
+	}
+	if c.NumParallel < 0 {
+		return fmt.Errorf("numParallel must be non-negative")
 	}
 	return nil
 }

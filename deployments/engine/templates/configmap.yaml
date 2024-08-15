@@ -8,8 +8,8 @@ data:
   config.yaml: |
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
+      numParallel: {{ .Values.maxConcurrentRequests }}
       forceSpreading: {{ .Values.ollama.forceSpreading }}
-      numParallel: {{ .Values.ollama.numParallel }}
       debug: {{ .Values.ollama.debug }}
     vllm:
       model: {{ .Values.vllm.model }}

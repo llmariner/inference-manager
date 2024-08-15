@@ -8,6 +8,7 @@ data:
   config.yaml: |
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
+      forceSpreading: {{ .Values.ollama.forceSpreading }}
     vllm:
       model: {{ .Values.vllm.model }}
       numGpus: {{ .Values.vllm.numGpus }}

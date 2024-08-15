@@ -20,6 +20,9 @@ type OllamaConfig struct {
 	// KeepAlive is the keep-alive duration for Ollama.
 	// This controls how long Ollama keeps models in GPU memory.
 	KeepAlive time.Duration `yaml:"keepAlive"`
+
+	// ForceSpreading is true if the models should be spread across all GPUs.
+	ForceSpreading bool `yaml:"forceSpreading"`
 }
 
 func (c *OllamaConfig) validate() error {

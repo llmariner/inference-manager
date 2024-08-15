@@ -23,6 +23,8 @@ type OllamaConfig struct {
 
 	// ForceSpreading is true if the models should be spread across all GPUs.
 	ForceSpreading bool `yaml:"forceSpreading"`
+
+	Debug bool `yaml:"debug"`
 }
 
 func (c *OllamaConfig) validate() error {

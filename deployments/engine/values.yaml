@@ -25,6 +25,14 @@ ollama:
   # Keep models in memory for a long period of time as we don't want end users to
   # hit slowness due to GPU memory loading.
   keepAlive: 96h
+  # Ollama's current GPU spreading policiy does not handle multiple H100s well.
+  # Enable force-spreading to work around this.
+  #
+  # Please note that there is a certain performance penality when a model can
+  # fit in a single GPU.
+  #
+  # See https://github.com/ollama/ollama/issues/5494.
+  forceSpreading: true
 
 vllm:
   numGpus: 1

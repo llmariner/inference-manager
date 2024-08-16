@@ -1,7 +1,6 @@
 package ollama
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -124,12 +123,10 @@ func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
 func (m *Manager) runCommand(args []string) error {
 	log.Printf("Running Ollama command: %v", args)
 	cmd := exec.Command("ollama", args...)
-	var errb bytes.Buffer
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = &errb
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		log.Printf("Failed to run %v: %s", args, errb.String())
-		return err
+		return fmt.Errorf("run %v: %s", args, err)
 	}
 
 	return nil

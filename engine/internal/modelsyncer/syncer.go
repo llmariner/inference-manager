@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -68,11 +69,19 @@ func registeredModels(mm modelManager, dir string) (map[string]bool, error) {
 	log.Printf("Found %d model file(s) under %s", len(files), dir)
 	for _, file := range files {
 		mname := file.Name()
-		log.Printf("Registered model %q", mname)
 		// Update the model tempalte to the latest as it might have been updated.
+		log.Printf("Registering model %q", mname)
 		if err := mm.UpdateModelTemplateToLatest(mname); err != nil {
-			return nil, fmt.Errorf("update model template if needed: %s", err)
+			// Gracefully handle the error and continue as the file might be corrupted for some reason.
+			log.Printf("Failed to update model template for %q: %s. Ignoring", mname, err)
+			if s, err := os.Stat(path.Join(dir, mname)); err != nil {
+				log.Printf("Failed to get the file info for %q: %s. Ignoring", mname, err)
+			} else {
+				log.Printf("File info: %+v\n", s)
+			}
+			continue
 		}
+		log.Printf("Registered model %q", mname)
 		registeredModels[mname] = true
 	}
 	return registeredModels, nil

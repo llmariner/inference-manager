@@ -66,7 +66,7 @@ func run(ctx context.Context, c *config.Config) error {
 		if err := ollama.SetEnvVarsFromConfig(c.Ollama); err != nil {
 			return err
 		}
-		m = ollama.New(llmAddr)
+		m = ollama.New(llmAddr, c.ModelContextLengths)
 	case llmkind.VLLM:
 		m = vllm.New(c)
 	default:

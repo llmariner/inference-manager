@@ -112,6 +112,10 @@ type Config struct {
 	// at the startup time.
 	PreloadedModelIDs []string `yaml:"preloadedModelIds"`
 
+	// ModelContextLengths is a map of model ID to context length. If not specified, the default
+	// context length is used.
+	ModelContextLengths map[string]int `yaml:"modelContextLengths"`
+
 	Debug DebugConfig `yaml:"debug"`
 
 	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`
@@ -128,6 +132,12 @@ func (c *Config) Validate() error {
 
 	if c.InferenceManagerServerWorkerServiceAddr == "" {
 		return fmt.Errorf("inference manager server worker service address must be set")
+	}
+
+	for id, length := range c.ModelContextLengths {
+		if length <= 0 {
+			return fmt.Errorf("model context length for model %q must be greater than 0", id)
+		}
 	}
 
 	if !c.Debug.Standalone {

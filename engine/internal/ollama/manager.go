@@ -16,20 +16,36 @@ import (
 	"github.com/ollama/ollama/api"
 )
 
+type cmdRunnter interface {
+	Run(*exec.Cmd) error
+}
+
+type cmdRunnerImpl struct {
+}
+
+func (c *cmdRunnerImpl) Run(cmd *exec.Cmd) error {
+	return cmd.Run()
+}
+
 // New returns a new Manager.
-func New(addr string) *Manager {
+func New(addr string, contextLengthsByModelID map[string]int) *Manager {
 	url := &url.URL{
 		Scheme: "http",
 		Host:   addr,
 	}
 	return &Manager{
-		client: api.NewClient(url, http.DefaultClient),
+		client:                  api.NewClient(url, http.DefaultClient),
+		contextLengthsByModelID: contextLengthsByModelID,
+		cmdRunner:               &cmdRunnerImpl{},
 	}
 }
 
 // Manager manages the Ollama service.
 type Manager struct {
-	client *api.Client
+	client                  *api.Client
+	contextLengthsByModelID map[string]int
+
+	cmdRunner cmdRunnter
 
 	isReady bool
 	mu      sync.Mutex
@@ -63,6 +79,11 @@ func (m *Manager) CreateNewModel(modelName string, spec *manager.ModelSpec) erro
 			return err
 		}
 		s += modelFile
+		if l, ok, err := m.contextLength(modelName); err != nil {
+			return err
+		} else if ok {
+			s += fmt.Sprintf("PARAMETER num_ctx %d\n", l)
+		}
 	}
 	if _, err := file.Write([]byte(s)); err != nil {
 		return err
@@ -125,11 +146,38 @@ func (m *Manager) runCommand(args []string) error {
 	cmd := exec.Command("ollama", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := m.cmdRunner.Run(cmd); err != nil {
 		return fmt.Errorf("run %v: %s", args, err)
 	}
 
 	return nil
+}
+
+// contextLength returns the context length for the given model name if it is set to a non-default value.
+// If it is set to the default value, the function returns false.
+func (m *Manager) contextLength(name string) (int, bool, error) {
+	if l, ok := m.contextLengthsByModelID[name]; ok {
+		return l, true, nil
+	}
+
+	switch {
+	case strings.HasPrefix(name, "google-gemma-"):
+		return 0, false, nil
+	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3-8B-Instruct"):
+		return 0, false, nil
+	case strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct"):
+		return 0, false, nil
+	case strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct"):
+		return 0, false, nil
+	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
+		// The publicly announced max context length is 128K, but we limit the context length
+		// to 64K here to make this work smoothly in g5.48xlarge.
+		return 65536, true, nil
+	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
+		return 16384, true, nil
+	default:
+		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
+	}
 }
 
 // ollamaBaseModelFile returns the base model file for the given model name.
@@ -237,16 +285,14 @@ Respond in the format {"name": function name, "parameters": dictionary of argume
 PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>
-PARAMETER num_ctx 65536
 `, nil
 
-	case strings.HasPrefix(name, ""):
+	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
 		// This is different from the output of "ollama show deepseek-coder --modelfile".
 		// Instead, this is tailored for auto completion for continue.dev.
 		return `
 TEMPLATE {{ .Prompt }}
 PARAMETER stop <｜end▁of▁sentence｜>
-PARAMETER num_ctx 16384
 `, nil
 
 	default:

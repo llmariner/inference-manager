@@ -6,6 +6,29 @@ metadata:
     {{- include "inference-manager-engine.labels" . | nindent 4 }}
 data:
   config.yaml: |
+    runtime:
+      pullerImage: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}
+      runtimeImage: {{ .Values.runtime.runtimeImage }}
+      pullerImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
+      runtimeImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
+      configMapName: {{ include "inference-manager-engine.fullname" . }}
+      {{- with .Values.global.awsSecret }}
+      {{- if .name }}
+      awsSecretName: {{ .name }}
+      awsKeyIdEnvKey: {{ .accessKeyIdKey }}
+      awsAccessKeyEnvKey: {{ .secretAccessKeyKey }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.global.worker.registrationKeySecret }}
+      {{- if .name }}
+      llmoWorkerSecretName: {{ .name }}
+      llmoKeyEnvKey: {{ .key }}
+      {{- end }}
+      {{- end }}
+      modelResources:
+        {{- toYaml .Values.runtime.modelResources | nindent 8 }}
+      defaultResources:
+        {{- toYaml .Values.runtime.defaultResources | nindent 8 }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.maxConcurrentRequests }}

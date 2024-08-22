@@ -76,18 +76,38 @@ func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+// AddressGetter gets an address of a model.
+type AddressGetter interface {
+	GetLLMAddress(modelID string) string
+}
+
+// NewFixedAddressGetter returns a new FixedAddressGetter.
+func NewFixedAddressGetter(addr string) *FixedAddressGetter {
+	return &FixedAddressGetter{addr: addr}
+}
+
+// FixedAddressGetter is a fixed address getter.
+type FixedAddressGetter struct {
+	addr string
+}
+
+// GetLLMAddress returns a fixed address.
+func (g *FixedAddressGetter) GetLLMAddress(modelID string) string {
+	return g.addr
+}
+
 // NewP returns a new processor.
 func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
-	llmAddr string,
+	addrGetter AddressGetter,
 	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
 ) *P {
 	return &P{
 		engineID:    engineID,
 		client:      client,
-		llmAddr:     llmAddr,
+		addrGetter:  addrGetter,
 		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
 	}
@@ -97,7 +117,7 @@ func NewP(
 type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
-	llmAddr     string
+	addrGetter  AddressGetter
 	llmKind     llmkind.K
 	modelSyncer ModelSyncer
 
@@ -337,7 +357,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   p.llmAddr,
+		Host:   p.addrGetter.GetLLMAddress(t.Request.Model),
 	}
 	requestURL := baseURL.JoinPath(completionPath).String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))

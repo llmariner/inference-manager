@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "inference-manager-engine.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "inference-manager-engine.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io

@@ -39,6 +39,31 @@ type runtime struct {
 	address string
 }
 
+// Initialize initializes ready and pending runtimes.
+// This function is not thread-safe.
+func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, namespace string) error {
+	var stsList appsv1.StatefulSetList
+	if err := apiReader.List(ctx, &stsList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"app.kubernetes.io/name": "runtime"},
+	); err != nil {
+		return fmt.Errorf("failed to list runtimes: %s", err)
+	}
+
+	for _, sts := range stsList.Items {
+		if !sts.DeletionTimestamp.IsZero() {
+			continue
+		}
+		modelID := sts.GetAnnotations()[modelAnnotationKey]
+		if sts.Status.ReadyReplicas > 0 {
+			m.readyRuntimes[modelID] = runtime{address: m.rtClient.GetAddress(sts.Name)}
+		} else {
+			m.pendingRuntimes[modelID] = make(chan struct{})
+		}
+	}
+	return nil
+}
+
 func (m *Manager) deleteRuntime(modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -182,28 +207,4 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager) error {
 		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByAnno)).
 		WithLogConstructor(constructer).
 		Complete(m)
-}
-
-// PreloadRuntimes preloads the runtimes. This function is not thread-safe.
-func (m *Manager) PreloadRuntimes(ctx context.Context, apiReader client.Reader, namespace string) error {
-	var stsList appsv1.StatefulSetList
-	if err := apiReader.List(ctx, &stsList,
-		client.InNamespace(namespace),
-		client.MatchingLabels{"app.kubernetes.io/name": "runtime"},
-	); err != nil {
-		return fmt.Errorf("failed to list runtimes: %s", err)
-	}
-
-	for _, sts := range stsList.Items {
-		if !sts.DeletionTimestamp.IsZero() {
-			continue
-		}
-		modelID := sts.GetAnnotations()[modelAnnotationKey]
-		if sts.Status.ReadyReplicas > 0 {
-			m.readyRuntimes[modelID] = runtime{address: m.rtClient.GetAddress(sts.Name)}
-		} else {
-			m.pendingRuntimes[modelID] = make(chan struct{})
-		}
-	}
-	return nil
 }

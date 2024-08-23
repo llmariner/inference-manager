@@ -28,7 +28,7 @@ func TestP(t *testing.T) {
 	processor := NewP(
 		"engine_id0",
 		nil,
-		fmt.Sprintf("localhost:%d", ollamaSrv.port()),
+		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		llmkind.Ollama,
 		&fakeModelSyncer{},
 	)

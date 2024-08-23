@@ -45,7 +45,7 @@ type ollamaClient struct {
 }
 
 // GetAddress returns the address of the runtime.
-func (o *commonClient) GetAddress(name string) string {
+func (o *ollamaClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:%d", name, ollamaHTTPPort)
 }
 

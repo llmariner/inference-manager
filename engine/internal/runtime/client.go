@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	managerName = "inference-engine"
+
 	runtimeAnnotationKey = "llm-operator/runtime"
 	modelAnnotationKey   = "llm-operator/model"
 

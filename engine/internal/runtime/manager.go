@@ -15,9 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const managerName = "inference-engine"
-
-// NewManager creates a new runtime manager
+// NewManager creates a new runtime manager.
 func NewManager(k8sClient client.Client, rtClient Client) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
@@ -44,8 +42,12 @@ type runtime struct {
 func (m *Manager) deleteRuntime(modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if r, ok := m.pendingRuntimes[modelID]; ok {
+		close(r)
+		delete(m.pendingRuntimes, modelID)
+		return
+	}
 	delete(m.readyRuntimes, modelID)
-	delete(m.pendingRuntimes, modelID)
 }
 
 func (m *Manager) markRuntimeReady(modelID, address string) {
@@ -58,13 +60,6 @@ func (m *Manager) markRuntimeReady(modelID, address string) {
 	}
 }
 
-func (m *Manager) isReady(modelID string) bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	_, ok := m.readyRuntimes[modelID]
-	return ok
-}
-
 func (m *Manager) isPending(modelID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -73,13 +68,13 @@ func (m *Manager) isPending(modelID string) bool {
 }
 
 // GetLLMAddress returns the address of the LLM.
-func (m *Manager) GetLLMAddress(modelID string) string {
+func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if r, ok := m.readyRuntimes[modelID]; ok {
-		return r.address
+		return r.address, nil
 	}
-	return ""
+	return "", fmt.Errorf("runtime for model %q is not ready", modelID)
 }
 
 // ListSyncedModelIDs returns the list of models that are synced.
@@ -108,25 +103,25 @@ func (m *Manager) ListInProgressModels() []string {
 
 // PullModel pulls the model from the model manager.
 func (m *Manager) PullModel(ctx context.Context, modelID string) error {
-	if m.isReady(modelID) {
+	m.mu.Lock()
+	if _, ok := m.readyRuntimes[modelID]; ok {
+		m.mu.Unlock()
 		return nil
 	}
 
 	var done chan struct{}
-	m.mu.Lock()
 	if ch, ok := m.pendingRuntimes[modelID]; ok {
 		m.mu.Unlock()
 		done = ch
-
 	} else {
 		done = make(chan struct{})
 		m.pendingRuntimes[modelID] = done
 		m.mu.Unlock()
-
 		if err := m.rtClient.DeployRuntime(ctx, modelID); err != nil {
 			m.mu.Lock()
 			delete(m.pendingRuntimes, modelID)
 			m.mu.Unlock()
+			close(done)
 			return err
 		}
 	}
@@ -205,7 +200,7 @@ func (m *Manager) PreloadRuntimes(ctx context.Context, apiReader client.Reader, 
 		}
 		modelID := sts.GetAnnotations()[modelAnnotationKey]
 		if sts.Status.ReadyReplicas > 0 {
-			m.readyRuntimes[modelID] = runtime{address: sts.Name}
+			m.readyRuntimes[modelID] = runtime{address: m.rtClient.GetAddress(sts.Name)}
 		} else {
 			m.pendingRuntimes[modelID] = make(chan struct{})
 		}

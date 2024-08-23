@@ -78,7 +78,7 @@ func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 
 // AddressGetter gets an address of a model.
 type AddressGetter interface {
-	GetLLMAddress(modelID string) string
+	GetLLMAddress(modelID string) (string, error)
 }
 
 // NewFixedAddressGetter returns a new FixedAddressGetter.
@@ -92,8 +92,8 @@ type FixedAddressGetter struct {
 }
 
 // GetLLMAddress returns a fixed address.
-func (g *FixedAddressGetter) GetLLMAddress(modelID string) string {
-	return g.addr
+func (g *FixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
+	return g.addr, nil
 }
 
 // NewP returns a new processor.
@@ -355,9 +355,13 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		return nil, err
 	}
 
+	addr, err := p.addrGetter.GetLLMAddress(t.Request.Model)
+	if err != nil {
+		return nil, err
+	}
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   p.addrGetter.GetLLMAddress(t.Request.Model),
+		Host:   addr,
 	}
 	requestURL := baseURL.JoinPath(completionPath).String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))

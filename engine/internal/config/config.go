@@ -40,6 +40,8 @@ func (c *OllamaConfig) validate() error {
 	return nil
 }
 
+// TODO(aya): Implement validation for runtime configuration after the engine uses the new architecture as the default.
+
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
 	PullerImage            string `yaml:"pullerImage"`

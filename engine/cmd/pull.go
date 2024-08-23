@@ -18,6 +18,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+// pullCmd creates a new pull command.
+// pull command pulls a specified model from the s3 and registers it to the runtime.
+// If the model is already registered, this command does nothing.
 func pullCmd() *cobra.Command {
 	var o opts
 	var path string
@@ -80,18 +83,13 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		return fmt.Errorf("create model syncer: %s", err)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan error)
+	go func() { done <- mgr.Run() }()
 	go func() {
-		if err := mgr.Run(); err != nil {
-			log.Printf("Error: Run model syncer: %s", err)
-		} else {
-			log.Printf("Model manager has been stopped")
-		}
-		cancel()
+		ctx = auth.AppendWorkerAuthorization(ctx)
+		done <- syncer.PullModel(ctx, o.modelID)
 	}()
-
-	ctx = auth.AppendWorkerAuthorization(ctx)
-	return syncer.PullModel(ctx, o.modelID)
+	return <-done
 }
 
 func isModelRegistered(modelID string) (bool, error) {

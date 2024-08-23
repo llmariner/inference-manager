@@ -124,7 +124,7 @@ func run(ctx context.Context, c *config.Config) error {
 	p := processor.NewP(
 		engineID,
 		v1.NewInferenceWorkerServiceClient(conn),
-		llmAddr,
+		processor.NewFixedAddressGetter(llmAddr),
 		c.LLMEngine,
 		syncer,
 	)

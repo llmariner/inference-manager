@@ -40,6 +40,40 @@ func (c *OllamaConfig) validate() error {
 	return nil
 }
 
+// TODO(aya): Implement validation for runtime configuration after the engine uses the new architecture as the default.
+
+// RuntimeConfig is the runtime configuration.
+type RuntimeConfig struct {
+	PullerImage            string `yaml:"pullerImage"`
+	RuntimeImage           string `yaml:"runtimeImage"`
+	PullerImagePullPolicy  string `yaml:"pullerImagePullPolicy"`
+	RuntimeImagePullPolicy string `yaml:"runtimeImagePullPolicy"`
+
+	ConfigMapName        string `yaml:"configMapName"`
+	AWSSecretName        string `yaml:"awsSecretName"`
+	AWSKeyIDEnvKey       string `yaml:"awsKeyIdEnvKey"`
+	AWSAccessKeyEnvKey   string `yaml:"awsAccessKeyEnvKey"`
+	LLMOWorkerSecretName string `yaml:"llmoWorkerSecretName"`
+	LLMOKeyEnvKey        string `yaml:"llmoKeyEnvKey"`
+
+	ModelResources   map[string]Resources `yaml:"modelResources"`
+	DefaultResources Resources            `yaml:"defaultResources"`
+}
+
+// Resources is the resources configuration.
+type Resources struct {
+	Requests map[string]string `yaml:"requests"`
+	Limits   map[string]string `yaml:"limits"`
+	Volume   *PersistentVolume `yaml:"volume"`
+}
+
+// PersistentVolume is the persistent volume configuration.
+type PersistentVolume struct {
+	StorageClassName string `yaml:"storageClassName"`
+	Size             string `yaml:"size"`
+	AccessMode       string `yaml:"accessMode"`
+}
+
 // VLLMConfig is the configuration for vLLM.
 type VLLMConfig struct {
 	Model   string `yaml:"model"`
@@ -98,9 +132,10 @@ type WorkerConfig struct {
 
 // Config is the configuration.
 type Config struct {
-	Ollama    OllamaConfig `yaml:"ollama"`
-	VLLM      VLLMConfig   `yaml:"vllm"`
-	LLMEngine llmkind.K    `yaml:"llmEngine"`
+	Runtime   RuntimeConfig `yaml:"runtime"`
+	Ollama    OllamaConfig  `yaml:"ollama"`
+	VLLM      VLLMConfig    `yaml:"vllm"`
+	LLMEngine llmkind.K     `yaml:"llmEngine"`
 	// LLMPort is the port llm listens on.
 	LLMPort int `yaml:"llmPort"`
 

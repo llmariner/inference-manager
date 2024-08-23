@@ -21,6 +21,32 @@ global:
 
   controlPlaneAddr: ""
 
+runtime:
+  runtimeImage: ollama/ollama:0.3.6
+  imagePullPolicy: IfNotPresent
+  modelResources:
+    # sample-model:
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "128Mi"
+    #   limits:
+    #     cpu: "200m"
+    #     memory: "256Mi"
+    #   volume:
+    #     storageClassName: "standard"
+    #     size: "1Gi"
+    #     accessMode: "ReadWriteOnce"
+  defaultResources:
+    requests:
+      cpu: "1000m"
+      memory: "500Mi"
+    limits:
+      nvidia.com/gpu: 1
+    # volume:
+    #   storageClassName: "fast"
+    #   size: "100Gi"
+    #   accessMode: "ReadWriteOnce"
+
 ollama:
   # Keep models in memory for a long period of time as we don't want end users to
   # hit slowness due to GPU memory loading.
@@ -55,7 +81,6 @@ image:
   pullPolicy: IfNotPresent
 
 serviceAccount:
-  create: false
   name: ""
 
 podAnnotations:

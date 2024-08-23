@@ -24,7 +24,6 @@ const (
 
 type modelManager interface {
 	CreateNewModel(modelName string, spec *manager.ModelSpec) error
-	DeleteModel(ctx context.Context, modelName string) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
 
@@ -312,26 +311,6 @@ func (s *S) ListSyncedModelIDs(ctx context.Context) []string {
 		ms = append(ms, m)
 	}
 	return ms
-}
-
-// DeleteModel deletes a model.
-func (s *S) DeleteModel(ctx context.Context, modelID string) error {
-	s.mu.Lock()
-	ok := s.registeredModels[modelID]
-	s.mu.Unlock()
-	if !ok {
-		// Do nothing.
-		return nil
-	}
-
-	if err := s.mm.DeleteModel(ctx, models.OllamaModelName(modelID)); err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.registeredModels, modelID)
-	return nil
 }
 
 // ListInProgressModels lists all models that are in progress of registration.x

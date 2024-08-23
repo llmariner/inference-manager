@@ -2,7 +2,6 @@ package vllm
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"log"
 	"os/exec"
@@ -65,12 +64,6 @@ func (m *Manager) runCommand(args []string) error {
 		return err
 	}
 
-	return nil
-}
-
-// DeleteModel deletes the model.
-func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
-	log.Printf("DeleteModel is not implemented\n")
 	return nil
 }
 

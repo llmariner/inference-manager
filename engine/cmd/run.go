@@ -22,13 +22,18 @@ import (
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
-const flagConfig = "config"
+const (
+	flagConfig = "config"
+
+	modelPreloadConcurrency = 2
+)
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -136,15 +141,25 @@ func run(ctx context.Context, c *config.Config) error {
 	}()
 
 	if ids := c.PreloadedModelIDs; len(ids) > 0 {
-		log.Printf("Preloading %d model(s)", len(ids))
-		ctx := auth.AppendWorkerAuthorization(ctx)
-		for _, id := range ids {
-			log.Printf("Preloading model %q", id)
-			if err := syncer.PullModel(ctx, id); err != nil {
-				return err
+		go func() {
+			log.Printf("Preloading %d model(s)", len(ids))
+			ctx := auth.AppendWorkerAuthorization(ctx)
+			g, ctx := errgroup.WithContext(ctx)
+			g.SetLimit(modelPreloadConcurrency)
+			for _, id := range ids {
+				g.Go(func() error {
+					log.Printf("Preloading model %q", id)
+					if err := syncer.PullModel(ctx, id); err != nil {
+						return err
+					}
+					log.Printf("Completed the preloading of %q", id)
+					return nil
+				})
 			}
-		}
-		log.Printf("Completed the preloading")
+			if err := g.Wait(); err != nil {
+				errCh <- err
+			}
+		}()
 	}
 
 	return <-errCh

@@ -74,7 +74,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 	if err != nil {
 		return err
 	}
-	mgr := ollama.New("dummy", c.ModelContextLengths)
+	mgr := ollama.New(c.ModelContextLengths)
 	syncer, err := modelsyncer.New(
 		mgr,
 		s3.NewClient(c.ObjectStore.S3),

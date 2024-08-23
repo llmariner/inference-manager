@@ -1,11 +1,8 @@
 package ollama
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +10,6 @@ import (
 	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
-	"github.com/ollama/ollama/api"
 )
 
 type cmdRunnter interface {
@@ -28,13 +24,8 @@ func (c *cmdRunnerImpl) Run(cmd *exec.Cmd) error {
 }
 
 // New returns a new Manager.
-func New(addr string, contextLengthsByModelID map[string]int) *Manager {
-	url := &url.URL{
-		Scheme: "http",
-		Host:   addr,
-	}
+func New(contextLengthsByModelID map[string]int) *Manager {
 	return &Manager{
-		client:                  api.NewClient(url, http.DefaultClient),
 		contextLengthsByModelID: contextLengthsByModelID,
 		cmdRunner:               &cmdRunnerImpl{},
 	}
@@ -42,7 +33,6 @@ func New(addr string, contextLengthsByModelID map[string]int) *Manager {
 
 // Manager manages the Ollama service.
 type Manager struct {
-	client                  *api.Client
 	contextLengthsByModelID map[string]int
 
 	cmdRunner cmdRunnter
@@ -298,13 +288,6 @@ PARAMETER stop <｜end▁of▁sentence｜>
 	default:
 		return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
 	}
-}
-
-// DeleteModel deletes the model.
-func (m *Manager) DeleteModel(ctx context.Context, modelName string) error {
-	return m.client.Delete(ctx, &api.DeleteRequest{
-		Model: modelName,
-	})
 }
 
 // IsReady returns true if the processor is ready. If not,

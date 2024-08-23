@@ -1,7 +1,5 @@
 package manager
 
-import "context"
-
 // ModelSpec is the specification for a new model.
 type ModelSpec struct {
 	From        string
@@ -16,8 +14,6 @@ type M interface {
 	CreateNewModel(modelName string, spec *ModelSpec) error
 	// WaitForReady waits for the llm service to be ready.
 	WaitForReady() error
-	// DeleteModel deletes the model.
-	DeleteModel(ctx context.Context, modelName string) error
 
 	UpdateModelTemplateToLatest(modelname string) error
 

@@ -175,10 +175,6 @@ func (n *fakeOllamaManager) CreateNewModel(modelName string, spec *manager.Model
 	return nil
 }
 
-func (n *fakeOllamaManager) DeleteModel(ctx context.Context, modelName string) error {
-	return nil
-}
-
 func (n *fakeOllamaManager) UpdateModelTemplateToLatest(modelName string) error {
 	return nil
 }

@@ -32,21 +32,21 @@ type commonClient struct {
 	config.RuntimeConfig
 }
 
-func (o *commonClient) getResouces(modelID string) config.Resources {
-	if res, ok := o.ModelResources[modelID]; ok {
+func (c *commonClient) getResouces(modelID string) config.Resources {
+	if res, ok := c.ModelResources[modelID]; ok {
 		return res
 	}
-	return o.DefaultResources
+	return c.DefaultResources
 }
 
-func (o *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {
+func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {
 	uobj, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(applyConfig)
 	if err != nil {
 		return nil, err
 	}
 	obj := &unstructured.Unstructured{Object: uobj}
 	opts := &client.PatchOptions{FieldManager: managerName, Force: ptr.To(true)}
-	if err := o.k8sClient.Patch(ctx, obj, client.Apply, opts); err != nil {
+	if err := c.k8sClient.Patch(ctx, obj, client.Apply, opts); err != nil {
 		return nil, err
 	}
 	return obj, nil

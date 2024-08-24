@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	appsv1apply "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
@@ -76,16 +75,24 @@ func (c *commonClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:%d", name, c.servingPort)
 }
 
+type deployRunTimeParams struct {
+	modelID        string
+	initEnvs       []*corev1apply.EnvVarApplyConfiguration
+	envs           []*corev1apply.EnvVarApplyConfiguration
+	volumes        []*corev1apply.VolumeApplyConfiguration
+	volumeMounts   []*corev1apply.VolumeMountApplyConfiguration
+	readinessProbe *corev1apply.ProbeApplyConfiguration
+
+	args []string
+}
+
 // deployRuntime deploys the runtime for the given model.
 func (c *commonClient) deployRuntime(
 	ctx context.Context,
-	modelID string,
-	initEnvs []*corev1apply.EnvVarApplyConfiguration,
-	envs []*corev1apply.EnvVarApplyConfiguration,
-	args []string,
+	params deployRunTimeParams,
 ) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deploying runtime", "model", modelID)
+	log.Info("Deploying runtime", "model", params.modelID)
 
 	const (
 		tmpDir        = "/tmp"
@@ -95,14 +102,14 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	name := resourceName(c.Name, modelID)
+	name := resourceName(c.Name, params.modelID)
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
 		"app.kubernetes.io/instance":   name,
 		"app.kubernetes.io/created-by": managerName,
 	}
 
-	resConf := c.getResouces(modelID)
+	resConf := c.getResouces(params.modelID)
 
 	sharedVolume := corev1apply.Volume().WithName(shareVolName)
 	if resConf.Volume != nil {
@@ -119,6 +126,7 @@ func (c *commonClient) deployRuntime(
 			WithConfigMap(corev1apply.ConfigMapVolumeSource().
 				WithName(c.ConfigMapName)),
 	}
+	volumes = append(volumes, params.volumes...)
 
 	initVolumeMounts := []*corev1apply.VolumeMountApplyConfiguration{
 		corev1apply.VolumeMount().WithName(shareVolName).
@@ -132,8 +140,9 @@ func (c *commonClient) deployRuntime(
 		corev1apply.VolumeMount().WithName(shareVolName).
 			WithMountPath(modelDir).WithSubPath(subpathModel),
 	}
+	volumeMounts = append(volumeMounts, params.volumeMounts...)
 
-	initEnvs = append(initEnvs,
+	initEnvs := append(params.initEnvs,
 		corev1apply.EnvVar().WithName("INDEX").
 			WithValueFrom(corev1apply.EnvVarSource().
 				WithFieldRef(corev1apply.ObjectFieldSelector().
@@ -183,7 +192,7 @@ func (c *commonClient) deployRuntime(
 		"pull",
 		"--index=$(INDEX)",
 		"--runtime=" + c.Name,
-		"--model-id=" + modelID,
+		"--model-id=" + params.modelID,
 		"--config=/etc/config/config.yaml",
 	}
 
@@ -196,7 +205,7 @@ func (c *commonClient) deployRuntime(
 		WithLabels(labels).
 		WithAnnotations(map[string]string{
 			runtimeAnnotationKey: c.Name,
-			modelAnnotationKey:   modelID}).
+			modelAnnotationKey:   params.modelID}).
 		WithFinalizers(finalizerKey).
 		WithSpec(appsv1apply.StatefulSetSpec().
 			WithReplicas(1).
@@ -216,17 +225,15 @@ func (c *commonClient) deployRuntime(
 						WithName("runtime").
 						WithImage(image).
 						WithImagePullPolicy(corev1.PullPolicy(c.RuntimeImagePullPolicy)).
-						WithArgs(args...).
+						WithArgs(params.args...).
 						WithPorts(corev1apply.ContainerPort().
 							WithName("http").
 							WithContainerPort(int32(c.servingPort)).
 							WithProtocol(corev1.ProtocolTCP)).
-						WithEnv(envs...).
+						WithEnv(params.envs...).
 						WithVolumeMounts(volumeMounts...).
 						WithResources(runtimeResources).
-						WithReadinessProbe(corev1apply.Probe().
-							WithHTTPGet(corev1apply.HTTPGetAction().
-								WithPort(intstr.FromInt(c.servingPort))))).
+						WithReadinessProbe(params.readinessProbe)).
 					WithVolumes(volumes...))))
 
 	sts, err := c.applyObject(ctx, stsConf)

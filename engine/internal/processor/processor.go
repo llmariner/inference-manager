@@ -255,8 +255,18 @@ func (p *P) processTask(
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// TODO(kenji): Send the error back to the server?
-		return fmt.Errorf("send request to llm: %s", err)
+		msg := fmt.Sprintf("Failed to send request to the LLM server: %s", err)
+		log.Printf("%s\n", msg)
+		httpResp := &v1.HttpResponse{
+			StatusCode: http.StatusInternalServerError,
+			Status:     http.StatusText(http.StatusInternalServerError),
+			Body:       []byte(msg),
+		}
+		if err := p.sendHTTPResponse(ctx, stream, t, httpResp); err != nil {
+			return err
+		}
+		return nil
+
 	}
 
 	defer func() {

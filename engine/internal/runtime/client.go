@@ -40,7 +40,6 @@ type commonClient struct {
 
 	namespace string
 
-	name        string
 	servingPort int
 
 	config.RuntimeConfig
@@ -90,7 +89,7 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	name := fmt.Sprintf("%s-%s", c.name, modelID)
+	name := fmt.Sprintf("%s-%s", c.Name, modelID)
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
 		"app.kubernetes.io/instance":   name,
@@ -177,15 +176,20 @@ func (c *commonClient) deployRuntime(
 	pullerArgs := []string{
 		"pull",
 		"--index=$(INDEX)",
-		"--runtime=" + c.name,
+		"--runtime=" + c.Name,
 		"--model-id=" + modelID,
 		"--config=/etc/config/config.yaml",
+	}
+
+	image, ok := c.RuntimeImages[c.Name]
+	if !ok {
+		return fmt.Errorf("runtime image not found for %s", c.Name)
 	}
 
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(map[string]string{
-			runtimeAnnotationKey: c.name,
+			runtimeAnnotationKey: c.Name,
 			modelAnnotationKey:   modelID}).
 		WithFinalizers(finalizerKey).
 		WithSpec(appsv1apply.StatefulSetSpec().
@@ -204,7 +208,7 @@ func (c *commonClient) deployRuntime(
 						WithVolumeMounts(initVolumeMounts...)).
 					WithContainers(corev1apply.Container().
 						WithName("runtime").
-						WithImage(c.RuntimeImage).
+						WithImage(image).
 						WithImagePullPolicy(corev1.PullPolicy(c.RuntimeImagePullPolicy)).
 						WithArgs(args...).
 						WithPorts(corev1apply.ContainerPort().

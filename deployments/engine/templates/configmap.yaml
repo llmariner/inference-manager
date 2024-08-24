@@ -7,8 +7,10 @@ metadata:
 data:
   config.yaml: |
     runtime:
+      name: {{ .Values.runtime.name }}
       pullerImage: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}
-      runtimeImage: {{ .Values.runtime.runtimeImage }}
+      runtimeImages:
+        {{- toYaml .Values.runtime.runtimeImages | nindent 8 }}
       pullerImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
       runtimeImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
       configMapName: {{ include "inference-manager-engine.fullname" . }}

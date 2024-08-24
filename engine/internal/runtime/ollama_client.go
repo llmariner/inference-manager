@@ -25,7 +25,6 @@ func NewOllamaClient(
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
 			namespace:     namespace,
-			name:          RuntimeNameOllama,
 			servingPort:   ollamaHTTPPort,
 			RuntimeConfig: rconfig,
 		},

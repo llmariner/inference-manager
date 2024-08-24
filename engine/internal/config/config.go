@@ -44,10 +44,12 @@ func (c *OllamaConfig) validate() error {
 
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
-	PullerImage            string `yaml:"pullerImage"`
-	RuntimeImage           string `yaml:"runtimeImage"`
-	PullerImagePullPolicy  string `yaml:"pullerImagePullPolicy"`
-	RuntimeImagePullPolicy string `yaml:"runtimeImagePullPolicy"`
+	Name string `yaml:"name"`
+
+	PullerImage            string            `yaml:"pullerImage"`
+	RuntimeImages          map[string]string `yaml:"runtimeImages"`
+	PullerImagePullPolicy  string            `yaml:"pullerImagePullPolicy"`
+	RuntimeImagePullPolicy string            `yaml:"runtimeImagePullPolicy"`
 
 	ConfigMapName        string `yaml:"configMapName"`
 	AWSSecretName        string `yaml:"awsSecretName"`

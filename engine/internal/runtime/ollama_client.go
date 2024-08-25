@@ -27,7 +27,7 @@ func NewOllamaClient(
 	namespace string,
 	rconfig config.RuntimeConfig,
 	oconfig config.OllamaConfig,
-) (Client, error) {
+) Client {
 	return &ollamaClient{
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
@@ -35,7 +35,7 @@ func NewOllamaClient(
 			RuntimeConfig: rconfig,
 		},
 		config: oconfig,
-	}, nil
+	}
 }
 
 type ollamaClient struct {

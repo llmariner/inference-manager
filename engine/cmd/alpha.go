@@ -81,10 +81,7 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	olmClient, err := runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
-	if err != nil {
-		return err
-	}
+	olmClient := runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
 	rtManager := runtime.NewManager(mgr.GetClient(), olmClient)
 	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), ns); err != nil {
 		return err

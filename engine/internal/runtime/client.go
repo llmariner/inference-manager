@@ -30,6 +30,11 @@ const (
 	modelDir = "/models"
 )
 
+// ModelDir returns the directory where models are stored.
+func ModelDir() string {
+	return modelDir
+}
+
 // Client is the interface for managing runtimes.
 type Client interface {
 	GetAddress(name string) string

@@ -12,6 +12,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
+	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -74,7 +75,8 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		go func() { done <- omgr.Run() }()
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:
-		return fmt.Errorf("unimplemented")
+		// TODO(kenji): Check if a model already exists.
+		mgr = vllm.New(&c, runtime.ModelDir())
 	default:
 		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}
@@ -100,7 +102,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 }
 
 func isModelRegistered(modelID string) (bool, error) {
-	const modelDir = "/models/manifests/registry.ollama.ai/library/"
+	modelDir := filepath.Join(runtime.ModelDir(), "manifests/registry.ollama.ai/library/")
 	if _, err := os.Stat(filepath.Join(modelDir, modelID)); os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {

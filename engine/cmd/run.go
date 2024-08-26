@@ -73,7 +73,7 @@ func run(ctx context.Context, c *config.Config) error {
 		}
 		m = ollama.New(c.ModelContextLengths)
 	case llmkind.VLLM:
-		m = vllm.New(c)
+		m = vllm.New(c, "")
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
 	}

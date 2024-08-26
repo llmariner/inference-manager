@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -61,5 +62,13 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) error 
 	args := []string{
 		"serve",
 	}
-	return o.deployRuntime(ctx, modelID, initEnvs, envs, args)
+	return o.deployRuntime(ctx, deployRunTimeParams{
+		modelID:  modelID,
+		initEnvs: initEnvs,
+		envs:     envs,
+		readinessProbe: corev1apply.Probe().
+			WithHTTPGet(corev1apply.HTTPGetAction().
+				WithPort(intstr.FromInt(ollamaHTTPPort))),
+		args: args,
+	})
 }

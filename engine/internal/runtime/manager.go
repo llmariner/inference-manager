@@ -3,6 +3,8 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -188,7 +190,18 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 	}
 
 	if sts.Status.ReadyReplicas > 0 && m.isPending(modelID) {
-		m.markRuntimeReady(modelID, m.rtClient.GetAddress(sts.Name))
+		addr := m.rtClient.GetAddress(sts.Name)
+		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
+		req := &http.Request{
+			Method: http.MethodGet,
+			URL:    &url.URL{Scheme: "http", Host: addr},
+		}
+		if _, err := http.DefaultClient.Do(req); err != nil {
+			log.Error(err, "Failed to reach the runtime")
+			return ctrl.Result{}, err
+		}
+
+		m.markRuntimeReady(modelID, addr)
 		log.Info("Runtime is ready")
 	}
 	return ctrl.Result{}, nil

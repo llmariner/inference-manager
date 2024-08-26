@@ -176,8 +176,11 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			return ctrl.Result{}, nil
 		}
 		m.deleteRuntime(modelID)
-		controllerutil.RemoveFinalizer(&sts, finalizerKey)
-		if err := m.k8sClient.Update(ctx, &sts); err != nil {
+
+		patch := client.MergeFrom(&sts)
+		newSts := sts.DeepCopy()
+		controllerutil.RemoveFinalizer(newSts, finalizerKey)
+		if err := client.IgnoreNotFound(m.k8sClient.Patch(ctx, newSts, patch)); err != nil {
 			log.Error(err, "Failed to remove finalizer")
 			return ctrl.Result{}, err
 		}

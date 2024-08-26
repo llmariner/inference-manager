@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
@@ -65,7 +64,7 @@ func (m *Manager) CreateNewModel(modelName string, spec *manager.ModelSpec) erro
 		_ = in.Close()
 	}()
 
-	destPath := filepath.Join(m.modelDir, modelName+".gguf")
+	destPath := ModelFilePath(m.modelDir, modelName)
 	out, err := os.Create(destPath)
 	if err != nil {
 		return fmt.Errorf("open %s: %s", destPath, err)

@@ -21,6 +21,9 @@ global:
 
   controlPlaneAddr: ""
 
+# Change this to "alpha" to run the alpha command.
+commandName: run
+
 runtime:
   name: ollama
   runtimeImages:

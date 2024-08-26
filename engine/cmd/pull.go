@@ -45,12 +45,10 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().IntVar(&o.index, "index", 0, "Index of the pod")
 	cmd.Flags().StringVar(&o.runtime, "runtime", "", "Runtime name for the model")
 	cmd.Flags().StringVar(&o.modelID, "model-id", "", "Model ID to be registered")
-	cmd.Flags().StringVar(&o.vllmModelDir, "vllm-model-dir", "", "Directory to store vLLM models")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")
 	_ = cmd.MarkFlagRequired("model-id")
-	_ = cmd.MarkFlagRequired("vllm-model-dir")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }
@@ -59,11 +57,7 @@ type opts struct {
 	index   int
 	runtime string
 	modelID string
-
-	vllmModelDir string
 }
-
-var mgr modelsyncer.ModelManager
 
 func pull(ctx context.Context, o opts, c config.Config) error {
 	var mgr modelsyncer.ModelManager
@@ -82,7 +76,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:
 		// TODO(kenji): Check if a model already exists.
-		mgr = vllm.New(&c, o.vllmModelDir)
+		mgr = vllm.New(&c, runtime.ModelDir())
 	default:
 		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}
@@ -108,7 +102,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 }
 
 func isModelRegistered(modelID string) (bool, error) {
-	const modelDir = "/models/manifests/registry.ollama.ai/library/"
+	modelDir := filepath.Join(runtime.ModelDir(), "manifests/registry.ollama.ai/library/")
 	if _, err := os.Stat(filepath.Join(modelDir, modelID)); os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {

@@ -29,7 +29,7 @@ spec:
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
-        - run
+        - {{ .Values.commandName }}
         - --config
         - /etc/config/config.yaml
         ports:

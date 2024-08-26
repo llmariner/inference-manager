@@ -179,6 +179,7 @@ func (c *commonClient) deployRuntime(
 		"--index=$(INDEX)",
 		"--runtime=" + c.Name,
 		"--model-id=" + modelID,
+		"--vllm-model-dir=" + modelDir,
 		"--config=/etc/config/config.yaml",
 	}
 

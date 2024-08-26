@@ -32,6 +32,9 @@ func New(contextLengthsByModelID map[string]int) *Manager {
 }
 
 // Manager manages the Ollama service.
+//
+// TODO(kenji): Refactor this class once we completely switch to the one-odel-per-pod implementation where
+// inference-manager-engine doesn't directly run vLLM or Ollama.
 type Manager struct {
 	contextLengthsByModelID map[string]int
 

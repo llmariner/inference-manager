@@ -12,6 +12,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
+	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -44,10 +45,12 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().IntVar(&o.index, "index", 0, "Index of the pod")
 	cmd.Flags().StringVar(&o.runtime, "runtime", "", "Runtime name for the model")
 	cmd.Flags().StringVar(&o.modelID, "model-id", "", "Model ID to be registered")
+	cmd.Flags().StringVar(&o.vllmModelDir, "vllm-model-dir", "", "Directory to store vLLM models")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")
 	_ = cmd.MarkFlagRequired("model-id")
+	_ = cmd.MarkFlagRequired("vllm-model-dir")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }
@@ -56,7 +59,11 @@ type opts struct {
 	index   int
 	runtime string
 	modelID string
+
+	vllmModelDir string
 }
+
+var mgr modelsyncer.ModelManager
 
 func pull(ctx context.Context, o opts, c config.Config) error {
 	var mgr modelsyncer.ModelManager
@@ -74,7 +81,8 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		go func() { done <- omgr.Run() }()
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:
-		return fmt.Errorf("unimplemented")
+		// TODO(kenji): Check if a model already exists.
+		mgr = vllm.New(&c, o.vllmModelDir)
 	default:
 		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}

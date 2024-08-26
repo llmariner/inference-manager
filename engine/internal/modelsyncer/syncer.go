@@ -22,7 +22,8 @@ const (
 	modelDir = "/.ollama/models/manifests/registry.ollama.ai/library/"
 )
 
-type modelManager interface {
+// ModelManager is an interface for managing models.
+type ModelManager interface {
 	CreateNewModel(modelName string, spec *manager.ModelSpec) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
@@ -39,7 +40,7 @@ type modelClient interface {
 
 // New creates a syncer..
 func New(
-	mm modelManager,
+	mm ModelManager,
 	s3Client s3Client,
 	miClient modelClient,
 ) (*S, error) {
@@ -56,7 +57,7 @@ func New(
 	}, nil
 }
 
-func registeredModels(mm modelManager, dir string) (map[string]bool, error) {
+func registeredModels(mm ModelManager, dir string) (map[string]bool, error) {
 	registeredModels := map[string]bool{}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return registeredModels, nil
@@ -88,7 +89,7 @@ func registeredModels(mm modelManager, dir string) (map[string]bool, error) {
 
 // S is a syncer.
 type S struct {
-	mm       modelManager
+	mm       ModelManager
 	s3Client s3Client
 
 	miClient modelClient

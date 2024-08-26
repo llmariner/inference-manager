@@ -59,22 +59,31 @@ type opts struct {
 }
 
 func pull(ctx context.Context, o opts, c config.Config) error {
-	if o.runtime != runtime.RuntimeNameOllama {
-		return fmt.Errorf("unsupported runtime: %s", o.runtime)
-	}
+	var mgr modelsyncer.ModelManager
 
-	if isRegistered, err := isModelRegistered(o.modelID); err != nil {
-		return fmt.Errorf("check model registration: %s", err)
-	} else if isRegistered {
-		log.Printf("Model %s is already registered", o.modelID)
-		return nil
+	done := make(chan error)
+	switch o.runtime {
+	case runtime.RuntimeNameOllama:
+		if isRegistered, err := isModelRegistered(o.modelID); err != nil {
+			return fmt.Errorf("check model registration: %s", err)
+		} else if isRegistered {
+			log.Printf("Model %s is already registered", o.modelID)
+			return nil
+		}
+		omgr := ollama.New(c.ModelContextLengths)
+		go func() { done <- omgr.Run() }()
+		mgr = omgr
+	case runtime.RuntimeNameVLLM:
+		return fmt.Errorf("unimplemented")
+	default:
+		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}
 
 	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(&c))
 	if err != nil {
 		return err
 	}
-	mgr := ollama.New(c.ModelContextLengths)
+
 	syncer, err := modelsyncer.New(
 		mgr,
 		s3.NewClient(c.ObjectStore.S3),
@@ -83,8 +92,6 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		return fmt.Errorf("create model syncer: %s", err)
 	}
 
-	done := make(chan error)
-	go func() { done <- mgr.Run() }()
 	go func() {
 		ctx = auth.AppendWorkerAuthorization(ctx)
 		done <- syncer.PullModel(ctx, o.modelID)

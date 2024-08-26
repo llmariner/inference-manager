@@ -12,7 +12,6 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
-	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -53,10 +52,6 @@ func alphaCmd() *cobra.Command {
 }
 
 func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
-	if c.LLMEngine != llmkind.Ollama {
-		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
-	}
-
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 	ctx = ctrl.LoggerInto(ctx, logger)
@@ -81,8 +76,17 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	olmClient := runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
-	rtManager := runtime.NewManager(mgr.GetClient(), olmClient)
+	var rtClient runtime.Client
+	switch c.Runtime.Name {
+	case runtime.RuntimeNameOllama:
+		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
+	case runtime.RuntimeNameVLLM:
+		rtClient = runtime.NewVLLMClient(mgr.GetClient(), ns, c.Runtime, c.VLLM)
+	default:
+		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
+	}
+
+	rtManager := runtime.NewManager(mgr.GetClient(), rtClient)
 	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), ns); err != nil {
 		return err
 	}

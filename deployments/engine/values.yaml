@@ -22,7 +22,10 @@ global:
   controlPlaneAddr: ""
 
 runtime:
-  runtimeImage: ollama/ollama:0.3.6
+  name: ollama
+  runtimeImages:
+    ollama: mirror.gcr.io/ollama/ollama:0.3.6
+    vllm: mirror.gcr.io/vllm/vllm-openai:v0.5.5
   imagePullPolicy: IfNotPresent
   modelResources:
     # sample-model:

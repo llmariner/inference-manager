@@ -253,6 +253,8 @@ func (p *P) processTask(
 		return fmt.Errorf("build request: %s", err)
 	}
 
+	log.Printf("Sending request to the LLM server: %s\n", req.URL)
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to send request to the LLM server: %s", err)

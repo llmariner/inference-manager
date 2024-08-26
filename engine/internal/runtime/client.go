@@ -90,7 +90,7 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	name := statefulSetName(c.Name, modelID)
+	name := resourceName(c.Name, modelID)
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
 		"app.kubernetes.io/instance":   name,
@@ -277,7 +277,7 @@ func (c *commonClient) deployRuntime(
 	return nil
 }
 
-func statefulSetName(runtime, modelID string) string {
+func resourceName(runtime, modelID string) string {
 	// Avoid using llegal characters like "." or capital letters in the model names
 	// TODO(kenji): Have a better way.
 	m := strings.ToLower(modelID)

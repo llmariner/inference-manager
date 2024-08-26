@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStatefulSetName(t *testing.T) {
+func TestResourceName(t *testing.T) {
 	tcs := []struct {
 		runtime string
 		modelID string
@@ -20,7 +20,7 @@ func TestStatefulSetName(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.modelID, func(t *testing.T) {
-			got := statefulSetName(tc.runtime, tc.modelID)
+			got := resourceName(tc.runtime, tc.modelID)
 			assert.Equal(t, tc.want, got)
 		})
 	}

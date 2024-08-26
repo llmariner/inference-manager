@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +90,7 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	name := fmt.Sprintf("%s-%s", c.Name, modelID)
+	name := resourceName(c.Name, modelID)
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
 		"app.kubernetes.io/instance":   name,
@@ -274,4 +275,14 @@ func (c *commonClient) deployRuntime(
 		log.V(2).Info(fmt.Sprintf("%s applied", kind), "name", newObj.GetName())
 	}
 	return nil
+}
+
+func resourceName(runtime, modelID string) string {
+	// Avoid using llegal characters like "." or capital letters in the model names
+	// TODO(kenji): Have a better way.
+	m := strings.ToLower(modelID)
+	for _, r := range []string{".", "_"} {
+		m = strings.ReplaceAll(m, r, "-")
+	}
+	return fmt.Sprintf("%s-%s", runtime, m)
 }

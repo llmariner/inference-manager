@@ -11,7 +11,6 @@ require (
 	github.com/llm-operator/model-manager v0.76.0
 	github.com/llm-operator/rbac-manager v0.83.0
 	github.com/llm-operator/vector-store-manager v0.30.0
-	github.com/ollama/ollama v0.1.44
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0

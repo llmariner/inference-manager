@@ -69,7 +69,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) error {
 	if gpus, err := v.numGPUs(modelID); err != nil {
 		return err
 	} else if gpus == 0 {
-		args = append(args, "device", "cpu")
+		args = append(args, "--device", "cpu")
 	} else {
 		args = append(args, "--tensor-parallel-size", strconv.Itoa(gpus))
 	}

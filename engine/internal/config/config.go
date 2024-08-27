@@ -211,6 +211,28 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// FormattedModelContextLengths returns the model context lengths keyed by formatted model IDs.
+//
+// model-manager-loader convers "/" in the model ID to "-". Do the same conversion here
+// so that end users can use the consistent forma.
+func (c *Config) FormattedModelContextLengths() map[string]int {
+	lens := map[string]int{}
+	for id, l := range c.ModelContextLengths {
+		id = strings.ReplaceAll(id, "/", "-")
+		lens[id] = l
+	}
+	return lens
+}
+
+// FormattedPreloadedModelIDs returns a formatted IDs of models to be preloaded.
+func (c *Config) FormattedPreloadedModelIDs() []string {
+	var ids []string
+	for _, id := range c.PreloadedModelIDs {
+		ids = append(ids, strings.ReplaceAll(id, "/", "-"))
+	}
+	return ids
+}
+
 // Parse parses the configuration file at the given path, returning a new
 // Config struct.
 func Parse(path string) (Config, error) {

@@ -88,6 +88,8 @@ image:
   pullPolicy: IfNotPresent
 
 serviceAccount:
+  # Set this to false if an existing service account is used.
+  create: true
   name: ""
 
 podAnnotations:

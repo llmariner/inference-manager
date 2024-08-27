@@ -28,6 +28,8 @@ type OllamaConfig struct {
 	ForceSpreading bool `yaml:"forceSpreading"`
 
 	Debug bool `yaml:"debug"`
+
+	RunnersDir string `yaml:"runnersDir"`
 }
 
 func (c *OllamaConfig) validate() error {
@@ -36,6 +38,9 @@ func (c *OllamaConfig) validate() error {
 	}
 	if c.NumParallel < 0 {
 		return fmt.Errorf("numParallel must be non-negative")
+	}
+	if c.RunnersDir == "" {
+		return fmt.Errorf("runnerDir must be set")
 	}
 	return nil
 }

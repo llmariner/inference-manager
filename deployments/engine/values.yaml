@@ -62,6 +62,7 @@ ollama:
   # to support multiple H100s, but this setting didn't help.
   forceSpreading: false
   debug: false
+  runnersDir: /tmp/ollama-runners
 
 vllm:
   numGpus: 1

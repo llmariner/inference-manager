@@ -71,6 +71,12 @@ func run(ctx context.Context, c *config.Config) error {
 		if err := ollama.SetEnvVarsFromConfig(c.Ollama); err != nil {
 			return err
 		}
+
+		// TODO(kenji): Remove this once we fix existing deployments.
+		if err := ollama.DeleteOrphanedRunnersDir(c.Ollama); err != nil {
+			return err
+		}
+
 		m = ollama.New(c.ModelContextLengths)
 	case llmkind.VLLM:
 		m = vllm.New(c, "")

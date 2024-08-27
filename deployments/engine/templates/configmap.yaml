@@ -36,6 +36,7 @@ data:
       numParallel: {{ .Values.maxConcurrentRequests }}
       forceSpreading: {{ .Values.ollama.forceSpreading }}
       debug: {{ .Values.ollama.debug }}
+      runnersDir: {{ .Values.ollama.runnersDir }}
     vllm:
       model: {{ .Values.vllm.model }}
       numGpus: {{ .Values.vllm.numGpus }}

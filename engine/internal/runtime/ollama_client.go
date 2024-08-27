@@ -48,6 +48,12 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) error 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
 		corev1apply.EnvVar().WithName("OLLAMA_KEEP_ALIVE").WithValue(o.config.KeepAlive.String()),
+		// Ollama creaets a payload in a temporary directory by default, and a new temporary directory is created
+		// whenever Ollama restarts. This is a problem when a persistent volume is mounted.
+		// To avoid this, we set the directory to a fixed path.
+		//
+		// TODO(kenji): Make sure there is no issue when multiple pods start at the same time.
+		corev1apply.EnvVar().WithName("OLLAMA_RUNNERS_DIR").WithValue(o.config.RunnersDir),
 	}
 	if o.config.NumParallel > 0 {
 		envs = append(envs, corev1apply.EnvVar().WithName("OLLAMA_NUM_PARALLEL").WithValue(strconv.Itoa(o.config.NumParallel)))

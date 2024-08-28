@@ -67,10 +67,6 @@ spec:
               key: {{ .key }}
         {{- end }}
         {{- end }}
-        {{- with .Values.vllm.hfToken }}
-        - name: HF_TOKEN
-          value:   {{ $.Values.vllm.hfToken }}
-        {{- end }}
         volumeMounts:
         - name: config
           mountPath: /etc/config

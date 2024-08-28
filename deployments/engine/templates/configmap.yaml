@@ -31,6 +31,7 @@ data:
         {{- toYaml .Values.runtime.modelResources | nindent 8 }}
       defaultResources:
         {{- toYaml .Values.runtime.defaultResources | nindent 8 }}
+      defaultReplicas: {{ .Values.runtime.defaultReplicas }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.maxConcurrentRequests }}

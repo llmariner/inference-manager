@@ -208,7 +208,7 @@ func (c *commonClient) deployRuntime(
 			modelAnnotationKey:   params.modelID}).
 		WithFinalizers(finalizerKey).
 		WithSpec(appsv1apply.StatefulSetSpec().
-			WithReplicas(1).
+			WithReplicas(int32(c.DefaultReplicas)).
 			WithSelector(metav1apply.LabelSelector().
 				WithMatchLabels(labels)).
 			WithTemplate(corev1apply.PodTemplateSpec().

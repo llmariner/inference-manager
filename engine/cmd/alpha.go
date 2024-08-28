@@ -81,7 +81,7 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 	case runtime.RuntimeNameOllama:
 		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
 	case runtime.RuntimeNameVLLM:
-		rtClient = runtime.NewVLLMClient(mgr.GetClient(), ns, c.Runtime, c.VLLM, c.ModelContextLengths)
+		rtClient = runtime.NewVLLMClient(mgr.GetClient(), ns, c.Runtime, c.VLLM, c.FormattedModelContextLengths())
 	default:
 		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
 	}
@@ -123,9 +123,9 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return p.Run(ctx)
 	})
 
-	if len(c.PreloadedModelIDs) > 0 {
-		bootLog.Info("Preloading models", "count", len(c.PreloadedModelIDs))
-		if err := preloadModels(ctx, rtManager, c.PreloadedModelIDs); err != nil {
+	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
+		bootLog.Info("Preloading models", "count", len(ids))
+		if err := preloadModels(ctx, rtManager, ids); err != nil {
 			return err
 		}
 	}

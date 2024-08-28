@@ -77,7 +77,7 @@ func run(ctx context.Context, c *config.Config) error {
 			return err
 		}
 
-		m = ollama.New(c.ModelContextLengths)
+		m = ollama.New(c.FormattedModelContextLengths())
 	case llmkind.VLLM:
 		m = vllm.New(c, "")
 	default:
@@ -146,7 +146,7 @@ func run(ctx context.Context, c *config.Config) error {
 		errCh <- p.Run(ctx)
 	}()
 
-	if ids := c.PreloadedModelIDs; len(ids) > 0 {
+	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
 		go func() {
 			log.Printf("Preloading %d model(s)", len(ids))
 			ctx := auth.AppendWorkerAuthorization(ctx)

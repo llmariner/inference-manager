@@ -65,6 +65,10 @@ type RuntimeConfig struct {
 
 	ModelResources   map[string]Resources `yaml:"modelResources"`
 	DefaultResources Resources            `yaml:"defaultResources"`
+
+	// DefaultReplicas specifies the number of replicas of the runtime (per model).
+	// TODO(kenji): Revisit this once we support autoscaling.
+	DefaultReplicas int `yaml:"defaultReplicas"`
 }
 
 // FormattedModelResources returns the resources keyed by formatted model IDs.

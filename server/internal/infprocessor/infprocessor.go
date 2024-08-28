@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
@@ -18,6 +19,28 @@ import (
 const (
 	taskQueueSize = 100
 )
+
+// NewTask creates a new task.
+func NewTask(
+	tenantID string,
+	req *v1.CreateChatCompletionRequest,
+	header http.Header,
+) (*Task, error) {
+	taskID, err := id.GenerateID("inf_", 24)
+	if err != nil {
+		return nil, fmt.Errorf("generate task ID: %s", err)
+	}
+
+	return &Task{
+		ID:        taskID,
+		TenantID:  tenantID,
+		Req:       req,
+		Header:    header,
+		RespCh:    make(chan *http.Response),
+		ErrCh:     make(chan error),
+		CreatedAt: time.Now(),
+	}, nil
+}
 
 // Task is an inference task.
 // TODO(kenji): Consider preserving the request context as well.

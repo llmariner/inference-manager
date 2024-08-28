@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
@@ -74,17 +73,10 @@ func (s *S) CreateChatCompletion(
 		s.metricsMonitor.UpdateCompletionRequest(createReq.Model, -1)
 	}()
 
-	// Check if the specified model is available
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
-	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: createReq.Model,
-	}); err != nil {
-		if status.Code(err) == codes.NotFound {
-			http.Error(w, fmt.Sprintf("Model not found: %s", createReq.Model), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, fmt.Sprintf("Failed to get model: %s", err), http.StatusInternalServerError)
-		return
+
+	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
+		http.Error(w, err.Error(), code)
 	}
 
 	if code, err := s.handleTools(ctx, &createReq); err != nil {
@@ -92,21 +84,10 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	taskID, err := id.GenerateID("inf_", 24)
+	task, err := infprocessor.NewTask(userInfo.TenantID, &createReq, req.Header)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate task ID: %s", err), http.StatusInternalServerError)
-		return
+		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
 	}
-	task := &infprocessor.Task{
-		ID:        taskID,
-		TenantID:  userInfo.TenantID,
-		Req:       &createReq,
-		Header:    req.Header,
-		RespCh:    make(chan *http.Response),
-		ErrCh:     make(chan error),
-		CreatedAt: time.Now(),
-	}
-
 	s.taskQueue.Enqueue(task)
 
 	resp, err := task.WaitForCompletion(req.Context())
@@ -224,5 +205,17 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 	// Clear the tool related fields as we don't want to pass this to Ollama.
 	req.ToolChoice = nil
 	req.Tools = nil
+	return http.StatusOK, nil
+}
+
+func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, error) {
+	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	}); err != nil {
+		if status.Code(err) == codes.NotFound {
+			return http.StatusBadRequest, fmt.Errorf("model not found: %s", modelID)
+		}
+		return http.StatusInternalServerError, fmt.Errorf("get model: %s", err)
+	}
 	return http.StatusOK, nil
 }

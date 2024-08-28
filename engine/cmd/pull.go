@@ -71,7 +71,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 			log.Printf("Model %s is already registered", o.modelID)
 			return nil
 		}
-		omgr := ollama.New(c.ModelContextLengths)
+		omgr := ollama.New(c.FormattedModelContextLengths())
 		go func() { done <- omgr.Run() }()
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:

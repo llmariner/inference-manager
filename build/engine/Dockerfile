@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
 ARG TARGETARCH
 
 WORKDIR /workspace
@@ -14,17 +14,7 @@ RUN --mount=type=cache,target=${GOCACHE} \
     --mount=type=cache,id=inference-manager,sharing=locked,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-engine
 
-FROM --platform=$BUILDPLATFORM ollama/ollama:0.3.6 as ollama
-ARG TARGETARCH
-
-WORKDIR /run
-
-COPY --from=builder /workspace/bin/engine .
-
-ENTRYPOINT ["./engine"]
-
-# vLLM requires GPU.
-FROM --platform=$BUILDPLATFORM vllm/vllm-openai:v0.5.3 as vllm
+FROM --platform=$BUILDPLATFORM ollama/ollama:0.3.6
 ARG TARGETARCH
 
 WORKDIR /run

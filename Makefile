@@ -10,7 +10,7 @@ test: go-test-all
 lint: go-lint-all git-clean-check
 
 .PHONY: generate
-generate: buf-generate-all
+generate: buf-generate-all typescript-compile
 
 .PHONY: build-server
 build-server:

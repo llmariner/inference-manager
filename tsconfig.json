@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "node",
+    "target": "es2015",
+    "declaration": true,
+    "outDir": "./dist"
+  },
+  "include": [
+    // Do not use ts/**/*. We want to exclude files
+    // like google/protobuf/any.pb.ts.
+    "ts/*",
+    "ts/api/**/*"
+  ]
+}

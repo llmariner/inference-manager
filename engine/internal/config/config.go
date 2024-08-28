@@ -67,6 +67,15 @@ type RuntimeConfig struct {
 	DefaultResources Resources            `yaml:"defaultResources"`
 }
 
+// FormattedModelResources returns the resources keyed by formatted model IDs.
+func (c *RuntimeConfig) FormattedModelResources() map[string]Resources {
+	res := map[string]Resources{}
+	for id, r := range c.ModelResources {
+		res[formatModelID(id)] = r
+	}
+	return res
+}
+
 // Resources is the resources configuration.
 type Resources struct {
 	Requests map[string]string `yaml:"requests"`
@@ -212,14 +221,11 @@ func (c *Config) Validate() error {
 }
 
 // FormattedModelContextLengths returns the model context lengths keyed by formatted model IDs.
-//
-// model-manager-loader convers "/" in the model ID to "-". Do the same conversion here
-// so that end users can use the consistent forma.
 func (c *Config) FormattedModelContextLengths() map[string]int {
 	lens := map[string]int{}
 	for id, l := range c.ModelContextLengths {
-		id = strings.ReplaceAll(id, "/", "-")
-		lens[id] = l
+
+		lens[formatModelID(id)] = l
 	}
 	return lens
 }
@@ -228,9 +234,15 @@ func (c *Config) FormattedModelContextLengths() map[string]int {
 func (c *Config) FormattedPreloadedModelIDs() []string {
 	var ids []string
 	for _, id := range c.PreloadedModelIDs {
-		ids = append(ids, strings.ReplaceAll(id, "/", "-"))
+		ids = append(ids, formatModelID(id))
 	}
 	return ids
+}
+
+func formatModelID(id string) string {
+	// model-manager-loader convers "/" in the model ID to "-". Do the same conversion here
+	// so that end users can use the consistent format.
+	return strings.ReplaceAll(id, "/", "-")
 }
 
 // Parse parses the configuration file at the given path, returning a new

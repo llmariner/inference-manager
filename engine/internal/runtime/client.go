@@ -51,7 +51,7 @@ type commonClient struct {
 }
 
 func (c *commonClient) getResouces(modelID string) config.Resources {
-	if res, ok := c.ModelResources[modelID]; ok {
+	if res, ok := c.FormattedModelResources()[modelID]; ok {
 		return res
 	}
 	return c.DefaultResources

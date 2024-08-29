@@ -23,7 +23,8 @@ func ChatTemplate(modelName string) (string, error) {
 {{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\n' + message['content'] + '\n<|eot_id|>\n'}}
 {% endfor %}
 `, nil
-	case strings.HasPrefix(modelName, "deepseek-ai-deepseek-coder-6.7b-base"):
+	case strings.HasPrefix(modelName, "deepseek-ai-deepseek-coder-6.7b-base"),
+		strings.HasPrefix(modelName, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
 		// This is a simplified template that works for auto code completion.
 		// See https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct/blob/main/tokenizer_config.json#L34.
 		return `

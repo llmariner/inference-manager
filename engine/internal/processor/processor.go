@@ -288,7 +288,7 @@ func (p *P) processTask(
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		log.Info(fmt.Sprintf("Received an error response from the LLM server: statusCode=%d, status=%q", resp.StatusCode, resp.Status))
+		log.Info("Received an error response from the LLM server", "statusCode", resp.StatusCode, "status", resp.Status)
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err

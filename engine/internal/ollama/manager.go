@@ -280,7 +280,8 @@ PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>
 `, nil
 
-	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
+	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"),
+		strings.HasPrefix(name, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
 		// This is different from the output of "ollama show deepseek-coder --modelfile".
 		// Instead, this is tailored for auto completion for continue.dev.
 		return `

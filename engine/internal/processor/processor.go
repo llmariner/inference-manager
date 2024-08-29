@@ -263,7 +263,7 @@ func (p *P) processTask(
 		return fmt.Errorf("build request: %s", err)
 	}
 
-	log.Info(fmt.Sprintf("Sending request to the LLM server: %s", req.URL))
+	log.Info("Sending request to the LLM server", "url", req.URL)
 	log.V(1).Info(fmt.Sprintf("Request: %+v", t.Request))
 
 	resp, err := http.DefaultClient.Do(req)

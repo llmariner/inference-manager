@@ -24,7 +24,13 @@ func ChatTemplate(modelName string) (string, error) {
 {% endfor %}
 `, nil
 	case strings.HasPrefix(modelName, "deepseek-ai-deepseek-coder-6.7b-base"):
-		return "", nil
+		// This is a simplified template that works for auto code completion.
+		// See https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct/blob/main/tokenizer_config.json#L34.
+		return `
+{% for message in messages %}
+{{message['content']}}
+{% endfor %}
+`, nil
 	default:
 		return "", fmt.Errorf("unsupported model: %q", modelName)
 	}

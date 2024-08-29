@@ -83,6 +83,8 @@ modelContextLengths:
 inferenceManagerServerWorkerServiceAddr: inference-manager-server-worker-service-grpc:8082
 modelManagerServerWorkerServiceAddr: model-manager-server-worker-service-grpc:8082
 
+logLevel: 0
+
 replicaCount: 1
 image:
   repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-engine

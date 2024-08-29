@@ -32,6 +32,8 @@ spec:
         - {{ .Values.commandName }}
         - --config
         - /etc/config/config.yaml
+        - --v
+        - "{{ .Values.logLevel }}"
         ports:
         - name: llm
           containerPort: {{ .Values.llmPort }}

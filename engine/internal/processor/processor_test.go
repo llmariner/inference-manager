@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/go-logr/stdr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/stretchr/testify/assert"
@@ -25,12 +27,15 @@ func TestP(t *testing.T) {
 
 	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
 
+	logger := stdr.New(log.Default())
+
 	processor := NewP(
 		"engine_id0",
 		nil,
 		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		llmkind.Ollama,
 		&fakeModelSyncer{},
+		logger,
 	)
 
 	fakeClient := &fakeProcessTasksClient{}
@@ -41,7 +46,7 @@ func TestP(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(context.Background(), fakeClient, task)
+	err = processor.processTask(context.Background(), fakeClient, task, logger.WithValues("task", task.Id))
 	assert.NoError(t, err)
 	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))

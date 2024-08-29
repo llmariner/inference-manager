@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-logr/stdr"
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
@@ -35,32 +36,44 @@ const (
 	modelPreloadConcurrency = 2
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "run",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		path, err := cmd.Flags().GetString(flagConfig)
-		if err != nil {
-			return err
-		}
+func runCmd() *cobra.Command {
+	var logLevel int
 
-		c, err := config.Parse(path)
-		if err != nil {
-			return err
-		}
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "run",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path, err := cmd.Flags().GetString(flagConfig)
+			if err != nil {
+				return err
+			}
 
-		if err := c.Validate(); err != nil {
-			return err
-		}
+			c, err := config.Parse(path)
+			if err != nil {
+				return err
+			}
 
-		if err := run(cmd.Context(), &c); err != nil {
-			return err
-		}
-		return nil
-	},
+			if err := c.Validate(); err != nil {
+				return err
+			}
+
+			if err := run(cmd.Context(), &c, logLevel); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().String(flagConfig, "", "Configuration file path")
+	cmd.Flags().IntVar(&logLevel, "v", 0, "Log level")
+	_ = cmd.MarkFlagRequired("config")
+	return cmd
 }
 
-func run(ctx context.Context, c *config.Config) error {
+func run(ctx context.Context, c *config.Config, lv int) error {
+	stdr.SetVerbosity(lv)
+	logger := stdr.New(log.Default())
+
 	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
 	var m manager.M
 	switch c.LLMEngine {
@@ -138,6 +151,7 @@ func run(ctx context.Context, c *config.Config) error {
 		processor.NewFixedAddressGetter(llmAddr),
 		c.LLMEngine,
 		syncer,
+		logger,
 	)
 
 	healthHandler.AddProbe(p)
@@ -176,9 +190,4 @@ func grpcOption(c *config.Config) grpc.DialOption {
 		return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
 	}
 	return grpc.WithTransportCredentials(insecure.NewCredentials())
-}
-
-func init() {
-	runCmd.Flags().StringP(flagConfig, "c", "", "Configuration file path")
-	_ = runCmd.MarkFlagRequired(flagConfig)
 }

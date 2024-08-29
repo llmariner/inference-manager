@@ -111,6 +111,7 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		rtManager,
 		c.LLMEngine,
 		rtManager,
+		logger,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

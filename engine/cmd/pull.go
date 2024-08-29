@@ -25,11 +25,12 @@ import (
 func pullCmd() *cobra.Command {
 	var o opts
 	var path string
+	var forcePull bool
 	cmd := &cobra.Command{
 		Use:   "pull",
 		Short: "pull",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if o.index != 0 {
+			if o.index != 0 && !forcePull {
 				log.Printf("Skip initializing (INDEX: %d)", o.index)
 				return nil
 			}
@@ -46,6 +47,7 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.runtime, "runtime", "", "Runtime name for the model")
 	cmd.Flags().StringVar(&o.modelID, "model-id", "", "Model ID to be registered")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
+	cmd.Flags().BoolVar(&forcePull, "force-pull", false, "Pull the model even if its index is not 0")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")
 	_ = cmd.MarkFlagRequired("model-id")

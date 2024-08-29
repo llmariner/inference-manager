@@ -112,12 +112,15 @@ func (c *commonClient) deployRuntime(
 	resConf := c.getResouces(params.modelID)
 
 	sharedVolume := corev1apply.Volume().WithName(shareVolName)
+	var forcePull bool
 	if resConf.Volume != nil {
 		sharedVolume.WithPersistentVolumeClaim(
 			corev1apply.PersistentVolumeClaimVolumeSource().
 				WithClaimName(name))
 	} else {
 		sharedVolume.WithEmptyDir(corev1apply.EmptyDirVolumeSource())
+		// Make every pod pull the model on startup as they don't share the volume.
+		forcePull = true
 	}
 	volumes := []*corev1apply.VolumeApplyConfiguration{
 		sharedVolume,
@@ -194,6 +197,7 @@ func (c *commonClient) deployRuntime(
 		"--runtime=" + c.Name,
 		"--model-id=" + params.modelID,
 		"--config=/etc/config/config.yaml",
+		"--force-pull=" + fmt.Sprintf("%t", forcePull),
 	}
 
 	image, ok := c.RuntimeImages[c.Name]

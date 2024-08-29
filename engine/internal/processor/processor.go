@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
@@ -103,6 +103,7 @@ func NewP(
 	addrGetter AddressGetter,
 	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
+	logger logr.Logger,
 ) *P {
 	return &P{
 		engineID:    engineID,
@@ -110,6 +111,7 @@ func NewP(
 		addrGetter:  addrGetter,
 		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
+		logger:      logger,
 	}
 }
 
@@ -125,20 +127,22 @@ type P struct {
 	// It is cleared when the registration succeeds.
 	lastErr error
 	mu      sync.Mutex
+	logger  logr.Logger
 }
 
 // Run runs the processor.
 //
 // TODO(kenji): Gracefully handle an error from the server.
 func (p *P) Run(ctx context.Context) error {
+	log := p.logger.WithValues("engineID", p.engineID)
 	for {
 		if err := p.run(ctx); err != nil {
-			log.Printf("Processor error: %s\n", err)
+			log.Error(err, "Processor error")
 			p.mu.Lock()
 			p.lastErr = err
 			p.mu.Unlock()
 
-			log.Printf("Will retry after %s", retryInterval)
+			log.Info(fmt.Sprintf("Will retry after %s", retryInterval))
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -180,9 +184,11 @@ func (p *P) sendEngineStatusPeriodically(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
 ) error {
+	log := p.logger.WithValues("engineID", p.engineID)
+
 	isFirst := true
 
-	log.Printf("Registering engine: %s\n", p.engineID)
+	log.Info("Registering engine")
 	for {
 		if err := p.sendEngineStatus(ctx, stream); err != nil {
 			return err
@@ -190,7 +196,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 		if isFirst {
 			isFirst = false
-			log.Printf("Successfully registered engine: %s\n", p.engineID)
+			log.Info("Successfully registered engine")
 		}
 
 		// Clear the last error.
@@ -211,6 +217,8 @@ func (p *P) processTasks(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
 ) error {
+	log := p.logger.WithValues("engineID", p.engineID)
+
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
@@ -223,13 +231,14 @@ func (p *P) processTasks(
 		// Create a goroutine to process the task so that we can receive the
 		// next task. llm then might process requests in parallel.
 		go func() {
-			log.Printf("Started processing task: %s\n", resp.NewTask.Id)
-			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
+			log := log.WithValues("taskID", resp.NewTask.Id)
+			log.Info("Started processing task")
+			if err := p.processTask(ctx, stream, resp.NewTask, log); err != nil {
 				// Gracefully handle the error.
-				log.Printf("Failed to process task: %s\n", err)
+				log.Error(err, "Failed to process task")
 				return
 			}
-			log.Printf("Completed task: %s\n", resp.NewTask.Id)
+			log.Info("Completed task")
 		}()
 	}
 }
@@ -242,6 +251,7 @@ func (p *P) processTask(
 	ctx context.Context,
 	stream sender,
 	t *v1.Task,
+	log logr.Logger,
 ) error {
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
@@ -253,12 +263,13 @@ func (p *P) processTask(
 		return fmt.Errorf("build request: %s", err)
 	}
 
-	log.Printf("Sending request to the LLM server: %s\n", req.URL)
+	log.Info(fmt.Sprintf("Sending request to the LLM server: %s", req.URL))
+	log.V(1).Info(fmt.Sprintf("Request: %+v", t.Request))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to send request to the LLM server: %s", err)
-		log.Printf("%s\n", msg)
+		log.Error(err, msg)
 		httpResp := &v1.HttpResponse{
 			StatusCode: http.StatusInternalServerError,
 			Status:     http.StatusText(http.StatusInternalServerError),
@@ -268,20 +279,21 @@ func (p *P) processTask(
 			return err
 		}
 		return nil
-
 	}
+
+	log.Info(fmt.Sprintf("Received an initial response from the LLM server: status=%q", resp.Status))
 
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		log.Printf("Received an error response from llm: statusCode=%d, status=%q\n", resp.StatusCode, resp.Status)
+		log.Info(fmt.Sprintf("Received an error response from the LLM server: statusCode=%d, status=%q", resp.StatusCode, resp.Status))
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
-		log.Printf("Error response body: %q\n", body)
+		log.Info(fmt.Sprintf("Error response body: %q", body))
 
 		httpResp := &v1.HttpResponse{
 			StatusCode: int32(resp.StatusCode),
@@ -402,7 +414,6 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 		},
 	}
 	if err := stream.Send(req); err != nil {
-		log.Printf("Sending<2>:%s\n", err)
 		return err
 	}
 	return nil

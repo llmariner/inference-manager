@@ -14,7 +14,7 @@ func IsAWQQuantizedModel(modelName string) bool {
 // ModelFilePath returns the file path of the model.
 func ModelFilePath(modelDir, modelName string) string {
 	if IsAWQQuantizedModel(modelName) {
-		// VLLM requires an entire directory with the HuggingFace file structure.
+		// vLLM requires the entire directory with the HuggingFace file structure.
 		return filepath.Join(modelDir)
 	}
 

@@ -78,6 +78,10 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) error {
 		args = append(args, "--max-model-len", strconv.Itoa(len))
 	}
 
+	if vllm.IsAWQQuantizedModel(modelID) {
+		args = append(args, "quantization", "awq")
+	}
+
 	shmVolName := "devshm"
 	return v.deployRuntime(ctx, deployRunTimeParams{
 		modelID: modelID,

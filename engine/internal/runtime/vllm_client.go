@@ -24,6 +24,7 @@ const nvidiaGPUResource = "nvidia.com/gpu"
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
 	k8sClient client.Client,
+	autoscaler scalerRegisterer,
 	namespace string,
 	rconfig config.RuntimeConfig,
 	vconfig config.VLLMConfig,
@@ -32,6 +33,7 @@ func NewVLLMClient(
 	return &vllmClient{
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
+			autoscaler:    autoscaler,
 			namespace:     namespace,
 			servingPort:   vllmHTTPPort,
 			RuntimeConfig: rconfig,

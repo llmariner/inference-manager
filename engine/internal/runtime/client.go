@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	appsv1apply "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
@@ -40,8 +41,13 @@ type Client interface {
 	DeployRuntime(ctx context.Context, modelID string) error
 }
 
+type scalerRegisterer interface {
+	Register(modelID string, target types.NamespacedName)
+}
+
 type commonClient struct {
-	k8sClient client.Client
+	k8sClient  client.Client
+	autoscaler scalerRegisterer
 
 	namespace string
 
@@ -290,6 +296,8 @@ func (c *commonClient) deployRuntime(
 		kind := newObj.GetObjectKind().GroupVersionKind().Kind
 		log.V(2).Info(fmt.Sprintf("%s applied", kind), "name", newObj.GetName())
 	}
+
+	c.autoscaler.Register(params.modelID, types.NamespacedName{Name: name, Namespace: c.namespace})
 	return nil
 }
 

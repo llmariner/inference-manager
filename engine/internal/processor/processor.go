@@ -15,6 +15,7 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
+	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
@@ -104,6 +105,7 @@ func NewP(
 	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
+	metricsClient *metrics.Client,
 ) *P {
 	return &P{
 		engineID:    engineID,
@@ -112,6 +114,7 @@ func NewP(
 		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
 		logger:      logger,
+		metrics:     metricsClient,
 	}
 }
 
@@ -122,6 +125,7 @@ type P struct {
 	addrGetter  AddressGetter
 	llmKind     llmkind.K
 	modelSyncer ModelSyncer
+	metrics     *metrics.Client
 
 	// lastErr is the last error from run().
 	// It is cleared when the registration succeeds.
@@ -231,6 +235,9 @@ func (p *P) processTasks(
 		// Create a goroutine to process the task so that we can receive the
 		// next task. llm then might process requests in parallel.
 		go func() {
+			p.metrics.Add(resp.NewTask.Request.Model, 1)
+			defer p.metrics.Add(resp.NewTask.Request.Model, -1)
+
 			log := log.WithValues("taskID", resp.NewTask.Id)
 			log.Info("Started processing task")
 			if err := p.processTask(ctx, stream, resp.NewTask, log); err != nil {
@@ -257,6 +264,7 @@ func (p *P) processTask(
 	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
+	// TODO(aya): Consider how to handle the case where the runtime is scaled down before the request is sent.
 
 	req, err := p.buildRequest(ctx, t)
 	if err != nil {

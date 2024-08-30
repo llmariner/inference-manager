@@ -18,6 +18,7 @@ const ollamaHTTPPort = 11434
 // NewOllamaClient creates a new Ollama runtime client.
 func NewOllamaClient(
 	k8sClient client.Client,
+	autoscaler scalerRegisterer,
 	namespace string,
 	rconfig config.RuntimeConfig,
 	oconfig config.OllamaConfig,
@@ -25,6 +26,7 @@ func NewOllamaClient(
 	return &ollamaClient{
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
+			autoscaler:    autoscaler,
 			namespace:     namespace,
 			servingPort:   ollamaHTTPPort,
 			RuntimeConfig: rconfig,

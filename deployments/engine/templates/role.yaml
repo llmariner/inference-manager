@@ -18,6 +18,12 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - apps
+  resources:
+  - statefulsets/scale
+  verbs:
+  - update
+- apiGroups:
   - ""
   resources:
   - services

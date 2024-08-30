@@ -150,6 +150,26 @@ type WorkerConfig struct {
 	TLS WorkerTLSConfig `yaml:"tls"`
 }
 
+// AutoscalerConfig is the autoscaler configuration.
+type AutoscalerConfig struct {
+	Enable bool `yaml:"enable"`
+
+	SyncPeriod             time.Duration `yaml:"syncPeriod"`
+	ScaleToZeroGracePeriod time.Duration `yaml:"scaleToZeroGracePeriod"`
+
+	RuntimeScalers map[string]ScalingConfig `yaml:"runtimeScalers"`
+	DefaultScaler  ScalingConfig            `yaml:"defaultScaler"`
+}
+
+// ScalingConfig is the scaling configuration.
+type ScalingConfig struct {
+	// TargetValue is the per-pod metric value that we target to maintain.
+	TargetValue float64 `yaml:"targetValue"`
+
+	MaxReplicas int `yaml:"maxReplicas"`
+	MinReplicas int `yaml:"minReplicas"`
+}
+
 // Config is the configuration.
 type Config struct {
 	Runtime   RuntimeConfig `yaml:"runtime"`
@@ -160,6 +180,8 @@ type Config struct {
 	LLMPort int `yaml:"llmPort"`
 
 	HealthPort int `yaml:"healthPort"`
+
+	Autoscaler AutoscalerConfig `yaml:"autoscaler"`
 
 	ObjectStore ObjectStoreConfig `yaml:"objectStore"`
 

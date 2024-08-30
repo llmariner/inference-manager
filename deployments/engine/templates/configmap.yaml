@@ -44,6 +44,14 @@ data:
     llmEngine: {{ .Values.llmEngine }}
     llmPort: {{ .Values.llmPort }}
     healthPort: {{ .Values.healthPort }}
+    autoscaler:
+      enable: {{ .Values.autoscaler.enable }}
+      syncPeriod: {{ .Values.autoscaler.syncPeriod }}
+      scaleToZeroGracePeriod: {{ .Values.autoscaler.scaleToZeroGracePeriod }}
+      runtimeScalers:
+        {{- toYaml .Values.autoscaler.runtimeScalers | nindent 8 }}
+      defaultScaler:
+        {{- toYaml .Values.autoscaler.defaultScaler | nindent 8 }}
     {{- with .Values.preloadedModelIds }}
     preloadedModelIds:
       {{- toYaml . | nindent 6 }}

@@ -6,8 +6,19 @@ import (
 	"strings"
 )
 
+// IsAWQQuantizedModel returns true if the model name is an AWQ quantized model.
+func IsAWQQuantizedModel(modelName string) bool {
+	return strings.HasSuffix(modelName, "-awq")
+}
+
 // ModelFilePath returns the file path of the model.
 func ModelFilePath(modelDir, modelName string) string {
+	if IsAWQQuantizedModel(modelName) {
+		// vLLM requires the entire directory with the HuggingFace file structure.
+		return filepath.Join(modelDir)
+	}
+
+	// If the model is not an AWQ quantized model, we assume it is a GGUF file.
 	return filepath.Join(modelDir, modelName+".gguf")
 }
 

@@ -25,7 +25,8 @@ func ModelFilePath(modelDir, modelName string) string {
 // ChatTemplate returns the chat template for the given model.
 func ChatTemplate(modelName string) (string, error) {
 	switch {
-	case strings.HasPrefix(modelName, "meta-llama-Meta-Llama-3.1-"):
+	case strings.HasPrefix(modelName, "meta-llama-Meta-Llama-3.1-"),
+		strings.HasPrefix(modelName, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"):
 		// This is a simplified template that does not support functions etc.
 		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
 		return `

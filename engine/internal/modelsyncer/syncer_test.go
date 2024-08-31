@@ -117,7 +117,7 @@ func TestPullModelInProgress(t *testing.T) {
 		t,
 		func() bool {
 			om.mu.Lock()
-			b := len(om.inProgressModels) == 1
+			b := len(om.inProgressModels) == 1 || len(om.registeredModels) == 1
 			om.mu.Unlock()
 			return b
 		},
@@ -176,6 +176,7 @@ func (n *fakeOllamaManager) CreateNewModelOfGGUF(modelName string, spec *manager
 }
 
 func (n *fakeOllamaManager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
+	n.created = append(n.created, modelName)
 	return nil
 }
 

@@ -148,7 +148,7 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	if err := s.downloadAndCreateModel(ctx, modelID, resp); err != nil {
+	if err := s.mm.DownloadAndCreateNewModel(modelID, resp); err != nil {
 		return err
 	}
 
@@ -157,46 +157,6 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 	s.registeredModels[modelID] = true
 
 	log.Printf("Registered the base model successfully\n")
-
-	return nil
-}
-
-func (s *S) downloadAndCreateModel(ctx context.Context, modelID string, resp *mv1.GetBaseModelPathResponse) error {
-	log.Printf("Downloading the model from %q\n", resp.GgufModelPath)
-	f, err := os.CreateTemp("/tmp", "model")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := os.Remove(f.Name()); err != nil {
-			log.Printf("Failed to remove %q: %s", f.Name(), err)
-		}
-	}()
-
-	// Allow a model to be downloaded from the S3 bucket.
-	switch resp.Format {
-	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
-		if err := s.s3Client.Download(f, resp.GgufModelPath); err != nil {
-			return fmt.Errorf("download: %s", err)
-		}
-		log.Printf("Downloaded the model to %q\n", f.Name())
-		if err := f.Close(); err != nil {
-			return err
-		}
-
-		ms := &manager.ModelSpec{
-			From: f.Name(),
-		}
-
-		if err := s.mm.CreateNewModelOfGGUF(modelID, ms); err != nil {
-			return fmt.Errorf("create new model: %s", err)
-		}
-
-	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
-
-	default:
-		return fmt.Errorf("unknown model format: %s", resp.Format)
-	}
 
 	return nil
 }

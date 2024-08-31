@@ -79,7 +79,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) error {
 	}
 
 	if vllm.IsAWQQuantizedModel(modelID) {
-		args = append(args, "quantization", "awq")
+		args = append(args, "--quantization", "awq")
 	}
 
 	shmVolName := "devshm"

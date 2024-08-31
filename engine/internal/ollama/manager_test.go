@@ -83,7 +83,7 @@ Adapter /path/to/adapter
 				contextLengthsByModelID: tc.contextLengthByModelID,
 				cmdRunner:               fakeCmdRunner,
 			}
-			err := m.CreateNewModel(tc.modelID, tc.spec)
+			err := m.CreateNewModelOfGGUF(tc.modelID, tc.spec)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.want, fakeCmdRunner.gotModeFile)
 		})

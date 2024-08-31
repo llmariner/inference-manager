@@ -170,8 +170,12 @@ type fakeOllamaManager struct {
 	created []string
 }
 
-func (n *fakeOllamaManager) CreateNewModel(modelName string, spec *manager.ModelSpec) error {
+func (n *fakeOllamaManager) CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec) error {
 	n.created = append(n.created, modelName)
+	return nil
+}
+
+func (n *fakeOllamaManager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
 	return nil
 }
 
@@ -199,6 +203,7 @@ func (n *fakeModelInternalClient) GetModel(ctx context.Context, in *mv1.GetModel
 func (n *fakeModelInternalClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {
 	return &mv1.GetBaseModelPathResponse{
 		Path:          "fake-path",
+		Format:        mv1.ModelFormat_MODEL_FORMAT_GGUF,
 		GgufModelPath: "fake-gguf-path",
 	}, nil
 }

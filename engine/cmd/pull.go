@@ -62,6 +62,8 @@ type opts struct {
 }
 
 func pull(ctx context.Context, o opts, c config.Config) error {
+	s3Client := s3.NewClient(c.ObjectStore.S3)
+
 	var mgr modelsyncer.ModelManager
 
 	done := make(chan error)
@@ -73,12 +75,12 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 			log.Printf("Model %s is already registered", o.modelID)
 			return nil
 		}
-		omgr := ollama.New(c.FormattedModelContextLengths())
+		omgr := ollama.New(c.FormattedModelContextLengths(), s3Client)
 		go func() { done <- omgr.Run() }()
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:
 		// TODO(kenji): Check if a model already exists.
-		mgr = vllm.New(&c, runtime.ModelDir())
+		mgr = vllm.New(&c, runtime.ModelDir(), s3Client)
 	default:
 		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}
@@ -90,7 +92,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 
 	syncer, err := modelsyncer.New(
 		mgr,
-		s3.NewClient(c.ObjectStore.S3),
+		s3Client,
 		mv1.NewModelsWorkerServiceClient(conn))
 	if err != nil {
 		return fmt.Errorf("create model syncer: %s", err)

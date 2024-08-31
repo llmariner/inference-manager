@@ -24,7 +24,8 @@ const (
 
 // ModelManager is an interface for managing models.
 type ModelManager interface {
-	CreateNewModel(modelName string, spec *manager.ModelSpec) error
+	CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec) error
+	DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
 
@@ -147,6 +148,20 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
+	if err := s.downloadAndCreateModel(ctx, modelID, resp); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registeredModels[modelID] = true
+
+	log.Printf("Registered the base model successfully\n")
+
+	return nil
+}
+
+func (s *S) downloadAndCreateModel(ctx context.Context, modelID string, resp *mv1.GetBaseModelPathResponse) error {
 	log.Printf("Downloading the model from %q\n", resp.GgufModelPath)
 	f, err := os.CreateTemp("/tmp", "model")
 	if err != nil {
@@ -158,27 +173,30 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		}
 	}()
 
-	if err := s.s3Client.Download(f, resp.GgufModelPath); err != nil {
-		return fmt.Errorf("download: %s", err)
-	}
-	log.Printf("Downloaded the model to %q\n", f.Name())
-	if err := f.Close(); err != nil {
-		return err
-	}
+	// Allow a model to be downloaded from the S3 bucket.
+	switch resp.Format {
+	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
+		if err := s.s3Client.Download(f, resp.GgufModelPath); err != nil {
+			return fmt.Errorf("download: %s", err)
+		}
+		log.Printf("Downloaded the model to %q\n", f.Name())
+		if err := f.Close(); err != nil {
+			return err
+		}
 
-	ms := &manager.ModelSpec{
-		From: f.Name(),
+		ms := &manager.ModelSpec{
+			From: f.Name(),
+		}
+
+		if err := s.mm.CreateNewModelOfGGUF(modelID, ms); err != nil {
+			return fmt.Errorf("create new model: %s", err)
+		}
+
+	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
+
+	default:
+		return fmt.Errorf("unknown model format: %s", resp.Format)
 	}
-
-	if err := s.mm.CreateNewModel(modelID, ms); err != nil {
-		return fmt.Errorf("create new model: %s", err)
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.registeredModels[modelID] = true
-
-	log.Printf("Registered the base model successfully\n")
 
 	return nil
 }
@@ -234,7 +252,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	if err := s.mm.CreateNewModel(models.OllamaModelName(modelID), ms); err != nil {
+	if err := s.mm.CreateNewModelOfGGUF(models.OllamaModelName(modelID), ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 

@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
 
 type cmdRunnter interface {
@@ -19,14 +21,19 @@ type cmdRunnter interface {
 type cmdRunnerImpl struct {
 }
 
+type s3Client interface {
+	Download(f io.WriterAt, path string) error
+}
+
 func (c *cmdRunnerImpl) Run(cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
 // New returns a new Manager.
-func New(contextLengthsByModelID map[string]int) *Manager {
+func New(contextLengthsByModelID map[string]int, s3Client s3Client) *Manager {
 	return &Manager{
 		contextLengthsByModelID: contextLengthsByModelID,
+		s3Client:                s3Client,
 		cmdRunner:               &cmdRunnerImpl{},
 	}
 }
@@ -37,6 +44,8 @@ func New(contextLengthsByModelID map[string]int) *Manager {
 // inference-manager-engine doesn't directly run vLLM or Ollama.
 type Manager struct {
 	contextLengthsByModelID map[string]int
+
+	s3Client s3Client
 
 	cmdRunner cmdRunnter
 
@@ -51,8 +60,8 @@ func (m *Manager) Run() error {
 	return m.runCommand([]string{"serve"})
 }
 
-// CreateNewModel creates a new model with the given name and spec.
-func (m *Manager) CreateNewModel(modelName string, spec *manager.ModelSpec) error {
+// CreateNewModelOfGGUF creates a new model with the given name and spec that uses a GGUF model file.
+func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec) error {
 	file, err := os.CreateTemp("/tmp", "model")
 	if err != nil {
 		return err
@@ -86,6 +95,42 @@ func (m *Manager) CreateNewModel(modelName string, spec *manager.ModelSpec) erro
 	}
 
 	return m.runCommand([]string{"create", modelName, "-f", file.Name()})
+}
+
+// DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
+func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
+	if resp.Format != mv1.ModelFormat_MODEL_FORMAT_GGUF {
+		return fmt.Errorf("unsupported model format: %s", resp.Format)
+	}
+
+	log.Printf("Downloading the GGUF model from %q\n", resp.GgufModelPath)
+	f, err := os.CreateTemp("/tmp", "model")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Printf("Failed to remove %q: %s", f.Name(), err)
+		}
+	}()
+
+	if err := m.s3Client.Download(f, resp.GgufModelPath); err != nil {
+		return fmt.Errorf("download: %s", err)
+	}
+	log.Printf("Downloaded the model to %q\n", f.Name())
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	ms := &manager.ModelSpec{
+		From: f.Name(),
+	}
+
+	if err := m.CreateNewModelOfGGUF(modelName, ms); err != nil {
+		return fmt.Errorf("create new model: %s", err)
+	}
+
+	return nil
 }
 
 // PullBaseModel pulls the base model from the given path.
@@ -128,7 +173,7 @@ func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
 	ms := &manager.ModelSpec{
 		From: modelName,
 	}
-	if err := m.CreateNewModel(modelName, ms); err != nil {
+	if err := m.CreateNewModelOfGGUF(modelName, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	return nil

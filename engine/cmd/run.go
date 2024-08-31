@@ -74,6 +74,8 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 
+	s3Client := s3.NewClient(c.ObjectStore.S3)
+
 	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
 	var m manager.M
 	switch c.LLMEngine {
@@ -90,9 +92,9 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 			return err
 		}
 
-		m = ollama.New(c.FormattedModelContextLengths())
+		m = ollama.New(c.FormattedModelContextLengths(), s3Client)
 	case llmkind.VLLM:
-		m = vllm.New(c, "")
+		m = vllm.New(c, "", s3Client)
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
 	}
@@ -124,14 +126,12 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	if c.Debug.Standalone || c.LLMEngine == "vllm" {
 		syncer = processor.NewFakeModelSyncer()
 	} else {
-		sc := s3.NewClient(c.ObjectStore.S3)
-
 		conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
 		if err != nil {
 			return err
 		}
 		mc := mv1.NewModelsWorkerServiceClient(conn)
-		syncer, err = modelsyncer.New(m, sc, mc)
+		syncer, err = modelsyncer.New(m, s3Client, mc)
 		if err != nil {
 			return err
 		}

@@ -15,7 +15,12 @@ func IsAWQQuantizedModel(modelName string) bool {
 func ModelFilePath(modelDir, modelName string) string {
 	if IsAWQQuantizedModel(modelName) {
 		// vLLM requires the entire directory with the HuggingFace file structure.
-		return filepath.Join(modelDir)
+		return modelDir
+	}
+
+	// TODO(kenji): Remove this. This is for testing.
+	if modelName == "deepseek-ai-deepseek-coder-6.7b-base" {
+		return modelDir
 	}
 
 	// If the model is not an AWQ quantized model, we assume it is a GGUF file.

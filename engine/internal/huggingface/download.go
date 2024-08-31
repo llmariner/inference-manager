@@ -25,8 +25,13 @@ func DownloadModelFiles(s3Client s3Client, srcS3Path string, destDir string) err
 	}
 	var safetensorFiles []string
 	if err := s3Client.Download(f, filepath.Join(srcS3Path, siFilename)); err != nil {
+		_ = f.Close()
+		if err := os.Remove(f.Name()); err != nil {
+			return fmt.Errorf("remove file %q: %s", f.Name(), err)
+		}
+
 		// TODO(kenji): Only ignore a not-found error.
-		log.Printf("Download %q failed: %s. Using 'model.safetensors' as a safetensors file\n", siFilename, err)
+		log.Printf("Downloading %q failed: %s. Using 'model.safetensors' as a safetensors file\n", siFilename, err)
 		safetensorFiles = append(safetensorFiles, "model.safetensors")
 	} else {
 		b, err := os.ReadFile(filepath.Join(destDir, siFilename))

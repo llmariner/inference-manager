@@ -77,6 +77,7 @@ func (s *S) CreateChatCompletion(
 
 	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
 		http.Error(w, err.Error(), code)
+		return
 	}
 
 	if code, err := s.handleTools(ctx, &createReq); err != nil {

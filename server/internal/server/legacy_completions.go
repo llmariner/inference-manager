@@ -68,6 +68,7 @@ func (s *S) CreateCompletion(
 
 	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
 		http.Error(w, err.Error(), code)
+		return
 	}
 
 	task, err := infprocessor.NewTask(userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header)

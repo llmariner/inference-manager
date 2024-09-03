@@ -10,9 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
+
+// ModelSpec is the specification for a new model.
+type ModelSpec struct {
+	From        string
+	AdapterPath string
+}
 
 type cmdRunnter interface {
 	Run(*exec.Cmd) error
@@ -61,7 +66,7 @@ func (m *Manager) Run() error {
 }
 
 // CreateNewModelOfGGUF creates a new model with the given name and spec that uses a GGUF model file.
-func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec) error {
+func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ModelSpec) error {
 	file, err := os.CreateTemp("/tmp", "model")
 	if err != nil {
 		return err
@@ -129,7 +134,7 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		return err
 	}
 
-	ms := &manager.ModelSpec{
+	ms := &ModelSpec{
 		From: f.Name(),
 	}
 
@@ -177,7 +182,7 @@ func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
 	// non-trival amount of work as Ollama makes modification to the original modelfile content
 	// (e.g., add comments).
 	log.Printf("Recreating model %q with the updated template.\n", modelName)
-	ms := &manager.ModelSpec{
+	ms := &ModelSpec{
 		From: modelName,
 	}
 	if err := m.CreateNewModelOfGGUF(modelName, ms); err != nil {

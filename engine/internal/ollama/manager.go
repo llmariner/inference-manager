@@ -99,8 +99,15 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
 func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
-	if resp.Format != mv1.ModelFormat_MODEL_FORMAT_GGUF {
-		return fmt.Errorf("unsupported model format: %s", resp.Format)
+	var hasGGUF bool
+	for _, f := range resp.Formats {
+		if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
+			hasGGUF = true
+			break
+		}
+	}
+	if !hasGGUF {
+		return fmt.Errorf("supported model formats: %s", resp.Formats)
 	}
 
 	log.Printf("Downloading the GGUF model from %q\n", resp.GgufModelPath)

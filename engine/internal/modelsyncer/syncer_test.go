@@ -204,7 +204,7 @@ func (n *fakeModelInternalClient) GetModel(ctx context.Context, in *mv1.GetModel
 func (n *fakeModelInternalClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {
 	return &mv1.GetBaseModelPathResponse{
 		Path:          "fake-path",
-		Format:        mv1.ModelFormat_MODEL_FORMAT_GGUF,
+		Formats:       []mv1.ModelFormat{mv1.ModelFormat_MODEL_FORMAT_GGUF},
 		GgufModelPath: "fake-gguf-path",
 	}, nil
 }

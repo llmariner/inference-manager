@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/stdr v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
 	github.com/llm-operator/common v0.4.0
-	github.com/llm-operator/model-manager v0.92.0
+	github.com/llm-operator/model-manager v0.95.0
 	github.com/llm-operator/rbac-manager v0.83.0
 	github.com/llm-operator/vector-store-manager v0.30.0
 	github.com/prometheus/client_golang v1.19.1

@@ -13,13 +13,11 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/health"
-	"github.com/llm-operator/inference-manager/engine/internal/manager"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
-	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
@@ -78,7 +76,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	s3Client := s3.NewClient(c.ObjectStore.S3)
 
 	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
-	var m manager.M
+	var m *ollama.Manager
 	switch c.LLMEngine {
 	case llmkind.Ollama:
 		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
@@ -94,8 +92,6 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		}
 
 		m = ollama.New(c.FormattedModelContextLengths(), s3Client)
-	case llmkind.VLLM:
-		m = vllm.New(c, "", s3Client)
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
 	}
@@ -124,7 +120,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	}
 
 	var syncer processor.ModelSyncer
-	if c.Debug.Standalone || c.LLMEngine == "vllm" {
+	if c.Debug.Standalone {
 		syncer = processor.NewFakeModelSyncer()
 	} else {
 		conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))

@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/llm-operator/inference-manager/common/pkg/models"
-	"github.com/llm-operator/inference-manager/engine/internal/manager"
+	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
 )
@@ -24,7 +24,7 @@ const (
 
 // ModelManager is an interface for managing models.
 type ModelManager interface {
-	CreateNewModelOfGGUF(modelName string, spec *manager.ModelSpec) error
+	CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec) error
 	DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
@@ -208,7 +208,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	ms := &manager.ModelSpec{
+	ms := &ollama.ModelSpec{
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}

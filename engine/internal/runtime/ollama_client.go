@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,7 +19,6 @@ const ollamaHTTPPort = 11434
 // NewOllamaClient creates a new Ollama runtime client.
 func NewOllamaClient(
 	k8sClient client.Client,
-	autoscaler scalerRegisterer,
 	namespace string,
 	rconfig config.RuntimeConfig,
 	oconfig config.OllamaConfig,
@@ -26,7 +26,6 @@ func NewOllamaClient(
 	return &ollamaClient{
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
-			autoscaler:    autoscaler,
 			namespace:     namespace,
 			servingPort:   ollamaHTTPPort,
 			RuntimeConfig: rconfig,
@@ -42,7 +41,7 @@ type ollamaClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) error {
+func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
 	}

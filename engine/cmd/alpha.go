@@ -89,14 +89,14 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 	var rtClient runtime.Client
 	switch c.Runtime.Name {
 	case runtime.RuntimeNameOllama:
-		rtClient = runtime.NewOllamaClient(mgr.GetClient(), scaler, ns, c.Runtime, c.Ollama)
+		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
 	case runtime.RuntimeNameVLLM:
-		rtClient = runtime.NewVLLMClient(mgr.GetClient(), scaler, ns, c.Runtime, c.VLLM, c.FormattedModelContextLengths())
+		rtClient = runtime.NewVLLMClient(mgr.GetClient(), ns, c.Runtime, c.VLLM, c.FormattedModelContextLengths())
 	default:
 		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
 	}
 
-	rtManager := runtime.NewManager(mgr.GetClient(), rtClient)
+	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
 	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), scaler, ns); err != nil {
 		return err
 	}

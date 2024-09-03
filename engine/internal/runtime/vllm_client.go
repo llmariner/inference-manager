@@ -9,6 +9,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,7 +25,6 @@ const nvidiaGPUResource = "nvidia.com/gpu"
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
 	k8sClient client.Client,
-	autoscaler scalerRegisterer,
 	namespace string,
 	rconfig config.RuntimeConfig,
 	vconfig config.VLLMConfig,
@@ -33,7 +33,6 @@ func NewVLLMClient(
 	return &vllmClient{
 		commonClient: &commonClient{
 			k8sClient:     k8sClient,
-			autoscaler:    autoscaler,
 			namespace:     namespace,
 			servingPort:   vllmHTTPPort,
 			RuntimeConfig: rconfig,
@@ -51,12 +50,12 @@ type vllmClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) error {
+func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
 	log.Printf("Deploying VLLM runtime for model %s\n", modelID)
 
 	template, err := vllm.ChatTemplate(modelID)
 	if err != nil {
-		return fmt.Errorf("get chat template: %s", err)
+		return types.NamespacedName{}, fmt.Errorf("get chat template: %s", err)
 	}
 
 	args := []string{
@@ -69,7 +68,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) error {
 	}
 
 	if gpus, err := v.numGPUs(modelID); err != nil {
-		return err
+		return types.NamespacedName{}, err
 	} else if gpus == 0 {
 		args = append(args, "--device", "cpu")
 	} else {

@@ -18,11 +18,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+type scalerRegisterer interface {
+	Register(modelID string, target types.NamespacedName)
+	Unregister(target types.NamespacedName)
+}
+
 // NewManager creates a new runtime manager.
-func NewManager(k8sClient client.Client, rtClient Client) *Manager {
+func NewManager(
+	k8sClient client.Client,
+	rtClient Client,
+	autoscaler scalerRegisterer,
+) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
 		rtClient:        rtClient,
+		autoscaler:      autoscaler,
 		readyRuntimes:   make(map[string]runtime),
 		pendingRuntimes: make(map[string]chan struct{}),
 	}
@@ -30,8 +40,9 @@ func NewManager(k8sClient client.Client, rtClient Client) *Manager {
 
 // Manager manages runtimes.
 type Manager struct {
-	k8sClient client.Client
-	rtClient  Client
+	k8sClient  client.Client
+	rtClient   Client
+	autoscaler scalerRegisterer
 
 	readyRuntimes   map[string]runtime
 	pendingRuntimes map[string]chan struct{}
@@ -155,13 +166,17 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		done = make(chan struct{})
 		m.pendingRuntimes[modelID] = done
 		m.mu.Unlock()
-		if err := m.rtClient.DeployRuntime(ctx, modelID); err != nil {
+
+		nn, err := m.rtClient.DeployRuntime(ctx, modelID)
+		if err != nil {
 			m.mu.Lock()
 			delete(m.pendingRuntimes, modelID)
 			m.mu.Unlock()
 			close(done)
 			return err
 		}
+
+		m.autoscaler.Register(modelID, nn)
 	}
 
 	ctrl.LoggerFrom(ctx).Info("Waiting for runtime to be ready", "model", modelID)
@@ -189,6 +204,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			return ctrl.Result{}, nil
 		}
 		m.deleteRuntime(modelID)
+		m.autoscaler.Unregister(req.NamespacedName)
 
 		patch := client.MergeFrom(&sts)
 		newSts := sts.DeepCopy()

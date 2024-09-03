@@ -84,6 +84,20 @@ func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) 
 	s.start(m.logger, m.stopCh, m.config.SyncPeriod)
 }
 
+// Unregister unregisters the scaler for the given runtime.
+func (m *MultiAutoscaler) Unregister(target types.NamespacedName) {
+	m.logger.Info("Unregistering scaler", "target", target)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	s, ok := m.scalers[target]
+	if !ok {
+		return
+	}
+	s.stop()
+	delete(m.scalers, target)
+}
+
 type scaler struct {
 	modelID string
 	target  types.NamespacedName
@@ -94,11 +108,14 @@ type scaler struct {
 	config                 config.ScalingConfig
 	scaleToZeroGracePeriod time.Duration
 
-	lastTranitToZero time.Time
+	lastTransitToZero time.Time
+
+	cancel context.CancelFunc
 }
 
 func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, period time.Duration) {
 	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
 
 	log = log.WithName("scaler").WithValues("modelID", s.modelID)
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -111,7 +128,10 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, period time.Dura
 			case <-stopCh:
 				cancel()
 				return
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
+				// TODO: rethink better error handling
 				if err := retry.RetryOnConflict(
 					retry.DefaultRetry,
 					func() error { return s.scale(ctx) },
@@ -121,6 +141,12 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, period time.Dura
 			}
 		}
 	}()
+}
+
+func (s *scaler) stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
 }
 
 func (s *scaler) scale(ctx context.Context) error {
@@ -135,21 +161,28 @@ func (s *scaler) scale(ctx context.Context) error {
 	observedPerPods := totalObserved / float64(sts.Status.Replicas)
 
 	desiredReplicas := math.Ceil(observedPerPods / s.config.TargetValue)
-	cappedReplicas := int(math.Min(math.Max(float64(s.config.MinReplicas), desiredReplicas), float64(s.config.MaxReplicas)))
+
+	rs := math.Max(float64(s.config.MinReplicas), desiredReplicas)
+	if s.config.MaxReplicas > 0 {
+		rs = math.Min(rs, float64(s.config.MaxReplicas))
+	}
+	cappedReplicas := int32(rs)
 
 	// TODO(aya): Handles changes in both directions during bursts at separate rateshandle burstable both directions in separate rates
 	// TODO(aya): Stop scaling when there are too many not-ready pods
 
 	if cappedReplicas == 0 {
-		if s.lastTranitToZero.IsZero() {
-			s.lastTranitToZero = time.Now()
+		if s.lastTransitToZero.IsZero() {
+			s.lastTransitToZero = time.Now()
 		}
-		if since := time.Since(s.lastTranitToZero); since < s.scaleToZeroGracePeriod {
+		if since := time.Since(s.lastTransitToZero); since < s.scaleToZeroGracePeriod {
 			log.V(4).Info("Within the scale to zero grace period", "since", since)
 			return nil
 		}
+	} else {
+		s.lastTransitToZero = time.Time{}
 	}
-	return s.scaleTo(ctx, &sts, int32(cappedReplicas))
+	return s.scaleTo(ctx, &sts, cappedReplicas)
 }
 
 func (s *scaler) scaleTo(ctx context.Context, sts *appsv1.StatefulSet, replicas int32) error {

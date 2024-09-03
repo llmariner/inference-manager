@@ -154,20 +154,59 @@ type WorkerConfig struct {
 type AutoscalerConfig struct {
 	Enable bool `yaml:"enable"`
 
-	SyncPeriod             time.Duration `yaml:"syncPeriod"`
+	SyncPeriod time.Duration `yaml:"syncPeriod"`
+	// ScaleToZeroGracePeriod is the grace period before scaling to zero.
 	ScaleToZeroGracePeriod time.Duration `yaml:"scaleToZeroGracePeriod"`
 
 	RuntimeScalers map[string]ScalingConfig `yaml:"runtimeScalers"`
 	DefaultScaler  ScalingConfig            `yaml:"defaultScaler"`
 }
 
+func (c *AutoscalerConfig) validate() error {
+	if !c.Enable {
+		return nil
+	}
+	if c.SyncPeriod <= 0 {
+		return fmt.Errorf("syncPeriod must be greater than 0")
+	}
+	if c.ScaleToZeroGracePeriod < 0 {
+		return fmt.Errorf("scaleToZeroGracePeriod must be non-negative")
+	}
+	for id, sc := range c.RuntimeScalers {
+		if err := sc.validate(); err != nil {
+			return fmt.Errorf("runtimeScalers[%q]: %s", id, err)
+		}
+	}
+	if err := c.DefaultScaler.validate(); err != nil {
+		return fmt.Errorf("defaultScaler: %s", err)
+	}
+	return nil
+}
+
 // ScalingConfig is the scaling configuration.
 type ScalingConfig struct {
 	// TargetValue is the per-pod metric value that we target to maintain.
+	// Currently, this is the concurrent requests per model runtime.
 	TargetValue float64 `yaml:"targetValue"`
 
 	MaxReplicas int `yaml:"maxReplicas"`
 	MinReplicas int `yaml:"minReplicas"`
+}
+
+func (c *ScalingConfig) validate() error {
+	if c.TargetValue <= 0 {
+		return fmt.Errorf("targetValue must be greater than 0")
+	}
+	if c.MaxReplicas < 0 {
+		return fmt.Errorf("maxReplicas must be non-negative")
+	}
+	if c.MinReplicas < 0 {
+		return fmt.Errorf("minReplicas must be non-negative")
+	}
+	if c.MaxReplicas != 0 && c.MinReplicas > c.MaxReplicas {
+		return fmt.Errorf("minReplicas must be less than or equal to maxReplicas")
+	}
+	return nil
 }
 
 // Config is the configuration.
@@ -243,6 +282,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported serving engine: %q", c.LLMEngine)
 	}
 
+	if err := c.Autoscaler.validate(); err != nil {
+		return fmt.Errorf("autoscaler: %s", err)
+	}
 	return nil
 }
 

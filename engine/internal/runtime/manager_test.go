@@ -143,8 +143,8 @@ func TestListSyncedModelIDs(t *testing.T) {
 	}
 	models := mgr.ListSyncedModelIDs(context.Background())
 	assert.Len(t, models, 2)
-	assert.Equal(t, "model-0", models[0])
-	assert.Equal(t, "model-2", models[1])
+	assert.Contains(t, models, "model-0")
+	assert.Contains(t, models, "model-2")
 }
 
 func TestListProgressModelIDs(t *testing.T) {

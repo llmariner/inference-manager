@@ -8,6 +8,9 @@ import (
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/vllm"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -22,6 +25,10 @@ const vllmHTTPPort = 80
 
 const nvidiaGPUResource = "nvidia.com/gpu"
 
+type modelClient interface {
+	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
+}
+
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
 	k8sClient client.Client,
@@ -29,6 +36,7 @@ func NewVLLMClient(
 	rconfig config.RuntimeConfig,
 	vconfig config.VLLMConfig,
 	modelContextLengths map[string]int,
+	modelClient modelClient,
 ) Client {
 	return &vllmClient{
 		commonClient: &commonClient{
@@ -39,6 +47,7 @@ func NewVLLMClient(
 		},
 		config:              vconfig,
 		modelContextLengths: modelContextLengths,
+		modelClient:         modelClient,
 	}
 }
 
@@ -47,28 +56,43 @@ type vllmClient struct {
 
 	config              config.VLLMConfig
 	modelContextLengths map[string]int
+	modelClient         modelClient
 }
 
 // DeployRuntime deploys the runtime for the given model.
 func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
 	log.Printf("Deploying VLLM runtime for model %s\n", modelID)
 
+	params, err := v.deployRuntimeParams(ctx, modelID)
+	if err != nil {
+		return types.NamespacedName{}, fmt.Errorf("deploy runtime params: %s", err)
+	}
+
+	return v.deployRuntime(ctx, params)
+}
+
+func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
+	modelFilePath, err := v.modelFilePath(ctx, modelID)
+	if err != nil {
+		return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
+	}
+
 	template, err := vllm.ChatTemplate(modelID)
 	if err != nil {
-		return types.NamespacedName{}, fmt.Errorf("get chat template: %s", err)
+		return deployRuntimeParams{}, fmt.Errorf("get chat template: %s", err)
 	}
 
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
-		"--model", vllm.ModelFilePath(modelDir, modelID),
+		"--model", modelFilePath,
 		"--served-model-name", modelID,
-		// We only set the chat template and do not set the tokenizer as the GGUI file provides necessary information
+		// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 		// such as stop tokens.
 		"--chat-template", template,
 	}
 
 	if gpus, err := v.numGPUs(modelID); err != nil {
-		return types.NamespacedName{}, err
+		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
 		args = append(args, "--device", "cpu")
 	} else {
@@ -84,7 +108,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) (types.N
 	}
 
 	shmVolName := "devshm"
-	return v.deployRuntime(ctx, deployRunTimeParams{
+	return deployRuntimeParams{
 		modelID: modelID,
 		// Shared memory is required for Pytorch
 		// (See https://docs.vllm.ai/en/latest/serving/deploying_with_docker.html#deploying-with-docker).
@@ -105,9 +129,8 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) (types.N
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(vllmHTTPPort)).
 				WithPath("/health")),
-
 		args: args,
-	})
+	}, nil
 }
 
 func (v *vllmClient) numGPUs(modelID string) (int, error) {
@@ -122,4 +145,19 @@ func (v *vllmClient) numGPUs(modelID string) (int, error) {
 		return 0, fmt.Errorf("invalid resource limit: %s", err)
 	}
 	return int(val.Value()), nil
+}
+
+func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string, error) {
+	// TODO(kenji): Support non-base model.
+	resp, err := v.modelClient.GetBaseModelPath(auth.AppendWorkerAuthorization(ctx), &mv1.GetBaseModelPathRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return "", err
+	}
+	format, err := vllm.PreferredModelFormat(resp)
+	if err != nil {
+		return "", err
+	}
+	return vllm.ModelFilePath(modelDir, modelID, format)
 }

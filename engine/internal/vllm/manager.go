@@ -41,20 +41,19 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec)
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
 func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
-	var preferredFormat mv1.ModelFormat
-	for _, f := range resp.Formats {
-		if f == mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE {
-			// Prefer the HuggingFace format to GGUF.
-			preferredFormat = f
-			break
-		}
-		preferredFormat = f
+	format, err := PreferredModelFormat(resp)
+	if err != nil {
+		return nil
 	}
 
-	switch preferredFormat {
+	destPath, err := ModelFilePath(m.modelDir, modelName, format)
+	if err != nil {
+		return err
+	}
+
+	switch format {
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
 		log.Printf("Downloading the GGUF model from %q\n", resp.GgufModelPath)
-		destPath := ModelFilePath(m.modelDir, modelName)
 		f, err := os.Create(destPath)
 		if err != nil {
 			return err
@@ -68,7 +67,6 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		}
 	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
 		log.Printf("Downloading the Hugging Face model from %q\n", resp.Path)
-		destPath := ModelFilePath(m.modelDir, modelName)
 		if err := os.MkdirAll(destPath, 0755); err != nil {
 			return fmt.Errorf("create directory: %s", err)
 		}
@@ -77,7 +75,7 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		}
 		log.Printf("Downloaded the model to %q\n", destPath)
 	default:
-		return fmt.Errorf("unsupported model format: %s", resp.Formats)
+		return fmt.Errorf("unsupported model format: %s", format)
 	}
 
 	return nil

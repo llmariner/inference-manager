@@ -14,6 +14,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -86,12 +87,24 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 	}
 
+	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
+	if err != nil {
+		return err
+	}
+
 	var rtClient runtime.Client
 	switch c.Runtime.Name {
 	case runtime.RuntimeNameOllama:
 		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
 	case runtime.RuntimeNameVLLM:
-		rtClient = runtime.NewVLLMClient(mgr.GetClient(), ns, c.Runtime, c.VLLM, c.FormattedModelContextLengths())
+		rtClient = runtime.NewVLLMClient(
+			mgr.GetClient(),
+			ns,
+			c.Runtime,
+			c.VLLM,
+			c.FormattedModelContextLengths(),
+			mv1.NewModelsWorkerServiceClient(conn),
+		)
 	default:
 		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
 	}
@@ -109,10 +122,6 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	conn, err := grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
-	if err != nil {
-		return err
-	}
 	wsClient := v1.NewInferenceWorkerServiceClient(conn)
 
 	p := processor.NewP(

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
 
 // IsAWQQuantizedModel returns true if the model name is an AWQ quantized model.
@@ -12,19 +14,32 @@ func IsAWQQuantizedModel(modelName string) bool {
 }
 
 // ModelFilePath returns the file path of the model.
-func ModelFilePath(modelDir, modelName string) string {
-	if IsAWQQuantizedModel(modelName) {
-		// vLLM requires the entire directory with the HuggingFace file structure.
-		return modelDir
+func ModelFilePath(modelDir, modelName string, format mv1.ModelFormat) (string, error) {
+	switch format {
+	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
+		return filepath.Join(modelDir, modelName+".gguf"), nil
+	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
+		return modelDir, nil
+	default:
+		return "", fmt.Errorf("unsupported model format: %s", format)
 	}
+}
 
-	// TODO(kenji): Remove this. This is for testing.
-	if modelName == "deepseek-ai-deepseek-coder-6.7b-base" {
-		return modelDir
+// PreferredModelFormat returns the preferred model format.
+func PreferredModelFormat(resp *mv1.GetBaseModelPathResponse) (mv1.ModelFormat, error) {
+	if len(resp.Formats) == 0 {
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("no formats")
 	}
-
-	// If the model is not an AWQ quantized model, we assume it is a GGUF file.
-	return filepath.Join(modelDir, modelName+".gguf")
+	var preferredFormat mv1.ModelFormat
+	for _, f := range resp.Formats {
+		if f == mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE {
+			// Prefer the HuggingFace format to GGUF.
+			preferredFormat = f
+			break
+		}
+		preferredFormat = f
+	}
+	return preferredFormat, nil
 }
 
 // ChatTemplate returns the chat template for the given model.

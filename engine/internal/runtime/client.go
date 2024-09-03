@@ -76,7 +76,7 @@ func (c *commonClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:%d", name, c.servingPort)
 }
 
-type deployRunTimeParams struct {
+type deployRuntimeParams struct {
 	modelID        string
 	initEnvs       []*corev1apply.EnvVarApplyConfiguration
 	envs           []*corev1apply.EnvVarApplyConfiguration
@@ -90,7 +90,7 @@ type deployRunTimeParams struct {
 // deployRuntime deploys the runtime for the given model.
 func (c *commonClient) deployRuntime(
 	ctx context.Context,
-	params deployRunTimeParams,
+	params deployRuntimeParams,
 ) (types.NamespacedName, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deploying runtime", "model", params.modelID)

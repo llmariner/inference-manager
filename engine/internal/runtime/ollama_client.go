@@ -69,7 +69,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 	args := []string{
 		"serve",
 	}
-	return o.deployRuntime(ctx, deployRunTimeParams{
+	return o.deployRuntime(ctx, deployRuntimeParams{
 		modelID:  modelID,
 		initEnvs: initEnvs,
 		envs:     envs,

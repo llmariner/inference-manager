@@ -14,6 +14,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/health"
 	"github.com/llm-operator/inference-manager/engine/internal/manager"
+	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
@@ -152,6 +153,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		c.LLMEngine,
 		syncer,
 		logger,
+		metrics.NewClient(),
 	)
 
 	healthHandler.AddProbe(p)

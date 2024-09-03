@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	appsv1apply "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
@@ -37,7 +38,7 @@ func ModelDir() string {
 // Client is the interface for managing runtimes.
 type Client interface {
 	GetAddress(name string) string
-	DeployRuntime(ctx context.Context, modelID string) error
+	DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error)
 }
 
 type commonClient struct {
@@ -90,7 +91,7 @@ type deployRunTimeParams struct {
 func (c *commonClient) deployRuntime(
 	ctx context.Context,
 	params deployRunTimeParams,
-) error {
+) (types.NamespacedName, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deploying runtime", "model", params.modelID)
 
@@ -103,6 +104,7 @@ func (c *commonClient) deployRuntime(
 	)
 
 	name := resourceName(c.Name, params.modelID)
+	nn := types.NamespacedName{Name: name, Namespace: c.namespace}
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
 		"app.kubernetes.io/instance":   name,
@@ -173,7 +175,7 @@ func (c *commonClient) deployRuntime(
 		for name, v := range resConf.Requests {
 			val, err := resource.ParseQuantity(v)
 			if err != nil {
-				return fmt.Errorf("invalid resource request %s: %s", name, err)
+				return nn, fmt.Errorf("invalid resource request %s: %s", name, err)
 			}
 			reqs[corev1.ResourceName(name)] = val
 		}
@@ -184,7 +186,7 @@ func (c *commonClient) deployRuntime(
 		for name, v := range resConf.Limits {
 			val, err := resource.ParseQuantity(v)
 			if err != nil {
-				return fmt.Errorf("invalid resource limit %s: %s", name, err)
+				return nn, fmt.Errorf("invalid resource limit %s: %s", name, err)
 			}
 			limits[corev1.ResourceName(name)] = val
 		}
@@ -202,7 +204,7 @@ func (c *commonClient) deployRuntime(
 
 	image, ok := c.RuntimeImages[c.Name]
 	if !ok {
-		return fmt.Errorf("runtime image not found for %s", c.Name)
+		return nn, fmt.Errorf("runtime image not found for %s", c.Name)
 	}
 
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
@@ -242,7 +244,7 @@ func (c *commonClient) deployRuntime(
 
 	sts, err := c.applyObject(ctx, stsConf)
 	if err != nil {
-		return err
+		return nn, err
 	}
 	log.V(2).Info("StatefulSet applied", "name", sts.GetName())
 
@@ -269,7 +271,7 @@ func (c *commonClient) deployRuntime(
 	if vol := resConf.Volume; vol != nil {
 		size, err := resource.ParseQuantity(vol.Size)
 		if err != nil {
-			return fmt.Errorf("invalid volume size: %s", err)
+			return nn, fmt.Errorf("invalid volume size: %s", err)
 		}
 		objs = append(objs, corev1apply.PersistentVolumeClaim(name, c.namespace).
 			WithLabels(labels).
@@ -285,12 +287,13 @@ func (c *commonClient) deployRuntime(
 	for _, obj := range objs {
 		newObj, err := c.applyObject(ctx, obj)
 		if err != nil {
-			return err
+			return nn, err
 		}
 		kind := newObj.GetObjectKind().GroupVersionKind().Kind
 		log.V(2).Info(fmt.Sprintf("%s applied", kind), "name", newObj.GetName())
 	}
-	return nil
+
+	return nn, nil
 }
 
 func resourceName(runtime, modelID string) string {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,11 +18,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+type scalerRegisterer interface {
+	Register(modelID string, target types.NamespacedName)
+	Unregister(target types.NamespacedName)
+}
+
 // NewManager creates a new runtime manager.
-func NewManager(k8sClient client.Client, rtClient Client) *Manager {
+func NewManager(
+	k8sClient client.Client,
+	rtClient Client,
+	autoscaler scalerRegisterer,
+) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
 		rtClient:        rtClient,
+		autoscaler:      autoscaler,
 		readyRuntimes:   make(map[string]runtime),
 		pendingRuntimes: make(map[string]chan struct{}),
 	}
@@ -29,8 +40,9 @@ func NewManager(k8sClient client.Client, rtClient Client) *Manager {
 
 // Manager manages runtimes.
 type Manager struct {
-	k8sClient client.Client
-	rtClient  Client
+	k8sClient  client.Client
+	rtClient   Client
+	autoscaler scalerRegisterer
 
 	readyRuntimes   map[string]runtime
 	pendingRuntimes map[string]chan struct{}
@@ -43,7 +55,7 @@ type runtime struct {
 
 // Initialize initializes ready and pending runtimes.
 // This function is not thread-safe.
-func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, namespace string) error {
+func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, autoscaler scalerRegisterer, namespace string) error {
 	var stsList appsv1.StatefulSetList
 	if err := apiReader.List(ctx, &stsList,
 		client.InNamespace(namespace),
@@ -62,6 +74,7 @@ func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, names
 		} else {
 			m.pendingRuntimes[modelID] = make(chan struct{})
 		}
+		autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: namespace})
 	}
 	return nil
 }
@@ -84,6 +97,15 @@ func (m *Manager) markRuntimeReady(modelID, address string) {
 		close(r)
 		delete(m.pendingRuntimes, modelID)
 		m.readyRuntimes[modelID] = runtime{address: address}
+	}
+}
+
+func (m *Manager) markRuntimeIsPending(modelID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.readyRuntimes[modelID]; ok {
+		delete(m.readyRuntimes, modelID)
+		m.pendingRuntimes[modelID] = make(chan struct{})
 	}
 }
 
@@ -144,13 +166,17 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		done = make(chan struct{})
 		m.pendingRuntimes[modelID] = done
 		m.mu.Unlock()
-		if err := m.rtClient.DeployRuntime(ctx, modelID); err != nil {
+
+		nn, err := m.rtClient.DeployRuntime(ctx, modelID)
+		if err != nil {
 			m.mu.Lock()
 			delete(m.pendingRuntimes, modelID)
 			m.mu.Unlock()
 			close(done)
 			return err
 		}
+
+		m.autoscaler.Register(modelID, nn)
 	}
 
 	ctrl.LoggerFrom(ctx).Info("Waiting for runtime to be ready", "model", modelID)
@@ -178,6 +204,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			return ctrl.Result{}, nil
 		}
 		m.deleteRuntime(modelID)
+		m.autoscaler.Unregister(req.NamespacedName)
 
 		patch := client.MergeFrom(&sts)
 		newSts := sts.DeepCopy()
@@ -189,21 +216,27 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		return ctrl.Result{}, nil
 	}
 
-	if sts.Status.ReadyReplicas > 0 && m.isPending(modelID) {
-		addr := m.rtClient.GetAddress(sts.Name)
-		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
-		req := &http.Request{
-			Method: http.MethodGet,
-			URL:    &url.URL{Scheme: "http", Host: addr},
-		}
-		if _, err := http.DefaultClient.Do(req); err != nil {
-			log.Error(err, "Failed to reach the runtime")
-			return ctrl.Result{}, err
-		}
+	if m.isPending(modelID) {
+		if sts.Status.ReadyReplicas > 0 {
+			addr := m.rtClient.GetAddress(sts.Name)
+			// Double check if the statefulset is reachable as it might take some time for the service is being updated.
+			req := &http.Request{
+				Method: http.MethodGet,
+				URL:    &url.URL{Scheme: "http", Host: addr},
+			}
+			if _, err := http.DefaultClient.Do(req); err != nil {
+				log.Error(err, "Failed to reach the runtime")
+				return ctrl.Result{}, err
+			}
 
-		m.markRuntimeReady(modelID, addr)
-		log.Info("Runtime is ready")
+			m.markRuntimeReady(modelID, addr)
+			log.Info("Runtime is ready")
+		}
+	} else if sts.Status.Replicas == 0 {
+		m.markRuntimeIsPending(modelID)
+		log.Info("Runtime is pending")
 	}
+
 	return ctrl.Result{}, nil
 }
 

@@ -97,7 +97,7 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
-	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), scaler, ns); err != nil {
+	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), ns); err != nil {
 		return err
 	}
 	if err := rtManager.SetupWithManager(mgr); err != nil {

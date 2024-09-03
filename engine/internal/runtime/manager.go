@@ -30,11 +30,10 @@ func NewManager(
 	autoscaler scalerRegisterer,
 ) *Manager {
 	return &Manager{
-		k8sClient:       k8sClient,
-		rtClient:        rtClient,
-		autoscaler:      autoscaler,
-		readyRuntimes:   make(map[string]runtime),
-		pendingRuntimes: make(map[string]chan struct{}),
+		k8sClient:  k8sClient,
+		rtClient:   rtClient,
+		autoscaler: autoscaler,
+		runtimes:   make(map[string]runtime),
 	}
 }
 
@@ -44,18 +43,29 @@ type Manager struct {
 	rtClient   Client
 	autoscaler scalerRegisterer
 
-	readyRuntimes   map[string]runtime
-	pendingRuntimes map[string]chan struct{}
-	mu              sync.RWMutex
+	runtimes map[string]runtime
+	mu       sync.RWMutex
+}
+
+func newPendingRuntime() runtime {
+	return runtime{ready: false, waitCh: make(chan struct{})}
+}
+
+func newReadyRuntime(address string) runtime {
+	return runtime{ready: true, address: address}
 }
 
 type runtime struct {
+	ready bool
+	// address is empty when the runtime is not ready.
 	address string
+	// waitCh is used when the runtime is not ready.
+	waitCh chan struct{}
 }
 
 // Initialize initializes ready and pending runtimes.
 // This function is not thread-safe.
-func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, autoscaler scalerRegisterer, namespace string) error {
+func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, namespace string) error {
 	var stsList appsv1.StatefulSetList
 	if err := apiReader.List(ctx, &stsList,
 		client.InNamespace(namespace),
@@ -70,11 +80,11 @@ func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, autos
 		}
 		modelID := sts.GetAnnotations()[modelAnnotationKey]
 		if sts.Status.ReadyReplicas > 0 {
-			m.readyRuntimes[modelID] = runtime{address: m.rtClient.GetAddress(sts.Name)}
+			m.runtimes[modelID] = newReadyRuntime(m.rtClient.GetAddress(sts.Name))
 		} else {
-			m.pendingRuntimes[modelID] = make(chan struct{})
+			m.runtimes[modelID] = newPendingRuntime()
 		}
-		autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: namespace})
+		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: namespace})
 	}
 	return nil
 }
@@ -82,45 +92,45 @@ func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, autos
 func (m *Manager) deleteRuntime(modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.pendingRuntimes[modelID]; ok {
-		close(r)
-		delete(m.pendingRuntimes, modelID)
-		return
+	if r, ok := m.runtimes[modelID]; ok {
+		if r.waitCh != nil {
+			close(r.waitCh)
+		}
+		delete(m.runtimes, modelID)
 	}
-	delete(m.readyRuntimes, modelID)
 }
 
 func (m *Manager) markRuntimeReady(modelID, address string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.pendingRuntimes[modelID]; ok {
-		close(r)
-		delete(m.pendingRuntimes, modelID)
-		m.readyRuntimes[modelID] = runtime{address: address}
+	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
+		if r.waitCh != nil {
+			close(r.waitCh)
+		}
+		m.runtimes[modelID] = newReadyRuntime(address)
 	}
 }
 
 func (m *Manager) markRuntimeIsPending(modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, ok := m.readyRuntimes[modelID]; ok {
-		delete(m.readyRuntimes, modelID)
-		m.pendingRuntimes[modelID] = make(chan struct{})
+	if r, ok := m.runtimes[modelID]; ok && r.ready {
+		m.runtimes[modelID] = newPendingRuntime()
 	}
 }
 
 func (m *Manager) isPending(modelID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	_, ok := m.pendingRuntimes[modelID]
-	return ok
+	r, ok := m.runtimes[modelID]
+	return ok && !r.ready
 }
 
 // GetLLMAddress returns the address of the LLM.
 func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if r, ok := m.readyRuntimes[modelID]; ok {
+	if r, ok := m.runtimes[modelID]; ok && r.ready {
 		return r.address, nil
 	}
 	return "", fmt.Errorf("runtime for model %q is not ready", modelID)
@@ -128,60 +138,57 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 
 // ListSyncedModelIDs returns the list of models that are synced.
 func (m *Manager) ListSyncedModelIDs(ctx context.Context) []string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	var modelIDs []string
-	for id := range m.readyRuntimes {
-		modelIDs = append(modelIDs, id)
-	}
-	return modelIDs
+	return m.listModels(true)
 }
 
 // ListInProgressModels returns the list of models that are in progress.
 func (m *Manager) ListInProgressModels() []string {
+	return m.listModels(false)
+}
+
+func (m *Manager) listModels(ready bool) []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var modelIDs []string
-	for id := range m.pendingRuntimes {
-		modelIDs = append(modelIDs, id)
+	for id, r := range m.runtimes {
+		if r.ready == ready {
+			modelIDs = append(modelIDs, id)
+		}
 	}
 	return modelIDs
 }
 
 // PullModel pulls the model from the model manager.
 func (m *Manager) PullModel(ctx context.Context, modelID string) error {
+	log := ctrl.LoggerFrom(ctx)
 	m.mu.Lock()
-	if _, ok := m.readyRuntimes[modelID]; ok {
+	r, ok := m.runtimes[modelID]
+	if ok {
 		m.mu.Unlock()
-		return nil
-	}
-
-	var done chan struct{}
-	if ch, ok := m.pendingRuntimes[modelID]; ok {
-		m.mu.Unlock()
-		done = ch
+		if r.ready {
+			log.V(4).Info("Runtime is already ready", "model", modelID)
+			return nil
+		}
 	} else {
-		done = make(chan struct{})
-		m.pendingRuntimes[modelID] = done
+		r = newPendingRuntime()
+		m.runtimes[modelID] = r
 		m.mu.Unlock()
-
 		nn, err := m.rtClient.DeployRuntime(ctx, modelID)
 		if err != nil {
 			m.mu.Lock()
-			delete(m.pendingRuntimes, modelID)
+			delete(m.runtimes, modelID)
+			if r.waitCh != nil {
+				close(r.waitCh)
+			}
 			m.mu.Unlock()
-			close(done)
 			return err
 		}
-
 		m.autoscaler.Register(modelID, nn)
 	}
-
-	ctrl.LoggerFrom(ctx).Info("Waiting for runtime to be ready", "model", modelID)
+	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
-	case <-done:
+	case <-r.waitCh:
 	case <-ctx.Done():
 		return ctx.Err()
 	}

@@ -122,6 +122,10 @@ func alphaRun(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
+	conn, err = grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
+	if err != nil {
+		return err
+	}
 	wsClient := v1.NewInferenceWorkerServiceClient(conn)
 
 	p := processor.NewP(

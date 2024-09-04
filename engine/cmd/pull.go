@@ -80,7 +80,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		mgr = omgr
 	case runtime.RuntimeNameVLLM:
 		// TODO(kenji): Check if a model already exists.
-		mgr = vllm.New(&c, runtime.ModelDir(), s3Client)
+		mgr = vllm.New(runtime.ModelDir(), s3Client)
 	default:
 		return fmt.Errorf("invalid runtime: %s", o.runtime)
 	}

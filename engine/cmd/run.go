@@ -15,9 +15,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -73,6 +71,12 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{ns: {}},
 		},
+		LeaderElection:                c.LeaderElection.Enable,
+		LeaderElectionID:              c.LeaderElection.ID,
+		LeaderElectionReleaseOnCancel: true,
+		LeaseDuration:                 c.LeaderElection.LeaseDuration,
+		RenewDeadline:                 c.LeaderElection.RenewDeadline,
+		RetryPeriod:                   c.LeaderElection.RetryPeriod,
 	})
 	if err != nil {
 		return err
@@ -115,9 +119,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
-	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), ns); err != nil {
-		return err
-	}
 	if err := rtManager.SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -141,37 +142,17 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		logger,
 		mClient,
 	)
-
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		bootLog.Info("Starting manager")
-		return mgr.Start(ctx)
-	})
-	g.Go(func() error {
-		bootLog.Info("Starting processor")
-		return p.Run(ctx)
-	})
-
-	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
-		bootLog.Info("Preloading models", "count", len(ids))
-		if err := preloadModels(ctx, rtManager, ids); err != nil {
-			return err
-		}
+	if err := p.SetupWithManager(mgr); err != nil {
+		return err
 	}
 
-	return g.Wait()
-}
-
-func preloadModels(ctx context.Context, rtManager *runtime.Manager, ids []string) error {
-	ctx = auth.AppendWorkerAuthorization(ctx)
-	const preloadingParallelism = 3
-
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(preloadingParallelism)
-	for _, id := range ids {
-		g.Go(func() error { return rtManager.PullModel(ctx, id) })
+	preloader := runtime.NewPreloader(rtManager, c.PreloadedModelIDs)
+	if err := preloader.SetupWithManager(mgr); err != nil {
+		return err
 	}
-	return g.Wait()
+
+	bootLog.Info("Starting manager")
+	return mgr.Start(ctx)
 }
 
 type noopScaler struct{}

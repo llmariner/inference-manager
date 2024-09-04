@@ -29,6 +29,7 @@ func NewMultiAutoscaler(
 		metrics:   metricsProvider,
 		config:    config,
 		scalers:   make(map[types.NamespacedName]scaler),
+		startCh:   make(chan struct{}),
 		stopCh:    make(chan struct{}),
 	}
 }
@@ -45,7 +46,8 @@ type MultiAutoscaler struct {
 	scalers map[types.NamespacedName]scaler
 	mu      sync.Mutex
 
-	stopCh chan struct{}
+	startCh chan struct{}
+	stopCh  chan struct{}
 }
 
 // SetupWithManager sets up the multi-autoscaler with the Manager.
@@ -57,9 +59,15 @@ func (m *MultiAutoscaler) SetupWithManager(mgr ctrl.Manager) error {
 // Start starts the multi-autoscaler.
 func (m *MultiAutoscaler) Start(ctx context.Context) error {
 	m.logger.Info("Starting multi-autoscaler")
+	close(m.startCh)
 	<-ctx.Done()
 	close(m.stopCh)
 	return nil
+}
+
+// NeedLeaderElection implements LeaderElectionRunnable and always returns true.
+func (m *MultiAutoscaler) NeedLeaderElection() bool {
+	return true
 }
 
 // Register registers a new scaler for the given runtime.
@@ -86,7 +94,10 @@ func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) 
 		scaleToZeroGracePeriod: m.config.ScaleToZeroGracePeriod,
 	}
 	m.scalers[target] = s
-	s.start(m.logger, m.stopCh, m.config.InitialDelay, m.config.SyncPeriod)
+	go func() {
+		<-m.startCh
+		s.start(m.logger, m.stopCh, m.config.InitialDelay, m.config.SyncPeriod)
+	}()
 }
 
 // Unregister unregisters the scaler for the given runtime.
@@ -137,23 +148,21 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 			log.Error(err, "Failed to scale")
 		}
 	}
-	go func() {
-		log.Info("Starting autoscaler", "initialDelay", initialDelay)
-		time.Sleep(initialDelay)
-		scale()
-		ticker := time.NewTicker(period)
-		for {
-			select {
-			case <-stopCh:
-				cancel()
-				return
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				scale()
-			}
+	log.Info("Starting autoscaler", "initialDelay", initialDelay)
+	time.Sleep(initialDelay)
+	scale()
+	ticker := time.NewTicker(period)
+	for {
+		select {
+		case <-stopCh:
+			cancel()
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			scale()
 		}
-	}()
+	}
 }
 
 func (s *scaler) stop() {

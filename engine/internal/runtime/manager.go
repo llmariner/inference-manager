@@ -64,30 +64,18 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-// Initialize initializes ready and pending runtimes.
-// This function is not thread-safe.
-func (m *Manager) Initialize(ctx context.Context, apiReader client.Reader, namespace string) error {
-	var stsList appsv1.StatefulSetList
-	if err := apiReader.List(ctx, &stsList,
-		client.InNamespace(namespace),
-		client.MatchingLabels{"app.kubernetes.io/name": "runtime"},
-	); err != nil {
-		return fmt.Errorf("failed to list runtimes: %s", err)
+func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.runtimes[modelID]; ok {
+		return false
 	}
-
-	for _, sts := range stsList.Items {
-		if !sts.DeletionTimestamp.IsZero() {
-			continue
-		}
-		modelID := sts.GetAnnotations()[modelAnnotationKey]
-		if sts.Status.ReadyReplicas > 0 {
-			m.runtimes[modelID] = newReadyRuntime(m.rtClient.GetAddress(sts.Name))
-		} else {
-			m.runtimes[modelID] = newPendingRuntime()
-		}
-		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: namespace})
+	if sts.Status.ReadyReplicas > 0 {
+		m.runtimes[modelID] = newReadyRuntime(m.rtClient.GetAddress(sts.Name))
+	} else {
+		m.runtimes[modelID] = newPendingRuntime()
 	}
-	return nil
+	return true
 }
 
 func (m *Manager) deleteRuntime(modelID string) {
@@ -120,11 +108,11 @@ func (m *Manager) markRuntimeIsPending(modelID string) {
 	}
 }
 
-func (m *Manager) isPending(modelID string) bool {
+func (m *Manager) isReady(modelID string) (bool, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	r, ok := m.runtimes[modelID]
-	return ok && !r.ready
+	return r.ready, ok
 }
 
 // GetLLMAddress returns the address of the LLM.
@@ -224,25 +212,31 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		return ctrl.Result{}, nil
 	}
 
-	if m.isPending(modelID) {
-		if sts.Status.ReadyReplicas > 0 {
-			addr := m.rtClient.GetAddress(sts.Name)
-			// Double check if the statefulset is reachable as it might take some time for the service is being updated.
-			req := &http.Request{
-				Method: http.MethodGet,
-				URL:    &url.URL{Scheme: "http", Host: addr},
-			}
-			if _, err := http.DefaultClient.Do(req); err != nil {
-				log.Error(err, "Failed to reach the runtime")
-				return ctrl.Result{}, err
-			}
-
-			m.markRuntimeReady(modelID, addr)
-			log.Info("Runtime is ready")
+	ready, ok := m.isReady(modelID)
+	if !ok {
+		log.V(4).Info("Registering runtime", "model", modelID)
+		if added := m.addRuntime(modelID, sts); added {
+			m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
 		}
-	} else if sts.Status.Replicas == 0 {
-		m.markRuntimeIsPending(modelID)
-		log.Info("Runtime is pending")
+		return ctrl.Result{}, nil
+	} else if ready {
+		if sts.Status.Replicas == 0 {
+			m.markRuntimeIsPending(modelID)
+			log.Info("Runtime is pending")
+		}
+	} else if sts.Status.ReadyReplicas > 0 {
+		addr := m.rtClient.GetAddress(sts.Name)
+		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
+		req := &http.Request{
+			Method: http.MethodGet,
+			URL:    &url.URL{Scheme: "http", Host: addr},
+		}
+		if _, err := http.DefaultClient.Do(req); err != nil {
+			log.Error(err, "Failed to reach the runtime")
+			return ctrl.Result{}, err
+		}
+		m.markRuntimeReady(modelID, addr)
+		log.Info("Runtime is ready")
 	}
 
 	return ctrl.Result{}, nil

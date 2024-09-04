@@ -17,6 +17,7 @@ import (
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -136,11 +137,14 @@ type P struct {
 	logger  logr.Logger
 }
 
-// Run runs the processor.
+// Start runs the processor.
 //
 // TODO(kenji): Gracefully handle an error from the server.
-func (p *P) Run(ctx context.Context) error {
+func (p *P) Start(ctx context.Context) error {
 	log := p.logger.WithValues("engineID", p.engineID)
+	log.Info("Starting processor")
+	ctx = ctrl.LoggerInto(ctx, log)
+
 	for {
 		if err := p.run(ctx); err != nil {
 			log.Error(err, "Processor error")
@@ -156,6 +160,17 @@ func (p *P) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// SetupWithManager sets up the processor with the manager.
+func (p *P) SetupWithManager(mgr ctrl.Manager) error {
+	p.logger = mgr.GetLogger().WithName("processor")
+	return mgr.Add(p)
+}
+
+// NeedLeaderElection implements LeaderElectionRunnable and always returns true.
+func (p *P) NeedLeaderElection() bool {
+	return true
 }
 
 func (p *P) run(ctx context.Context) error {
@@ -190,11 +205,10 @@ func (p *P) sendEngineStatusPeriodically(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
 ) error {
-	log := p.logger.WithValues("engineID", p.engineID)
+	log := ctrl.LoggerFrom(ctx).WithName("status")
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	isFirst := true
-
-	log.Info("Registering engine")
 	for {
 		if err := p.sendEngineStatus(ctx, stream); err != nil {
 			return err
@@ -223,7 +237,8 @@ func (p *P) processTasks(
 	ctx context.Context,
 	stream v1.InferenceWorkerService_ProcessTasksClient,
 ) error {
-	log := p.logger.WithValues("engineID", p.engineID)
+	log := ctrl.LoggerFrom(ctx).WithName("task")
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	for {
 		resp, err := stream.Recv()
@@ -242,7 +257,9 @@ func (p *P) processTasks(
 
 			log := log.WithValues("taskID", resp.NewTask.Id)
 			log.Info("Started processing task")
-			if err := p.processTask(ctx, stream, resp.NewTask, log); err != nil {
+			ctx = ctrl.LoggerInto(ctx, log)
+
+			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
 				// Gracefully handle the error.
 				log.Error(err, "Failed to process task")
 				return
@@ -260,8 +277,9 @@ func (p *P) processTask(
 	ctx context.Context,
 	stream sender,
 	t *v1.Task,
-	log logr.Logger,
 ) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
 		return fmt.Errorf("pull model: %s", err)

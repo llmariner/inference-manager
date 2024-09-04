@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -146,13 +147,14 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 	healthHandler.AddProbe(p)
 
 	go func() {
-		errCh <- p.Run(ctx)
+		errCh <- p.Start(ctx)
 	}()
 
 	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
 		go func() {
 			log.Printf("Preloading %d model(s)", len(ids))
 			ctx := auth.AppendWorkerAuthorization(ctx)
+			ctx = ctrl.LoggerInto(ctx, logger)
 			g, ctx := errgroup.WithContext(ctx)
 			g.SetLimit(modelPreloadConcurrency)
 			for _, id := range ids {

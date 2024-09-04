@@ -19,35 +19,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestInitialize(t *testing.T) {
-	createSts := func(name, namespace, modelID string, readyReplicas int32) *appsv1.StatefulSet {
-		var labels, annos map[string]string
-		if modelID != "" {
-			labels = map[string]string{"app.kubernetes.io/name": "runtime"}
-			annos = map[string]string{modelAnnotationKey: modelID}
-		}
-		return &appsv1.StatefulSet{
+func TestAddRuntime(t *testing.T) {
+	createSts := func(name string, readyReplicas int32) appsv1.StatefulSet {
+		return appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   namespace,
-				Labels:      labels,
-				Annotations: annos,
+				Name:      name,
+				Namespace: "test",
 			},
 			Status: appsv1.StatefulSetStatus{
 				ReadyReplicas: readyReplicas,
 			},
 		}
 	}
-
-	const namespace = "test"
-	objs := []apiruntime.Object{
-		createSts("rt-0", namespace, "model-0", 1),
-		createSts("rt-1", namespace, "model-1", 0),
-		createSts("non-rt-0", namespace, "", 1),
-		createSts("non-rt-1", "ns-2", "", 0),
-	}
-	k8sClient := fake.NewFakeClient(objs...)
-
 	scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 	mgr := &Manager{
 		rtClient:   &fakeClient{},
@@ -55,18 +38,16 @@ func TestInitialize(t *testing.T) {
 		runtimes:   map[string]runtime{},
 	}
 
-	err := mgr.Initialize(context.Background(), k8sClient, namespace)
-	assert.NoError(t, err)
-
-	want := map[string]runtime{
-		"model-0": newReadyRuntime(mgr.rtClient.GetAddress("rt-0")),
-		"model-1": newPendingRuntime(),
-	}
-	assert.Len(t, mgr.runtimes, len(want))
-	assert.Equal(t, want["model-0"].address, mgr.runtimes["model-0"].address)
+	added := mgr.addRuntime("model-0", createSts("rt-0", 1))
+	assert.True(t, added)
 	assert.True(t, mgr.runtimes["model-0"].ready)
+	added = mgr.addRuntime("model-0", createSts("rt-0", 1))
+	assert.False(t, added)
+
+	added = mgr.addRuntime("model-1", createSts("rt-1", 0))
+	assert.True(t, added)
 	assert.False(t, mgr.runtimes["model-1"].ready)
-	assert.Len(t, scaler.registered, 2)
+	assert.Len(t, mgr.runtimes, 2)
 }
 
 func TestDeleteRuntime(t *testing.T) {
@@ -114,8 +95,14 @@ func TestIsPending(t *testing.T) {
 			"model-1": newReadyRuntime("test"),
 		},
 	}
-	assert.True(t, mgr.isPending("model-0"))
-	assert.False(t, mgr.isPending("model-1"))
+	ready, ok := mgr.isReady("model-0")
+	assert.True(t, ok)
+	assert.False(t, ready)
+	ready, ok = mgr.isReady("model-1")
+	assert.True(t, ok)
+	assert.True(t, ready)
+	_, ok = mgr.isReady("model-2")
+	assert.False(t, ok)
 }
 
 func TestGetLLMAddress(t *testing.T) {
@@ -281,11 +268,48 @@ func TestReconcile(t *testing.T) {
 			wantReady: true,
 		},
 		{
+			name: "not-registered (ready)",
+			sts: createSts(func(sts *appsv1.StatefulSet) {
+				sts.Status.ReadyReplicas = 1
+				sts.Status.Replicas = 1
+			}),
+			preFn: func(ctx context.Context, m *Manager) {
+				http.DefaultClient = &http.Client{
+					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
+						return &http.Response{StatusCode: http.StatusOK}, nil
+					}},
+				}
+			},
+			wantReady: true,
+			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+				assert.Len(t, fs.registered, 1, "scaler")
+				assert.Len(t, m.runtimes, 1, "runtime")
+			},
+		},
+		{
 			name: "to be pending",
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
 			rt: ptr.To(newReadyRuntime("test")),
+		},
+		{
+			name: "not-registered (pending)",
+			sts: createSts(func(sts *appsv1.StatefulSet) {
+				sts.Status.Replicas = 1
+			}),
+			preFn: func(ctx context.Context, m *Manager) {
+				http.DefaultClient = &http.Client{
+					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
+						return &http.Response{StatusCode: http.StatusOK}, nil
+					}},
+				}
+			},
+			wantReady: false,
+			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+				assert.Len(t, fs.registered, 1, "scaler")
+				assert.Len(t, m.runtimes, 1, "runtime")
+			},
 		},
 		{
 			name: "not found",

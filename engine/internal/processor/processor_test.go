@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
-	"github.com/go-logr/stdr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	testutil "github.com/llm-operator/inference-manager/engine/internal/test"
 	"github.com/stretchr/testify/assert"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func TestP(t *testing.T) {
@@ -26,7 +26,8 @@ func TestP(t *testing.T) {
 
 	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
 
-	logger := stdr.New(log.Default())
+	ctx := testutil.ContextWithLogger(t)
+	logger := ctrl.LoggerFrom(ctx)
 
 	processor := NewP(
 		"engine_id0",
@@ -45,7 +46,7 @@ func TestP(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(context.Background(), fakeClient, task, logger.WithValues("task", task.Id))
+	err = processor.processTask(ctx, fakeClient, task)
 	assert.NoError(t, err)
 	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))

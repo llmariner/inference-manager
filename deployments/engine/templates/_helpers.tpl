@@ -57,3 +57,10 @@ Create the name of the service account to use
 {{- define "inference-manager-engine.serviceAccountName" -}}
 {{ default (include "inference-manager-engine.fullname" .) .Values.serviceAccount.name }}
 {{- end -}}
+
+{{/*
+leader election
+*/}}
+{{- define "leaderElection.enabled" -}}
+{{ and .Values.autoscaler.enable (gt (int .Values.replicaCount) 1) }}
+{{- end -}}

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/llm-operator/inference-manager/engine/internal/huggingface"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
@@ -50,6 +51,14 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		return err
 	}
 
+	// Check if the completion indication file exists. If so, download should have been completed with a previous run. Do not download again.
+	completionIndicationFile := filepath.Join(m.modelDir, "completed.txt")
+
+	if _, err := os.Stat(completionIndicationFile); err == nil {
+		log.Printf("The model has already been downloaded. Skipping the download.\n")
+		return nil
+	}
+
 	switch format {
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
 		log.Printf("Downloading the GGUF model from %q\n", resp.GgufModelPath)
@@ -75,6 +84,15 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		log.Printf("Downloaded the model to %q\n", destPath)
 	default:
 		return fmt.Errorf("unsupported model format: %s", format)
+	}
+
+	// Create a file that indicates the completion of model download.
+	f, err := os.Create(completionIndicationFile)
+	if err != nil {
+		return nil
+	}
+	if err := f.Close(); err != nil {
+		return err
 	}
 
 	return nil

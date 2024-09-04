@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/huggingface"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -17,7 +16,7 @@ type s3Client interface {
 }
 
 // New returns a new Manager.
-func New(c *config.Config, modelDir string, s3Client s3Client) *Manager {
+func New(modelDir string, s3Client s3Client) *Manager {
 	return &Manager{
 		modelDir: modelDir,
 		s3Client: s3Client,

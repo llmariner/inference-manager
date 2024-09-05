@@ -1,6 +1,7 @@
 package huggingface
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -11,11 +12,11 @@ import (
 const siFilename = "model.safetensors.index.json"
 
 type s3Client interface {
-	Download(f io.WriterAt, path string) error
+	Download(ctx context.Context, f io.WriterAt, path string) error
 }
 
 // DownloadModelFiles downloads model files from S3.
-func DownloadModelFiles(s3Client s3Client, srcS3Path string, destDir string) error {
+func DownloadModelFiles(ctx context.Context, s3Client s3Client, srcS3Path string, destDir string) error {
 	// Check if "model.safetensors.index.json" exists.
 	// if exists, download the file and unmarshal so that we can extract the safetensors file names.
 	// Otherwise download "model.safetensors" as a safetensors file.
@@ -24,7 +25,7 @@ func DownloadModelFiles(s3Client s3Client, srcS3Path string, destDir string) err
 		return fmt.Errorf("create file %q: %s", siFilename, err)
 	}
 	var safetensorFiles []string
-	if err := s3Client.Download(f, filepath.Join(srcS3Path, siFilename)); err != nil {
+	if err := s3Client.Download(ctx, f, filepath.Join(srcS3Path, siFilename)); err != nil {
 		_ = f.Close()
 		if err := os.Remove(f.Name()); err != nil {
 			return fmt.Errorf("remove file %q: %s", f.Name(), err)
@@ -66,7 +67,7 @@ func DownloadModelFiles(s3Client s3Client, srcS3Path string, destDir string) err
 		if err != nil {
 			return fmt.Errorf("create file %s: %s", fn, err)
 		}
-		if err := s3Client.Download(f, filepath.Join(srcS3Path, fn)); err != nil {
+		if err := s3Client.Download(ctx, f, filepath.Join(srcS3Path, fn)); err != nil {
 			return fmt.Errorf("download %s: %s", fn, err)
 		}
 		log.Printf("Downloaded %q\n", fn)

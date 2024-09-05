@@ -1,6 +1,7 @@
 package ollama
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -27,7 +28,7 @@ type cmdRunnerImpl struct {
 }
 
 type s3Client interface {
-	Download(f io.WriterAt, path string) error
+	Download(ctx context.Context, f io.WriterAt, path string) error
 }
 
 func (c *cmdRunnerImpl) Run(cmd *exec.Cmd) error {
@@ -103,7 +104,7 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ModelSpec) error 
 }
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
-func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
+func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
 	var hasGGUF bool
 	for _, f := range resp.Formats {
 		if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
@@ -126,7 +127,7 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		}
 	}()
 
-	if err := m.s3Client.Download(f, resp.GgufModelPath); err != nil {
+	if err := m.s3Client.Download(ctx, f, resp.GgufModelPath); err != nil {
 		return fmt.Errorf("download: %s", err)
 	}
 	log.Printf("Downloaded the model to %q\n", f.Name())

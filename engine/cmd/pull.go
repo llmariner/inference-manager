@@ -62,7 +62,10 @@ type opts struct {
 }
 
 func pull(ctx context.Context, o opts, c config.Config) error {
-	s3Client := s3.NewClient(c.ObjectStore.S3)
+	s3Client, err := s3.NewClient(ctx, c.ObjectStore.S3)
+	if err != nil {
+		return err
+	}
 
 	var mgr modelsyncer.ModelManager
 

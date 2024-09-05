@@ -1,42 +1,50 @@
 package s3
 
 import (
+	"context"
+	"fmt"
 	"io"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 )
 
 // NewClient returns a new S3 client.
-func NewClient(c config.S3Config) *Client {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	conf := &aws.Config{
-		Endpoint: aws.String(c.EndpointURL),
-		Region:   aws.String(c.Region),
+func NewClient(ctx context.Context, c config.S3Config) (*Client, error) {
+	conf, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't load default configuration: %s", err)
+	}
+	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(c.EndpointURL)
 		// This is needed as the minio server does not support the virtual host style.
-		S3ForcePathStyle: aws.Bool(true),
-	}
+		o.UsePathStyle = true
+		o.Region = c.Region
+	})
 	return &Client{
-		svc:    s3.New(sess, conf),
+		svc:    s3Client,
 		bucket: c.Bucket,
-	}
+	}, nil
 }
 
 // Client is a client for S3.
 type Client struct {
-	svc    *s3.S3
+	svc    *s3.Client
 	bucket string
 }
 
-// Download downloads an object from S3.
-func (c *Client) Download(w io.WriterAt, key string) error {
-	downloader := s3manager.NewDownloaderWithClient(c.svc)
-	_, err := downloader.Download(w, &s3.GetObjectInput{
+// Download uses a download manager to download an object from a bucket.
+// The download manager gets the data in parts and writes them to a buffer until all of
+// the data has been downloaded.
+func (c *Client) Download(ctx context.Context, w io.WriterAt, key string) error {
+	const partMiBs int64 = 128
+	downloader := manager.NewDownloader(c.svc, func(d *manager.Downloader) {
+		d.PartSize = partMiBs * 1024 * 1024
+	})
+	_, err := downloader.Download(ctx, w, &s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),
 		Key:    aws.String(key),
 	})

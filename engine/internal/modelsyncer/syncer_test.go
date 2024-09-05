@@ -175,7 +175,7 @@ func (n *fakeOllamaManager) CreateNewModelOfGGUF(modelName string, spec *ollama.
 	return nil
 }
 
-func (n *fakeOllamaManager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
+func (n *fakeOllamaManager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
 	n.created = append(n.created, modelName)
 	return nil
 }
@@ -187,7 +187,7 @@ func (n *fakeOllamaManager) UpdateModelTemplateToLatest(modelName string) error 
 type noopS3Client struct {
 }
 
-func (n *noopS3Client) Download(f io.WriterAt, path string) error {
+func (n *noopS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
 	return nil
 }
 
@@ -219,7 +219,7 @@ type blockingS3Client struct {
 	waitcCh chan struct{}
 }
 
-func (b *blockingS3Client) Download(f io.WriterAt, path string) error {
+func (b *blockingS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
 	<-b.waitcCh
 	return nil
 }

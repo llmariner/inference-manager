@@ -73,7 +73,10 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 
-	s3Client := s3.NewClient(c.ObjectStore.S3)
+	s3Client, err := s3.NewClient(ctx, c.ObjectStore.S3)
+	if err != nil {
+		return err
+	}
 
 	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
 	var m *ollama.Manager

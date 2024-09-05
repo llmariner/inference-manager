@@ -164,3 +164,5 @@ readinessProbe:
   initialDelaySeconds: 3
   failureThreshold: 5
   timeoutSeconds: 3
+
+enableServiceMonitor: false

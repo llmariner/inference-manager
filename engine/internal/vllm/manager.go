@@ -1,6 +1,7 @@
 package vllm
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,7 +14,7 @@ import (
 )
 
 type s3Client interface {
-	Download(f io.WriterAt, path string) error
+	Download(ctx context.Context, f io.WriterAt, path string) error
 }
 
 // New returns a new Manager.
@@ -40,7 +41,7 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec)
 }
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
-func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error {
+func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
 	format, err := PreferredModelFormat(resp)
 	if err != nil {
 		return nil
@@ -66,7 +67,7 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		if err != nil {
 			return err
 		}
-		if err := m.s3Client.Download(f, resp.GgufModelPath); err != nil {
+		if err := m.s3Client.Download(ctx, f, resp.GgufModelPath); err != nil {
 			return fmt.Errorf("download: %s", err)
 		}
 		log.Printf("Downloaded the model to %q\n", f.Name())
@@ -78,7 +79,7 @@ func (m *Manager) DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseM
 		if err := os.MkdirAll(destPath, 0755); err != nil {
 			return fmt.Errorf("create directory: %s", err)
 		}
-		if err := huggingface.DownloadModelFiles(m.s3Client, resp.Path, destPath); err != nil {
+		if err := huggingface.DownloadModelFiles(ctx, m.s3Client, resp.Path, destPath); err != nil {
 			return fmt.Errorf("download: %s", err)
 		}
 		log.Printf("Downloaded the model to %q\n", destPath)

@@ -1,6 +1,7 @@
 package huggingface
 
 import (
+	"context"
 	"io"
 	"os"
 
@@ -64,7 +65,7 @@ func TestDownloadModelFiles(t *testing.T) {
 				_ = os.RemoveAll(dir)
 			}()
 
-			err = DownloadModelFiles(tc.s3Client, "/src", dir)
+			err = DownloadModelFiles(context.Background(), tc.s3Client, "/src", dir)
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tc.s3Client.downloadedFiles, tc.downloadedFiles)
 		})
@@ -77,7 +78,7 @@ type fakeS3Client struct {
 	downloadedFiles []string
 }
 
-func (c *fakeS3Client) Download(f io.WriterAt, path string) error {
+func (c *fakeS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
 	c.downloadedFiles = append(c.downloadedFiles, path)
 	fmt.Println("Downloaded file: ", path)
 

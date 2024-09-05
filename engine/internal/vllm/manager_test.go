@@ -1,6 +1,7 @@
 package vllm
 
 import (
+	"context"
 	"io"
 	"os"
 	"testing"
@@ -17,6 +18,7 @@ func TestDownloadAndCreateNewModel(t *testing.T) {
 		_ = os.RemoveAll(modelDir)
 	}()
 
+	ctx := context.Background()
 	s3Client := &fakeS3Client{}
 	m := New(modelDir, s3Client)
 	resp := &mv1.GetBaseModelPathResponse{
@@ -24,12 +26,12 @@ func TestDownloadAndCreateNewModel(t *testing.T) {
 			mv1.ModelFormat_MODEL_FORMAT_GGUF,
 		},
 	}
-	err = m.DownloadAndCreateNewModel("model0", resp)
+	err = m.DownloadAndCreateNewModel(ctx, "model0", resp)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 
 	// Run again.
-	err = m.DownloadAndCreateNewModel("model0", resp)
+	err = m.DownloadAndCreateNewModel(ctx, "model0", resp)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 }
@@ -38,7 +40,7 @@ type fakeS3Client struct {
 	numDownload int
 }
 
-func (c *fakeS3Client) Download(f io.WriterAt, path string) error {
+func (c *fakeS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
 	c.numDownload++
 	return nil
 }

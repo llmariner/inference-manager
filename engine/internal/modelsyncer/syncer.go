@@ -25,12 +25,12 @@ const (
 // ModelManager is an interface for managing models.
 type ModelManager interface {
 	CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec) error
-	DownloadAndCreateNewModel(modelName string, resp *mv1.GetBaseModelPathResponse) error
+	DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
 
 type s3Client interface {
-	Download(f io.WriterAt, path string) error
+	Download(ctx context.Context, f io.WriterAt, path string) error
 }
 
 type modelClient interface {
@@ -148,7 +148,7 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	if err := s.mm.DownloadAndCreateNewModel(modelID, resp); err != nil {
+	if err := s.mm.DownloadAndCreateNewModel(ctx, modelID, resp); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		}
 	}()
 
-	if err := s.s3Client.Download(f, resp.Path); err != nil {
+	if err := s.s3Client.Download(ctx, f, resp.Path); err != nil {
 		return fmt.Errorf("download: %s", err)
 	}
 	log.Printf("Downloaded the model to %q\n", f.Name())

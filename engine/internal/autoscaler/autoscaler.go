@@ -13,6 +13,7 @@ import (
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -81,7 +82,7 @@ func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) 
 		scaleToZeroGracePeriod: m.config.ScaleToZeroGracePeriod,
 	}
 	m.scalers[target] = s
-	s.start(m.logger, m.stopCh, m.config.SyncPeriod)
+	s.start(m.logger, m.stopCh, m.config.InitialDelay, m.config.SyncPeriod)
 }
 
 // Unregister unregisters the scaler for the given runtime.
@@ -113,16 +114,27 @@ type scaler struct {
 	cancel context.CancelFunc
 }
 
-func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, period time.Duration) {
+func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, period time.Duration) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
 	log = log.WithName("scaler").WithValues("modelID", s.modelID)
 	ctx = ctrl.LoggerInto(ctx, log)
 
-	ticker := time.NewTicker(period)
+	runOnce := func() {
+		// TODO: rethink better error handling
+		if err := retry.RetryOnConflict(
+			retry.DefaultRetry,
+			func() error { return s.scale(ctx) },
+		); err != nil {
+			log.Error(err, "Failed to scale")
+		}
+	}
 	go func() {
-		log.Info("Starting autoscaler")
+		log.Info("Starting autoscaler", "initialDelay", initialDelay)
+		time.Sleep(initialDelay)
+		runOnce()
+		ticker := time.NewTicker(period)
 		for {
 			select {
 			case <-stopCh:
@@ -131,13 +143,7 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, period time.Dura
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				// TODO: rethink better error handling
-				if err := retry.RetryOnConflict(
-					retry.DefaultRetry,
-					func() error { return s.scale(ctx) },
-				); err != nil {
-					log.Error(err, "Failed to scale")
-				}
+				runOnce()
 			}
 		}
 	}()
@@ -157,21 +163,25 @@ func (s *scaler) scale(ctx context.Context) error {
 		return client.IgnoreNotFound(err)
 	}
 
-	totalObserved := s.metricsClient.Get(s.modelID)
-	observedPerPods := totalObserved / float64(sts.Status.Replicas)
-
-	desiredReplicas := math.Ceil(observedPerPods / s.config.TargetValue)
-
-	rs := math.Max(float64(s.config.MinReplicas), desiredReplicas)
-	if s.config.MaxReplicas > 0 {
-		rs = math.Min(rs, float64(s.config.MaxReplicas))
-	}
-	cappedReplicas := int32(rs)
-
-	// TODO(aya): Handles changes in both directions during bursts at separate rateshandle burstable both directions in separate rates
 	// TODO(aya): Stop scaling when there are too many not-ready pods
 
-	if cappedReplicas == 0 {
+	metricsVal := s.metricsClient.Get(s.modelID)
+	replicas := math.Min(float64(sts.Status.ReadyReplicas), float64(sts.Status.Replicas))
+	observedPerPods := metricsVal / math.Max(float64(replicas), 1)
+	desiredReplicas := math.Ceil(observedPerPods / s.config.TargetValue)
+	log.V(6).Info("Scaling calculation",
+		"total", metricsVal,
+		"per-pods", observedPerPods,
+		"spec-replicas", sts.Spec.Replicas,
+		"ready-replicas", replicas,
+		"desired", desiredReplicas)
+
+	newReplicas := math.Max(float64(s.config.MinReplicas), desiredReplicas)
+	if s.config.MaxReplicas > 0 {
+		newReplicas = math.Min(newReplicas, float64(s.config.MaxReplicas))
+	}
+
+	if newReplicas == 0 {
 		if s.lastTransitToZero.IsZero() {
 			s.lastTransitToZero = time.Now()
 		}
@@ -182,12 +192,24 @@ func (s *scaler) scale(ctx context.Context) error {
 	} else {
 		s.lastTransitToZero = time.Time{}
 	}
-	return s.scaleTo(ctx, &sts, cappedReplicas)
+
+	specReplicas := float64(ptr.Deref(sts.Spec.Replicas, 0))
+
+	if newReplicas < specReplicas {
+		maxScaleDown := math.Floor(float64(replicas) * s.config.MaxScaleDownRate)
+		newReplicas = math.Max(float64(newReplicas), maxScaleDown)
+	} else if newReplicas > specReplicas {
+		maxScaleUp := math.Ceil(math.Max(1, float64(replicas)) * s.config.MaxScaleUpRate)
+		newReplicas = math.Min(float64(newReplicas), maxScaleUp)
+	}
+	if newReplicas != specReplicas {
+		return s.scaleTo(ctx, &sts, int32(newReplicas))
+	}
+	return nil
 }
 
 func (s *scaler) scaleTo(ctx context.Context, sts *appsv1.StatefulSet, replicas int32) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Scaling", "from", sts.Status.Replicas, "to", replicas)
+	ctrl.LoggerFrom(ctx).Info("Scaling", "from", sts.Spec.Replicas, "to", replicas)
 	// TODO(aya): record scaling events
 	scale := &autoscalingv1.Scale{Spec: autoscalingv1.ScaleSpec{Replicas: replicas}}
 	return s.k8sClient.SubResource("scale").Update(ctx, sts, client.WithSubResourceBody(scale))

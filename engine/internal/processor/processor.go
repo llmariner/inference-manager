@@ -97,6 +97,12 @@ func (g *FixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
 	return g.addr, nil
 }
 
+// NoopMetricsCollector is a no-op metrics collector.
+type NoopMetricsCollector struct{}
+
+// Add does nothing.
+func (NoopMetricsCollector) Add(modelID string, v float64) {}
+
 // NewP returns a new processor.
 func NewP(
 	engineID string,
@@ -105,7 +111,7 @@ func NewP(
 	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
-	metricsClient *metrics.Client,
+	collector metrics.Collector,
 ) *P {
 	return &P{
 		engineID:    engineID,
@@ -114,7 +120,7 @@ func NewP(
 		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
 		logger:      logger,
-		metrics:     metricsClient,
+		metrics:     collector,
 	}
 }
 
@@ -125,7 +131,7 @@ type P struct {
 	addrGetter  AddressGetter
 	llmKind     llmkind.K
 	modelSyncer ModelSyncer
-	metrics     *metrics.Client
+	metrics     metrics.Collector
 
 	// lastErr is the last error from run().
 	// It is cleared when the registration succeeds.

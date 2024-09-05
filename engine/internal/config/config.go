@@ -154,9 +154,12 @@ type WorkerConfig struct {
 type AutoscalerConfig struct {
 	Enable bool `yaml:"enable"`
 
-	SyncPeriod time.Duration `yaml:"syncPeriod"`
+	InitialDelay time.Duration `yaml:"initialDelay"`
+	SyncPeriod   time.Duration `yaml:"syncPeriod"`
 	// ScaleToZeroGracePeriod is the grace period before scaling to zero.
 	ScaleToZeroGracePeriod time.Duration `yaml:"scaleToZeroGracePeriod"`
+
+	MetricsWindow time.Duration `yaml:"metricsWindow"`
 
 	RuntimeScalers map[string]ScalingConfig `yaml:"runtimeScalers"`
 	DefaultScaler  ScalingConfig            `yaml:"defaultScaler"`
@@ -171,6 +174,9 @@ func (c *AutoscalerConfig) validate() error {
 	}
 	if c.ScaleToZeroGracePeriod < 0 {
 		return fmt.Errorf("scaleToZeroGracePeriod must be non-negative")
+	}
+	if c.MetricsWindow <= 0 {
+		return fmt.Errorf("metricsWindow must be greater than 0")
 	}
 	for id, sc := range c.RuntimeScalers {
 		if err := sc.validate(); err != nil {
@@ -191,6 +197,9 @@ type ScalingConfig struct {
 
 	MaxReplicas int `yaml:"maxReplicas"`
 	MinReplicas int `yaml:"minReplicas"`
+
+	MaxScaleUpRate   float64 `yaml:"maxScaleUpRate"`
+	MaxScaleDownRate float64 `yaml:"maxScaleDownRate"`
 }
 
 func (c *ScalingConfig) validate() error {
@@ -205,6 +214,12 @@ func (c *ScalingConfig) validate() error {
 	}
 	if c.MaxReplicas != 0 && c.MinReplicas > c.MaxReplicas {
 		return fmt.Errorf("minReplicas must be less than or equal to maxReplicas")
+	}
+	if c.MaxScaleUpRate <= 0 {
+		return fmt.Errorf("maxScaleUpRate must be greater than 0")
+	}
+	if c.MaxScaleDownRate <= 0 {
+		return fmt.Errorf("maxScaleDownRate must be greater than 0")
 	}
 	return nil
 }

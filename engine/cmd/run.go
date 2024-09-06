@@ -2,193 +2,168 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/go-logr/stdr"
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llm-operator/inference-manager/engine/internal/autoscaler"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
-	"github.com/llm-operator/inference-manager/engine/internal/health"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
-	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
-	"github.com/llm-operator/inference-manager/engine/internal/s3"
-	"github.com/llm-operator/inference-manager/pkg/llmkind"
+	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-)
-
-const (
-	flagConfig = "config"
-
-	modelPreloadConcurrency = 2
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 )
 
 func runCmd() *cobra.Command {
+	var path string
 	var logLevel int
-
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "run",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path, err := cmd.Flags().GetString(flagConfig)
-			if err != nil {
-				return err
-			}
-
 			c, err := config.Parse(path)
 			if err != nil {
 				return err
 			}
-
 			if err := c.Validate(); err != nil {
 				return err
 			}
 
-			if err := run(cmd.Context(), &c, logLevel); err != nil {
-				return err
+			ns, ok := os.LookupEnv("NAMESPACE")
+			if !ok {
+				return fmt.Errorf("missing NAMESPACE")
 			}
-			return nil
+
+			return run(cmd.Context(), &c, ns, logLevel)
 		},
 	}
-
-	cmd.Flags().String(flagConfig, "", "Configuration file path")
+	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	cmd.Flags().IntVar(&logLevel, "v", 0, "Log level")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }
 
-func run(ctx context.Context, c *config.Config, lv int) error {
+func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
+	ctx = ctrl.LoggerInto(ctx, logger)
+	bootLog := logger.WithName("boot")
 
-	s3Client, err := s3.NewClient(ctx, c.ObjectStore.S3)
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+		Logger:                 logger,
+		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),
+		ReadinessEndpointName:  "/ready",
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{ns: {}},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("manager", healthz.Ping); err != nil {
+		return err
+	}
+
+	mClient := metrics.NewClient()
+	scaler := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
+	if c.Autoscaler.Enable {
+		if err := scaler.SetupWithManager(mgr); err != nil {
+			return err
+		}
+	}
+
+	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
 	if err != nil {
 		return err
 	}
 
-	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
-	var m *ollama.Manager
-	switch c.LLMEngine {
-	case llmkind.Ollama:
-		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
-			return err
-		}
-		if err := ollama.SetEnvVarsFromConfig(c.Ollama); err != nil {
-			return err
-		}
-
-		// TODO(kenji): Remove this once we fix existing deployments.
-		if err := ollama.DeleteOrphanedRunnersDir(c.Ollama); err != nil {
-			return err
-		}
-
-		m = ollama.New(c.FormattedModelContextLengths(), s3Client)
+	var rtClient runtime.Client
+	switch c.Runtime.Name {
+	case runtime.RuntimeNameOllama:
+		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
+	case runtime.RuntimeNameVLLM:
+		rtClient = runtime.NewVLLMClient(
+			mgr.GetClient(),
+			ns,
+			c.Runtime,
+			c.VLLM,
+			c.FormattedModelContextLengths(),
+			mv1.NewModelsWorkerServiceClient(conn),
+		)
 	default:
-		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
+		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
 	}
-	errCh := make(chan error)
 
-	go func() {
-		errCh <- m.Run()
-	}()
-
-	healthHandler := health.NewProbeHandler()
-	healthHandler.AddProbe(m)
-	healthMux := http.NewServeMux()
-	healthMux.HandleFunc("/ready", healthHandler.ProbeHandler)
-	srv := http.Server{
-		Addr:    fmt.Sprintf(":%d", c.HealthPort),
-		Handler: healthMux,
-	}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			errCh <- err
-		}
-	}()
-
-	if err := m.WaitForReady(); err != nil {
+	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
+	if err := rtManager.Initialize(ctx, mgr.GetAPIReader(), ns); err != nil {
 		return err
 	}
-
-	var syncer processor.ModelSyncer
-	if c.Debug.Standalone {
-		syncer = processor.NewFakeModelSyncer()
-	} else {
-		conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
-		if err != nil {
-			return err
-		}
-		mc := mv1.NewModelsWorkerServiceClient(conn)
-		syncer, err = modelsyncer.New(m, s3Client, mc)
-		if err != nil {
-			return err
-		}
+	if err := rtManager.SetupWithManager(mgr); err != nil {
+		return err
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
+
+	conn, err = grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
 	if err != nil {
 		return err
 	}
+	wsClient := v1.NewInferenceWorkerServiceClient(conn)
+
 	p := processor.NewP(
 		engineID,
-		v1.NewInferenceWorkerServiceClient(conn),
-		processor.NewFixedAddressGetter(llmAddr),
+		wsClient,
+		rtManager,
 		c.LLMEngine,
-		syncer,
+		rtManager,
 		logger,
-		metrics.NewClient(),
+		mClient,
 	)
 
-	healthHandler.AddProbe(p)
-
-	go func() {
-		errCh <- p.Run(ctx)
-	}()
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		bootLog.Info("Starting manager")
+		return mgr.Start(ctx)
+	})
+	g.Go(func() error {
+		bootLog.Info("Starting processor")
+		return p.Run(ctx)
+	})
 
 	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
-		go func() {
-			log.Printf("Preloading %d model(s)", len(ids))
-			ctx := auth.AppendWorkerAuthorization(ctx)
-			g, ctx := errgroup.WithContext(ctx)
-			g.SetLimit(modelPreloadConcurrency)
-			for _, id := range ids {
-				g.Go(func() error {
-					log.Printf("Preloading model %q", id)
-					if err := syncer.PullModel(ctx, id); err != nil {
-						return err
-					}
-					log.Printf("Completed the preloading of %q", id)
-					return nil
-				})
-			}
-			if err := g.Wait(); err != nil {
-				errCh <- err
-			}
-		}()
+		bootLog.Info("Preloading models", "count", len(ids))
+		if err := preloadModels(ctx, rtManager, ids); err != nil {
+			return err
+		}
 	}
 
-	return <-errCh
+	return g.Wait()
 }
 
-func grpcOption(c *config.Config) grpc.DialOption {
-	if c.Worker.TLS.Enable {
-		return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+func preloadModels(ctx context.Context, rtManager *runtime.Manager, ids []string) error {
+	const preloadingParallelism = 3
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(preloadingParallelism)
+	for _, id := range ids {
+		g.Go(func() error { return rtManager.PullModel(ctx, id) })
 	}
-	return grpc.WithTransportCredentials(insecure.NewCredentials())
+	return g.Wait()
 }

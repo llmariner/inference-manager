@@ -50,13 +50,13 @@ func (c *Client) Get(modelID string) float64 {
 	return wb.average(time.Now())
 }
 
-// percision is the granularity of the window bucket.
-const percision = time.Second
+// precision is the granularity of the window bucket.
+const precision = time.Second
 
 func newWindowBucket(window time.Duration) *windowBucket {
-	window = window.Truncate(percision)
+	window = window.Truncate(precision)
 	return &windowBucket{
-		buckets: make([]float64, int(window/percision)),
+		buckets: make([]float64, int(window/precision)),
 		window:  window,
 	}
 }
@@ -72,7 +72,7 @@ type windowBucket struct {
 
 // add adds a value to the window bucket.
 func (w *windowBucket) add(t time.Time, v float64) {
-	t = t.Truncate(percision)
+	t = t.Truncate(precision)
 
 	if w.lastUpdatedAt.IsZero() {
 		w.lastUpdatedAt = t
@@ -107,7 +107,7 @@ func (w *windowBucket) add(t time.Time, v float64) {
 
 	// If the last update was less than the window, update the buckets between
 	// the last index and the new index with the last value, then set the new value.
-	idx := (w.lastIndex + int(d/percision)) % bucketNum
+	idx := (w.lastIndex + int(d/precision)) % bucketNum
 	if idx > w.lastIndex {
 		for i := w.lastIndex + 1; i < idx; i++ {
 			w.buckets[i] = lastVal
@@ -127,7 +127,7 @@ func (w *windowBucket) add(t time.Time, v float64) {
 
 // Average returns the average of the values in the window before the given time.
 func (w *windowBucket) average(t time.Time) float64 {
-	t = t.Truncate(percision)
+	t = t.Truncate(precision)
 	if w.lastUpdatedAt.IsZero() {
 		return 0
 	}
@@ -140,7 +140,7 @@ func (w *windowBucket) average(t time.Time) float64 {
 
 	bucketNum := len(w.buckets)
 	lastVal := w.buckets[w.lastIndex]
-	d := t.Sub(w.lastUpdatedAt) / percision
+	d := t.Sub(w.lastUpdatedAt) / precision
 	idx := (w.lastIndex + int(d)) % bucketNum
 
 	// calculating the sum from the last update to time t.

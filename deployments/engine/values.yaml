@@ -79,7 +79,7 @@ autoscaler:
     maxReplicas: 10
     minReplicas: 1
     maxScaleUpRate: 3.0
-    maxScaleDownRate: 0.2
+    maxScaleDownRate: 0.5
 
 # maxConcurentRequests is the maximun number of requests procssed in parallel.
 maxConcurrentRequests: 0

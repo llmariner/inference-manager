@@ -154,11 +154,14 @@ type WorkerConfig struct {
 type AutoscalerConfig struct {
 	Enable bool `yaml:"enable"`
 
+	// InitialDelay is the initial delay before starting the autoscaler.
 	InitialDelay time.Duration `yaml:"initialDelay"`
-	SyncPeriod   time.Duration `yaml:"syncPeriod"`
+	// SyncPeriod is the period for calculating the scaling.
+	SyncPeriod time.Duration `yaml:"syncPeriod"`
 	// ScaleToZeroGracePeriod is the grace period before scaling to zero.
 	ScaleToZeroGracePeriod time.Duration `yaml:"scaleToZeroGracePeriod"`
-
+	// MetricsWindow is the window size for metrics.
+	// e.g., if it's 5 minutes, we'll use the 5-minute average as the metric.
 	MetricsWindow time.Duration `yaml:"metricsWindow"`
 
 	RuntimeScalers map[string]ScalingConfig `yaml:"runtimeScalers"`
@@ -195,10 +198,20 @@ type ScalingConfig struct {
 	// Currently, this is the concurrent requests per model runtime.
 	TargetValue float64 `yaml:"targetValue"`
 
-	MaxReplicas int `yaml:"maxReplicas"`
-	MinReplicas int `yaml:"minReplicas"`
+	// MaxReplicas is the maximum number of replicas.
+	// e.g., if this is 10, the pod can be scaled up to 10.
+	MaxReplicas int32 `yaml:"maxReplicas"`
+	// MinReplicas is the minimum number of replicas.
+	// e.g., if this is 0, the pod can be scaled down to 0.
+	MinReplicas int32 `yaml:"minReplicas"`
 
-	MaxScaleUpRate   float64 `yaml:"maxScaleUpRate"`
+	// MaxScaleUpRate is the maximum rate of scaling up.
+	// e.g., current replicas is 2 and this rate is 3.0,
+	// the pod can be scaled up to 6. (ceil(2 * 3.0) = 6)
+	MaxScaleUpRate float64 `yaml:"maxScaleUpRate"`
+	// MaxScaleDownRate is the maximum rate of scaling down.
+	// e.g., current replicas is 6 and this rate is 0.5,
+	// the pod can be scaled down to 3. (floor(6 * 0.5) = 3)
 	MaxScaleDownRate float64 `yaml:"maxScaleDownRate"`
 }
 

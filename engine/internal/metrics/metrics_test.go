@@ -9,7 +9,7 @@ import (
 
 func TestWindowBucketAdd(t *testing.T) {
 	w := newWindowBucket(3 * time.Second)
-	now := time.Now().Truncate(percision)
+	now := time.Now().Truncate(precision)
 	tt := now
 
 	var tests = []struct {
@@ -69,14 +69,14 @@ func TestWindowBucketAdd(t *testing.T) {
 			w.add(tt, test.v)
 			assert.Equal(t, test.wantBuckets, w.buckets)
 			assert.Equal(t, test.wantIndex, w.lastIndex)
-			assert.Equal(t, tt.Truncate(percision), w.lastUpdatedAt)
+			assert.Equal(t, tt.Truncate(precision), w.lastUpdatedAt)
 		})
 	}
 }
 
 func TestWindowBucketAverage(t *testing.T) {
 	const window = 5 * time.Second
-	now := time.Now().Truncate(percision)
+	now := time.Now().Truncate(precision)
 
 	var tests = []struct {
 		name    string

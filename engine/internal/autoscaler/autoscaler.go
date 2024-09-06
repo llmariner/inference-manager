@@ -121,7 +121,7 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 	log = log.WithName("scaler").WithValues("modelID", s.modelID)
 	ctx = ctrl.LoggerInto(ctx, log)
 
-	runOnce := func() {
+	scale := func() {
 		// TODO: rethink better error handling
 		if err := retry.RetryOnConflict(
 			retry.DefaultRetry,
@@ -133,7 +133,7 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 	go func() {
 		log.Info("Starting autoscaler", "initialDelay", initialDelay)
 		time.Sleep(initialDelay)
-		runOnce()
+		scale()
 		ticker := time.NewTicker(period)
 		for {
 			select {
@@ -143,7 +143,7 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runOnce()
+				scale()
 			}
 		}
 	}()
@@ -165,20 +165,20 @@ func (s *scaler) scale(ctx context.Context) error {
 
 	// TODO(aya): Stop scaling when there are too many not-ready pods
 
+	replicas := min(sts.Status.ReadyReplicas, sts.Status.Replicas)
 	metricsVal := s.metricsClient.Get(s.modelID)
-	replicas := math.Min(float64(sts.Status.ReadyReplicas), float64(sts.Status.Replicas))
-	observedPerPods := metricsVal / math.Max(float64(replicas), 1)
-	desiredReplicas := math.Ceil(observedPerPods / s.config.TargetValue)
+	metricsValPerPods := metricsVal / float64(max(replicas, 1))
+	desiredReplicas := ceil(metricsValPerPods / s.config.TargetValue)
 	log.V(6).Info("Scaling calculation",
 		"total", metricsVal,
-		"per-pods", observedPerPods,
+		"per-pods", metricsValPerPods,
 		"spec-replicas", sts.Spec.Replicas,
 		"ready-replicas", replicas,
 		"desired", desiredReplicas)
 
-	newReplicas := math.Max(float64(s.config.MinReplicas), desiredReplicas)
+	newReplicas := max(s.config.MinReplicas, desiredReplicas)
 	if s.config.MaxReplicas > 0 {
-		newReplicas = math.Min(newReplicas, float64(s.config.MaxReplicas))
+		newReplicas = min(newReplicas, s.config.MaxReplicas)
 	}
 
 	if newReplicas == 0 {
@@ -193,17 +193,17 @@ func (s *scaler) scale(ctx context.Context) error {
 		s.lastTransitToZero = time.Time{}
 	}
 
-	specReplicas := float64(ptr.Deref(sts.Spec.Replicas, 0))
+	specReplicas := ptr.Deref(sts.Spec.Replicas, 0)
 
 	if newReplicas < specReplicas {
-		maxScaleDown := math.Floor(float64(replicas) * s.config.MaxScaleDownRate)
-		newReplicas = math.Max(float64(newReplicas), maxScaleDown)
+		maxScaleDown := floor(float64(replicas) * s.config.MaxScaleDownRate)
+		newReplicas = max(newReplicas, maxScaleDown)
 	} else if newReplicas > specReplicas {
-		maxScaleUp := math.Ceil(math.Max(1, float64(replicas)) * s.config.MaxScaleUpRate)
-		newReplicas = math.Min(float64(newReplicas), maxScaleUp)
+		maxScaleUp := ceil(float64(max(1, replicas)) * s.config.MaxScaleUpRate)
+		newReplicas = min(newReplicas, maxScaleUp)
 	}
 	if newReplicas != specReplicas {
-		return s.scaleTo(ctx, &sts, int32(newReplicas))
+		return s.scaleTo(ctx, &sts, newReplicas)
 	}
 	return nil
 }
@@ -213,4 +213,26 @@ func (s *scaler) scaleTo(ctx context.Context, sts *appsv1.StatefulSet, replicas 
 	// TODO(aya): record scaling events
 	scale := &autoscalingv1.Scale{Spec: autoscalingv1.ScaleSpec{Replicas: replicas}}
 	return s.k8sClient.SubResource("scale").Update(ctx, sts, client.WithSubResourceBody(scale))
+}
+
+func min(a, b int32) int32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int32) int32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func ceil(a float64) int32 {
+	return int32(math.Ceil(a))
+}
+
+func floor(a float64) int32 {
+	return int32(math.Floor(a))
 }

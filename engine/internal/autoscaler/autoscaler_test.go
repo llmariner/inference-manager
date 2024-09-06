@@ -148,7 +148,7 @@ func TestScale(t *testing.T) {
 			metrics:       98.2,
 			specReplicas:  5,
 			readyReplicas: 2,
-			wantReplicas:  5, // ceil(98.2/min(2,5)/10) = 5
+			wantReplicas:  5, // ceil(98.2/2/10) = 5
 		},
 	}
 	for _, test := range tests {

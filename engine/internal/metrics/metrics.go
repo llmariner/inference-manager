@@ -10,6 +10,11 @@ type Collector interface {
 	Add(modelID string, v float64)
 }
 
+// Provider is the interface for providing metric values.
+type Provider interface {
+	Get(modelID string) float64
+}
+
 // NewClient creates a new collection of metrics.
 func NewClient(window time.Duration) *Client {
 	// TODO(aya): revisit the window size. (e.g., use two different windows for stable & burst)

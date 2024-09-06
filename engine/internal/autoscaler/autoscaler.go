@@ -19,13 +19,17 @@ import (
 )
 
 // NewMultiAutoscaler creates a new MultiAutoscaler.
-func NewMultiAutoscaler(k8sClient client.Client, metricsClient *metrics.Client, config config.AutoscalerConfig) *MultiAutoscaler {
+func NewMultiAutoscaler(
+	k8sClient client.Client,
+	metricsProvider metrics.Provider,
+	config config.AutoscalerConfig,
+) *MultiAutoscaler {
 	return &MultiAutoscaler{
-		k8sClient:     k8sClient,
-		metricsClient: metricsClient,
-		config:        config,
-		scalers:       make(map[types.NamespacedName]scaler),
-		stopCh:        make(chan struct{}),
+		k8sClient: k8sClient,
+		metrics:   metricsProvider,
+		config:    config,
+		scalers:   make(map[types.NamespacedName]scaler),
+		stopCh:    make(chan struct{}),
 	}
 }
 
@@ -33,8 +37,8 @@ func NewMultiAutoscaler(k8sClient client.Client, metricsClient *metrics.Client, 
 type MultiAutoscaler struct {
 	logger logr.Logger
 
-	k8sClient     client.Client
-	metricsClient *metrics.Client
+	k8sClient client.Client
+	metrics   metrics.Provider
 
 	config config.AutoscalerConfig
 
@@ -77,7 +81,7 @@ func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) 
 		modelID:                modelID,
 		target:                 target,
 		k8sClient:              m.k8sClient,
-		metricsClient:          m.metricsClient,
+		metrics:                m.metrics,
 		config:                 sc,
 		scaleToZeroGracePeriod: m.config.ScaleToZeroGracePeriod,
 	}
@@ -103,8 +107,8 @@ type scaler struct {
 	modelID string
 	target  types.NamespacedName
 
-	k8sClient     client.Client
-	metricsClient *metrics.Client
+	k8sClient client.Client
+	metrics   metrics.Provider
 
 	config                 config.ScalingConfig
 	scaleToZeroGracePeriod time.Duration
@@ -125,7 +129,10 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 		// TODO: rethink better error handling
 		if err := retry.RetryOnConflict(
 			retry.DefaultRetry,
-			func() error { return s.scale(ctx) },
+			func() error {
+				_, err := s.scale(ctx)
+				return err
+			},
 		); err != nil {
 			log.Error(err, "Failed to scale")
 		}
@@ -155,18 +162,18 @@ func (s *scaler) stop() {
 	}
 }
 
-func (s *scaler) scale(ctx context.Context) error {
+func (s *scaler) scale(ctx context.Context) (bool, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	var sts appsv1.StatefulSet
 	if err := s.k8sClient.Get(ctx, s.target, &sts); err != nil {
-		return client.IgnoreNotFound(err)
+		return false, client.IgnoreNotFound(err)
 	}
 
 	// TODO(aya): Stop scaling when there are too many not-ready pods
 
-	replicas := min(sts.Status.ReadyReplicas, sts.Status.Replicas)
-	metricsVal := s.metricsClient.Get(s.modelID)
+	replicas := sts.Status.ReadyReplicas
+	metricsVal := s.metrics.Get(s.modelID)
 	metricsValPerPods := metricsVal / float64(max(replicas, 1))
 	desiredReplicas := ceil(metricsValPerPods / s.config.TargetValue)
 	log.V(6).Info("Scaling calculation",
@@ -187,7 +194,7 @@ func (s *scaler) scale(ctx context.Context) error {
 		}
 		if since := time.Since(s.lastTransitToZero); since < s.scaleToZeroGracePeriod {
 			log.V(4).Info("Within the scale to zero grace period", "since", since)
-			return nil
+			newReplicas = 1
 		}
 	} else {
 		s.lastTransitToZero = time.Time{}
@@ -203,9 +210,10 @@ func (s *scaler) scale(ctx context.Context) error {
 		newReplicas = min(newReplicas, maxScaleUp)
 	}
 	if newReplicas != specReplicas {
-		return s.scaleTo(ctx, &sts, newReplicas)
+		err := s.scaleTo(ctx, &sts, newReplicas)
+		return err == nil, err
 	}
-	return nil
+	return false, nil
 }
 
 func (s *scaler) scaleTo(ctx context.Context, sts *appsv1.StatefulSet, replicas int32) error {

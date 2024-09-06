@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/go-logr/stdr"
+	testutil "github.com/llm-operator/inference-manager/engine/internal/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,7 +192,7 @@ func TestPullModel(t *testing.T) {
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = *test.rt
 			}
-			ctx, cancel := context.WithCancel(ctxWithTestLogger(t))
+			ctx, cancel := context.WithCancel(testutil.ContextWithLogger(t))
 			go func() {
 				time.Sleep(2 * time.Second) // timeout
 				t.Log("canceling context")
@@ -344,7 +343,7 @@ func TestReconcile(t *testing.T) {
 				mgr.runtimes[modelID] = *test.rt
 			}
 
-			ctx := ctxWithTestLogger(t)
+			ctx := testutil.ContextWithLogger(t)
 			if test.preFn != nil {
 				test.preFn(ctx, mgr)
 			}
@@ -367,28 +366,12 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
-func ctxWithTestLogger(t *testing.T) context.Context {
-	logger := log.New(&testLogWriter{t}, "TEST: ", 0)
-	ctx := ctrl.LoggerInto(context.Background(), stdr.New(logger))
-	stdr.SetVerbosity(4)
-	return ctx
-}
-
 type fakeRoundTripper struct {
 	resp func() (*http.Response, error)
 }
 
 func (s *fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return s.resp()
-}
-
-type testLogWriter struct {
-	t *testing.T
-}
-
-func (w *testLogWriter) Write(p []byte) (n int, err error) {
-	w.t.Log(string(p))
-	return len(p), nil
 }
 
 type fakeClient struct {

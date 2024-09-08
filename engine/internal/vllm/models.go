@@ -46,7 +46,8 @@ func PreferredModelFormat(resp *mv1.GetBaseModelPathResponse) (mv1.ModelFormat, 
 func ChatTemplate(modelName string) (string, error) {
 	switch {
 	case strings.HasPrefix(modelName, "meta-llama-Meta-Llama-3.1-"),
-		strings.HasPrefix(modelName, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"):
+		strings.HasPrefix(modelName, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"),
+		strings.HasPrefix(modelName, "mattshumer-Reflection-Llama-3.1-70B"):
 		// This is a simplified template that does not support functions etc.
 		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
 		return `

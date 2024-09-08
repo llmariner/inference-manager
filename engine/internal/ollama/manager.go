@@ -276,7 +276,8 @@ TEMPLATE """[INST] {{ if .System }}{{ .System }} {{ end }}{{ .Prompt }} [/INST]"
 PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
 
-	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
+	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"),
+		strings.HasPrefix(name, "mattshumer-Reflection-Llama-3.1-70B"):
 		// Output of "ollama show llama3.1 --modelfile" except the context length parameter.
 		// The publicly announced max context length is 128K, but we limit the context length
 		// to 64K here to make this work smoothly in g5.48xlarge.

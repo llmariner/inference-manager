@@ -46,8 +46,10 @@ data:
     healthPort: {{ .Values.healthPort }}
     autoscaler:
       enable: {{ .Values.autoscaler.enable }}
+      initialDelay: {{ .Values.autoscaler.initialDelay }}
       syncPeriod: {{ .Values.autoscaler.syncPeriod }}
       scaleToZeroGracePeriod: {{ .Values.autoscaler.scaleToZeroGracePeriod }}
+      metricsWindow: {{ .Values.autoscaler.metricsWindow }}
       runtimeScalers:
         {{- toYaml .Values.autoscaler.runtimeScalers | nindent 8 }}
       defaultScaler:

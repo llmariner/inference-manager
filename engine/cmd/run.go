@@ -79,7 +79,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	mClient := metrics.NewClient()
+	mClient := metrics.NewClient(c.Autoscaler.MetricsWindow)
 	scaler := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
 	if c.Autoscaler.Enable {
 		if err := scaler.SetupWithManager(mgr); err != nil {

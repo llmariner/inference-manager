@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-logr/stdr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +36,7 @@ func TestP(t *testing.T) {
 		llmkind.Ollama,
 		&fakeModelSyncer{},
 		logger,
-		metrics.NewClient(),
+		&NoopMetricsCollector{},
 	)
 
 	fakeClient := &fakeProcessTasksClient{}

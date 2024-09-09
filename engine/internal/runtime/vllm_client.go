@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/vllm"
@@ -76,7 +77,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
 	}
 
-	template, err := vllm.ChatTemplate(modelID)
+	template, err := chatTemplate(modelID)
 	if err != nil {
 		return deployRuntimeParams{}, fmt.Errorf("get chat template: %s", err)
 	}
@@ -102,7 +103,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--max-model-len", strconv.Itoa(len))
 	}
 
-	if vllm.IsAWQQuantizedModel(modelID) {
+	if isAWQQuantizedModel(modelID) {
 		args = append(args, "--quantization", "awq")
 	}
 
@@ -159,4 +160,37 @@ func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string,
 		return "", err
 	}
 	return vllm.ModelFilePath(modelDir, modelID, format)
+}
+
+// isAWQQuantizedModel returns true if the model name is an AWQ quantized model.
+func isAWQQuantizedModel(modelName string) bool {
+	return strings.HasSuffix(modelName, "-awq")
+}
+
+// chatTemplate returns the chat template for the given model.
+func chatTemplate(modelName string) (string, error) {
+	switch {
+	case strings.HasPrefix(modelName, "meta-llama-Meta-Llama-3.1-"),
+		strings.HasPrefix(modelName, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"),
+		strings.HasPrefix(modelName, "mattshumer-Reflection-Llama-3.1-70B"):
+		// This is a simplified template that does not support functions etc.
+		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
+		return `
+<|begin_of_text|>
+{% for message in messages %}
+{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\n' + message['content'] + '\n<|eot_id|>\n'}}
+{% endfor %}
+`, nil
+	case strings.HasPrefix(modelName, "deepseek-ai-deepseek-coder-6.7b-base"),
+		strings.HasPrefix(modelName, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
+		// This is a simplified template that works for auto code completion.
+		// See https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct/blob/main/tokenizer_config.json#L34.
+		return `
+{% for message in messages %}
+{{message['content']}}
+{% endfor %}
+`, nil
+	default:
+		return "", fmt.Errorf("unsupported model: %q", modelName)
+	}
 }

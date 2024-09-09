@@ -15,6 +15,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -159,7 +160,9 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 }
 
 func preloadModels(ctx context.Context, rtManager *runtime.Manager, ids []string) error {
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	const preloadingParallelism = 3
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(preloadingParallelism)
 	for _, id := range ids {

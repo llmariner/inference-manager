@@ -26,4 +26,8 @@ build-docker-server:
 
 .PHONY: build-docker-engine
 build-docker-engine:
-	docker build --build-arg TARGETARCH=amd64 -t llm-operator/inference-manager-engine:latest -f build/engine/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 --target base-distroless -t llm-operator/inference-manager-engine:latest -f build/engine/Dockerfile .
+
+.PHONY: build-docker-engine-base-ollama
+build-docker-engine-base-ollama:
+	docker build --build-arg TARGETARCH=amd64 --target base-ollama -t llm-operator/inference-manager-engine:latest -f build/engine/Dockerfile .

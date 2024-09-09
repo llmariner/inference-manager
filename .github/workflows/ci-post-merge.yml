@@ -62,6 +62,7 @@ jobs:
         file: ./build/engine/Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
+        target: base-distroless
         tags: |
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_version }}
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:latest
@@ -71,9 +72,10 @@ jobs:
         file: ./build/server/Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
+        target: base-ollama
         tags: |
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:latest
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:ollama-${{ needs.update-tag.outputs.new_version }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:ollama-latest
 
   publish-helm-chart:
     runs-on: ubuntu-latest

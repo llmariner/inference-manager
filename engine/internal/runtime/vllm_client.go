@@ -9,7 +9,6 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -149,7 +148,7 @@ func (v *vllmClient) numGPUs(modelID string) (int, error) {
 
 func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string, error) {
 	// TODO(kenji): Support non-base model.
-	resp, err := v.modelClient.GetBaseModelPath(auth.AppendWorkerAuthorization(ctx), &mv1.GetBaseModelPathRequest{
+	resp, err := v.modelClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
 		Id: modelID,
 	})
 	if err != nil {

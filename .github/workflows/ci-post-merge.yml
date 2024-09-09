@@ -66,6 +66,16 @@ jobs:
         tags: |
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_version }}
           public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:latest
+    - name: Build, tag, and push engine to Amazon ECR (with base-ollama)
+      uses: docker/build-push-action@v5
+      with:
+        file: ./build/engine/Dockerfile
+        push: true
+        platforms: linux/amd64,linux/arm64
+        target: base-ollama
+        tags: |
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:ollama-${{ needs.update-tag.outputs.new_version }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-engine:ollama-latest
     - name: Build, tag, and push server to Amazon ECR
       uses: docker/build-push-action@v5
       with:
@@ -74,8 +84,8 @@ jobs:
         platforms: linux/amd64,linux/arm64
         target: base-ollama
         tags: |
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:ollama-${{ needs.update-tag.outputs.new_version }}
-          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:ollama-latest
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
+          public.ecr.aws/v8n3t7y5/llm-operator/inference-manager-server:latest
 
   publish-helm-chart:
     runs-on: ubuntu-latest

@@ -18,7 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type scalerRegisterer interface {
+// ScalerRegisterer is an interface for registering and unregistering scalers.
+type ScalerRegisterer interface {
 	Register(modelID string, target types.NamespacedName)
 	Unregister(target types.NamespacedName)
 }
@@ -27,7 +28,7 @@ type scalerRegisterer interface {
 func NewManager(
 	k8sClient client.Client,
 	rtClient Client,
-	autoscaler scalerRegisterer,
+	autoscaler ScalerRegisterer,
 ) *Manager {
 	return &Manager{
 		k8sClient:  k8sClient,
@@ -41,7 +42,7 @@ func NewManager(
 type Manager struct {
 	k8sClient  client.Client
 	rtClient   Client
-	autoscaler scalerRegisterer
+	autoscaler ScalerRegisterer
 
 	runtimes map[string]runtime
 	mu       sync.RWMutex

@@ -255,6 +255,29 @@ func (c *commonClient) deployRuntime(
 		WithReadinessProbe(params.readinessProbe)).
 		WithVolumes(volumes...)
 
+	if len(c.NodeSelector) > 0 {
+		podSpec = podSpec.WithNodeSelector(c.NodeSelector)
+	}
+	for _, tc := range c.Tolerations {
+		t := corev1apply.Toleration()
+		if tc.Key != "" {
+			t = t.WithKey(tc.Key)
+		}
+		if tc.Operator != "" {
+			t = t.WithOperator(corev1.TolerationOperator(tc.Operator))
+		}
+		if tc.Value != "" {
+			t = t.WithValue(tc.Value)
+		}
+		if tc.Effect != "" {
+			t = t.WithEffect(corev1.TaintEffect(tc.Effect))
+		}
+		if tc.TolerationSeconds > 0 {
+			t = t.WithTolerationSeconds(tc.TolerationSeconds)
+		}
+		podSpec = podSpec.WithTolerations(t)
+	}
+
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(map[string]string{

@@ -32,6 +32,18 @@ data:
       defaultResources:
         {{- toYaml .Values.runtime.defaultResources | nindent 8 }}
       defaultReplicas: {{ .Values.runtime.defaultReplicas }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.maxConcurrentRequests }}

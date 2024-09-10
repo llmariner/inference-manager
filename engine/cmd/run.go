@@ -84,10 +84,11 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	mClient := metrics.NewClient(c.Autoscaler.MetricsWindow)
 	var scaler runtime.ScalerRegisterer
 	if c.Autoscaler.Enable {
-		scaler := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
-		if err := scaler.SetupWithManager(mgr); err != nil {
+		mas := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
+		if err := mas.SetupWithManager(mgr); err != nil {
 			return err
 		}
+		scaler = mas
 	} else {
 		scaler = &noopScaler{}
 	}

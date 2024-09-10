@@ -41,6 +41,12 @@ data:
     llmEngine: {{ .Values.llmEngine }}
     llmPort: {{ .Values.llmPort }}
     healthPort: {{ .Values.healthPort }}
+    leaderElection:
+      enable: {{ include "leaderElection.enabled" . }}
+      id: {{ include "inference-manager-engine.fullname" . }}
+      leaseDuration: {{ .Values.leaderElection.leaseDuration }}
+      renewDeadline: {{ .Values.leaderElection.renewDeadline }}
+      retryPeriod: {{ .Values.leaderElection.retryPeriod }}
     autoscaler:
       enable: {{ .Values.autoscaler.enable }}
       initialDelay: {{ .Values.autoscaler.initialDelay }}

@@ -220,6 +220,30 @@ func (c *ScalingConfig) validate() error {
 	return nil
 }
 
+// LeaderElectionConfig is the leader election configuration.
+type LeaderElectionConfig struct {
+	Enable bool   `yaml:"enable"`
+	ID     string `yaml:"id"`
+
+	// LeaseDuration is the duration that non-leader candidates will
+	// wait to force acquire leadership. This is measured against time of
+	// last observed ack. Default is 15 seconds.
+	LeaseDuration *time.Duration `yaml:"leaseDuration"`
+	// RenewDeadline is the duration that the acting controlplane will retry
+	// refreshing leadership before giving up. Default is 10 seconds.
+	RenewDeadline *time.Duration `yaml:"renewDeadline"`
+	// RetryPeriod is the duration the LeaderElector clients should wait
+	// between tries of actions. Default is 2 seconds.
+	RetryPeriod *time.Duration `yaml:"retryPeriod"`
+}
+
+func (c *LeaderElectionConfig) validate() error {
+	if c.Enable && c.ID == "" {
+		return fmt.Errorf("id must be set")
+	}
+	return nil
+}
+
 // Config is the configuration.
 type Config struct {
 	Runtime RuntimeConfig `yaml:"runtime"`
@@ -228,6 +252,8 @@ type Config struct {
 	LLMPort int `yaml:"llmPort"`
 
 	HealthPort int `yaml:"healthPort"`
+
+	LeaderElection LeaderElectionConfig `yaml:"leaderElection"`
 
 	Autoscaler AutoscalerConfig `yaml:"autoscaler"`
 
@@ -286,6 +312,10 @@ func (c *Config) Validate() error {
 
 	if err := c.Autoscaler.validate(); err != nil {
 		return fmt.Errorf("autoscaler: %s", err)
+	}
+
+	if err := c.LeaderElection.validate(); err != nil {
+		return fmt.Errorf("leaderElection: %s", err)
 	}
 	return nil
 }

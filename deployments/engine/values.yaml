@@ -84,6 +84,11 @@ maxConcurrentRequests: 0
 llmPort: 8080
 healthPort: 8081
 
+leaderElection:
+  leaseDuration:
+  renewDeadline:
+  retryPeriod:
+
 preloadedModelIds:
 
 modelContextLengths:

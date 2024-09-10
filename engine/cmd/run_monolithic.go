@@ -89,11 +89,6 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 			return err
 		}
 
-		// TODO(kenji): Remove this once we fix existing deployments.
-		if err := ollama.DeleteOrphanedRunnersDir(c.Ollama); err != nil {
-			return err
-		}
-
 		m = ollama.New(c.FormattedModelContextLengths(), s3Client)
 	default:
 		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)

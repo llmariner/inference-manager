@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
@@ -44,16 +45,18 @@ type ollamaClient struct {
 func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
+
+		// Ollama creates a payload in a temporary directory by default, and a new temporary directory is created
+		// whenever Ollama restarts. This is a problem when a persistent volume is mounted.
+		// To avoid this, we set the directory to a fixed path.
+		//
+		// TODO(kenji): Make sure there is no issue when multiple pods start at the same time.
+		corev1apply.EnvVar().WithName("OLLAMA_RUNNERS_DIR").WithValue(o.config.RunnersDir),
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
 		corev1apply.EnvVar().WithName("OLLAMA_KEEP_ALIVE").WithValue(o.config.KeepAlive.String()),
-		// Ollama creaets a payload in a temporary directory by default, and a new temporary directory is created
-		// whenever Ollama restarts. This is a problem when a persistent volume is mounted.
-		// To avoid this, we set the directory to a fixed path.
-		//
-		// TODO(kenji): Make sure there is no issue when multiple pods start at the same time.
 		corev1apply.EnvVar().WithName("OLLAMA_RUNNERS_DIR").WithValue(o.config.RunnersDir),
 	}
 	if o.config.NumParallel > 0 {
@@ -69,6 +72,26 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 	args := []string{
 		"serve",
 	}
+
+	image, ok := o.RuntimeImages[RuntimeNameOllama]
+	if !ok {
+		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", RuntimeNameOllama)
+	}
+
+	// Start an Ollama server process in background and create a modelfile.
+	// Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
+	script := `
+ollama serve &
+serve_pid=$!
+
+while true; do
+  ollama create google-gemma-2b-it-q4 -f /models/google-gemma-2b-it-q4/modelfile && break
+  sleep 1
+done
+
+kill ${serve_pid}
+`
+
 	return o.deployRuntime(ctx, deployRuntimeParams{
 		modelID:  modelID,
 		initEnvs: initEnvs,
@@ -77,5 +100,11 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(ollamaHTTPPort))),
 		args: args,
+		initContainerSpec: &initContainerSpec{
+			name:    "ollama-init",
+			image:   image,
+			command: []string{"/bin/bash"},
+			args:    []string{"-c", script},
+		},
 	})
 }

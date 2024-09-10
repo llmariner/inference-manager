@@ -76,6 +76,13 @@ func (c *commonClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:%d", name, c.servingPort)
 }
 
+type initContainerSpec struct {
+	name    string
+	image   string
+	command []string
+	args    []string
+}
+
 type deployRuntimeParams struct {
 	modelID        string
 	initEnvs       []*corev1apply.EnvVarApplyConfiguration
@@ -85,6 +92,8 @@ type deployRuntimeParams struct {
 	readinessProbe *corev1apply.ProbeApplyConfiguration
 
 	args []string
+
+	initContainerSpec *initContainerSpec
 }
 
 // deployRuntime deploys the runtime for the given model.
@@ -207,6 +216,40 @@ func (c *commonClient) deployRuntime(
 		return nn, fmt.Errorf("runtime image not found for %s", c.Name)
 	}
 
+	podSpec := corev1apply.PodSpec().
+		WithInitContainers(corev1apply.Container().
+			WithName("puller").
+			WithImage(c.PullerImage).
+			WithImagePullPolicy(corev1.PullPolicy(c.PullerImagePullPolicy)).
+			WithArgs(pullerArgs...).
+			WithEnv(initEnvs...).
+			WithVolumeMounts(initVolumeMounts...))
+	if ic := params.initContainerSpec; ic != nil {
+		podSpec = podSpec.WithInitContainers(corev1apply.Container().
+			WithName(ic.name).
+			WithImage(ic.image).
+			WithImagePullPolicy(corev1.PullPolicy(c.PullerImagePullPolicy)).
+			WithCommand(ic.command...).
+			WithArgs(ic.args...).
+			WithEnv(initEnvs...).
+			WithVolumeMounts(initVolumeMounts...))
+	}
+
+	podSpec = podSpec.WithContainers(corev1apply.Container().
+		WithName("runtime").
+		WithImage(image).
+		WithImagePullPolicy(corev1.PullPolicy(c.RuntimeImagePullPolicy)).
+		WithArgs(params.args...).
+		WithPorts(corev1apply.ContainerPort().
+			WithName("http").
+			WithContainerPort(int32(c.servingPort)).
+			WithProtocol(corev1.ProtocolTCP)).
+		WithEnv(params.envs...).
+		WithVolumeMounts(volumeMounts...).
+		WithResources(runtimeResources).
+		WithReadinessProbe(params.readinessProbe)).
+		WithVolumes(volumes...)
+
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(map[string]string{
@@ -219,28 +262,7 @@ func (c *commonClient) deployRuntime(
 				WithMatchLabels(labels)).
 			WithTemplate(corev1apply.PodTemplateSpec().
 				WithLabels(labels).
-				WithSpec(corev1apply.PodSpec().
-					WithInitContainers(corev1apply.Container().
-						WithName("puller").
-						WithImage(c.PullerImage).
-						WithImagePullPolicy(corev1.PullPolicy(c.PullerImagePullPolicy)).
-						WithArgs(pullerArgs...).
-						WithEnv(initEnvs...).
-						WithVolumeMounts(initVolumeMounts...)).
-					WithContainers(corev1apply.Container().
-						WithName("runtime").
-						WithImage(image).
-						WithImagePullPolicy(corev1.PullPolicy(c.RuntimeImagePullPolicy)).
-						WithArgs(params.args...).
-						WithPorts(corev1apply.ContainerPort().
-							WithName("http").
-							WithContainerPort(int32(c.servingPort)).
-							WithProtocol(corev1.ProtocolTCP)).
-						WithEnv(params.envs...).
-						WithVolumeMounts(volumeMounts...).
-						WithResources(runtimeResources).
-						WithReadinessProbe(params.readinessProbe)).
-					WithVolumes(volumes...))))
+				WithSpec(podSpec)))
 
 	sts, err := c.applyObject(ctx, stsConf)
 	if err != nil {

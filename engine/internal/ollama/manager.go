@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -78,25 +79,7 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ModelSpec) error 
 		}
 	}()
 
-	s := fmt.Sprintf("FROM %s\n", spec.From)
-	if p := spec.AdapterPath; p != "" {
-		s += fmt.Sprintf("Adapter %s\n", p)
-	} else {
-		modelFile, err := ollamaBaseModelFile(modelName)
-		if err != nil {
-			return err
-		}
-		s += modelFile
-		if l, ok, err := m.contextLength(modelName); err != nil {
-			return err
-		} else if ok {
-			s += fmt.Sprintf("PARAMETER num_ctx %d\n", l)
-		}
-	}
-	if _, err := file.Write([]byte(s)); err != nil {
-		return err
-	}
-	if err := file.Close(); err != nil {
+	if err := createModelfile(modelName, spec, m.contextLengthsByModelID, file); err != nil {
 		return err
 	}
 
@@ -204,10 +187,62 @@ func (m *Manager) runCommand(args []string) error {
 	return nil
 }
 
+// ModelfilePath returns the model file path.
+func ModelfilePath(modelDir string, modelName string) string {
+	return filepath.Join(modelDir, modelName, "modelfile")
+}
+
+// CreateModelfile creates a new model file.
+func CreateModelfile(
+	filePath string,
+	modelName string,
+	spec *ModelSpec,
+	contextLengthsByModelID map[string]int,
+) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	if err := createModelfile(modelName, spec, contextLengthsByModelID, file); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createModelfile(
+	modelName string,
+	spec *ModelSpec,
+	contextLengthsByModelID map[string]int,
+	file *os.File,
+) error {
+	s := fmt.Sprintf("FROM %s\n", spec.From)
+	if p := spec.AdapterPath; p != "" {
+		s += fmt.Sprintf("Adapter %s\n", p)
+	} else {
+		modelFile, err := ollamaBaseModelFile(modelName)
+		if err != nil {
+			return err
+		}
+		s += modelFile
+		if l, ok, err := contextLength(modelName, contextLengthsByModelID); err != nil {
+			return err
+		} else if ok {
+			s += fmt.Sprintf("PARAMETER num_ctx %d\n", l)
+		}
+	}
+	if _, err := file.Write([]byte(s)); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // contextLength returns the context length for the given model name if it is set to a non-default value.
 // If it is set to the default value, the function returns false.
-func (m *Manager) contextLength(name string) (int, bool, error) {
-	if l, ok := m.contextLengthsByModelID[name]; ok {
+func contextLength(name string, contextLengthsByModelID map[string]int) (int, bool, error) {
+	if l, ok := contextLengthsByModelID[name]; ok {
 		return l, true, nil
 	}
 

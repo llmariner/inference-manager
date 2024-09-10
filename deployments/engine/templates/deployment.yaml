@@ -35,9 +35,11 @@ spec:
         - --v
         - "{{ .Values.logLevel }}"
         ports:
+        {{- if eq .Values.commandName "run_monolithic" }}
         - name: llm
           containerPort: {{ .Values.llmPort }}
           protocol: TCP
+        {{- end }}
         - name: health
           containerPort: {{ .Values.healthPort }}
           protocol: TCP
@@ -73,10 +75,12 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
+        {{- if eq .Values.commandName "run_monolithic" }}
         - name: store
           mountPath: /tmp
         - name: store
           mountPath: /.ollama
+        {{- end }}
         readinessProbe:
           {{- toYaml .Values.readinessProbe | nindent 10 }}
         resources:

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"gopkg.in/yaml.v3"
 )
 
@@ -92,22 +91,6 @@ type PersistentVolume struct {
 	StorageClassName string `yaml:"storageClassName"`
 	Size             string `yaml:"size"`
 	AccessMode       string `yaml:"accessMode"`
-}
-
-// VLLMConfig is the configuration for vLLM.
-type VLLMConfig struct {
-	Model   string `yaml:"model"`
-	NumGPUs int    `yaml:"numGpus"`
-}
-
-func (c *VLLMConfig) validate() error {
-	if c.Model == "" {
-		return fmt.Errorf("vllm model must be set")
-	}
-	if c.NumGPUs <= 0 {
-		return fmt.Errorf("numGPUs must be positive")
-	}
-	return nil
 }
 
 // S3Config is the S3 configuration.
@@ -239,10 +222,8 @@ func (c *ScalingConfig) validate() error {
 
 // Config is the configuration.
 type Config struct {
-	Runtime   RuntimeConfig `yaml:"runtime"`
-	Ollama    OllamaConfig  `yaml:"ollama"`
-	VLLM      VLLMConfig    `yaml:"vllm"`
-	LLMEngine llmkind.K     `yaml:"llmEngine"`
+	Runtime RuntimeConfig `yaml:"runtime"`
+	Ollama  OllamaConfig  `yaml:"ollama"`
 	// LLMPort is the port llm listens on.
 	LLMPort int `yaml:"llmPort"`
 
@@ -297,17 +278,10 @@ func (c *Config) Validate() error {
 	if c.LLMPort <= 0 {
 		return fmt.Errorf("llmPort must be greater than 0")
 	}
-	switch c.LLMEngine {
-	case llmkind.VLLM:
-		if err := c.VLLM.validate(); err != nil {
-			return fmt.Errorf("vllm: %s", err)
-		}
-	case llmkind.Ollama:
-		if err := c.Ollama.validate(); err != nil {
-			return fmt.Errorf("ollama: %s", err)
-		}
-	default:
-		return fmt.Errorf("unsupported serving engine: %q", c.LLMEngine)
+
+	// TODO(kenji): Validate the runtime configuration is Olama or the run command is monolithic.
+	if err := c.Ollama.validate(); err != nil {
+		return fmt.Errorf("ollama: %s", err)
 	}
 
 	if err := c.Autoscaler.validate(); err != nil {

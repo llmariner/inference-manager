@@ -105,7 +105,13 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	var rtClient runtime.Client
 	switch c.Runtime.Name {
 	case config.RuntimeNameOllama:
-		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
+		rtClient = runtime.NewOllamaClient(
+			mgr.GetClient(),
+			ns,
+			c.Runtime,
+			c.Ollama,
+			mv1.NewModelsWorkerServiceClient(conn),
+		)
 	case config.RuntimeNameVLLM:
 		rtClient = runtime.NewVLLMClient(
 			mgr.GetClient(),

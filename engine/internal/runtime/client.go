@@ -81,6 +81,8 @@ type initContainerSpec struct {
 	image   string
 	command []string
 	args    []string
+
+	imagePullPolicy corev1.PullPolicy
 }
 
 type deployRuntimeParams struct {
@@ -233,7 +235,7 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithInitContainers(corev1apply.Container().
 			WithName(ic.name).
 			WithImage(ic.image).
-			WithImagePullPolicy(corev1.PullPolicy(c.PullerImagePullPolicy)).
+			WithImagePullPolicy(ic.imagePullPolicy).
 			WithCommand(ic.command...).
 			WithArgs(ic.args...).
 			WithEnv(initEnvs...).
@@ -354,8 +356,19 @@ func resourceName(runtime, modelID string) string {
 	// Avoid using llegal characters like "." or capital letters in the model names
 	// TODO(kenji): Have a better way.
 	m := strings.ToLower(modelID)
-	for _, r := range []string{".", "_"} {
+	for _, r := range []string{".", "_", ":"} {
 		m = strings.ReplaceAll(m, r, "-")
 	}
+
+	// Remove "fine-tuning" from the model name as it does not bring useful information the modelID uniqueness.
+	m = strings.ReplaceAll(m, "fine-tuning", "")
+
+	// Trunate the name. A pod created from a statefulset will have the "controller-revision-hash" label,
+	// whose value contains the statefulset name and the hash. The value of the label must be less than 63 characters.
+	// See https://github.com/kubernetes/kubernetes/issues/64023 for a relevant discussion.
+	if n := len(m) - 45; n > 0 {
+		m = m[n:]
+	}
+
 	return fmt.Sprintf("%s-%s", runtime, m)
 }

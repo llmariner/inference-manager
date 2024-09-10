@@ -26,7 +26,7 @@ func TestPullModel(t *testing.T) {
 			modelID: "google-gemma-2b",
 			model: &mv1.Model{
 				Id:      "google-gemma-2b",
-				OwnedBy: systemOwner,
+				OwnedBy: "system",
 			},
 			wantCreated: []string{
 				"google-gemma-2b",
@@ -92,7 +92,7 @@ func TestPullModelInProgress(t *testing.T) {
 		&fakeModelInternalClient{
 			model: &mv1.Model{
 				Id:      modelID,
-				OwnedBy: systemOwner,
+				OwnedBy: "system",
 			},
 		},
 	)
@@ -136,34 +136,6 @@ func TestPullModelInProgress(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{modelID}, registered)
 	assert.Empty(t, om.inProgressModels)
-}
-
-func TestExtractBaseModel(t *testing.T) {
-	tcs := []struct {
-		modelID string
-		want    string
-		wantErr bool
-	}{
-		{
-			modelID: "ft:google-gemma-2b:fine-tuning-wpsd9kb5nl",
-			want:    "google-gemma-2b",
-		},
-		{
-			modelID: "bogus",
-			wantErr: true,
-		},
-	}
-	for _, tc := range tcs {
-		t.Run(tc.modelID, func(t *testing.T) {
-			got, err := extractBaseModel(tc.modelID)
-			if tc.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			assert.NoError(t, err)
-			assert.Equal(t, tc.want, got)
-		})
-	}
 }
 
 type fakeOllamaManager struct {

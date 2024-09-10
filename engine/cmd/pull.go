@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
+	"github.com/llm-operator/inference-manager/engine/internal/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
@@ -68,8 +70,27 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 	}
 	mClient := mv1.NewModelsWorkerServiceClient(conn)
 
-	// TODO(kenji): Support non-base model.
 	ctx = auth.AppendWorkerAuthorization(ctx)
+
+	isBase, err := models.IsBaseModel(ctx, mClient, o.modelID)
+	if err != nil {
+		return err
+	}
+
+	if isBase {
+		return pullBaseModel(ctx, o, c, mClient, s3Client)
+	}
+
+	return pullFineTunedModel(ctx, o, c, mClient, s3Client)
+}
+
+func pullBaseModel(
+	ctx context.Context,
+	o opts,
+	c config.Config,
+	mClient mv1.ModelsWorkerServiceClient,
+	s3Client *s3.Client,
+) error {
 	resp, err := mClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
 		Id: o.modelID,
 	})
@@ -102,6 +123,58 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		}
 		log.Printf("Successfully created the Ollama modelfile\n")
 	}
+
+	return nil
+}
+
+func pullFineTunedModel(
+	ctx context.Context,
+	o opts,
+	c config.Config,
+	mClient mv1.ModelsWorkerServiceClient,
+	s3Client *s3.Client,
+) error {
+	if o.runtime == config.RuntimeNameVLLM {
+		return fmt.Errorf("not supporting fine-tuned jobs for vllm")
+	}
+
+	baseModelID, err := models.ExtractBaseModel(o.modelID)
+	if err != nil {
+		return err
+	}
+
+	if err := pullBaseModel(ctx, opts{modelID: baseModelID, runtime: o.runtime}, c, mClient, s3Client); err != nil {
+		return err
+	}
+
+	d := modeldownloader.New(runtime.ModelDir(), s3Client)
+
+	mresp, err := mClient.GetModelPath(ctx, &mv1.GetModelPathRequest{
+		Id: o.modelID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := d.DownloadAdapter(ctx, o.modelID, mresp); err != nil {
+		return err
+	}
+
+	filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
+	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
+
+	adapterPath, err := modeldownloader.AdapterFilePath(runtime.ModelDir(), o.modelID)
+	if err != nil {
+		return err
+	}
+	spec := &ollama.ModelSpec{
+		From:        baseModelID,
+		AdapterPath: adapterPath,
+	}
+	if err := ollama.CreateModelfile(filePath, o.modelID, spec, c.ModelContextLengths); err != nil {
+		return err
+	}
+	log.Printf("Successfully created the Ollama modelfile\n")
 
 	return nil
 }

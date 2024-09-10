@@ -4,9 +4,15 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	imodels "github.com/llm-operator/inference-manager/engine/internal/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
@@ -15,12 +21,17 @@ import (
 
 const ollamaHTTPPort = 11434
 
+type modelGetter interface {
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+}
+
 // NewOllamaClient creates a new Ollama runtime client.
 func NewOllamaClient(
 	k8sClient client.Client,
 	namespace string,
 	rconfig config.RuntimeConfig,
 	oconfig config.OllamaConfig,
+	modelClient modelGetter,
 ) Client {
 	return &ollamaClient{
 		commonClient: &commonClient{
@@ -29,14 +40,16 @@ func NewOllamaClient(
 			servingPort:   ollamaHTTPPort,
 			RuntimeConfig: rconfig,
 		},
-		config: oconfig,
+		config:      oconfig,
+		modelClient: modelClient,
 	}
 }
 
 type ollamaClient struct {
 	*commonClient
 
-	config config.OllamaConfig
+	config      config.OllamaConfig
+	modelClient modelGetter
 }
 
 // DeployRuntime deploys the runtime for the given model.
@@ -76,19 +89,44 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
 
+	isBase, err := imodels.IsBaseModel(ctx, o.modelClient, modelID)
+	if err != nil {
+		return types.NamespacedName{}, err
+	}
+
+	var modelIDs []string
+	if isBase {
+		modelIDs = append(modelIDs, modelID)
+	} else {
+		baseModelID, err := imodels.ExtractBaseModel(modelID)
+		if err != nil {
+			return types.NamespacedName{}, err
+		}
+		modelIDs = append(modelIDs, baseModelID, modelID)
+	}
+
+	// Create an init container that starts an Ollama server process in background and create a modelfile.
+	// TODO(kenji): Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
+	var createCmds []string
+	for _, id := range modelIDs {
+		createCmds = append(createCmds, fmt.Sprintf(`
+while true; do
+  ollama create %s -f %s && break
+  sleep 1
+done
+`, models.OllamaModelName(id), ollama.ModelfilePath(modelDir, id)))
+	}
+
 	// Start an Ollama server process in background and create a modelfile.
 	// Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
 	script := fmt.Sprintf(`
 ollama serve &
 serve_pid=$!
 
-while true; do
-  ollama create %s -f %s && break
-  sleep 1
-done
+%s
 
 kill ${serve_pid}
-`, modelID, ollama.ModelfilePath(modelDir, modelID))
+`, strings.Join(createCmds, "\n"))
 
 	return o.deployRuntime(ctx, deployRuntimeParams{
 		modelID:  modelID,
@@ -103,6 +141,8 @@ kill ${serve_pid}
 			image:   image,
 			command: []string{"/bin/bash"},
 			args:    []string{"-c", script},
+			// Use the same policy as the runtime as the container image is the same as the runtime.
+			imagePullPolicy: corev1.PullPolicy(o.RuntimeImagePullPolicy),
 		},
 	})
 }

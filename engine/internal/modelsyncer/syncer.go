@@ -7,18 +7,16 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"sync"
 
 	"github.com/llm-operator/inference-manager/common/pkg/models"
+	imodels "github.com/llm-operator/inference-manager/engine/internal/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
 )
 
 const (
-	systemOwner = "system"
-
 	modelDir = "/.ollama/models/manifests/registry.ollama.ai/library/"
 )
 
@@ -113,16 +111,11 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
-	// Consider changing Model Manager gRPC interface to simplify the interaction (e.g.,
-	// add an RPC method that returns a model path for both base model and fine-tuning model).
-	model, err := s.miClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
+	isBase, err := imodels.IsBaseModel(ctx, s.miClient, modelID)
 	if err != nil {
 		return err
 	}
-	if model.OwnedBy == systemOwner {
+	if isBase {
 		return s.registerBaseModel(ctx, modelID)
 	}
 
@@ -163,7 +156,7 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 
 func (s *S) registerModel(ctx context.Context, modelID string) error {
 	log.Printf("Registering model %q\n", modelID)
-	baseModel, err := extractBaseModel(modelID)
+	baseModel, err := imodels.ExtractBaseModel(modelID)
 	if err != nil {
 		return err
 	}
@@ -301,12 +294,4 @@ func (s *S) ListInProgressModels() []string {
 		ms = append(ms, m)
 	}
 	return ms
-}
-
-func extractBaseModel(modelID string) (string, error) {
-	l := strings.Split(modelID, ":")
-	if len(l) <= 2 {
-		return "", fmt.Errorf("invalid model ID: %q", modelID)
-	}
-	return strings.Join(l[1:len(l)-1], ":"), nil
 }

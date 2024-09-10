@@ -19,7 +19,9 @@ func NewClient(ctx context.Context, c config.S3Config) (*Client, error) {
 		return nil, fmt.Errorf("couldn't load default configuration: %s", err)
 	}
 	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(c.EndpointURL)
+		if u := c.EndpointURL; u != "" {
+			o.BaseEndpoint = aws.String(u)
+		}
 		// This is needed as the minio server does not support the virtual host style.
 		o.UsePathStyle = true
 		o.Region = c.Region

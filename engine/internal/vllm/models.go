@@ -11,9 +11,9 @@ import (
 func ModelFilePath(modelDir, modelName string, format mv1.ModelFormat) (string, error) {
 	switch format {
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
-		return filepath.Join(modelDir, modelName+".gguf"), nil
+		return filepath.Join(modelDir, modelName, "model.gguf"), nil
 	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
-		return modelDir, nil
+		return filepath.Join(modelDir, modelName), nil
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)
 	}

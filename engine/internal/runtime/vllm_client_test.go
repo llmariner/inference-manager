@@ -43,7 +43,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 			},
 			wantArgs: []string{
 				"--port", "80",
-				"--model", "/models",
+				"--model", "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
 				"--tensor-parallel-size", "2",
@@ -60,7 +60,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 			},
 			wantArgs: []string{
 				"--port", "80",
-				"--model", "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0.gguf",
+				"--model", "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0/model.gguf",
 				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
 				"--tensor-parallel-size", "2",

@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
-	"path/filepath"
 
-	"github.com/llm-operator/inference-manager/engine/internal/huggingface"
+	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
@@ -20,8 +18,8 @@ type s3Client interface {
 // New returns a new Manager.
 func New(modelDir string, s3Client s3Client) *Manager {
 	return &Manager{
-		modelDir: modelDir,
-		s3Client: s3Client,
+		modelDir:        modelDir,
+		modelDownloader: modeldownloader.New(modelDir, s3Client),
 	}
 }
 
@@ -32,7 +30,7 @@ func New(modelDir string, s3Client s3Client) *Manager {
 type Manager struct {
 	modelDir string
 
-	s3Client s3Client
+	modelDownloader *modeldownloader.D
 }
 
 // CreateNewModelOfGGUF creates a new model with the given name and spec that uses a GGUF model file.
@@ -52,51 +50,7 @@ func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName strin
 		return err
 	}
 
-	// Check if the completion indication file exists. If so, download should have been completed with a previous run. Do not download again.
-	completionIndicationFile := filepath.Join(m.modelDir, "completed.txt")
-
-	if _, err := os.Stat(completionIndicationFile); err == nil {
-		log.Printf("The model has already been downloaded. Skipping the download.\n")
-		return nil
-	}
-
-	switch format {
-	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
-		log.Printf("Downloading the GGUF model from %q\n", resp.GgufModelPath)
-		f, err := os.Create(destPath)
-		if err != nil {
-			return err
-		}
-		if err := m.s3Client.Download(ctx, f, resp.GgufModelPath); err != nil {
-			return fmt.Errorf("download: %s", err)
-		}
-		log.Printf("Downloaded the model to %q\n", f.Name())
-		if err := f.Close(); err != nil {
-			return err
-		}
-	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
-		log.Printf("Downloading the Hugging Face model from %q\n", resp.Path)
-		if err := os.MkdirAll(destPath, 0755); err != nil {
-			return fmt.Errorf("create directory: %s", err)
-		}
-		if err := huggingface.DownloadModelFiles(ctx, m.s3Client, resp.Path, destPath); err != nil {
-			return fmt.Errorf("download: %s", err)
-		}
-		log.Printf("Downloaded the model to %q\n", destPath)
-	default:
-		return fmt.Errorf("unsupported model format: %s", format)
-	}
-
-	// Create a file that indicates the completion of model download.
-	f, err := os.Create(completionIndicationFile)
-	if err != nil {
-		return nil
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return m.modelDownloader.Download(ctx, modelName, resp, format, destPath)
 }
 
 // UpdateModelTemplateToLatest updates the model template to the latest.

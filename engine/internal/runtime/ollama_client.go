@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
@@ -80,17 +81,17 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 
 	// Start an Ollama server process in background and create a modelfile.
 	// Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
-	script := `
+	script := fmt.Sprintf(`
 ollama serve &
 serve_pid=$!
 
 while true; do
-  ollama create google-gemma-2b-it-q4 -f /models/google-gemma-2b-it-q4/modelfile && break
+  ollama create %s -f %s && break
   sleep 1
 done
 
 kill ${serve_pid}
-`
+`, modelID, ollama.ModelfilePath(modelDir, modelID))
 
 	return o.deployRuntime(ctx, deployRuntimeParams{
 		modelID:  modelID,

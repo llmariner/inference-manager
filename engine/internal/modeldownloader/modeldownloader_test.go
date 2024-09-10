@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	mv1 "github.com/llm-operator/model-manager/api/v1"
@@ -27,13 +26,12 @@ func TestDownload(t *testing.T) {
 			mv1.ModelFormat_MODEL_FORMAT_GGUF,
 		},
 	}
-	destPath := filepath.Join(modelDir, "model.gguf")
-	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF, destPath)
+	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 
 	// Run again.
-	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF, destPath)
+	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 }

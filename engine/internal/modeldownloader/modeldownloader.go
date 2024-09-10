@@ -37,7 +37,6 @@ func (d *D) Download(
 	modelName string,
 	resp *mv1.GetBaseModelPathResponse,
 	format mv1.ModelFormat,
-	destPath string,
 ) error {
 	// Check if the completion indication file exists. If so, download should have been completed with a previous run. Do not download again.
 	completionDir := filepath.Join(d.modelDir, modelName)
@@ -49,6 +48,11 @@ func (d *D) Download(
 	if _, err := os.Stat(completionIndicationFile); err == nil {
 		log.Printf("The model has already been downloaded. Skipping the download.\n")
 		return nil
+	}
+
+	destPath, err := ModelFilePath(d.modelDir, modelName, format)
+	if err != nil {
+		return err
 	}
 
 	switch format {
@@ -83,13 +87,21 @@ func (d *D) Download(
 	if err != nil {
 		return err
 	}
-	if _, err := io.WriteString(f, "aa"); err != nil {
-		return err
-	}
-
 	if err := f.Close(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// ModelFilePath returns the file path of the model.
+func ModelFilePath(modelDir, modelName string, format mv1.ModelFormat) (string, error) {
+	switch format {
+	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
+		return filepath.Join(modelDir, modelName, "model.gguf"), nil
+	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
+		return filepath.Join(modelDir, modelName), nil
+	default:
+		return "", fmt.Errorf("unsupported model format: %s", format)
+	}
 }

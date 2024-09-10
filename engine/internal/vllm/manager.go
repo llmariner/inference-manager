@@ -8,6 +8,7 @@ import (
 
 	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
 
@@ -40,17 +41,12 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec)
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
 func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
-	format, err := PreferredModelFormat(resp)
+	format, err := runtime.PreferredModelFormat(runtime.RuntimeNameVLLM, resp.Formats)
 	if err != nil {
 		return nil
 	}
 
-	destPath, err := ModelFilePath(m.modelDir, modelName, format)
-	if err != nil {
-		return err
-	}
-
-	return m.modelDownloader.Download(ctx, modelName, resp, format, destPath)
+	return m.modelDownloader.Download(ctx, modelName, resp, format)
 }
 
 // UpdateModelTemplateToLatest updates the model template to the latest.

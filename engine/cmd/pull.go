@@ -2,17 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
-	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
+	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
-	"github.com/llm-operator/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -66,54 +62,46 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 	if err != nil {
 		return err
 	}
-
-	var mgr modelsyncer.ModelManager
-
-	done := make(chan error)
-	switch o.runtime {
-	case runtime.RuntimeNameOllama:
-		if isRegistered, err := isModelRegistered(o.modelID); err != nil {
-			return fmt.Errorf("check model registration: %s", err)
-		} else if isRegistered {
-			log.Printf("Model %s is already registered", o.modelID)
-			return nil
-		}
-		omgr := ollama.New(c.FormattedModelContextLengths(), s3Client)
-		go func() { done <- omgr.Run() }()
-		mgr = omgr
-	case runtime.RuntimeNameVLLM:
-		// TODO(kenji): Check if a model already exists.
-		mgr = vllm.New(runtime.ModelDir(), s3Client)
-	default:
-		return fmt.Errorf("invalid runtime: %s", o.runtime)
-	}
-
 	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(&c))
 	if err != nil {
 		return err
 	}
+	mClient := mv1.NewModelsWorkerServiceClient(conn)
 
-	syncer, err := modelsyncer.New(
-		mgr,
-		s3Client,
-		mv1.NewModelsWorkerServiceClient(conn))
+	// TODO(kenji): Support non-base model.
+	ctx = auth.AppendWorkerAuthorization(ctx)
+	resp, err := mClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
+		Id: o.modelID,
+	})
 	if err != nil {
-		return fmt.Errorf("create model syncer: %s", err)
+		return err
 	}
 
-	go func() {
-		ctx = auth.AppendWorkerAuthorization(ctx)
-		done <- syncer.PullModel(ctx, o.modelID)
-	}()
-	return <-done
-}
+	d := modeldownloader.New(runtime.ModelDir(), s3Client)
 
-func isModelRegistered(modelID string) (bool, error) {
-	modelDir := filepath.Join(runtime.ModelDir(), "manifests/registry.ollama.ai/library/")
-	if _, err := os.Stat(filepath.Join(modelDir, modelID)); os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf("stat file: %s", err)
+	format, err := runtime.PreferredModelFormat(o.runtime, resp.Formats)
+	if err != nil {
+		return err
 	}
-	return true, nil
+	if err := d.Download(ctx, o.modelID, resp, format); err != nil {
+		return err
+	}
+
+	if o.runtime == runtime.RuntimeNameOllama {
+		filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
+		log.Printf("Creating an Ollama modelfile at %q\n", filePath)
+		modelPath, err := modeldownloader.ModelFilePath(runtime.ModelDir(), o.modelID, format)
+		if err != nil {
+			return err
+		}
+		spec := &ollama.ModelSpec{
+			From: modelPath,
+		}
+		if err := ollama.CreateModelfile(filePath, o.modelID, spec, c.ModelContextLengths); err != nil {
+			return err
+		}
+		log.Printf("Successfully created the Ollama modelfile\n")
+	}
+
+	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
-	"github.com/llm-operator/inference-manager/engine/internal/vllm"
+	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -155,11 +155,11 @@ func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string,
 	if err != nil {
 		return "", err
 	}
-	format, err := vllm.PreferredModelFormat(resp)
+	format, err := PreferredModelFormat(RuntimeNameVLLM, resp.Formats)
 	if err != nil {
 		return "", err
 	}
-	return vllm.ModelFilePath(modelDir, modelID, format)
+	return modeldownloader.ModelFilePath(modelDir, modelID, format)
 }
 
 // isAWQQuantizedModel returns true if the model name is an AWQ quantized model.

@@ -1,0 +1,43 @@
+package runtime
+
+import (
+	"fmt"
+
+	mv1 "github.com/llm-operator/model-manager/api/v1"
+)
+
+// PreferredModelFormat returns the preferred model format.
+func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (mv1.ModelFormat, error) {
+	if len(supportedFormats) == 0 {
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("no formats")
+	}
+
+	switch runtime {
+	case RuntimeNameOllama:
+		// Only support GGUF.
+		hasGGUF := false
+		for _, f := range supportedFormats {
+			if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
+				hasGGUF = true
+				break
+			}
+		}
+		if !hasGGUF {
+			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("GGUF format is not supported")
+		}
+		return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
+	case RuntimeNameVLLM:
+		var preferredFormat mv1.ModelFormat
+		for _, f := range supportedFormats {
+			if f == mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE {
+				// Prefer the HuggingFace format to GGUF.
+				preferredFormat = f
+				break
+			}
+			preferredFormat = f
+		}
+		return preferredFormat, nil
+	default:
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("unknown runtime: %s", runtime)
+	}
+}

@@ -21,7 +21,7 @@ global:
 
   controlPlaneAddr: ""
 
-# Change this to "alpha" to run the alpha command.
+# Change this to "run_monolithic" to run the legacy monolithic mode.
 commandName: run
 
 runtime:
@@ -65,9 +65,6 @@ ollama:
   debug: false
   runnersDir: /tmp/ollama-runners
 
-vllm:
-  numGpus: 1
-
 autoscaler:
   enable: false
   initialDelay: "12s"
@@ -84,7 +81,6 @@ autoscaler:
 # maxConcurentRequests is the maximun number of requests procssed in parallel.
 maxConcurrentRequests: 0
 
-llmEngine: ollama
 llmPort: 8080
 healthPort: 8081
 
@@ -114,14 +110,6 @@ affinity:
 tolerations:
 
 version:
-
-autoscaling:
-  # TODO(kenji): Enable once Keda installation is supported in the Terraform provisioning.
-  enableKeda: false
-  scaledobject:
-    minReplicaCount: 1
-    maxReplicaCount: 2
-    prometheusServerAddr:
 
 resources:
   requests:

@@ -34,7 +34,6 @@ func NewVLLMClient(
 	k8sClient client.Client,
 	namespace string,
 	rconfig config.RuntimeConfig,
-	vconfig config.VLLMConfig,
 	modelContextLengths map[string]int,
 	modelClient modelClient,
 ) Client {
@@ -45,7 +44,6 @@ func NewVLLMClient(
 			servingPort:   vllmHTTPPort,
 			RuntimeConfig: rconfig,
 		},
-		config:              vconfig,
 		modelContextLengths: modelContextLengths,
 		modelClient:         modelClient,
 	}
@@ -54,7 +52,6 @@ func NewVLLMClient(
 type vllmClient struct {
 	*commonClient
 
-	config              config.VLLMConfig
 	modelContextLengths map[string]int
 	modelClient         modelClient
 }

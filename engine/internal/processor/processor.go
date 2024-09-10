@@ -16,7 +16,6 @@ import (
 	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
-	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
 
@@ -108,7 +107,6 @@ func NewP(
 	engineID string,
 	client v1.InferenceWorkerServiceClient,
 	addrGetter AddressGetter,
-	llmKind llmkind.K,
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
 	collector metrics.Collector,
@@ -117,7 +115,6 @@ func NewP(
 		engineID:    engineID,
 		client:      client,
 		addrGetter:  addrGetter,
-		llmKind:     llmKind,
 		modelSyncer: modelSyncer,
 		logger:      logger,
 		metrics:     collector,
@@ -129,7 +126,6 @@ type P struct {
 	engineID    string
 	client      v1.InferenceWorkerServiceClient
 	addrGetter  AddressGetter
-	llmKind     llmkind.K
 	modelSyncer ModelSyncer
 	metrics     metrics.Collector
 
@@ -375,18 +371,8 @@ func (p *P) processTask(
 }
 
 func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error) {
-	switch p.llmKind {
-	case llmkind.Ollama:
-		t.Request.Model = models.OllamaModelName(t.Request.Model)
-	case llmkind.VLLM:
-		modelName, err := models.VLLMModelName(t.Request.Model)
-		if err != nil {
-			return nil, err
-		}
-		t.Request.Model = modelName
-	default:
-		return nil, fmt.Errorf("unsupported serving engine: %q", p.llmKind)
-	}
+	// TODO(kenji): Revisit once we support fine-tuning models in vLLM. We might not need this conversion.
+	t.Request.Model = models.OllamaModelName(t.Request.Model)
 
 	reqBody, err := json.Marshal(t.Request)
 	if err != nil {

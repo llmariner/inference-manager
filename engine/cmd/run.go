@@ -107,12 +107,11 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			mgr.GetClient(),
 			ns,
 			c.Runtime,
-			c.VLLM,
 			c.FormattedModelContextLengths(),
 			mv1.NewModelsWorkerServiceClient(conn),
 		)
 	default:
-		return fmt.Errorf("invalid llm engine: %q", c.LLMEngine)
+		return fmt.Errorf("invalid llm engine: %q", c.Runtime.Name)
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
@@ -138,7 +137,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		engineID,
 		wsClient,
 		rtManager,
-		c.LLMEngine,
 		rtManager,
 		logger,
 		mClient,

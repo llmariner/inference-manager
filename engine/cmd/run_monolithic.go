@@ -17,7 +17,6 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
-	"github.com/llm-operator/inference-manager/pkg/llmkind"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -79,20 +78,15 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 	}
 
 	llmAddr := fmt.Sprintf("0.0.0.0:%d", c.LLMPort)
-	var m *ollama.Manager
-	switch c.LLMEngine {
-	case llmkind.Ollama:
-		if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
-			return err
-		}
-		if err := ollama.SetEnvVarsFromConfig(c.Ollama); err != nil {
-			return err
-		}
-
-		m = ollama.New(c.FormattedModelContextLengths(), s3Client)
-	default:
-		return fmt.Errorf("unsupported llm engine: %q", c.LLMEngine)
+	if err := os.Setenv("OLLAMA_HOST", llmAddr); err != nil {
+		return err
 	}
+	if err := ollama.SetEnvVarsFromConfig(c.Ollama); err != nil {
+		return err
+	}
+
+	m := ollama.New(c.FormattedModelContextLengths(), s3Client)
+
 	errCh := make(chan error)
 
 	go func() {
@@ -144,7 +138,6 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 		engineID,
 		v1.NewInferenceWorkerServiceClient(conn),
 		processor.NewFixedAddressGetter(llmAddr),
-		c.LLMEngine,
 		syncer,
 		logger,
 		&processor.NoopMetricsCollector{},

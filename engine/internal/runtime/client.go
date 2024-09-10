@@ -161,22 +161,27 @@ func (c *commonClient) deployRuntime(
 			WithValueFrom(corev1apply.EnvVarSource().
 				WithFieldRef(corev1apply.ObjectFieldSelector().
 					WithFieldPath("metadata.labels['apps.kubernetes.io/pod-index']"))),
-		corev1apply.EnvVar().WithName("AWS_ACCESS_KEY_ID").
-			WithValueFrom(corev1apply.EnvVarSource().
-				WithSecretKeyRef(corev1apply.SecretKeySelector().
-					WithName(c.AWSSecretName).
-					WithKey(c.AWSKeyIDEnvKey))),
-		corev1apply.EnvVar().WithName("AWS_SECRET_ACCESS_KEY").
-			WithValueFrom(corev1apply.EnvVarSource().
-				WithSecretKeyRef(corev1apply.SecretKeySelector().
-					WithName(c.AWSSecretName).
-					WithKey(c.AWSAccessKeyEnvKey))),
 		corev1apply.EnvVar().WithName("LLMO_CLUSTER_REGISTRATION_KEY").
 			WithValueFrom(corev1apply.EnvVarSource().
 				WithSecretKeyRef(corev1apply.SecretKeySelector().
 					WithName(c.LLMOWorkerSecretName).
 					WithKey(c.LLMOKeyEnvKey))),
 	)
+
+	if c.AWSSecretName != "" {
+		initEnvs = append(initEnvs,
+			corev1apply.EnvVar().WithName("AWS_ACCESS_KEY_ID").
+				WithValueFrom(corev1apply.EnvVarSource().
+					WithSecretKeyRef(corev1apply.SecretKeySelector().
+						WithName(c.AWSSecretName).
+						WithKey(c.AWSKeyIDEnvKey))),
+			corev1apply.EnvVar().WithName("AWS_SECRET_ACCESS_KEY").
+				WithValueFrom(corev1apply.EnvVarSource().
+					WithSecretKeyRef(corev1apply.SecretKeySelector().
+						WithName(c.AWSSecretName).
+						WithKey(c.AWSAccessKeyEnvKey))),
+		)
+	}
 
 	runtimeResources := corev1apply.ResourceRequirements()
 	if len(resConf.Requests) > 0 {

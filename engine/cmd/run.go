@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,11 +82,14 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	mClient := metrics.NewClient(c.Autoscaler.MetricsWindow)
-	scaler := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
+	var scaler runtime.ScalerRegisterer
 	if c.Autoscaler.Enable {
+		scaler := autoscaler.NewMultiAutoscaler(mgr.GetClient(), mClient, c.Autoscaler)
 		if err := scaler.SetupWithManager(mgr); err != nil {
 			return err
 		}
+	} else {
+		scaler = &noopScaler{}
 	}
 
 	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
@@ -169,4 +173,12 @@ func preloadModels(ctx context.Context, rtManager *runtime.Manager, ids []string
 		g.Go(func() error { return rtManager.PullModel(ctx, id) })
 	}
 	return g.Wait()
+}
+
+type noopScaler struct{}
+
+func (n *noopScaler) Register(modelID string, target types.NamespacedName) {
+}
+
+func (n *noopScaler) Unregister(target types.NamespacedName) {
 }

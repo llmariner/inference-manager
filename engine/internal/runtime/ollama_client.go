@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
-	imodels "github.com/llm-operator/inference-manager/engine/internal/models"
+	models "github.com/llm-operator/inference-manager/engine/internal/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
@@ -89,7 +88,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
 
-	isBase, err := imodels.IsBaseModel(ctx, o.modelClient, modelID)
+	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)
 	if err != nil {
 		return types.NamespacedName{}, err
 	}
@@ -98,7 +97,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 	if isBase {
 		modelIDs = append(modelIDs, modelID)
 	} else {
-		baseModelID, err := imodels.ExtractBaseModel(modelID)
+		baseModelID, err := models.ExtractBaseModel(modelID)
 		if err != nil {
 			return types.NamespacedName{}, err
 		}
@@ -114,7 +113,7 @@ while true; do
   ollama create %s -f %s && break
   sleep 1
 done
-`, models.OllamaModelName(id), ollama.ModelfilePath(modelDir, id)))
+`, ollama.ModelName(id), ollama.ModelfilePath(modelDir, id)))
 	}
 
 	// Start an Ollama server process in background and create a modelfile.

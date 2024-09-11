@@ -13,9 +13,9 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/common/pkg/models"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
+	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -414,7 +414,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		r := req.GetChatCompletion()
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
-		r.Model = models.OllamaModelName(r.Model)
+		r.Model = ollama.ModelName(r.Model)
 		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err

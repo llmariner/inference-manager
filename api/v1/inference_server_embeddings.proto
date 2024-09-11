@@ -22,3 +22,15 @@ message Embedding {
   repeated double embedding = 2;
   string object = 3;
 }
+
+message Embeddings {
+  message Usage {
+    int32 prompt_tokens = 1;
+    int32 total_tokens = 2;
+  }
+
+  string object = 1;
+  repeated Embedding data = 2;
+  string model = 3;
+  Usage usage = 4;
+}

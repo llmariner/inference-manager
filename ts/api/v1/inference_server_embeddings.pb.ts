@@ -16,3 +16,15 @@ export type Embedding = {
   embedding?: number[]
   object?: string
 }
+
+export type EmbeddingsUsage = {
+  promptTokens?: number
+  totalTokens?: number
+}
+
+export type Embeddings = {
+  object?: string
+  data?: Embedding[]
+  model?: string
+  usage?: EmbeddingsUsage
+}

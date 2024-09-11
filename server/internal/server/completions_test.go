@@ -264,6 +264,12 @@ func (m *fakeMetricsMonitor) ObserveCompletionLatency(modelID string, latency ti
 func (m *fakeMetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
 }
 
+func (m *fakeMetricsMonitor) ObserveEmbeddingLatency(modelID string, latency time.Duration) {
+}
+
+func (m *fakeMetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
+}
+
 type fakeVectorStoreClient struct {
 	vs *vsv1.VectorStore
 }

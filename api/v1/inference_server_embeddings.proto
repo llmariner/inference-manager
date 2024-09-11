@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package llmoperator.embeddings.server.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/llm-operator/inference-manager/api/v1";
+
+message CreateEmbeddingRequest {
+   // This can be a string or an array of strings, but we use string assuming that it is more common.
+  string input = 1;
+  string model = 2;
+
+  string encoding_format = 3;
+  int32 dimensions = 4;
+
+  string user = 5;
+}
+
+message Embedding {
+  int32 index = 1;
+  repeated double embedding = 2;
+  string object = 3;
+}
+
+message Embeddings {
+  message Usage {
+    int32 prompt_tokens = 1;
+    int32 total_tokens = 2;
+  }
+
+  string object = 1;
+  repeated Embedding data = 2;
+  string model = 3;
+  Usage usage = 4;
+}

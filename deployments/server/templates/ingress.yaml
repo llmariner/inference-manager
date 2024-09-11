@@ -35,6 +35,13 @@ spec:
             name: {{ include "inference-manager-server.fullname" . }}-http
             port:
               number: {{ .Values.httpPort }}
+      - path: /v1/embeddings
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "inference-manager-server.fullname" . }}-http
+            port:
+              number: {{ .Values.httpPort }}
 
 ---
 

@@ -59,7 +59,7 @@ func TestP(t *testing.T) {
 	task := &Task{
 		ID:       "task0",
 		TenantID: "tenant0",
-		Req: &v1.CreateChatCompletionRequest{
+		ChatCompletionReq: &v1.CreateChatCompletionRequest{
 			Model: modelID,
 		},
 		RespCh: make(chan *http.Response),
@@ -80,7 +80,7 @@ func TestP(t *testing.T) {
 	task = &Task{
 		ID:       "task1",
 		TenantID: "tenant0",
-		Req: &v1.CreateChatCompletionRequest{
+		ChatCompletionReq: &v1.CreateChatCompletionRequest{
 			Model: modelID,
 		},
 		RespCh: make(chan *http.Response),
@@ -89,6 +89,68 @@ func TestP(t *testing.T) {
 	queue.Enqueue(task)
 	_, err = task.WaitForCompletion(context.Background())
 	assert.Error(t, err)
+}
+
+func TestEmbedding(t *testing.T) {
+	const (
+		modelID = "m0"
+	)
+
+	queue := NewTaskQueue()
+	iprocessor := NewP(
+		queue,
+		&fakeEngineRouter{},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	comm := &fakeEngineCommunicator{
+		taskCh:   make(chan *v1.Task),
+		resultCh: make(chan *v1.TaskResult),
+	}
+	go comm.run(ctx)
+
+	clusterInfo := &auth.ClusterInfo{
+		TenantID: "tenant0",
+	}
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+		},
+		clusterInfo,
+	)
+
+	go func() {
+		_ = iprocessor.Run(ctx)
+	}()
+
+	go func() {
+		resp, err := comm.Recv()
+		assert.NoError(t, err)
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
+		assert.NoError(t, err)
+	}()
+
+	task := &Task{
+		ID:       "task0",
+		TenantID: "tenant0",
+		EmbeddingReq: &v1.CreateEmbeddingRequest{
+			Model: modelID,
+		},
+		RespCh: make(chan *http.Response),
+		ErrCh:  make(chan error),
+	}
+	queue.Enqueue(task)
+
+	resp, err := task.WaitForCompletion(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "ok", string(body))
 }
 
 func TestRemoveEngineWithInProgressTask(t *testing.T) {
@@ -130,7 +192,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	task := &Task{
 		ID:       "task0",
 		TenantID: "tenant0",
-		Req: &v1.CreateChatCompletionRequest{
+		ChatCompletionReq: &v1.CreateChatCompletionRequest{
 			Model: modelID,
 		},
 		RespCh: make(chan *http.Response),
@@ -187,7 +249,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	task := &Task{
 		ID:       "task0",
 		TenantID: "tenant0",
-		Req: &v1.CreateChatCompletionRequest{
+		ChatCompletionReq: &v1.CreateChatCompletionRequest{
 			Model: modelID,
 		},
 		RespCh: make(chan *http.Response),
@@ -272,7 +334,7 @@ func TestDumpStatus(t *testing.T) {
 				ID:       "task0",
 				EngineID: "e0",
 				TenantID: "tenant0",
-				Req: &v1.CreateChatCompletionRequest{
+				ChatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m0",
 				},
 			},
@@ -280,7 +342,7 @@ func TestDumpStatus(t *testing.T) {
 				ID:       "task1",
 				EngineID: "e0",
 				TenantID: "tenant0",
-				Req: &v1.CreateChatCompletionRequest{
+				ChatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m1",
 				},
 			},
@@ -288,7 +350,7 @@ func TestDumpStatus(t *testing.T) {
 				ID:       "task2",
 				EngineID: "e1",
 				TenantID: "tenant0",
-				Req: &v1.CreateChatCompletionRequest{
+				ChatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m2",
 				},
 			},

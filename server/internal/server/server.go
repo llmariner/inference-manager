@@ -96,6 +96,8 @@ func (r *NoopRewriter) ProcessMessages(
 type metricsMonitoring interface {
 	ObserveCompletionLatency(modelID string, latency time.Duration)
 	UpdateCompletionRequest(modelID string, c int)
+	ObserveEmbeddingLatency(modelID string, latency time.Duration)
+	UpdateEmbeddingRequest(modelID string, c int)
 }
 
 // New creates a server.

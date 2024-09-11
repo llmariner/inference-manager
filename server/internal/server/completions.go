@@ -85,7 +85,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	task, err := infprocessor.NewTask(userInfo.TenantID, &createReq, req.Header)
+	task, err := infprocessor.NewChatCompletionTask(userInfo.TenantID, &createReq, req.Header)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
 	}
@@ -105,7 +105,7 @@ func (s *S) CreateChatCompletion(
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			// Gracefully handle the error.
-			log.Printf("Failed toread the body: %s\n", err)
+			log.Printf("Failed to read the body: %s\n", err)
 		}
 		log.Printf("Received an error response: statusCode=%d, status=%q, body=%q\n", resp.StatusCode, resp.Status, string(body))
 		http.Error(w, string(body), resp.StatusCode)

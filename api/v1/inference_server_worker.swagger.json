@@ -242,6 +242,28 @@
       },
       "description": "Message has fields for system message, user message, assistant message, and tool message."
     },
+    "v1CreateEmbeddingRequest": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "string",
+          "description": "This can be a string or an array of strings, but we use string assuming that it is more common."
+        },
+        "model": {
+          "type": "string"
+        },
+        "encodingFormat": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
     "v1EngineStatus": {
       "type": "object",
       "properties": {
@@ -319,8 +341,11 @@
         "id": {
           "type": "string"
         },
-        "request": {
+        "chatCompletionRequest": {
           "$ref": "#/definitions/v1CreateChatCompletionRequest"
+        },
+        "embeddingRequest": {
+          "$ref": "#/definitions/v1CreateEmbeddingRequest"
         },
         "header": {
           "type": "object",

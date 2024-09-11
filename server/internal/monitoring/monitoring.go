@@ -13,6 +13,8 @@ const (
 
 	metricsNameCompletionLatency         = "inference_manager_server_completion_latency"
 	metricsNameCompletionRequest         = "inference_manager_server_completion_num_active_requests"
+	metricsNameEmbeddingLatency          = "inference_manager_server_embedding_latency"
+	metricsNameEmbeddingRequest          = "inference_manager_server_embedding_num_active_requests"
 	metricsNameNumQueuedTasks            = "inference_manager_server_num_queued_tasks"
 	metricsNameNumInProgressTasks        = "inference_manager_server_num_in_progress_tasks"
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
@@ -29,6 +31,8 @@ type MetricsMonitor struct {
 
 	completionLatencyHistVec       *prometheus.HistogramVec
 	completionRequestGaugeVec      *prometheus.GaugeVec
+	embeddingLatencyHistVec        *prometheus.HistogramVec
+	embeddingRequestGaugeVec       *prometheus.GaugeVec
 	numQueuedTasksGauge            prometheus.Gauge
 	numInProgressTasksGauge        prometheus.Gauge
 	maxInProgressTaskDurationGauge prometheus.Gauge
@@ -57,6 +61,27 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
 			Name:      metricsNameCompletionRequest,
+		},
+		[]string{
+			metricLabelModelID,
+		},
+	)
+
+	embeddingLatencyHistVec := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameEmbeddingLatency,
+			Buckets:   latencyBuckets,
+		},
+		[]string{
+			metricLabelModelID,
+		},
+	)
+
+	embeddingRequestGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameEmbeddingRequest,
 		},
 		[]string{
 			metricLabelModelID,
@@ -99,6 +124,8 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 
 		completionLatencyHistVec:       completionLatencyHistVec,
 		completionRequestGaugeVec:      completionRequestGaugeVec,
+		embeddingLatencyHistVec:        embeddingLatencyHistVec,
+		embeddingRequestGaugeVec:       embeddingRequestGaugeVec,
 		numQueuedTasksGauge:            numQueuedTasksGauge,
 		numInProgressTasksGauge:        numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge: maxInProgressTaskDurationGauge,
@@ -108,6 +135,8 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 	prometheus.MustRegister(
 		completionLatencyHistVec,
 		completionRequestGaugeVec,
+		embeddingLatencyHistVec,
+		embeddingRequestGaugeVec,
 		numQueuedTasksGauge,
 		numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge,
@@ -140,6 +169,16 @@ func (m *MetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
 	m.completionRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
 }
 
+// ObserveEmbeddingLatency observes a new latency data for an embedding request.
+func (m *MetricsMonitor) ObserveEmbeddingLatency(modelID string, latency time.Duration) {
+	m.embeddingLatencyHistVec.WithLabelValues(modelID).Observe(float64(latency) / float64(time.Second))
+}
+
+// UpdateEmbeddingRequest updates the number of embedding requests.
+func (m *MetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
+	m.embeddingRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
+}
+
 func (m *MetricsMonitor) updatePeriodicMetrics() {
 	m.numQueuedTasksGauge.Set(float64(m.p.NumQueuedTasks()))
 	m.numInProgressTasksGauge.Set(float64(m.p.NumInProgressTasks()))
@@ -155,6 +194,9 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.completionLatencyHistVec)
 	prometheus.Unregister(m.completionRequestGaugeVec)
+	prometheus.Unregister(m.embeddingLatencyHistVec)
+	prometheus.Unregister(m.embeddingRequestGaugeVec)
+	prometheus.Unregister(m.numQueuedTasksGauge)
 	prometheus.Unregister(m.numInProgressTasksGauge)
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
 	prometheus.Unregister(m.numEnginesGaugeVec)

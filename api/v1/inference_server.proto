@@ -6,7 +6,7 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/llm-operator/inference-manager/api/v1";
 
-// The API specification fllows OpenAPI API specification (https://platform.openai.com/docs/api-reference/chat).
+// The API specification follows OpenAPI API specification (https://platform.openai.com/docs/api-reference/chat).
 
 message CreateChatCompletionRequest {
   // Message has fields for system message, user message, assistant message, and tool message.

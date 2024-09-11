@@ -398,6 +398,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	if err != nil {
 		return nil, err
 	}
+
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   addr,
@@ -406,7 +407,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	var path string
 	var reqBody []byte
 	if req := t.ChatCompletionRequest; req != nil {
-		// TODO(kenji): Revisit once we support fine-tuning models in vLLM. We might not need this conversion.
+		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
+		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		req.Model = models.OllamaModelName(req.Model)
 
 		reqBody, err = json.Marshal(req)

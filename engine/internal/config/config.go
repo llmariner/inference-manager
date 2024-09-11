@@ -84,6 +84,8 @@ type RuntimeConfig struct {
 	// TODO(kenji): Revisit this once we support autoscaling.
 	DefaultReplicas int `yaml:"defaultReplicas"`
 
+	ServiceAccountName string `yaml:"serviceAccountName"`
+
 	NodeSelector map[string]string `yaml:"nodeSelector"`
 	// TODO(kenji): Support affinity
 	Tolerations []TolerationConfig `yaml:"tolerations"`

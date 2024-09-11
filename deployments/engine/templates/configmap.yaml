@@ -32,6 +32,7 @@ data:
       defaultResources:
         {{- toYaml .Values.runtime.defaultResources | nindent 8 }}
       defaultReplicas: {{ .Values.runtime.defaultReplicas }}
+      serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

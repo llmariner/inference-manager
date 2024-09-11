@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/llm-operator/inference-manager/engine/internal/huggingface"
+	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader/huggingface"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
 

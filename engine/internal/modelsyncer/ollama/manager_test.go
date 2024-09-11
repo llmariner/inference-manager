@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,13 +14,13 @@ func TestCreateNewModel(t *testing.T) {
 		name                   string
 		modelID                string
 		contextLengthByModelID map[string]int
-		spec                   *ModelSpec
+		spec                   *ollama.ModelSpec
 		want                   string
 	}{
 		{
 			name:    "gemma",
 			modelID: "google-gemma-2b-it-q4",
-			spec: &ModelSpec{
+			spec: &ollama.ModelSpec{
 				From: "google-gemma-2b-it-q4",
 			},
 			want: `FROM google-gemma-2b-it-q4
@@ -36,7 +37,7 @@ PARAMETER stop "<end_of_turn>"`,
 		{
 			name:    "deepseek",
 			modelID: "deepseek-ai-deepseek-coder-6.7b-base",
-			spec: &ModelSpec{
+			spec: &ollama.ModelSpec{
 				From: "deepseek-ai-deepseek-coder-6.7b-base",
 			},
 			want: `FROM deepseek-ai-deepseek-coder-6.7b-base
@@ -49,7 +50,7 @@ PARAMETER num_ctx 16384
 		{
 			name:    "deepseek with non-default context length",
 			modelID: "deepseek-ai-deepseek-coder-6.7b-base",
-			spec: &ModelSpec{
+			spec: &ollama.ModelSpec{
 				From: "deepseek-ai-deepseek-coder-6.7b-base",
 			},
 			contextLengthByModelID: map[string]int{
@@ -65,7 +66,7 @@ PARAMETER num_ctx 1024
 		{
 			name:    "adapter",
 			modelID: "adapter0",
-			spec: &ModelSpec{
+			spec: &ollama.ModelSpec{
 				From:        "google-gemma-2b-it-q4",
 				AdapterPath: "/path/to/adapter",
 			},

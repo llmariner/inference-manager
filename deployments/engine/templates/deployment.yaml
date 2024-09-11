@@ -48,6 +48,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if eq .Values.commandName "run_monolithic" }}
         {{- with .Values.global.awsSecret }}
         {{- if .name }}
         - name: AWS_ACCESS_KEY_ID
@@ -60,6 +61,7 @@ spec:
             secretKeyRef:
               name: {{ .name }}
               key: {{ .secretAccessKeyKey }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- with .Values.global.worker.registrationKeySecret }}

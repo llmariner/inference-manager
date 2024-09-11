@@ -14,7 +14,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/health"
 	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer"
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
+	"github.com/llm-operator/inference-manager/engine/internal/modelsyncer/ollama"
 	"github.com/llm-operator/inference-manager/engine/internal/processor"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	mv1 "github.com/llm-operator/model-manager/api/v1"

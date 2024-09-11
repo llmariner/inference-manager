@@ -88,7 +88,7 @@ func contextLength(name string, contextLengthsByModelID map[string]int) (int, bo
 		return 65536, true, nil
 	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
 		return 16384, true, nil
-	case name == "sentence-transformers-all-MiniLM-L6-v2":
+	case strings.HasPrefix(name, "sentence-transformers-all-MiniLM-L6-v2"):
 		return 256, true, nil
 	default:
 		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
@@ -211,7 +211,7 @@ PARAMETER stop <|eot_id|>
 TEMPLATE {{ .Prompt }}
 PARAMETER stop <｜end▁of▁sentence｜>
 `, nil
-	case name == "sentence-transformers-all-MiniLM-L6-v2":
+	case strings.HasPrefix(name, "sentence-transformers-all-MiniLM-L6-v2"):
 		// This model is for embedding.
 		return `
 TEMPLATE {{ .Prompt }}

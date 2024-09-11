@@ -5,6 +5,7 @@
 */
 
 import * as LlmoperatorChatServerV1Inference_server from "./inference_server.pb"
+import * as LlmoperatorEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb"
 
 type Absent<T, K extends keyof T> = { [k in Exclude<keyof T, K>]?: undefined };
 type OneOf<T> =
@@ -57,7 +58,8 @@ export type ProcessTasksRequest = BaseProcessTasksRequest
 
 export type Task = {
   id?: string
-  request?: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest
+  chatCompletionRequest?: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest
+  embeddingRequest?: LlmoperatorEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest
   header?: {[key: string]: HeaderValue}
 }
 

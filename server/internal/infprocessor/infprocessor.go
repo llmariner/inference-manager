@@ -20,10 +20,28 @@ const (
 	taskQueueSize = 100
 )
 
-// NewTask creates a new task.
-func NewTask(
+// NewChatCompletionTask creates a new chat completion task.
+func NewChatCompletionTask(
 	tenantID string,
 	req *v1.CreateChatCompletionRequest,
+	header http.Header,
+) (*Task, error) {
+	return newTask(tenantID, req, nil, header)
+}
+
+// NewEmbeddingTask creates a new embedding task.
+func NewEmbeddingTask(
+	tenantID string,
+	req *v1.CreateEmbeddingRequest,
+	header http.Header,
+) (*Task, error) {
+	return newTask(tenantID, nil, req, header)
+}
+
+func newTask(
+	tenantID string,
+	chatCompletionReq *v1.CreateChatCompletionRequest,
+	embeddingReq *v1.CreateEmbeddingRequest,
 	header http.Header,
 ) (*Task, error) {
 	taskID, err := id.GenerateID("inf_", 24)
@@ -32,9 +50,12 @@ func NewTask(
 	}
 
 	return &Task{
-		ID:        taskID,
-		TenantID:  tenantID,
-		Req:       req,
+		ID:       taskID,
+		TenantID: tenantID,
+
+		ChatCompletionReq: chatCompletionReq,
+		EmbeddingReq:      embeddingReq,
+
 		Header:    header,
 		RespCh:    make(chan *http.Response),
 		ErrCh:     make(chan error),
@@ -48,7 +69,9 @@ type Task struct {
 	ID       string
 	TenantID string
 
-	Req    *v1.CreateChatCompletionRequest
+	ChatCompletionReq *v1.CreateChatCompletionRequest
+	EmbeddingReq      *v1.CreateEmbeddingRequest
+
 	Header http.Header
 	RespCh chan *http.Response
 	ErrCh  chan error
@@ -58,6 +81,20 @@ type Task struct {
 	EngineID string
 
 	CreatedAt time.Time
+}
+
+func (t *Task) model() string {
+	if r := t.ChatCompletionReq; r != nil {
+		return r.Model
+	}
+	return t.EmbeddingReq.Model
+}
+
+func (t *Task) stream() bool {
+	if r := t.ChatCompletionReq; r != nil {
+		return r.Stream
+	}
+	return false
 }
 
 // WaitForCompletion waits for the completion of the task.
@@ -171,7 +208,7 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *Task) {
-	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.Req.Model, t.TenantID)
+	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.TenantID)
 	if err != nil {
 		t.ErrCh <- fmt.Errorf("find pod to route the request: %s", err)
 		return
@@ -204,9 +241,10 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 	}
 	if err := engine.srv.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id:      t.ID,
-			Request: t.Req,
-			Header:  header,
+			Id:                    t.ID,
+			ChatCompletionRequest: t.ChatCompletionReq,
+			EmbeddingRequest:      t.EmbeddingReq,
+			Header:                header,
 		},
 	}); err != nil {
 		t.ErrCh <- fmt.Errorf("failed to send the task: %s", err)
@@ -369,9 +407,9 @@ func (p *P) writeTaskResultToChan(
 		}
 
 		isErr := resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest
-		return isErr || (!t.Req.Stream), nil
+		return isErr || (!t.stream()), nil
 	case *v1.TaskResult_ServerSentEvent:
-		if !t.Req.Stream {
+		if !t.stream() {
 			return false, fmt.Errorf("unexpected chunked response for non-streaming request")
 		}
 
@@ -491,7 +529,7 @@ func (p *P) DumpStatus() *Status {
 
 		e.Tasks = append(e.Tasks, &TaskStatus{
 			ID:      task.ID,
-			ModelID: task.Req.Model,
+			ModelID: task.model(),
 		})
 	}
 

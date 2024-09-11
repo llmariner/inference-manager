@@ -85,7 +85,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	task, err := infprocessor.NewTask(userInfo.TenantID, &createReq, req.Header)
+	task, err := infprocessor.NewChatCompletionTask(userInfo.TenantID, &createReq, req.Header)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
 	}

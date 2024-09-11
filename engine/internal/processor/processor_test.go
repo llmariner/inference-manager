@@ -41,7 +41,44 @@ func TestP(t *testing.T) {
 	fakeClient := &fakeProcessTasksClient{}
 
 	task := &v1.Task{
-		Request: &v1.CreateChatCompletionRequest{
+		ChatCompletionRequest: &v1.CreateChatCompletionRequest{
+			Model: "m0",
+		},
+	}
+
+	err = processor.processTask(ctx, fakeClient, task)
+	assert.NoError(t, err)
+	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
+	assert.Equal(t, http.StatusOK, int(resp.StatusCode))
+	assert.Equal(t, "ok", string(resp.Body))
+}
+
+func TestEmbedding(t *testing.T) {
+	// Start a fake ollama server.
+	ollamaSrv, err := newFakeOllamaServer()
+	assert.NoError(t, err)
+
+	go ollamaSrv.serve()
+	defer ollamaSrv.shutdown(context.Background())
+
+	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
+
+	ctx := testutil.ContextWithLogger(t)
+	logger := ctrl.LoggerFrom(ctx)
+
+	processor := NewP(
+		"engine_id0",
+		nil,
+		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		&fakeModelSyncer{},
+		logger,
+		&NoopMetricsCollector{},
+	)
+
+	fakeClient := &fakeProcessTasksClient{}
+
+	task := &v1.Task{
+		EmbeddingRequest: &v1.CreateEmbeddingRequest{
 			Model: "m0",
 		},
 	}
@@ -55,14 +92,17 @@ func TestP(t *testing.T) {
 
 func newFakeOllamaServer() (*fakeOllamaServer, error) {
 	m := http.NewServeMux()
-	m.Handle(completionPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	f := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("ok"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}))
+	}
+	m.Handle(completionPath, http.HandlerFunc(f))
+	m.Handle(embeddingPath, http.HandlerFunc(f))
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {

@@ -3,6 +3,7 @@ syntax = "proto3";
 package llmoperator.inference.server.v1;
 
 import "api/v1/inference_server.proto";
+import "api/v1/inference_server_embeddings.proto";
 
 option go_package = "github.com/llm-operator/inference-manager/api/v1";
 
@@ -50,8 +51,11 @@ message ProcessTasksRequest {
 
 message Task {
   string id = 1;
-  llmoperator.chat.server.v1.CreateChatCompletionRequest request = 2;
+  llmoperator.chat.server.v1.CreateChatCompletionRequest chat_completion_request = 2;
+  llmoperator.embeddings.server.v1.CreateEmbeddingRequest embedding_request = 4;
   map<string, HeaderValue> header = 3;
+
+  // Next ID: 5
 }
 
 message ProcessTasksResponse {

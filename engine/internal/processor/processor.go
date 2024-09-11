@@ -22,6 +22,7 @@ import (
 
 const (
 	completionPath = "/v1/chat/completions"
+	embeddingPath  = "/v1/embeddings"
 
 	// statusReportInterval is the interval to report engine status.
 	// This needs to be shorter than an idle connection timeout period of
@@ -252,8 +253,8 @@ func (p *P) processTasks(
 		// Create a goroutine to process the task so that we can receive the
 		// next task. llm then might process requests in parallel.
 		go func() {
-			p.metrics.Add(resp.NewTask.Request.Model, 1)
-			defer p.metrics.Add(resp.NewTask.Request.Model, -1)
+			p.metrics.Add(taskModel(resp.NewTask), 1)
+			defer p.metrics.Add(taskModel(resp.NewTask), -1)
 
 			log := log.WithValues("taskID", resp.NewTask.Id)
 			log.Info("Started processing task")
@@ -281,7 +282,7 @@ func (p *P) processTask(
 	log := ctrl.LoggerFrom(ctx)
 
 	// First pull the model if it is not yet pulled.
-	if err := p.modelSyncer.PullModel(ctx, t.Request.Model); err != nil {
+	if err := p.modelSyncer.PullModel(ctx, taskModel(t)); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
 	// TODO(aya): Consider how to handle the case where the runtime is scaled down before the request is sent.
@@ -292,7 +293,11 @@ func (p *P) processTask(
 	}
 
 	log.Info("Sending request to the LLM server", "url", req.URL)
-	log.V(1).Info(fmt.Sprintf("Request: %+v", t.Request))
+	if r := t.ChatCompletionRequest; r != nil {
+		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
+	} else {
+		log.V(1).Info(fmt.Sprintf("Request: %+v", t.EmbeddingRequest))
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -340,7 +345,7 @@ func (p *P) processTask(
 	}
 
 	var body []byte
-	if !t.Request.Stream {
+	if !taskStream(t) {
 		// Non streaming response. Just copy the response body.
 		body, err = io.ReadAll(resp.Body)
 		if err != nil {
@@ -358,7 +363,7 @@ func (p *P) processTask(
 		return err
 	}
 
-	if !t.Request.Stream {
+	if !taskStream(t) {
 		return nil
 	}
 
@@ -389,15 +394,7 @@ func (p *P) processTask(
 }
 
 func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error) {
-	// TODO(kenji): Revisit once we support fine-tuning models in vLLM. We might not need this conversion.
-	t.Request.Model = models.OllamaModelName(t.Request.Model)
-
-	reqBody, err := json.Marshal(t.Request)
-	if err != nil {
-		return nil, err
-	}
-
-	addr, err := p.addrGetter.GetLLMAddress(t.Request.Model)
+	addr, err := p.addrGetter.GetLLMAddress(taskModel(t))
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +402,30 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		Scheme: "http",
 		Host:   addr,
 	}
-	requestURL := baseURL.JoinPath(completionPath).String()
+
+	var path string
+	var reqBody []byte
+	if req := t.ChatCompletionRequest; req != nil {
+		// TODO(kenji): Revisit once we support fine-tuning models in vLLM. We might not need this conversion.
+		req.Model = models.OllamaModelName(req.Model)
+
+		reqBody, err = json.Marshal(req)
+		if err != nil {
+			return nil, err
+		}
+
+		path = completionPath
+	} else {
+		req := t.EmbeddingRequest
+		reqBody, err = json.Marshal(req)
+		if err != nil {
+			return nil, err
+		}
+
+		path = embeddingPath
+	}
+
+	requestURL := baseURL.JoinPath(path).String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, err
@@ -498,4 +518,18 @@ func (p *P) IsReady() (bool, string) {
 		return false, p.lastErr.Error()
 	}
 	return true, ""
+}
+
+func taskModel(t *v1.Task) string {
+	if r := t.ChatCompletionRequest; r != nil {
+		return r.Model
+	}
+	return t.EmbeddingRequest.Model
+}
+
+func taskStream(t *v1.Task) bool {
+	if r := t.ChatCompletionRequest; r != nil {
+		return r.Stream
+	}
+	return false
 }

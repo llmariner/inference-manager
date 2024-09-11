@@ -127,23 +127,32 @@ func run(ctx context.Context, c *config.Config) error {
 
 	s := server.New(m, mclient, vsClient, rwt, queue)
 
-	createFile := runtime.MustPattern(
+	pat := runtime.MustPattern(
 		runtime.NewPattern(
 			1,
 			[]int{2, 0, 2, 1, 2, 2},
 			[]string{"v1", "chat", "completions"},
 			"",
 		))
-	mux.Handle("POST", createFile, s.CreateChatCompletion)
+	mux.Handle("POST", pat, s.CreateChatCompletion)
 
-	createFile = runtime.MustPattern(
+	pat = runtime.MustPattern(
 		runtime.NewPattern(
 			1,
 			[]int{2, 0, 2, 1},
 			[]string{"v1", "completions"},
 			"",
 		))
-	mux.Handle("POST", createFile, s.CreateCompletion)
+	mux.Handle("POST", pat, s.CreateCompletion)
+
+	pat = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1},
+			[]string{"v1", "embeddings"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateEmbedding)
 
 	go func() {
 		log.Printf("Starting HTTP server on port %d", c.HTTPPort)

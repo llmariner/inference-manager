@@ -23,12 +23,6 @@ const (
 	metricLabelTenantID = "tenant_id"
 )
 
-// MetricsMonitoring is an interface for monitoring metrics.
-type MetricsMonitoring interface {
-	ObserveCompletionLatency(modelID string, latency time.Duration)
-	UpdateCompletionRequest(modelID string, c int)
-}
-
 // MetricsMonitor holds and updates Prometheus metrics.
 type MetricsMonitor struct {
 	p *infprocessor.P

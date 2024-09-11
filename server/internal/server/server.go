@@ -11,7 +11,6 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
-	"github.com/llm-operator/inference-manager/server/internal/monitoring"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
@@ -123,7 +122,7 @@ type S struct {
 
 	enableAuth bool
 
-	metricsMonitor monitoring.MetricsMonitoring
+	metricsMonitor metricsMonitoring
 
 	modelClient ModelClient
 

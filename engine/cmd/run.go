@@ -146,7 +146,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(rtManager, c.PreloadedModelIDs)
+	preloader := runtime.NewPreloader(rtManager, c.FormattedPreloadedModelIDs())
 	if err := preloader.SetupWithManager(mgr); err != nil {
 		return err
 	}

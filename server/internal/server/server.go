@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
@@ -92,9 +93,15 @@ func (r *NoopRewriter) ProcessMessages(
 	return messages, nil
 }
 
+// metricsMonitoring is an interface for monitoring metrics.
+type metricsMonitoring interface {
+	ObserveCompletionLatency(modelID string, latency time.Duration)
+	UpdateCompletionRequest(modelID string, c int)
+}
+
 // New creates a server.
 func New(
-	m monitoring.MetricsMonitoring,
+	m metricsMonitoring,
 	modelClient ModelClient,
 	vsClient VectorStoreClient,
 	r Rewriter,

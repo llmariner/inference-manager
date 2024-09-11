@@ -13,9 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RuntimeNameOllama is the name of the Ollama runtime.
-const RuntimeNameOllama = "ollama"
-
 const ollamaHTTPPort = 11434
 
 // NewOllamaClient creates a new Ollama runtime client.
@@ -74,9 +71,9 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 		"serve",
 	}
 
-	image, ok := o.RuntimeImages[RuntimeNameOllama]
+	image, ok := o.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
-		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", RuntimeNameOllama)
+		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
 
 	// Start an Ollama server process in background and create a modelfile.

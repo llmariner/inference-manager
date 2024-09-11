@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 
+	"github.com/llm-operator/inference-manager/engine/internal/config"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
 
@@ -13,7 +14,7 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 	}
 
 	switch runtime {
-	case RuntimeNameOllama:
+	case config.RuntimeNameOllama:
 		// Only support GGUF.
 		hasGGUF := false
 		for _, f := range supportedFormats {
@@ -26,7 +27,7 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("GGUF format is not supported")
 		}
 		return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
-	case RuntimeNameVLLM:
+	case config.RuntimeNameVLLM:
 		var preferredFormat mv1.ModelFormat
 		for _, f := range supportedFormats {
 			if f == mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE {

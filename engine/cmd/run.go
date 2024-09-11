@@ -36,7 +36,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := c.Validate(); err != nil {
+			if err := c.Validate(config.DefaultRunMode); err != nil {
 				return err
 			}
 
@@ -104,9 +104,9 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 
 	var rtClient runtime.Client
 	switch c.Runtime.Name {
-	case runtime.RuntimeNameOllama:
+	case config.RuntimeNameOllama:
 		rtClient = runtime.NewOllamaClient(mgr.GetClient(), ns, c.Runtime, c.Ollama)
-	case runtime.RuntimeNameVLLM:
+	case config.RuntimeNameVLLM:
 		rtClient = runtime.NewVLLMClient(
 			mgr.GetClient(),
 			ns,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // preloadedModelIDsEnv is the environment variable for the preloaded model IDs.
@@ -44,8 +45,6 @@ func (c *OllamaConfig) validate() error {
 	return nil
 }
 
-// TODO(aya): Implement validation for runtime configuration after the engine uses the new architecture as the default.
-
 // TolerationConfig is the toleration configuration.
 type TolerationConfig struct {
 	Key               string `yaml:"key"`
@@ -54,6 +53,13 @@ type TolerationConfig struct {
 	Effect            string `yaml:"effect"`
 	TolerationSeconds int64  `yaml:"tolerationSeconds"`
 }
+
+const (
+	// RuntimeNameOllama is the Ollama runtime name.
+	RuntimeNameOllama string = "ollama"
+	// RuntimeNameVLLM is the VLLM runtime name.
+	RuntimeNameVLLM string = "vllm"
+)
 
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
@@ -81,6 +87,62 @@ type RuntimeConfig struct {
 	NodeSelector map[string]string `yaml:"nodeSelector"`
 	// TODO(kenji): Support affinity
 	Tolerations []TolerationConfig `yaml:"tolerations"`
+}
+
+func (c *RuntimeConfig) validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("name must be set")
+	}
+
+	if c.PullerImage == "" {
+		return fmt.Errorf("pullerImage must be set")
+	}
+	if len(c.RuntimeImages) == 0 {
+		return fmt.Errorf("runtimeImages must be set")
+	}
+	if _, ok := c.RuntimeImages[c.Name]; !ok {
+		return fmt.Errorf("image not found for runtime %q", c.Name)
+	}
+	if err := validateImagePullPolicy(c.PullerImagePullPolicy); err != nil {
+		return fmt.Errorf("pullerImagePullPolicy: %s", err)
+	}
+	if err := validateImagePullPolicy(c.RuntimeImagePullPolicy); err != nil {
+		return fmt.Errorf("runtimeImagePullPolicy: %s", err)
+	}
+
+	if c.ConfigMapName == "" {
+		return fmt.Errorf("configMapName must be set")
+	}
+	if c.AWSSecretName != "" {
+		if c.AWSKeyIDEnvKey == "" {
+			return fmt.Errorf("awsKeyIdEnvKey must be set")
+		}
+		if c.AWSAccessKeyEnvKey == "" {
+			return fmt.Errorf("awsAccessKeyEnvKey must be set")
+		}
+	}
+	if c.LLMOWorkerSecretName == "" {
+		return fmt.Errorf("llmoWorkerSecretName must be set")
+	}
+	if c.LLMOKeyEnvKey == "" {
+		return fmt.Errorf("llmoKeyEnvKey must be set")
+	}
+
+	if c.DefaultReplicas < 0 {
+		return fmt.Errorf("defaultReplicas must be non-negative")
+	}
+	return nil
+}
+
+func validateImagePullPolicy(policy string) error {
+	switch corev1.PullPolicy(policy) {
+	case "":
+		return fmt.Errorf("imagePullPolicy must be set")
+	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
+		return nil
+	default:
+		return fmt.Errorf("invalid imagePullPolicy: %q", policy)
+	}
 }
 
 // FormattedModelResources returns the resources keyed by formatted model IDs.
@@ -288,8 +350,17 @@ type Config struct {
 	Worker WorkerConfig `yaml:"worker"`
 }
 
+type runMode string
+
+const (
+	// DefaultRunMode is the default run mode.
+	DefaultRunMode runMode = "default"
+	// MonolithicRunMode is the monolithic run mode.
+	MonolithicRunMode runMode = "monolithic"
+)
+
 // Validate validates the configuration.
-func (c *Config) Validate() error {
+func (c *Config) Validate(mode runMode) error {
 	if c.HealthPort <= 0 {
 		return fmt.Errorf("healthPort must be greater than 0")
 	}
@@ -297,13 +368,6 @@ func (c *Config) Validate() error {
 	if c.InferenceManagerServerWorkerServiceAddr == "" {
 		return fmt.Errorf("inference manager server worker service address must be set")
 	}
-
-	for id, length := range c.ModelContextLengths {
-		if length <= 0 {
-			return fmt.Errorf("model context length for model %q must be greater than 0", id)
-		}
-	}
-
 	if !c.Debug.Standalone {
 		if c.ModelManagerServerWorkerServiceAddr == "" {
 			return fmt.Errorf("model manager server worker service address must be set")
@@ -314,13 +378,42 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.LLMPort <= 0 {
-		return fmt.Errorf("llmPort must be greater than 0")
+	for id, length := range c.ModelContextLengths {
+		if length <= 0 {
+			return fmt.Errorf("model context length for model %q must be greater than 0", id)
+		}
 	}
 
-	// TODO(kenji): Validate the runtime configuration is Olama or the run command is monolithic.
-	if err := c.Ollama.validate(); err != nil {
-		return fmt.Errorf("ollama: %s", err)
+	switch mode {
+	case DefaultRunMode:
+		if err := c.validateDefaultRunConfig(); err != nil {
+			return err
+		}
+	case MonolithicRunMode:
+		if err := c.validateMonolithicRunConfig(); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown run mode: %q", mode)
+	}
+
+	switch c.Runtime.Name {
+	case RuntimeNameOllama:
+		return c.Ollama.validate()
+	case RuntimeNameVLLM:
+		return nil
+	default:
+		return fmt.Errorf("unknown LLM engine: %q", c.Runtime.Name)
+	}
+}
+
+func (c *Config) validateDefaultRunConfig() error {
+	if c.Debug.Standalone {
+		return fmt.Errorf("standalone mode is not supported in default run mode")
+	}
+
+	if err := c.Runtime.validate(); err != nil {
+		return fmt.Errorf("runtime: %s", err)
 	}
 
 	if err := c.Autoscaler.validate(); err != nil {
@@ -333,11 +426,24 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func (c *Config) validateMonolithicRunConfig() error {
+	if c.Runtime.Name == "" {
+		return fmt.Errorf("runtime name must be set")
+	}
+	if c.Runtime.Name != RuntimeNameOllama {
+		return fmt.Errorf("runtime name must be %q in monolithic run mode", RuntimeNameOllama)
+	}
+
+	if c.LLMPort <= 0 {
+		return fmt.Errorf("llmPort must be greater than 0")
+	}
+	return nil
+}
+
 // FormattedModelContextLengths returns the model context lengths keyed by formatted model IDs.
 func (c *Config) FormattedModelContextLengths() map[string]int {
 	lens := map[string]int{}
 	for id, l := range c.ModelContextLengths {
-
 		lens[formatModelID(id)] = l
 	}
 	return lens

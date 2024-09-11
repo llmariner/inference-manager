@@ -52,7 +52,7 @@ func runMonoCmd() *cobra.Command {
 				return err
 			}
 
-			if err := c.Validate(); err != nil {
+			if err := c.Validate(config.MonolithicRunMode); err != nil {
 				return err
 			}
 

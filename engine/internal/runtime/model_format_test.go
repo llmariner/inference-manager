@@ -3,6 +3,7 @@ package runtime
 import (
 	"testing"
 
+	"github.com/llm-operator/inference-manager/engine/internal/config"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +18,7 @@ func TestPreferredModelFormat(t *testing.T) {
 	}{
 		{
 			name:    "ollama",
-			runtime: RuntimeNameOllama,
+			runtime: config.RuntimeNameOllama,
 			supportedFormats: []mv1.ModelFormat{
 				mv1.ModelFormat_MODEL_FORMAT_GGUF,
 			},
@@ -25,7 +26,7 @@ func TestPreferredModelFormat(t *testing.T) {
 		},
 		{
 			name:    "ollama, no gguf",
-			runtime: RuntimeNameOllama,
+			runtime: config.RuntimeNameOllama,
 			supportedFormats: []mv1.ModelFormat{
 				mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
 			},
@@ -33,7 +34,7 @@ func TestPreferredModelFormat(t *testing.T) {
 		},
 		{
 			name:    "vllm",
-			runtime: RuntimeNameVLLM,
+			runtime: config.RuntimeNameVLLM,
 			supportedFormats: []mv1.ModelFormat{
 				mv1.ModelFormat_MODEL_FORMAT_GGUF,
 				mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
@@ -42,7 +43,7 @@ func TestPreferredModelFormat(t *testing.T) {
 		},
 		{
 			name:    "vllm, gguf only",
-			runtime: RuntimeNameVLLM,
+			runtime: config.RuntimeNameVLLM,
 			supportedFormats: []mv1.ModelFormat{
 				mv1.ModelFormat_MODEL_FORMAT_GGUF,
 			},

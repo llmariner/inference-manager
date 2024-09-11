@@ -87,7 +87,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 		return err
 	}
 
-	if o.runtime == runtime.RuntimeNameOllama {
+	if o.runtime == config.RuntimeNameOllama {
 		filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
 		log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 		modelPath, err := modeldownloader.ModelFilePath(runtime.ModelDir(), o.modelID, format)

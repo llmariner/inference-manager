@@ -18,9 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RuntimeNameVLLM is the name of the VLLM runtime.
-const RuntimeNameVLLM = "vllm"
-
 const vllmHTTPPort = 80
 
 const nvidiaGPUResource = "nvidia.com/gpu"
@@ -152,7 +149,7 @@ func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string,
 	if err != nil {
 		return "", err
 	}
-	format, err := PreferredModelFormat(RuntimeNameVLLM, resp.Formats)
+	format, err := PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
 	if err != nil {
 		return "", err
 	}

@@ -46,6 +46,15 @@ func (c *OllamaConfig) validate() error {
 
 // TODO(aya): Implement validation for runtime configuration after the engine uses the new architecture as the default.
 
+// TolerationConfig is the toleration configuration.
+type TolerationConfig struct {
+	Key               string `yaml:"key"`
+	Operator          string `yaml:"operator"`
+	Value             string `yaml:"value"`
+	Effect            string `yaml:"effect"`
+	TolerationSeconds int64  `yaml:"tolerationSeconds"`
+}
+
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
 	Name string `yaml:"name"`
@@ -68,6 +77,10 @@ type RuntimeConfig struct {
 	// DefaultReplicas specifies the number of replicas of the runtime (per model).
 	// TODO(kenji): Revisit this once we support autoscaling.
 	DefaultReplicas int `yaml:"defaultReplicas"`
+
+	NodeSelector map[string]string `yaml:"nodeSelector"`
+	// TODO(kenji): Support affinity
+	Tolerations []TolerationConfig `yaml:"tolerations"`
 }
 
 // FormattedModelResources returns the resources keyed by formatted model IDs.

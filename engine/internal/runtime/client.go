@@ -255,6 +255,10 @@ func (c *commonClient) deployRuntime(
 		WithReadinessProbe(params.readinessProbe)).
 		WithVolumes(volumes...)
 
+	if sa := c.ServiceAccountName; sa != "" {
+		podSpec = podSpec.WithServiceAccountName(sa)
+	}
+
 	if len(c.NodeSelector) > 0 {
 		podSpec = podSpec.WithNodeSelector(c.NodeSelector)
 	}

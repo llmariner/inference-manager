@@ -97,6 +97,22 @@ func (t *Task) stream() bool {
 	return false
 }
 
+func (t *Task) request() *v1.TaskRequest {
+	if r := t.ChatCompletionReq; r != nil {
+		return &v1.TaskRequest{
+			Request: &v1.TaskRequest_ChatCompletion{
+				ChatCompletion: t.ChatCompletionReq,
+			},
+		}
+	}
+
+	return &v1.TaskRequest{
+		Request: &v1.TaskRequest_Embedding{
+			Embedding: t.EmbeddingReq,
+		},
+	}
+}
+
 // WaitForCompletion waits for the completion of the task.
 func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
 	log.Printf("Waiting for the completion of the task (ID: %q)\n", t.ID)
@@ -241,10 +257,12 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 	}
 	if err := engine.srv.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id:                    t.ID,
-			ChatCompletionRequest: t.ChatCompletionReq,
-			EmbeddingRequest:      t.EmbeddingReq,
-			Header:                header,
+			Id: t.ID,
+			// TODO(kenji): Remove once all the engines are updated to a newer
+			// version that don't use the deprecated field.
+			DeprecatedChatCompletionRequest: t.ChatCompletionReq,
+			Request:                         t.request(),
+			Header:                          header,
 		},
 	}); err != nil {
 		t.ErrCh <- fmt.Errorf("failed to send the task: %s", err)

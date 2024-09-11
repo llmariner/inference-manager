@@ -427,21 +427,103 @@ func (*ProcessTasksRequest_EngineStatus) isProcessTasksRequest_Message() {}
 
 func (*ProcessTasksRequest_TaskResult) isProcessTasksRequest_Message() {}
 
+type TaskRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Request:
+	//
+	//	*TaskRequest_ChatCompletion
+	//	*TaskRequest_Embedding
+	Request isTaskRequest_Request `protobuf_oneof:"request"`
+}
+
+func (x *TaskRequest) Reset() {
+	*x = TaskRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_inference_server_worker_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskRequest) ProtoMessage() {}
+
+func (x *TaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inference_server_worker_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskRequest.ProtoReflect.Descriptor instead.
+func (*TaskRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_inference_server_worker_proto_rawDescGZIP(), []int{6}
+}
+
+func (m *TaskRequest) GetRequest() isTaskRequest_Request {
+	if m != nil {
+		return m.Request
+	}
+	return nil
+}
+
+func (x *TaskRequest) GetChatCompletion() *CreateChatCompletionRequest {
+	if x, ok := x.GetRequest().(*TaskRequest_ChatCompletion); ok {
+		return x.ChatCompletion
+	}
+	return nil
+}
+
+func (x *TaskRequest) GetEmbedding() *CreateEmbeddingRequest {
+	if x, ok := x.GetRequest().(*TaskRequest_Embedding); ok {
+		return x.Embedding
+	}
+	return nil
+}
+
+type isTaskRequest_Request interface {
+	isTaskRequest_Request()
+}
+
+type TaskRequest_ChatCompletion struct {
+	ChatCompletion *CreateChatCompletionRequest `protobuf:"bytes,1,opt,name=chat_completion,json=chatCompletion,proto3,oneof"`
+}
+
+type TaskRequest_Embedding struct {
+	Embedding *CreateEmbeddingRequest `protobuf:"bytes,2,opt,name=embedding,proto3,oneof"`
+}
+
+func (*TaskRequest_ChatCompletion) isTaskRequest_Request() {}
+
+func (*TaskRequest_Embedding) isTaskRequest_Request() {}
+
 type Task struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id                    string                       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ChatCompletionRequest *CreateChatCompletionRequest `protobuf:"bytes,2,opt,name=chat_completion_request,json=chatCompletionRequest,proto3" json:"chat_completion_request,omitempty"`
-	EmbeddingRequest      *CreateEmbeddingRequest      `protobuf:"bytes,4,opt,name=embedding_request,json=embeddingRequest,proto3" json:"embedding_request,omitempty"`
-	Header                map[string]*HeaderValue      `protobuf:"bytes,3,rep,name=header,proto3" json:"header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Id      string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Request *TaskRequest            `protobuf:"bytes,4,opt,name=request,proto3" json:"request,omitempty"`
+	Header  map[string]*HeaderValue `protobuf:"bytes,3,rep,name=header,proto3" json:"header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// For backward compatibility for old engine.
+	DeprecatedChatCompletionRequest *CreateChatCompletionRequest `protobuf:"bytes,2,opt,name=deprecated_chat_completion_request,json=deprecatedChatCompletionRequest,proto3" json:"deprecated_chat_completion_request,omitempty"`
 }
 
 func (x *Task) Reset() {
 	*x = Task{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_worker_proto_msgTypes[6]
+		mi := &file_api_v1_inference_server_worker_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -454,7 +536,7 @@ func (x *Task) String() string {
 func (*Task) ProtoMessage() {}
 
 func (x *Task) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_worker_proto_msgTypes[6]
+	mi := &file_api_v1_inference_server_worker_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +549,7 @@ func (x *Task) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Task.ProtoReflect.Descriptor instead.
 func (*Task) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_worker_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_inference_server_worker_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Task) GetId() string {
@@ -477,16 +559,9 @@ func (x *Task) GetId() string {
 	return ""
 }
 
-func (x *Task) GetChatCompletionRequest() *CreateChatCompletionRequest {
+func (x *Task) GetRequest() *TaskRequest {
 	if x != nil {
-		return x.ChatCompletionRequest
-	}
-	return nil
-}
-
-func (x *Task) GetEmbeddingRequest() *CreateEmbeddingRequest {
-	if x != nil {
-		return x.EmbeddingRequest
+		return x.Request
 	}
 	return nil
 }
@@ -494,6 +569,13 @@ func (x *Task) GetEmbeddingRequest() *CreateEmbeddingRequest {
 func (x *Task) GetHeader() map[string]*HeaderValue {
 	if x != nil {
 		return x.Header
+	}
+	return nil
+}
+
+func (x *Task) GetDeprecatedChatCompletionRequest() *CreateChatCompletionRequest {
+	if x != nil {
+		return x.DeprecatedChatCompletionRequest
 	}
 	return nil
 }
@@ -509,7 +591,7 @@ type ProcessTasksResponse struct {
 func (x *ProcessTasksResponse) Reset() {
 	*x = ProcessTasksResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_worker_proto_msgTypes[7]
+		mi := &file_api_v1_inference_server_worker_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -522,7 +604,7 @@ func (x *ProcessTasksResponse) String() string {
 func (*ProcessTasksResponse) ProtoMessage() {}
 
 func (x *ProcessTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_worker_proto_msgTypes[7]
+	mi := &file_api_v1_inference_server_worker_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +617,7 @@ func (x *ProcessTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessTasksResponse.ProtoReflect.Descriptor instead.
 func (*ProcessTasksResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_worker_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_inference_server_worker_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProcessTasksResponse) GetNewTask() *Task {
@@ -557,7 +639,7 @@ type EngineStatus_SyncStatus struct {
 func (x *EngineStatus_SyncStatus) Reset() {
 	*x = EngineStatus_SyncStatus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_worker_proto_msgTypes[8]
+		mi := &file_api_v1_inference_server_worker_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -570,7 +652,7 @@ func (x *EngineStatus_SyncStatus) String() string {
 func (*EngineStatus_SyncStatus) ProtoMessage() {}
 
 func (x *EngineStatus_SyncStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_worker_proto_msgTypes[8]
+	mi := &file_api_v1_inference_server_worker_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,27 +753,40 @@ var file_api_v1_inference_server_worker_proto_rawDesc = []byte{
 	0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76,
 	0x31, 0x2e, 0x54, 0x61, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x48, 0x00, 0x52, 0x0a,
 	0x74, 0x61, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0xa2, 0x03, 0x0a, 0x04, 0x54, 0x61, 0x73, 0x6b, 0x12, 0x0e,
-	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x6f,
-	0x0a, 0x17, 0x63, 0x68, 0x61, 0x74, 0x5f, 0x63, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f,
-	0x6e, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32,
-	0x37, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68,
-	0x61, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65,
-	0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x74, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f,
-	0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x15, 0x63, 0x68, 0x61, 0x74, 0x43, 0x6f,
-	0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
-	0x65, 0x0a, 0x11, 0x65, 0x6d, 0x62, 0x65, 0x64, 0x64, 0x69, 0x6e, 0x67, 0x5f, 0x72, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x38, 0x2e, 0x6c, 0x6c, 0x6d,
-	0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x65, 0x6d, 0x62, 0x65, 0x64, 0x64, 0x69,
-	0x6e, 0x67, 0x73, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72,
-	0x65, 0x61, 0x74, 0x65, 0x45, 0x6d, 0x62, 0x65, 0x64, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x52, 0x10, 0x65, 0x6d, 0x62, 0x65, 0x64, 0x64, 0x69, 0x6e, 0x67, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x49, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72,
-	0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x31, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72,
-	0x61, 0x74, 0x6f, 0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73,
-	0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x61, 0x73, 0x6b, 0x2e, 0x48, 0x65,
-	0x61, 0x64, 0x65, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65,
-	0x72, 0x1a, 0x67, 0x0a, 0x0b, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0xd6, 0x01, 0x0a, 0x0b, 0x54, 0x61, 0x73, 0x6b, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x62, 0x0a, 0x0f, 0x63, 0x68, 0x61, 0x74, 0x5f, 0x63, 0x6f,
+	0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x37,
+	0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61,
+	0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61,
+	0x74, 0x65, 0x43, 0x68, 0x61, 0x74, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x0e, 0x63, 0x68, 0x61, 0x74, 0x43,
+	0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x58, 0x0a, 0x09, 0x65, 0x6d, 0x62,
+	0x65, 0x64, 0x64, 0x69, 0x6e, 0x67, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x38, 0x2e, 0x6c,
+	0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x65, 0x6d, 0x62, 0x65, 0x64,
+	0x64, 0x69, 0x6e, 0x67, 0x73, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e,
+	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x45, 0x6d, 0x62, 0x65, 0x64, 0x64, 0x69, 0x6e, 0x67, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x09, 0x65, 0x6d, 0x62, 0x65, 0x64, 0x64,
+	0x69, 0x6e, 0x67, 0x42, 0x09, 0x0a, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x99,
+	0x03, 0x0a, 0x04, 0x54, 0x61, 0x73, 0x6b, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x46, 0x0a, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2c, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70,
+	0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65,
+	0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x61, 0x73, 0x6b, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x49, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x31, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x69, 0x6e,
+	0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76,
+	0x31, 0x2e, 0x54, 0x61, 0x73, 0x6b, 0x2e, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x45, 0x6e, 0x74,
+	0x72, 0x79, 0x52, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x84, 0x01, 0x0a, 0x22, 0x64,
+	0x65, 0x70, 0x72, 0x65, 0x63, 0x61, 0x74, 0x65, 0x64, 0x5f, 0x63, 0x68, 0x61, 0x74, 0x5f, 0x63,
+	0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x37, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65,
+	0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x63, 0x68, 0x61, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65,
+	0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x74, 0x43,
+	0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x52, 0x1f, 0x64, 0x65, 0x70, 0x72, 0x65, 0x63, 0x61, 0x74, 0x65, 0x64, 0x43, 0x68, 0x61, 0x74,
+	0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x67, 0x0a, 0x0b, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79,
 	0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b,
 	0x65, 0x79, 0x12, 0x42, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x2c, 0x2e, 0x6c, 0x6c, 0x6d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2e,
@@ -731,7 +826,7 @@ func file_api_v1_inference_server_worker_proto_rawDescGZIP() []byte {
 	return file_api_v1_inference_server_worker_proto_rawDescData
 }
 
-var file_api_v1_inference_server_worker_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_api_v1_inference_server_worker_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_api_v1_inference_server_worker_proto_goTypes = []interface{}{
 	(*EngineStatus)(nil),                // 0: llmoperator.inference.server.v1.EngineStatus
 	(*HeaderValue)(nil),                 // 1: llmoperator.inference.server.v1.HeaderValue
@@ -739,34 +834,37 @@ var file_api_v1_inference_server_worker_proto_goTypes = []interface{}{
 	(*ServerSentEvent)(nil),             // 3: llmoperator.inference.server.v1.ServerSentEvent
 	(*TaskResult)(nil),                  // 4: llmoperator.inference.server.v1.TaskResult
 	(*ProcessTasksRequest)(nil),         // 5: llmoperator.inference.server.v1.ProcessTasksRequest
-	(*Task)(nil),                        // 6: llmoperator.inference.server.v1.Task
-	(*ProcessTasksResponse)(nil),        // 7: llmoperator.inference.server.v1.ProcessTasksResponse
-	(*EngineStatus_SyncStatus)(nil),     // 8: llmoperator.inference.server.v1.EngineStatus.SyncStatus
-	nil,                                 // 9: llmoperator.inference.server.v1.HttpResponse.HeaderEntry
-	nil,                                 // 10: llmoperator.inference.server.v1.Task.HeaderEntry
-	(*CreateChatCompletionRequest)(nil), // 11: llmoperator.chat.server.v1.CreateChatCompletionRequest
-	(*CreateEmbeddingRequest)(nil),      // 12: llmoperator.embeddings.server.v1.CreateEmbeddingRequest
+	(*TaskRequest)(nil),                 // 6: llmoperator.inference.server.v1.TaskRequest
+	(*Task)(nil),                        // 7: llmoperator.inference.server.v1.Task
+	(*ProcessTasksResponse)(nil),        // 8: llmoperator.inference.server.v1.ProcessTasksResponse
+	(*EngineStatus_SyncStatus)(nil),     // 9: llmoperator.inference.server.v1.EngineStatus.SyncStatus
+	nil,                                 // 10: llmoperator.inference.server.v1.HttpResponse.HeaderEntry
+	nil,                                 // 11: llmoperator.inference.server.v1.Task.HeaderEntry
+	(*CreateChatCompletionRequest)(nil), // 12: llmoperator.chat.server.v1.CreateChatCompletionRequest
+	(*CreateEmbeddingRequest)(nil),      // 13: llmoperator.embeddings.server.v1.CreateEmbeddingRequest
 }
 var file_api_v1_inference_server_worker_proto_depIdxs = []int32{
-	8,  // 0: llmoperator.inference.server.v1.EngineStatus.sync_status:type_name -> llmoperator.inference.server.v1.EngineStatus.SyncStatus
-	9,  // 1: llmoperator.inference.server.v1.HttpResponse.header:type_name -> llmoperator.inference.server.v1.HttpResponse.HeaderEntry
+	9,  // 0: llmoperator.inference.server.v1.EngineStatus.sync_status:type_name -> llmoperator.inference.server.v1.EngineStatus.SyncStatus
+	10, // 1: llmoperator.inference.server.v1.HttpResponse.header:type_name -> llmoperator.inference.server.v1.HttpResponse.HeaderEntry
 	2,  // 2: llmoperator.inference.server.v1.TaskResult.http_response:type_name -> llmoperator.inference.server.v1.HttpResponse
 	3,  // 3: llmoperator.inference.server.v1.TaskResult.server_sent_event:type_name -> llmoperator.inference.server.v1.ServerSentEvent
 	0,  // 4: llmoperator.inference.server.v1.ProcessTasksRequest.engine_status:type_name -> llmoperator.inference.server.v1.EngineStatus
 	4,  // 5: llmoperator.inference.server.v1.ProcessTasksRequest.task_result:type_name -> llmoperator.inference.server.v1.TaskResult
-	11, // 6: llmoperator.inference.server.v1.Task.chat_completion_request:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest
-	12, // 7: llmoperator.inference.server.v1.Task.embedding_request:type_name -> llmoperator.embeddings.server.v1.CreateEmbeddingRequest
-	10, // 8: llmoperator.inference.server.v1.Task.header:type_name -> llmoperator.inference.server.v1.Task.HeaderEntry
-	6,  // 9: llmoperator.inference.server.v1.ProcessTasksResponse.new_task:type_name -> llmoperator.inference.server.v1.Task
-	1,  // 10: llmoperator.inference.server.v1.HttpResponse.HeaderEntry.value:type_name -> llmoperator.inference.server.v1.HeaderValue
-	1,  // 11: llmoperator.inference.server.v1.Task.HeaderEntry.value:type_name -> llmoperator.inference.server.v1.HeaderValue
-	5,  // 12: llmoperator.inference.server.v1.InferenceWorkerService.ProcessTasks:input_type -> llmoperator.inference.server.v1.ProcessTasksRequest
-	7,  // 13: llmoperator.inference.server.v1.InferenceWorkerService.ProcessTasks:output_type -> llmoperator.inference.server.v1.ProcessTasksResponse
-	13, // [13:14] is the sub-list for method output_type
-	12, // [12:13] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	12, // 6: llmoperator.inference.server.v1.TaskRequest.chat_completion:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest
+	13, // 7: llmoperator.inference.server.v1.TaskRequest.embedding:type_name -> llmoperator.embeddings.server.v1.CreateEmbeddingRequest
+	6,  // 8: llmoperator.inference.server.v1.Task.request:type_name -> llmoperator.inference.server.v1.TaskRequest
+	11, // 9: llmoperator.inference.server.v1.Task.header:type_name -> llmoperator.inference.server.v1.Task.HeaderEntry
+	12, // 10: llmoperator.inference.server.v1.Task.deprecated_chat_completion_request:type_name -> llmoperator.chat.server.v1.CreateChatCompletionRequest
+	7,  // 11: llmoperator.inference.server.v1.ProcessTasksResponse.new_task:type_name -> llmoperator.inference.server.v1.Task
+	1,  // 12: llmoperator.inference.server.v1.HttpResponse.HeaderEntry.value:type_name -> llmoperator.inference.server.v1.HeaderValue
+	1,  // 13: llmoperator.inference.server.v1.Task.HeaderEntry.value:type_name -> llmoperator.inference.server.v1.HeaderValue
+	5,  // 14: llmoperator.inference.server.v1.InferenceWorkerService.ProcessTasks:input_type -> llmoperator.inference.server.v1.ProcessTasksRequest
+	8,  // 15: llmoperator.inference.server.v1.InferenceWorkerService.ProcessTasks:output_type -> llmoperator.inference.server.v1.ProcessTasksResponse
+	15, // [15:16] is the sub-list for method output_type
+	14, // [14:15] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inference_server_worker_proto_init() }
@@ -850,7 +948,7 @@ func file_api_v1_inference_server_worker_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_worker_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Task); i {
+			switch v := v.(*TaskRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -862,7 +960,7 @@ func file_api_v1_inference_server_worker_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_worker_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessTasksResponse); i {
+			switch v := v.(*Task); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -874,6 +972,18 @@ func file_api_v1_inference_server_worker_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_worker_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ProcessTasksResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_inference_server_worker_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*EngineStatus_SyncStatus); i {
 			case 0:
 				return &v.state
@@ -894,13 +1004,17 @@ func file_api_v1_inference_server_worker_proto_init() {
 		(*ProcessTasksRequest_EngineStatus)(nil),
 		(*ProcessTasksRequest_TaskResult)(nil),
 	}
+	file_api_v1_inference_server_worker_proto_msgTypes[6].OneofWrappers = []interface{}{
+		(*TaskRequest_ChatCompletion)(nil),
+		(*TaskRequest_Embedding)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_v1_inference_server_worker_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

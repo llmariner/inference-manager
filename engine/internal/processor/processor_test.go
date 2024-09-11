@@ -41,8 +41,12 @@ func TestP(t *testing.T) {
 	fakeClient := &fakeProcessTasksClient{}
 
 	task := &v1.Task{
-		ChatCompletionRequest: &v1.CreateChatCompletionRequest{
-			Model: "m0",
+		Request: &v1.TaskRequest{
+			Request: &v1.TaskRequest_ChatCompletion{
+				ChatCompletion: &v1.CreateChatCompletionRequest{
+					Model: "m0",
+				},
+			},
 		},
 	}
 
@@ -78,8 +82,12 @@ func TestEmbedding(t *testing.T) {
 	fakeClient := &fakeProcessTasksClient{}
 
 	task := &v1.Task{
-		EmbeddingRequest: &v1.CreateEmbeddingRequest{
-			Model: "m0",
+		Request: &v1.TaskRequest{
+			Request: &v1.TaskRequest_Embedding{
+				Embedding: &v1.CreateEmbeddingRequest{
+					Model: "m0",
+				},
+			},
 		},
 	}
 

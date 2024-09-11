@@ -293,10 +293,13 @@ func (p *P) processTask(
 	}
 
 	log.Info("Sending request to the LLM server", "url", req.URL)
-	if r := t.ChatCompletionRequest; r != nil {
-		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
-	} else {
-		log.V(1).Info(fmt.Sprintf("Request: %+v", t.EmbeddingRequest))
+	switch req := t.Request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetChatCompletion()))
+	case *v1.TaskRequest_Embedding:
+		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetEmbedding()))
+	default:
+		return fmt.Errorf("unknown request type: %T", req.Request)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -406,25 +409,29 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 
 	var path string
 	var reqBody []byte
-	if req := t.ChatCompletionRequest; req != nil {
+	switch req := t.Request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		r := req.GetChatCompletion()
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
-		req.Model = models.OllamaModelName(req.Model)
-
-		reqBody, err = json.Marshal(req)
+		r.Model = models.OllamaModelName(r.Model)
+		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}
 
 		path = completionPath
-	} else {
-		req := t.EmbeddingRequest
-		reqBody, err = json.Marshal(req)
+
+	case *v1.TaskRequest_Embedding:
+		r := req.GetEmbedding()
+		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}
 
 		path = embeddingPath
+	default:
+		return nil, fmt.Errorf("unknown request type: %T", req.Request)
 	}
 
 	requestURL := baseURL.JoinPath(path).String()
@@ -523,15 +530,21 @@ func (p *P) IsReady() (bool, string) {
 }
 
 func taskModel(t *v1.Task) string {
-	if r := t.ChatCompletionRequest; r != nil {
-		return r.Model
+	switch req := t.Request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		return req.GetChatCompletion().Model
+	case *v1.TaskRequest_Embedding:
+		return req.GetEmbedding().Model
+	default:
+		return ""
 	}
-	return t.EmbeddingRequest.Model
 }
 
 func taskStream(t *v1.Task) bool {
-	if r := t.ChatCompletionRequest; r != nil {
-		return r.Stream
+	switch req := t.Request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		return req.GetChatCompletion().Stream
+	default:
+		return false
 	}
-	return false
 }

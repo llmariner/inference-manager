@@ -56,11 +56,18 @@ type BaseProcessTasksRequest = {
 export type ProcessTasksRequest = BaseProcessTasksRequest
   & OneOf<{ engineStatus: EngineStatus; taskResult: TaskResult }>
 
+
+type BaseTaskRequest = {
+}
+
+export type TaskRequest = BaseTaskRequest
+  & OneOf<{ chatCompletion: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmoperatorEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest }>
+
 export type Task = {
   id?: string
-  chatCompletionRequest?: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest
-  embeddingRequest?: LlmoperatorEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest
+  request?: TaskRequest
   header?: {[key: string]: HeaderValue}
+  deprecatedChatCompletionRequest?: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest
 }
 
 export type ProcessTasksResponse = {

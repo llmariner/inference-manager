@@ -341,17 +341,29 @@
         "id": {
           "type": "string"
         },
-        "chatCompletionRequest": {
-          "$ref": "#/definitions/v1CreateChatCompletionRequest"
-        },
-        "embeddingRequest": {
-          "$ref": "#/definitions/v1CreateEmbeddingRequest"
+        "request": {
+          "$ref": "#/definitions/v1TaskRequest"
         },
         "header": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/v1HeaderValue"
           }
+        },
+        "deprecatedChatCompletionRequest": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequest",
+          "description": "For backward compatibility for old engine."
+        }
+      }
+    },
+    "v1TaskRequest": {
+      "type": "object",
+      "properties": {
+        "chatCompletion": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequest"
+        },
+        "embedding": {
+          "$ref": "#/definitions/v1CreateEmbeddingRequest"
         }
       }
     },

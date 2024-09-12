@@ -2,11 +2,14 @@ package huggingface
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/aws/smithy-go"
 )
 
 const siFilename = "model.safetensors.index.json"
@@ -18,7 +21,7 @@ type s3Client interface {
 // DownloadModelFiles downloads model files from S3.
 func DownloadModelFiles(ctx context.Context, s3Client s3Client, srcS3Path string, destDir string) error {
 	// Check if "model.safetensors.index.json" exists.
-	// if exists, download the file and unmarshal so that we can extract the safetensors file names.
+	// If exists, download the file and unmarshal so that we can extract the safetensors file names.
 	// Otherwise download "model.safetensors" as a safetensors file.
 	f, err := os.Create(filepath.Join(destDir, siFilename))
 	if err != nil {
@@ -53,25 +56,40 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, srcS3Path string
 		}
 	}
 
-	filenames := []string{
-		"config.json",
-		"generation_config.json",
-		"special_tokens_map.json",
-		"tokenizer.json",
-		"tokenizer_config.json",
+	type file struct {
+		name       string
+		isOptional bool
 	}
-	filenames = append(filenames, safetensorFiles...)
-	for _, fn := range filenames {
+	files := []file{
+		{name: "config.json", isOptional: false},
+		{name: "generation_config.json", isOptional: true},
+		{name: "special_tokens_map.json", isOptional: false},
+		{name: "tokenizer.json", isOptional: false},
+		{name: "tokenizer_config.json", isOptional: false},
+	}
+	for _, sa := range safetensorFiles {
+		files = append(files, file{name: sa, isOptional: false})
+	}
+	for _, f := range files {
+		fn := f.name
 		log.Printf("Downloading %q\n", fn)
-		f, err := os.Create(filepath.Join(destDir, fn))
+		df, err := os.Create(filepath.Join(destDir, fn))
 		if err != nil {
 			return fmt.Errorf("create file %s: %s", fn, err)
 		}
-		if err := s3Client.Download(ctx, f, filepath.Join(srcS3Path, fn)); err != nil {
+		if err := s3Client.Download(ctx, df, filepath.Join(srcS3Path, fn)); err != nil {
+			if f.isOptional && isNotFound(err) {
+				continue
+			}
 			return fmt.Errorf("download %s: %s", fn, err)
 		}
 		log.Printf("Downloaded %q\n", fn)
 	}
 
 	return nil
+}
+
+func isNotFound(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey"
 }

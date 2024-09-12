@@ -184,7 +184,7 @@ func chatTemplate(modelName string) (string, error) {
 {{message['content']}}
 {% endfor %}
 `, nil
-	case strings.HasPrefix(modelName, "sentence-transformers-all-MiniLM-L6-v2"):
+	case modelName == "intfloat-e5-mistral-7b-instruct":
 		// This model is for embedding.
 		return `
 {% for message in messages %}

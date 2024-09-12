@@ -9,8 +9,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/llm-operator/inference-manager/common/pkg/models"
-	imodels "github.com/llm-operator/inference-manager/engine/internal/models"
+	models "github.com/llm-operator/inference-manager/engine/internal/models"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
@@ -111,7 +110,7 @@ func (s *S) PullModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	isBase, err := imodels.IsBaseModel(ctx, s.miClient, modelID)
+	isBase, err := models.IsBaseModel(ctx, s.miClient, modelID)
 	if err != nil {
 		return err
 	}
@@ -156,7 +155,7 @@ func (s *S) registerBaseModel(ctx context.Context, modelID string) error {
 
 func (s *S) registerModel(ctx context.Context, modelID string) error {
 	log.Printf("Registering model %q\n", modelID)
-	baseModel, err := imodels.ExtractBaseModel(modelID)
+	baseModel, err := models.ExtractBaseModel(modelID)
 	if err != nil {
 		return err
 	}
@@ -205,7 +204,7 @@ func (s *S) registerModel(ctx context.Context, modelID string) error {
 		From:        baseModel,
 		AdapterPath: f.Name(),
 	}
-	if err := s.mm.CreateNewModelOfGGUF(models.OllamaModelName(modelID), ms); err != nil {
+	if err := s.mm.CreateNewModelOfGGUF(ollama.ModelName(modelID), ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 

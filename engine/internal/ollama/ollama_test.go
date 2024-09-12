@@ -1,4 +1,4 @@
-package models
+package ollama
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOllamaModelName(t *testing.T) {
+func TestModelName(t *testing.T) {
 	tcs := []struct {
 		modelID string
 		want    string
@@ -22,7 +22,7 @@ func TestOllamaModelName(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.modelID, func(t *testing.T) {
-			got := OllamaModelName(tc.modelID)
+			got := ModelName(tc.modelID)
 			assert.Equal(t, tc.want, got)
 		})
 	}

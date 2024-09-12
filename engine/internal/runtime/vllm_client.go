@@ -184,6 +184,13 @@ func chatTemplate(modelName string) (string, error) {
 {{message['content']}}
 {% endfor %}
 `, nil
+	case strings.HasPrefix(modelName, "sentence-transformers-all-MiniLM-L6-v2"):
+		// This model is for embedding.
+		return `
+{% for message in messages %}
+{{message['content']}}
+{% endfor %}
+`, nil
 	default:
 		return "", fmt.Errorf("unsupported model: %q", modelName)
 	}

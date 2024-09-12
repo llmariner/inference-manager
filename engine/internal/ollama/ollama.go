@@ -23,13 +23,13 @@ func CreateModelfile(
 	filePath string,
 	modelID string,
 	spec *ModelSpec,
-	contextLengthsByModelID map[string]int,
+	contextLength int,
 ) error {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
-	if err := WriteModelfile(modelID, spec, contextLengthsByModelID, file); err != nil {
+	if err := WriteModelfile(modelID, spec, contextLength, file); err != nil {
 		return err
 	}
 	return nil
@@ -39,7 +39,7 @@ func CreateModelfile(
 func WriteModelfile(
 	modelID string,
 	spec *ModelSpec,
-	contextLengthsByModelID map[string]int,
+	contextLength int,
 	file *os.File,
 ) error {
 	s := fmt.Sprintf("FROM %s\n", spec.From)
@@ -51,10 +51,15 @@ func WriteModelfile(
 			return err
 		}
 		s += modelFile
-		if l, ok, err := contextLength(modelID, contextLengthsByModelID); err != nil {
-			return err
-		} else if ok {
-			s += fmt.Sprintf("PARAMETER num_ctx %d\n", l)
+		if contextLength == 0 {
+			if l, useNonDefault, err := contextLengthOfModel(modelID); err != nil {
+				return err
+			} else if useNonDefault {
+				contextLength = l
+			}
+		}
+		if contextLength > 0 {
+			s += fmt.Sprintf("PARAMETER num_ctx %d\n", contextLength)
 		}
 	}
 	if _, err := file.Write([]byte(s)); err != nil {
@@ -66,13 +71,9 @@ func WriteModelfile(
 	return nil
 }
 
-// contextLength returns the context length for the given model name if it is set to a non-default value.
+// contextLengthOfModel returns the context length for the given model name if it is set to a non-default value.
 // If it is set to the default value, the function returns false.
-func contextLength(modelID string, contextLengthsByModelID map[string]int) (int, bool, error) {
-	if l, ok := contextLengthsByModelID[modelID]; ok {
-		return l, true, nil
-	}
-
+func contextLengthOfModel(modelID string) (int, bool, error) {
 	switch {
 	case strings.HasPrefix(modelID, "google-gemma-"):
 		return 0, false, nil

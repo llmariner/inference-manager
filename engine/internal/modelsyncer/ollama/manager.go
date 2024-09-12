@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 )
@@ -30,11 +31,11 @@ func (c *cmdRunnerImpl) Run(cmd *exec.Cmd) error {
 }
 
 // New returns a new Manager.
-func New(contextLengthsByModelID map[string]int, s3Client s3Client) *Manager {
+func New(config *config.ProcessedModelConfig, s3Client s3Client) *Manager {
 	return &Manager{
-		contextLengthsByModelID: contextLengthsByModelID,
-		s3Client:                s3Client,
-		cmdRunner:               &cmdRunnerImpl{},
+		config:    config,
+		s3Client:  s3Client,
+		cmdRunner: &cmdRunnerImpl{},
 	}
 }
 
@@ -43,7 +44,7 @@ func New(contextLengthsByModelID map[string]int, s3Client s3Client) *Manager {
 // TODO(kenji): Refactor this class once we completely switch to the one-odel-per-pod implementation where
 // inference-manager-engine doesn't directly run vLLM or Ollama.
 type Manager struct {
-	contextLengthsByModelID map[string]int
+	config *config.ProcessedModelConfig
 
 	s3Client s3Client
 
@@ -72,7 +73,8 @@ func (m *Manager) CreateNewModelOfGGUF(modelID string, spec *ollama.ModelSpec) e
 		}
 	}()
 
-	if err := ollama.WriteModelfile(modelID, spec, m.contextLengthsByModelID, file); err != nil {
+	mci := m.config.ModelConfigItem(modelID)
+	if err := ollama.WriteModelfile(modelID, spec, mci.ContextLength, file); err != nil {
 		return err
 	}
 

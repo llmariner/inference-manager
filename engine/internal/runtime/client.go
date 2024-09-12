@@ -43,7 +43,7 @@ type Client interface {
 
 // ClientFactory is the interface for creating a new Client given a model ID.
 type ClientFactory interface {
-	New(modelID string) Client
+	New(modelID string) (Client, error)
 }
 
 type commonClient struct {
@@ -53,14 +53,12 @@ type commonClient struct {
 
 	servingPort int
 
-	config.RuntimeConfig
+	rconfig *config.RuntimeConfig
+	mconfig *config.ProcessedModelConfig
 }
 
 func (c *commonClient) getResouces(modelID string) config.Resources {
-	if res, ok := c.FormattedModelResources()[modelID]; ok {
-		return res
-	}
-	return c.DefaultResources
+	return c.mconfig.ModelConfigItem(modelID).Resources
 }
 
 func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {
@@ -119,7 +117,8 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	name := resourceName(c.Name, params.modelID)
+	mci := c.mconfig.ModelConfigItem(params.modelID)
+	name := resourceName(mci.RuntimeName, params.modelID)
 	nn := types.NamespacedName{Name: name, Namespace: c.namespace}
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
@@ -145,7 +144,7 @@ func (c *commonClient) deployRuntime(
 		corev1apply.Volume().
 			WithName(configVolName).
 			WithConfigMap(corev1apply.ConfigMapVolumeSource().
-				WithName(c.ConfigMapName)),
+				WithName(c.rconfig.ConfigMapName)),
 	}
 	volumes = append(volumes, params.volumes...)
 
@@ -171,22 +170,22 @@ func (c *commonClient) deployRuntime(
 		corev1apply.EnvVar().WithName("LLMO_CLUSTER_REGISTRATION_KEY").
 			WithValueFrom(corev1apply.EnvVarSource().
 				WithSecretKeyRef(corev1apply.SecretKeySelector().
-					WithName(c.LLMOWorkerSecretName).
-					WithKey(c.LLMOKeyEnvKey))),
+					WithName(c.rconfig.LLMOWorkerSecretName).
+					WithKey(c.rconfig.LLMOKeyEnvKey))),
 	)
 
-	if c.AWSSecretName != "" {
+	if c.rconfig.AWSSecretName != "" {
 		initEnvs = append(initEnvs,
 			corev1apply.EnvVar().WithName("AWS_ACCESS_KEY_ID").
 				WithValueFrom(corev1apply.EnvVarSource().
 					WithSecretKeyRef(corev1apply.SecretKeySelector().
-						WithName(c.AWSSecretName).
-						WithKey(c.AWSKeyIDEnvKey))),
+						WithName(c.rconfig.AWSSecretName).
+						WithKey(c.rconfig.AWSKeyIDEnvKey))),
 			corev1apply.EnvVar().WithName("AWS_SECRET_ACCESS_KEY").
 				WithValueFrom(corev1apply.EnvVarSource().
 					WithSecretKeyRef(corev1apply.SecretKeySelector().
-						WithName(c.AWSSecretName).
-						WithKey(c.AWSAccessKeyEnvKey))),
+						WithName(c.rconfig.AWSSecretName).
+						WithKey(c.rconfig.AWSAccessKeyEnvKey))),
 		)
 	}
 
@@ -217,22 +216,22 @@ func (c *commonClient) deployRuntime(
 	pullerArgs := []string{
 		"pull",
 		"--index=$(INDEX)",
-		"--runtime=" + c.Name,
+		"--runtime=" + mci.RuntimeName,
 		"--model-id=" + params.modelID,
 		"--config=/etc/config/config.yaml",
 		"--force-pull=" + fmt.Sprintf("%t", forcePull),
 	}
 
-	image, ok := c.RuntimeImages[c.Name]
+	image, ok := c.rconfig.RuntimeImages[mci.RuntimeName]
 	if !ok {
-		return nn, fmt.Errorf("runtime image not found for %s", c.Name)
+		return nn, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
 	}
 
 	podSpec := corev1apply.PodSpec().
 		WithInitContainers(corev1apply.Container().
 			WithName("puller").
-			WithImage(c.PullerImage).
-			WithImagePullPolicy(corev1.PullPolicy(c.PullerImagePullPolicy)).
+			WithImage(c.rconfig.PullerImage).
+			WithImagePullPolicy(corev1.PullPolicy(c.rconfig.PullerImagePullPolicy)).
 			WithArgs(pullerArgs...).
 			WithEnv(initEnvs...).
 			WithVolumeMounts(initVolumeMounts...))
@@ -250,7 +249,7 @@ func (c *commonClient) deployRuntime(
 	podSpec = podSpec.WithContainers(corev1apply.Container().
 		WithName("runtime").
 		WithImage(image).
-		WithImagePullPolicy(corev1.PullPolicy(c.RuntimeImagePullPolicy)).
+		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
 		WithArgs(params.args...).
 		WithPorts(corev1apply.ContainerPort().
 			WithName("http").
@@ -262,14 +261,14 @@ func (c *commonClient) deployRuntime(
 		WithReadinessProbe(params.readinessProbe)).
 		WithVolumes(volumes...)
 
-	if sa := c.ServiceAccountName; sa != "" {
+	if sa := c.rconfig.ServiceAccountName; sa != "" {
 		podSpec = podSpec.WithServiceAccountName(sa)
 	}
 
-	if len(c.NodeSelector) > 0 {
-		podSpec = podSpec.WithNodeSelector(c.NodeSelector)
+	if len(c.rconfig.NodeSelector) > 0 {
+		podSpec = podSpec.WithNodeSelector(c.rconfig.NodeSelector)
 	}
-	for _, tc := range c.Tolerations {
+	for _, tc := range c.rconfig.Tolerations {
 		t := corev1apply.Toleration()
 		if tc.Key != "" {
 			t = t.WithKey(tc.Key)
@@ -292,11 +291,11 @@ func (c *commonClient) deployRuntime(
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(map[string]string{
-			runtimeAnnotationKey: c.Name,
+			runtimeAnnotationKey: c.rconfig.Name,
 			modelAnnotationKey:   params.modelID}).
 		WithFinalizers(finalizerKey).
 		WithSpec(appsv1apply.StatefulSetSpec().
-			WithReplicas(int32(c.DefaultReplicas)).
+			WithReplicas(int32(mci.Replicas)).
 			WithSelector(metav1apply.LabelSelector().
 				WithMatchLabels(labels)).
 			WithTemplate(corev1apply.PodTemplateSpec().

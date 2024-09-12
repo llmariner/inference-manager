@@ -25,7 +25,7 @@ global:
 commandName: run
 
 runtime:
-  name: ollama
+  name:
   runtimeImages:
     ollama: mirror.gcr.io/ollama/ollama:0.3.6
     vllm: mirror.gcr.io/vllm/vllm-openai:v0.6.0
@@ -43,16 +43,51 @@ runtime:
     #     size: "1Gi"
     #     accessMode: "ReadWriteOnce"
   defaultResources:
-    requests:
-      cpu: "1000m"
-      memory: "500Mi"
-    limits:
-      nvidia.com/gpu: 1
+    # requests:
+    #   cpu: "1000m"
+    #   memory: "500Mi"
+    # limits:
+    #   nvidia.com/gpu: 1
     # volume:
     #   storageClassName: "fast"
     #   size: "100Gi"
     #   accessMode: "ReadWriteOnce"
-  defaultReplicas: 1
+  defaultReplicas: 0
+
+model:
+  default:
+    runtimeName: ollama
+    resources:
+      requests:
+        cpu: "1000m"
+        memory: "500Mi"
+      limits:
+        nvidia.com/gpu: 1
+      # volume:
+      #   storageClassName: "fast"
+      #   size: "100Gi"
+      #   accessMode: "ReadWriteOnce"
+    replicas: 1
+    preloaded: false
+    contextLength: 0
+
+  overrides:
+    # sample-model:
+    #   runtimeName: ollama
+    #   resources:
+    #     requests:
+    #       cpu: "100m"
+    #       memory: "128Mi"
+    #     limits:
+    #       cpu: "200m"
+    #       memory: "256Mi"
+    #     volume:
+    #       storageClassName: "standard"
+    #       size: "1Gi"
+    #       accessMode: "ReadWriteOnce"
+    #   replicas: 1
+    #   preloaded: true
+    #   contextLength: 1024
 
 ollama:
   # Keep models in memory for a long period of time as we don't want end users to

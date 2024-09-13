@@ -11,18 +11,19 @@ import (
 )
 
 func TestDeployRuntimeParams(t *testing.T) {
-
 	commonClient := &commonClient{
-		RuntimeConfig: config.RuntimeConfig{
-			ModelResources: map[string]config.Resources{
-				"TinyLlama-TinyLlama-1.1B-Chat-v1.0": {
-					Limits: map[string]string{
-						"cpu":            "1",
-						"nvidia.com/gpu": "2",
+		mconfig: config.NewProcessedModelConfig(&config.Config{
+			Runtime: config.RuntimeConfig{
+				ModelResources: map[string]config.Resources{
+					"TinyLlama-TinyLlama-1.1B-Chat-v1.0": {
+						Limits: map[string]string{
+							"cpu":            "1",
+							"nvidia.com/gpu": "2",
+						},
 					},
 				},
 			},
-		},
+		}),
 	}
 
 	tcs := []struct {
@@ -87,21 +88,23 @@ func TestDeployRuntimeParams(t *testing.T) {
 func TestNumGPUs(t *testing.T) {
 	v := &vllmClient{
 		commonClient: &commonClient{
-			RuntimeConfig: config.RuntimeConfig{
-				ModelResources: map[string]config.Resources{
-					"model0": {
-						Limits: map[string]string{
-							nvidiaGPUResource: "2",
-							"cpu":             "4",
+			mconfig: config.NewProcessedModelConfig(&config.Config{
+				Runtime: config.RuntimeConfig{
+					ModelResources: map[string]config.Resources{
+						"model0": {
+							Limits: map[string]string{
+								nvidiaGPUResource: "2",
+								"cpu":             "4",
+							},
 						},
-					},
-					"model1": {
-						Limits: map[string]string{
-							"cpu": "8",
+						"model1": {
+							Limits: map[string]string{
+								"cpu": "8",
+							},
 						},
 					},
 				},
-			},
+			}),
 		},
 	}
 

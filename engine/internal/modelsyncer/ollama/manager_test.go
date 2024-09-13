@@ -5,21 +5,23 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/llm-operator/inference-manager/engine/internal/config"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateNewModel(t *testing.T) {
 	tcs := []struct {
-		name                   string
-		modelID                string
-		contextLengthByModelID map[string]int
-		spec                   *ollama.ModelSpec
-		want                   string
+		name    string
+		modelID string
+		config  *config.ProcessedModelConfig
+		spec    *ollama.ModelSpec
+		want    string
 	}{
 		{
 			name:    "gemma",
 			modelID: "google-gemma-2b-it-q4",
+			config:  config.NewProcessedModelConfig(&config.Config{}),
 			spec: &ollama.ModelSpec{
 				From: "google-gemma-2b-it-q4",
 			},
@@ -37,6 +39,7 @@ PARAMETER stop "<end_of_turn>"`,
 		{
 			name:    "deepseek",
 			modelID: "deepseek-ai-deepseek-coder-6.7b-base",
+			config:  config.NewProcessedModelConfig(&config.Config{}),
 			spec: &ollama.ModelSpec{
 				From: "deepseek-ai-deepseek-coder-6.7b-base",
 			},
@@ -50,11 +53,20 @@ PARAMETER num_ctx 16384
 		{
 			name:    "deepseek with non-default context length",
 			modelID: "deepseek-ai-deepseek-coder-6.7b-base",
+			config: config.NewProcessedModelConfig(&config.Config{
+				Model: config.ModelConfig{
+					Default: config.ModelConfigItem{
+						ContextLength: 10,
+					},
+					Overrides: map[string]config.ModelConfigItem{
+						"deepseek-ai-deepseek-coder-6.7b-base": {
+							ContextLength: 1024,
+						},
+					},
+				},
+			}),
 			spec: &ollama.ModelSpec{
 				From: "deepseek-ai-deepseek-coder-6.7b-base",
-			},
-			contextLengthByModelID: map[string]int{
-				"deepseek-ai-deepseek-coder-6.7b-base": 1024,
 			},
 			want: `FROM deepseek-ai-deepseek-coder-6.7b-base
 
@@ -66,6 +78,7 @@ PARAMETER num_ctx 1024
 		{
 			name:    "adapter",
 			modelID: "adapter0",
+			config:  config.NewProcessedModelConfig(&config.Config{}),
 			spec: &ollama.ModelSpec{
 				From:        "google-gemma-2b-it-q4",
 				AdapterPath: "/path/to/adapter",
@@ -80,8 +93,8 @@ Adapter /path/to/adapter
 		t.Run(tc.name, func(t *testing.T) {
 			fakeCmdRunner := &fakeCmdRunner{}
 			m := &Manager{
-				contextLengthsByModelID: tc.contextLengthByModelID,
-				cmdRunner:               fakeCmdRunner,
+				config:    tc.config,
+				cmdRunner: fakeCmdRunner,
 			}
 			err := m.CreateNewModelOfGGUF(tc.modelID, tc.spec)
 			assert.NoError(t, err)

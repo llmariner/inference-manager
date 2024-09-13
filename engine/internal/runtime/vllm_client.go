@@ -30,27 +30,26 @@ type modelClient interface {
 func NewVLLMClient(
 	k8sClient client.Client,
 	namespace string,
-	rconfig config.RuntimeConfig,
-	modelContextLengths map[string]int,
+	rconfig *config.RuntimeConfig,
+	mconfig *config.ProcessedModelConfig,
 	modelClient modelClient,
 ) Client {
 	return &vllmClient{
 		commonClient: &commonClient{
-			k8sClient:     k8sClient,
-			namespace:     namespace,
-			servingPort:   vllmHTTPPort,
-			RuntimeConfig: rconfig,
+			k8sClient:   k8sClient,
+			namespace:   namespace,
+			servingPort: vllmHTTPPort,
+			rconfig:     rconfig,
+			mconfig:     mconfig,
 		},
-		modelContextLengths: modelContextLengths,
-		modelClient:         modelClient,
+		modelClient: modelClient,
 	}
 }
 
 type vllmClient struct {
 	*commonClient
 
-	modelContextLengths map[string]int
-	modelClient         modelClient
+	modelClient modelClient
 }
 
 // DeployRuntime deploys the runtime for the given model.
@@ -93,8 +92,9 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--tensor-parallel-size", strconv.Itoa(gpus))
 	}
 
-	if len, ok := v.modelContextLengths[modelID]; ok {
-		args = append(args, "--max-model-len", strconv.Itoa(len))
+	mci := v.mconfig.ModelConfigItem(modelID)
+	if mci.ContextLength > 0 {
+		args = append(args, "--max-model-len", strconv.Itoa(mci.ContextLength))
 	}
 
 	if isAWQQuantizedModel(modelID) {

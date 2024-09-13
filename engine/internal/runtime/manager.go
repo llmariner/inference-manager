@@ -64,18 +64,22 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) bool {
+func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.runtimes[modelID]; ok {
-		return false
+		return false, nil
 	}
 	if sts.Status.ReadyReplicas > 0 {
-		m.runtimes[modelID] = newReadyRuntime(m.rtClientFactory.New(modelID).GetAddress(sts.Name))
+		c, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return false, err
+		}
+		m.runtimes[modelID] = newReadyRuntime(c.GetAddress(sts.Name))
 	} else {
 		m.runtimes[modelID] = newPendingRuntime()
 	}
-	return true
+	return true, nil
 }
 
 func (m *Manager) deleteRuntime(modelID string) {
@@ -163,14 +167,24 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		r = newPendingRuntime()
 		m.runtimes[modelID] = r
 		m.mu.Unlock()
-		nn, err := m.rtClientFactory.New(modelID).DeployRuntime(ctx, modelID)
-		if err != nil {
+
+		cleanup := func() {
 			m.mu.Lock()
 			delete(m.runtimes, modelID)
 			if r.waitCh != nil {
 				close(r.waitCh)
 			}
 			m.mu.Unlock()
+		}
+
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			cleanup()
+			return err
+		}
+		nn, err := client.DeployRuntime(ctx, modelID)
+		if err != nil {
+			cleanup()
 			return err
 		}
 		m.autoscaler.Register(modelID, nn)
@@ -215,7 +229,10 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 	ready, ok := m.isReady(modelID)
 	if !ok {
 		log.V(4).Info("Registering runtime", "model", modelID)
-		if added := m.addRuntime(modelID, sts); added {
+		if added, err := m.addRuntime(modelID, sts); err != nil {
+			log.Error(err, "Failed to add runtime")
+			return ctrl.Result{}, err
+		} else if added {
 			m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
 		}
 		return ctrl.Result{}, nil
@@ -225,7 +242,12 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Info("Runtime is pending")
 		}
 	} else if sts.Status.ReadyReplicas > 0 {
-		addr := m.rtClientFactory.New(modelID).GetAddress(sts.Name)
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			log.Error(err, "Failed to create runtime client")
+			return ctrl.Result{}, err
+		}
+		addr := client.GetAddress(sts.Name)
 		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
 		req := &http.Request{
 			Method: http.MethodGet,

@@ -63,8 +63,6 @@ const (
 
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
-	Name string `yaml:"name"`
-
 	PullerImage            string            `yaml:"pullerImage"`
 	RuntimeImages          map[string]string `yaml:"runtimeImages"`
 	PullerImagePullPolicy  string            `yaml:"pullerImagePullPolicy"`
@@ -77,24 +75,25 @@ type RuntimeConfig struct {
 	LLMOWorkerSecretName string `yaml:"llmoWorkerSecretName"`
 	LLMOKeyEnvKey        string `yaml:"llmoKeyEnvKey"`
 
+	ServiceAccountName string `yaml:"serviceAccountName"`
+
+	NodeSelector map[string]string `yaml:"nodeSelector"`
+	// TODO(kenji): Support affinity
+	Tolerations []TolerationConfig `yaml:"tolerations"`
+
+	// TODO(kenji): Remove the following fields once every env uses ModelConfig.
+	Name string `yaml:"name"`
+
 	ModelResources   map[string]Resources `yaml:"modelResources"`
 	DefaultResources Resources            `yaml:"defaultResources"`
 
 	// DefaultReplicas specifies the number of replicas of the runtime (per model).
 	// TODO(kenji): Revisit this once we support autoscaling.
 	DefaultReplicas int `yaml:"defaultReplicas"`
-
-	ServiceAccountName string `yaml:"serviceAccountName"`
-
-	NodeSelector map[string]string `yaml:"nodeSelector"`
-	// TODO(kenji): Support affinity
-	Tolerations []TolerationConfig `yaml:"tolerations"`
 }
 
 func (c *RuntimeConfig) validate() error {
-	if c.Name == "" {
-		return fmt.Errorf("name must be set")
-	}
+	// Do not check name and DefaultReplicas as they can be specified in the model config.
 
 	if c.PullerImage == "" {
 		return fmt.Errorf("pullerImage must be set")
@@ -130,9 +129,6 @@ func (c *RuntimeConfig) validate() error {
 		return fmt.Errorf("llmoKeyEnvKey must be set")
 	}
 
-	if c.DefaultReplicas < 0 {
-		return fmt.Errorf("defaultReplicas must be non-negative")
-	}
 	return nil
 }
 
@@ -147,13 +143,51 @@ func validateImagePullPolicy(policy string) error {
 	}
 }
 
-// FormattedModelResources returns the resources keyed by formatted model IDs.
-func (c *RuntimeConfig) FormattedModelResources() map[string]Resources {
-	res := map[string]Resources{}
-	for id, r := range c.ModelResources {
-		res[formatModelID(id)] = r
+// ModelConfig is the model configuration.
+type ModelConfig struct {
+	Default ModelConfigItem `yaml:"default"`
+	// Overrides is a map of model ID to the model configuration item to be overriden. Only
+	// fields that are set in the overrides are applied.
+	Overrides map[string]ModelConfigItem `yaml:"overrides"`
+}
+
+func (c *ModelConfig) validate() error {
+	if err := c.Default.validate(); err != nil {
+		return fmt.Errorf("default: %s", err)
 	}
-	return res
+	for id, i := range c.Overrides {
+		if err := i.validate(); err != nil {
+			return fmt.Errorf("overrides[%q]: %s", id, err)
+		}
+	}
+	return nil
+}
+
+// ModelConfigItem is the model configuration item.
+type ModelConfigItem struct {
+	RuntimeName string `yaml:"runtimeName"`
+
+	Resources Resources `yaml:"resources"`
+	Replicas  int       `yaml:"replicas"`
+
+	// Preloaded is true if the model is preloaded.
+	// If this is set to true in the the default model item, all models that are specified in override items
+	// are preloaded.
+	Preloaded bool `yaml:"preloaded"`
+
+	// ContextLength is the context length for the model. If the value is 0,
+	// the default context length is used.
+	ContextLength int `yaml:"contextLength"`
+}
+
+func (c *ModelConfigItem) validate() error {
+	if c.Replicas < 0 {
+		return fmt.Errorf("replicas must be non-negative")
+	}
+	if c.ContextLength < 0 {
+		return fmt.Errorf("contextLength must be non-negative")
+	}
+	return nil
 }
 
 // Resources is the resources configuration.
@@ -325,6 +359,7 @@ func (c *LeaderElectionConfig) validate() error {
 type Config struct {
 	Runtime RuntimeConfig `yaml:"runtime"`
 	Ollama  OllamaConfig  `yaml:"ollama"`
+	Model   ModelConfig   `yaml:"model"`
 	// LLMPort is the port llm listens on.
 	LLMPort int `yaml:"llmPort"`
 
@@ -338,10 +373,12 @@ type Config struct {
 
 	// PreloadedModelIDs is a list of model IDs to preload. These models are downloaded locally
 	// at the startup time.
+	// TODO(kenji):Remove once every env uses ModelConfig.
 	PreloadedModelIDs []string `yaml:"preloadedModelIds"`
 
 	// ModelContextLengths is a map of model ID to context length. If not specified, the default
 	// context length is used.
+	// TODO(kenji):Remove once every env uses ModelConfig.
 	ModelContextLengths map[string]int `yaml:"modelContextLengths"`
 
 	Debug DebugConfig `yaml:"debug"`
@@ -399,14 +436,14 @@ func (c *Config) Validate(mode runMode) error {
 		return fmt.Errorf("unknown run mode: %q", mode)
 	}
 
-	switch c.Runtime.Name {
-	case RuntimeNameOllama:
-		return c.Ollama.validate()
-	case RuntimeNameVLLM:
-		return nil
-	default:
-		return fmt.Errorf("unknown LLM engine: %q", c.Runtime.Name)
+	if err := c.Ollama.validate(); err != nil {
+		return fmt.Errorf("ollama: %s", err)
 	}
+
+	if err := c.Model.validate(); err != nil {
+		return fmt.Errorf("model: %s", err)
+	}
+	return nil
 }
 
 func (c *Config) validateDefaultRunConfig() error {
@@ -429,35 +466,10 @@ func (c *Config) validateDefaultRunConfig() error {
 }
 
 func (c *Config) validateMonolithicRunConfig() error {
-	if c.Runtime.Name == "" {
-		return fmt.Errorf("runtime name must be set")
-	}
-	if c.Runtime.Name != RuntimeNameOllama {
-		return fmt.Errorf("runtime name must be %q in monolithic run mode", RuntimeNameOllama)
-	}
-
 	if c.LLMPort <= 0 {
 		return fmt.Errorf("llmPort must be greater than 0")
 	}
 	return nil
-}
-
-// FormattedModelContextLengths returns the model context lengths keyed by formatted model IDs.
-func (c *Config) FormattedModelContextLengths() map[string]int {
-	lens := map[string]int{}
-	for id, l := range c.ModelContextLengths {
-		lens[formatModelID(id)] = l
-	}
-	return lens
-}
-
-// FormattedPreloadedModelIDs returns a formatted IDs of models to be preloaded.
-func (c *Config) FormattedPreloadedModelIDs() []string {
-	var ids []string
-	for _, id := range c.PreloadedModelIDs {
-		ids = append(ids, formatModelID(id))
-	}
-	return ids
 }
 
 func formatModelID(id string) string {
@@ -468,21 +480,21 @@ func formatModelID(id string) string {
 
 // Parse parses the configuration file at the given path, returning a new
 // Config struct.
-func Parse(path string) (Config, error) {
+func Parse(path string) (*Config, error) {
 	var config Config
 
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return config, fmt.Errorf("config: read: %s", err)
+		return &config, fmt.Errorf("config: read: %s", err)
 	}
 
 	if err = yaml.Unmarshal(b, &config); err != nil {
-		return config, fmt.Errorf("config: unmarshal: %s", err)
+		return &config, fmt.Errorf("config: unmarshal: %s", err)
 	}
 
 	if val := os.Getenv(preloadedModelIDsEnv); val != "" {
 		config.PreloadedModelIDs = strings.Split(val, ",")
 	}
 
-	return config, nil
+	return &config, nil
 }

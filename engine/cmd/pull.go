@@ -59,12 +59,12 @@ type opts struct {
 	modelID string
 }
 
-func pull(ctx context.Context, o opts, c config.Config) error {
+func pull(ctx context.Context, o opts, c *config.Config) error {
 	s3Client, err := s3.NewClient(ctx, c.ObjectStore.S3)
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(&c))
+	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func pull(ctx context.Context, o opts, c config.Config) error {
 func pullBaseModel(
 	ctx context.Context,
 	o opts,
-	c config.Config,
+	c *config.Config,
 	mClient mv1.ModelsWorkerServiceClient,
 	s3Client *s3.Client,
 ) error {
@@ -118,7 +118,9 @@ func pullBaseModel(
 		spec := &ollama.ModelSpec{
 			From: modelPath,
 		}
-		if err := ollama.CreateModelfile(filePath, o.modelID, spec, c.ModelContextLengths); err != nil {
+
+		mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
+		if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
 			return err
 		}
 		log.Printf("Successfully created the Ollama modelfile\n")
@@ -130,7 +132,7 @@ func pullBaseModel(
 func pullFineTunedModel(
 	ctx context.Context,
 	o opts,
-	c config.Config,
+	c *config.Config,
 	mClient mv1.ModelsWorkerServiceClient,
 	s3Client *s3.Client,
 ) error {
@@ -171,7 +173,8 @@ func pullFineTunedModel(
 		From:        baseModelID,
 		AdapterPath: adapterPath,
 	}
-	if err := ollama.CreateModelfile(filePath, o.modelID, spec, c.ModelContextLengths); err != nil {
+	mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
+	if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
 		return err
 	}
 	log.Printf("Successfully created the Ollama modelfile\n")

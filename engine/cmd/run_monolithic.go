@@ -56,7 +56,7 @@ func runMonoCmd() *cobra.Command {
 				return err
 			}
 
-			if err := runMono(cmd.Context(), &c, logLevel); err != nil {
+			if err := runMono(cmd.Context(), c, logLevel); err != nil {
 				return err
 			}
 			return nil
@@ -86,7 +86,8 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 		return err
 	}
 
-	m := ollama.New(c.FormattedModelContextLengths(), s3Client)
+	mconfig := config.NewProcessedModelConfig(c)
+	m := ollama.New(mconfig, s3Client)
 
 	errCh := make(chan error)
 
@@ -150,7 +151,7 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 		errCh <- p.Start(ctx)
 	}()
 
-	if ids := c.FormattedPreloadedModelIDs(); len(ids) > 0 {
+	if ids := mconfig.PreloadedModelIDs(); len(ids) > 0 {
 		go func() {
 			log.Printf("Preloading %d model(s)", len(ids))
 			ctx := auth.AppendWorkerAuthorization(ctx)

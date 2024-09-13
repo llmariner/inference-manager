@@ -38,13 +38,16 @@ func TestAddRuntime(t *testing.T) {
 		runtimes:        map[string]runtime{},
 	}
 
-	added := mgr.addRuntime("model-0", createSts("rt-0", 1))
+	added, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
+	assert.NoError(t, err)
 	assert.True(t, added)
 	assert.True(t, mgr.runtimes["model-0"].ready)
-	added = mgr.addRuntime("model-0", createSts("rt-0", 1))
+	added, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
+	assert.NoError(t, err)
 	assert.False(t, added)
 
-	added = mgr.addRuntime("model-1", createSts("rt-1", 0))
+	added, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
+	assert.NoError(t, err)
 	assert.True(t, added)
 	assert.False(t, mgr.runtimes["model-1"].ready)
 	assert.Len(t, mgr.runtimes, 2)
@@ -402,8 +405,8 @@ type fakeClientFactory struct {
 	c *fakeClient
 }
 
-func (f *fakeClientFactory) New(modelID string) Client {
-	return f.c
+func (f *fakeClientFactory) New(modelID string) (Client, error) {
+	return f.c, nil
 }
 
 type fakeClient struct {

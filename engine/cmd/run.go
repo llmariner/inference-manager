@@ -45,7 +45,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("missing NAMESPACE")
 			}
 
-			return run(cmd.Context(), &c, ns, logLevel)
+			return run(cmd.Context(), c, ns, logLevel)
 		},
 	}
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
@@ -102,28 +102,24 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	var rtClient runtime.Client
-	switch c.Runtime.Name {
-	case config.RuntimeNameOllama:
-		rtClient = runtime.NewOllamaClient(
+	rtClientFactory := &clientFactory{
+		config: c,
+		ollamaClient: runtime.NewOllamaClient(
 			mgr.GetClient(),
 			ns,
-			c.Runtime,
+			&c.Runtime,
+			config.NewProcessedModelConfig(c),
 			c.Ollama,
 			mv1.NewModelsWorkerServiceClient(conn),
-		)
-	case config.RuntimeNameVLLM:
-		rtClient = runtime.NewVLLMClient(
+		),
+		vllmClient: runtime.NewVLLMClient(
 			mgr.GetClient(),
 			ns,
-			c.Runtime,
-			c.FormattedModelContextLengths(),
+			&c.Runtime,
+			config.NewProcessedModelConfig(c),
 			mv1.NewModelsWorkerServiceClient(conn),
-		)
-	default:
-		return fmt.Errorf("invalid llm engine: %q", c.Runtime.Name)
+		),
 	}
-	rtClientFactory := &clientFactory{c: rtClient}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
 	if err := rtManager.SetupWithManager(mgr); err != nil {
@@ -153,7 +149,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(rtManager, c.FormattedPreloadedModelIDs())
+	preloader := runtime.NewPreloader(rtManager, config.NewProcessedModelConfig(c).PreloadedModelIDs())
 	if err := preloader.SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -171,9 +167,18 @@ func (n *noopScaler) Unregister(target types.NamespacedName) {
 }
 
 type clientFactory struct {
-	c runtime.Client
+	config       *config.Config
+	ollamaClient runtime.Client
+	vllmClient   runtime.Client
 }
 
-func (f *clientFactory) New(modelID string) runtime.Client {
-	return f.c
+func (f *clientFactory) New(modelID string) (runtime.Client, error) {
+	mci := config.NewProcessedModelConfig(f.config).ModelConfigItem(modelID)
+	switch mci.RuntimeName {
+	case config.RuntimeNameOllama:
+		return f.ollamaClient, nil
+	case config.RuntimeNameVLLM:
+		return f.vllmClient, nil
+	}
+	return nil, fmt.Errorf("unknown runtime name: %q", mci.RuntimeName)
 }

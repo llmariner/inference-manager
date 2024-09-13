@@ -24,20 +24,22 @@ type modelGetter interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
 }
 
-// NewOllamaClient creates a new Ollama runtime client.
+// NewOllamaClient creates a new Ollama runtime client.a
 func NewOllamaClient(
 	k8sClient client.Client,
 	namespace string,
-	rconfig config.RuntimeConfig,
+	rconfig *config.RuntimeConfig,
+	mconfig *config.ProcessedModelConfig,
 	oconfig config.OllamaConfig,
 	modelClient modelGetter,
 ) Client {
 	return &ollamaClient{
 		commonClient: &commonClient{
-			k8sClient:     k8sClient,
-			namespace:     namespace,
-			servingPort:   ollamaHTTPPort,
-			RuntimeConfig: rconfig,
+			k8sClient:   k8sClient,
+			namespace:   namespace,
+			servingPort: ollamaHTTPPort,
+			rconfig:     rconfig,
+			mconfig:     mconfig,
 		},
 		config:      oconfig,
 		modelClient: modelClient,
@@ -83,7 +85,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 		"serve",
 	}
 
-	image, ok := o.RuntimeImages[config.RuntimeNameOllama]
+	image, ok := o.rconfig.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
 		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
@@ -141,7 +143,7 @@ kill ${serve_pid}
 			command: []string{"/bin/bash"},
 			args:    []string{"-c", script},
 			// Use the same policy as the runtime as the container image is the same as the runtime.
-			imagePullPolicy: corev1.PullPolicy(o.RuntimeImagePullPolicy),
+			imagePullPolicy: corev1.PullPolicy(o.rconfig.RuntimeImagePullPolicy),
 		},
 	})
 }

@@ -33,9 +33,9 @@ func TestAddRuntime(t *testing.T) {
 	}
 	scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 	mgr := &Manager{
-		rtClient:   &fakeClient{},
-		autoscaler: scaler,
-		runtimes:   map[string]runtime{},
+		rtClientFactory: &fakeClientFactory{},
+		autoscaler:      scaler,
+		runtimes:        map[string]runtime{},
 	}
 
 	added := mgr.addRuntime("model-0", createSts("rt-0", 1))
@@ -172,9 +172,9 @@ func TestPullModel(t *testing.T) {
 			rtClient := &fakeClient{deployed: map[string]bool{}}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := &Manager{
-				runtimes:   map[string]runtime{},
-				rtClient:   rtClient,
-				autoscaler: scaler,
+				runtimes:        map[string]runtime{},
+				rtClientFactory: &fakeClientFactory{c: rtClient},
+				autoscaler:      scaler,
 			}
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = *test.rt
@@ -358,10 +358,10 @@ func TestReconcile(t *testing.T) {
 			rtClient := &fakeClient{deployed: map[string]bool{}}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := &Manager{
-				k8sClient:  k8sClient,
-				runtimes:   map[string]runtime{},
-				rtClient:   rtClient,
-				autoscaler: scaler,
+				k8sClient:       k8sClient,
+				runtimes:        map[string]runtime{},
+				rtClientFactory: &fakeClientFactory{c: rtClient},
+				autoscaler:      scaler,
 			}
 			if test.rt != nil {
 				mgr.runtimes[modelID] = *test.rt
@@ -396,6 +396,14 @@ type fakeRoundTripper struct {
 
 func (s *fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return s.resp()
+}
+
+type fakeClientFactory struct {
+	c *fakeClient
+}
+
+func (f *fakeClientFactory) New(modelID string) Client {
+	return f.c
 }
 
 type fakeClient struct {

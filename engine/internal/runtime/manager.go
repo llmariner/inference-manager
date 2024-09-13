@@ -27,22 +27,22 @@ type ScalerRegisterer interface {
 // NewManager creates a new runtime manager.
 func NewManager(
 	k8sClient client.Client,
-	rtClient Client,
+	rtClientFactory ClientFactory,
 	autoscaler ScalerRegisterer,
 ) *Manager {
 	return &Manager{
-		k8sClient:  k8sClient,
-		rtClient:   rtClient,
-		autoscaler: autoscaler,
-		runtimes:   make(map[string]runtime),
+		k8sClient:       k8sClient,
+		rtClientFactory: rtClientFactory,
+		autoscaler:      autoscaler,
+		runtimes:        make(map[string]runtime),
 	}
 }
 
 // Manager manages runtimes.
 type Manager struct {
-	k8sClient  client.Client
-	rtClient   Client
-	autoscaler ScalerRegisterer
+	k8sClient       client.Client
+	rtClientFactory ClientFactory
+	autoscaler      ScalerRegisterer
 
 	runtimes map[string]runtime
 	mu       sync.RWMutex
@@ -71,7 +71,7 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) bool {
 		return false
 	}
 	if sts.Status.ReadyReplicas > 0 {
-		m.runtimes[modelID] = newReadyRuntime(m.rtClient.GetAddress(sts.Name))
+		m.runtimes[modelID] = newReadyRuntime(m.rtClientFactory.New(modelID).GetAddress(sts.Name))
 	} else {
 		m.runtimes[modelID] = newPendingRuntime()
 	}
@@ -163,7 +163,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		r = newPendingRuntime()
 		m.runtimes[modelID] = r
 		m.mu.Unlock()
-		nn, err := m.rtClient.DeployRuntime(ctx, modelID)
+		nn, err := m.rtClientFactory.New(modelID).DeployRuntime(ctx, modelID)
 		if err != nil {
 			m.mu.Lock()
 			delete(m.runtimes, modelID)
@@ -225,7 +225,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Info("Runtime is pending")
 		}
 	} else if sts.Status.ReadyReplicas > 0 {
-		addr := m.rtClient.GetAddress(sts.Name)
+		addr := m.rtClientFactory.New(modelID).GetAddress(sts.Name)
 		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
 		req := &http.Request{
 			Method: http.MethodGet,

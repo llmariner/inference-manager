@@ -14,14 +14,14 @@ type ModelSpec struct {
 }
 
 // ModelfilePath returns the model file path.
-func ModelfilePath(modelDir string, modelName string) string {
-	return filepath.Join(modelDir, modelName, "modelfile")
+func ModelfilePath(modelDir string, modelID string) string {
+	return filepath.Join(modelDir, modelID, "modelfile")
 }
 
 // CreateModelfile creates a new model file.
 func CreateModelfile(
 	filePath string,
-	modelName string,
+	modelID string,
 	spec *ModelSpec,
 	contextLengthsByModelID map[string]int,
 ) error {
@@ -29,7 +29,7 @@ func CreateModelfile(
 	if err != nil {
 		return err
 	}
-	if err := WriteModelfile(modelName, spec, contextLengthsByModelID, file); err != nil {
+	if err := WriteModelfile(modelID, spec, contextLengthsByModelID, file); err != nil {
 		return err
 	}
 	return nil
@@ -37,7 +37,7 @@ func CreateModelfile(
 
 // WriteModelfile writes the model file.
 func WriteModelfile(
-	modelName string,
+	modelID string,
 	spec *ModelSpec,
 	contextLengthsByModelID map[string]int,
 	file *os.File,
@@ -46,12 +46,12 @@ func WriteModelfile(
 	if p := spec.AdapterPath; p != "" {
 		s += fmt.Sprintf("Adapter %s\n", p)
 	} else {
-		modelFile, err := ollamaBaseModelFile(modelName)
+		modelFile, err := ollamaBaseModelFile(modelID)
 		if err != nil {
 			return err
 		}
 		s += modelFile
-		if l, ok, err := contextLength(modelName, contextLengthsByModelID); err != nil {
+		if l, ok, err := contextLength(modelID, contextLengthsByModelID); err != nil {
 			return err
 		} else if ok {
 			s += fmt.Sprintf("PARAMETER num_ctx %d\n", l)
@@ -68,38 +68,38 @@ func WriteModelfile(
 
 // contextLength returns the context length for the given model name if it is set to a non-default value.
 // If it is set to the default value, the function returns false.
-func contextLength(name string, contextLengthsByModelID map[string]int) (int, bool, error) {
-	if l, ok := contextLengthsByModelID[name]; ok {
+func contextLength(modelID string, contextLengthsByModelID map[string]int) (int, bool, error) {
+	if l, ok := contextLengthsByModelID[modelID]; ok {
 		return l, true, nil
 	}
 
 	switch {
-	case strings.HasPrefix(name, "google-gemma-"):
+	case strings.HasPrefix(modelID, "google-gemma-"):
 		return 0, false, nil
-	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3-8B-Instruct"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3-8B-Instruct"):
 		return 0, false, nil
-	case strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct"):
+	case strings.HasPrefix(modelID, "mistralai-Mistral-7B-Instruct"):
 		return 0, false, nil
-	case strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct"):
+	case strings.HasPrefix(modelID, "mistralai-Mixtral-8x22B-Instruct"):
 		return 0, false, nil
-	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"):
 		// The publicly announced max context length is 128K, but we limit the context length
 		// to 64K here to make this work smoothly in g5.48xlarge.
 		return 65536, true, nil
-	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"):
+	case strings.HasPrefix(modelID, "deepseek-ai-deepseek-coder-6.7b-base"):
 		return 16384, true, nil
-	case strings.HasPrefix(name, "sentence-transformers-all-MiniLM-L6-v2"):
+	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		return 256, true, nil
 	default:
-		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
+		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", modelID)
 	}
 }
 
-// ollamaBaseModelFile returns the base model file for the given model name.
+// ollamaBaseModelFile returns the base model file for the given model ID.
 // This is based on the output of "ollama show <model> --modelfile".
-func ollamaBaseModelFile(name string) (string, error) {
+func ollamaBaseModelFile(modelID string) (string, error) {
 	switch {
-	case strings.HasPrefix(name, "google-gemma-"):
+	case strings.HasPrefix(modelID, "google-gemma-"):
 		// Output of "ollama show gemma:2b --modelfile".
 		return `
 TEMPLATE """<start_of_turn>user
@@ -111,7 +111,7 @@ PARAMETER repeat_penalty 1
 PARAMETER stop "<start_of_turn>"
 PARAMETER stop "<end_of_turn>"`, nil
 
-	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3-8B-Instruct"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3-8B-Instruct"):
 		// Output of "ollama show llama3 --modelfile".
 		return `
 TEMPLATE "{{ if .System }}<|start_header_id|>system<|end_header_id|>
@@ -126,22 +126,22 @@ PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>
 PARAMETER num_keep 24`, nil
 
-	case strings.HasPrefix(name, "mistralai-Mistral-7B-Instruct"):
+	case strings.HasPrefix(modelID, "mistralai-Mistral-7B-Instruct"):
 		// Output of "ollama show mistral --modelfile".
 		return `
 TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
 PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
 
-	case strings.HasPrefix(name, "mistralai-Mixtral-8x22B-Instruct"):
+	case strings.HasPrefix(modelID, "mistralai-Mixtral-8x22B-Instruct"):
 		// Output of "ollama show mixtral --modelfile".
 		return `
 TEMPLATE """[INST] {{ if .System }}{{ .System }} {{ end }}{{ .Prompt }} [/INST]"""
 PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
 
-	case strings.HasPrefix(name, "meta-llama-Meta-Llama-3.1-"),
-		strings.HasPrefix(name, "mattshumer-Reflection-Llama-3.1-70B"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
+		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"):
 		// Output of "ollama show llama3.1 --modelfile" except the context length parameter.
 		// The publicly announced max context length is 128K, but we limit the context length
 		// to 64K here to make this work smoothly in g5.48xlarge.
@@ -203,21 +203,21 @@ PARAMETER stop <|end_header_id|>
 PARAMETER stop <|eot_id|>
 `, nil
 
-	case strings.HasPrefix(name, "deepseek-ai-deepseek-coder-6.7b-base"),
-		strings.HasPrefix(name, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
+	case strings.HasPrefix(modelID, "deepseek-ai-deepseek-coder-6.7b-base"),
+		strings.HasPrefix(modelID, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
 		// This is different from the output of "ollama show deepseek-coder --modelfile".
 		// Instead, this is tailored for auto completion for continue.dev.
 		return `
 TEMPLATE {{ .Prompt }}
 PARAMETER stop <｜end▁of▁sentence｜>
 `, nil
-	case strings.HasPrefix(name, "sentence-transformers-all-MiniLM-L6-v2"):
+	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		// This model is for embedding.
 		return `
 TEMPLATE {{ .Prompt }}
 `, nil
 	default:
-		return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", name)
+		return "", fmt.Errorf("unsupported base model in Ollama modelfile: %q", modelID)
 	}
 }
 

@@ -34,11 +34,11 @@ type D struct {
 // Download downloads the model.
 func (d *D) Download(
 	ctx context.Context,
-	modelName string,
+	modelID string,
 	resp *mv1.GetBaseModelPathResponse,
 	format mv1.ModelFormat,
 ) error {
-	destPath, err := ModelFilePath(d.modelDir, modelName, format)
+	destPath, err := ModelFilePath(d.modelDir, modelID, format)
 	if err != nil {
 		return err
 	}
@@ -52,31 +52,31 @@ func (d *D) Download(
 	default:
 		return fmt.Errorf("unsupported model format: %s", format)
 	}
-	return d.download(ctx, modelName, format, srcPath, destPath)
+	return d.download(ctx, modelID, format, srcPath, destPath)
 }
 
 // DownloadAdapter downloads the adapter.
 func (d *D) DownloadAdapter(
 	ctx context.Context,
-	modelName string,
+	modelID string,
 	resp *mv1.GetModelPathResponse,
 ) error {
-	destPath, err := AdapterFilePath(d.modelDir, modelName)
+	destPath, err := AdapterFilePath(d.modelDir, modelID)
 	if err != nil {
 		return err
 	}
-	return d.download(ctx, modelName, mv1.ModelFormat_MODEL_FORMAT_GGUF, resp.Path, destPath)
+	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, resp.Path, destPath)
 }
 
 func (d *D) download(
 	ctx context.Context,
-	modelName string,
+	modelID string,
 	format mv1.ModelFormat,
 	srcPath string,
 	destPath string,
 ) error {
 	// Check if the completion indication file exists. If so, download should have been completed with a previous run. Do not download again.
-	completionDir := filepath.Join(d.modelDir, modelName)
+	completionDir := filepath.Join(d.modelDir, modelID)
 	if err := os.MkdirAll(completionDir, 0755); err != nil {
 		return err
 	}
@@ -127,18 +127,18 @@ func (d *D) download(
 }
 
 // ModelFilePath returns the file path of the model.
-func ModelFilePath(modelDir, modelName string, format mv1.ModelFormat) (string, error) {
+func ModelFilePath(modelDir, modelID string, format mv1.ModelFormat) (string, error) {
 	switch format {
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
-		return filepath.Join(modelDir, modelName, "model.gguf"), nil
+		return filepath.Join(modelDir, modelID, "model.gguf"), nil
 	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
-		return filepath.Join(modelDir, modelName), nil
+		return filepath.Join(modelDir, modelID), nil
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)
 	}
 }
 
 // AdapterFilePath returns the file path of the adapter.
-func AdapterFilePath(modelDir, modelName string) (string, error) {
-	return filepath.Join(modelDir, modelName, "adapter.gguf"), nil
+func AdapterFilePath(modelDir, modelID string) (string, error) {
+	return filepath.Join(modelDir, modelID, "adapter.gguf"), nil
 }

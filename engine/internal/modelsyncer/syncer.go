@@ -21,8 +21,8 @@ const (
 
 // ModelManager is an interface for managing models.
 type ModelManager interface {
-	CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec) error
-	DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error
+	CreateNewModelOfGGUF(modelID string, spec *ollama.ModelSpec) error
+	DownloadAndCreateNewModel(ctx context.Context, modelID string, resp *mv1.GetBaseModelPathResponse) error
 	UpdateModelTemplateToLatest(modelname string) error
 }
 

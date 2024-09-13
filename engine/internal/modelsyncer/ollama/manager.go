@@ -61,7 +61,7 @@ func (m *Manager) Run() error {
 }
 
 // CreateNewModelOfGGUF creates a new model with the given name and spec that uses a GGUF model file.
-func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec) error {
+func (m *Manager) CreateNewModelOfGGUF(modelID string, spec *ollama.ModelSpec) error {
 	file, err := os.CreateTemp("/tmp", "model")
 	if err != nil {
 		return err
@@ -72,15 +72,15 @@ func (m *Manager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec)
 		}
 	}()
 
-	if err := ollama.WriteModelfile(modelName, spec, m.contextLengthsByModelID, file); err != nil {
+	if err := ollama.WriteModelfile(modelID, spec, m.contextLengthsByModelID, file); err != nil {
 		return err
 	}
 
-	return m.runCommand([]string{"create", modelName, "-f", file.Name()})
+	return m.runCommand([]string{"create", modelID, "-f", file.Name()})
 }
 
 // DownloadAndCreateNewModel downloads the model from the given path and creates a new model.
-func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
+func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelID string, resp *mv1.GetBaseModelPathResponse) error {
 	var hasGGUF bool
 	for _, f := range resp.Formats {
 		if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
@@ -115,7 +115,7 @@ func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName strin
 		From: f.Name(),
 	}
 
-	if err := m.CreateNewModelOfGGUF(modelName, ms); err != nil {
+	if err := m.CreateNewModelOfGGUF(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 
@@ -123,8 +123,8 @@ func (m *Manager) DownloadAndCreateNewModel(ctx context.Context, modelName strin
 }
 
 // PullBaseModel pulls the base model from the given path.
-func (m *Manager) PullBaseModel(modelName string) error {
-	return m.runCommand([]string{"pull", modelName})
+func (m *Manager) PullBaseModel(modelID string) error {
+	return m.runCommand([]string{"pull", modelID})
 }
 
 // WaitForReady waits for the Ollama service to be ready.
@@ -154,15 +154,15 @@ func (m *Manager) WaitForReady() error {
 }
 
 // UpdateModelTemplateToLatest updates the model template to the latest.
-func (m *Manager) UpdateModelTemplateToLatest(modelName string) error {
+func (m *Manager) UpdateModelTemplateToLatest(modelID string) error {
 	// TODO(kenji): Update only when there is actual delta. It requires a
 	// non-trival amount of work as Ollama makes modification to the original modelfile content
 	// (e.g., add comments).
-	log.Printf("Recreating model %q with the updated template.\n", modelName)
+	log.Printf("Recreating model %q with the updated template.\n", modelID)
 	ms := &ollama.ModelSpec{
-		From: modelName,
+		From: modelID,
 	}
-	if err := m.CreateNewModelOfGGUF(modelName, ms); err != nil {
+	if err := m.CreateNewModelOfGGUF(modelID, ms); err != nil {
 		return fmt.Errorf("create new model: %s", err)
 	}
 	return nil

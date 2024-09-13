@@ -142,17 +142,17 @@ type fakeOllamaManager struct {
 	created []string
 }
 
-func (n *fakeOllamaManager) CreateNewModelOfGGUF(modelName string, spec *ollama.ModelSpec) error {
-	n.created = append(n.created, modelName)
+func (n *fakeOllamaManager) CreateNewModelOfGGUF(modelID string, spec *ollama.ModelSpec) error {
+	n.created = append(n.created, modelID)
 	return nil
 }
 
-func (n *fakeOllamaManager) DownloadAndCreateNewModel(ctx context.Context, modelName string, resp *mv1.GetBaseModelPathResponse) error {
-	n.created = append(n.created, modelName)
+func (n *fakeOllamaManager) DownloadAndCreateNewModel(ctx context.Context, modelID string, resp *mv1.GetBaseModelPathResponse) error {
+	n.created = append(n.created, modelID)
 	return nil
 }
 
-func (n *fakeOllamaManager) UpdateModelTemplateToLatest(modelName string) error {
+func (n *fakeOllamaManager) UpdateModelTemplateToLatest(modelID string) error {
 	return nil
 }
 

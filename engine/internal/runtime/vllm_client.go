@@ -157,16 +157,16 @@ func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string,
 }
 
 // isAWQQuantizedModel returns true if the model name is an AWQ quantized model.
-func isAWQQuantizedModel(modelName string) bool {
-	return strings.HasSuffix(modelName, "-awq")
+func isAWQQuantizedModel(modelID string) bool {
+	return strings.HasSuffix(modelID, "-awq")
 }
 
 // chatTemplate returns the chat template for the given model.
-func chatTemplate(modelName string) (string, error) {
+func chatTemplate(modelID string) (string, error) {
 	switch {
-	case strings.HasPrefix(modelName, "meta-llama-Meta-Llama-3.1-"),
-		strings.HasPrefix(modelName, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"),
-		strings.HasPrefix(modelName, "mattshumer-Reflection-Llama-3.1-70B"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
+		strings.HasPrefix(modelID, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"),
+		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"):
 		// This is a simplified template that does not support functions etc.
 		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
 		return `
@@ -175,8 +175,8 @@ func chatTemplate(modelName string) (string, error) {
 {{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\n' + message['content'] + '\n<|eot_id|>\n'}}
 {% endfor %}
 `, nil
-	case strings.HasPrefix(modelName, "deepseek-ai-deepseek-coder-6.7b-base"),
-		strings.HasPrefix(modelName, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
+	case strings.HasPrefix(modelID, "deepseek-ai-deepseek-coder-6.7b-base"),
+		strings.HasPrefix(modelID, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
 		// This is a simplified template that works for auto code completion.
 		// See https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct/blob/main/tokenizer_config.json#L34.
 		return `
@@ -184,7 +184,7 @@ func chatTemplate(modelName string) (string, error) {
 {{message['content']}}
 {% endfor %}
 `, nil
-	case modelName == "intfloat-e5-mistral-7b-instruct":
+	case modelID == "intfloat-e5-mistral-7b-instruct":
 		// This model is for embedding.
 		return `
 {% for message in messages %}
@@ -192,6 +192,6 @@ func chatTemplate(modelName string) (string, error) {
 {% endfor %}
 `, nil
 	default:
-		return "", fmt.Errorf("unsupported model: %q", modelName)
+		return "", fmt.Errorf("unsupported model: %q", modelID)
 	}
 }

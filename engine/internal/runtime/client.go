@@ -41,6 +41,11 @@ type Client interface {
 	DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error)
 }
 
+// ClientFactory is the interface for creating a new Client given a model ID.
+type ClientFactory interface {
+	New(modelID string) Client
+}
+
 type commonClient struct {
 	k8sClient client.Client
 

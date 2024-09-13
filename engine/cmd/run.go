@@ -123,8 +123,9 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	default:
 		return fmt.Errorf("invalid llm engine: %q", c.Runtime.Name)
 	}
+	rtClientFactory := &clientFactory{c: rtClient}
 
-	rtManager := runtime.NewManager(mgr.GetClient(), rtClient, scaler)
+	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
 	if err := rtManager.SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -167,4 +168,12 @@ func (n *noopScaler) Register(modelID string, target types.NamespacedName) {
 }
 
 func (n *noopScaler) Unregister(target types.NamespacedName) {
+}
+
+type clientFactory struct {
+	c runtime.Client
+}
+
+func (f *clientFactory) New(modelID string) runtime.Client {
+	return f.c
 }

@@ -101,8 +101,8 @@ func (c *RuntimeConfig) validate() error {
 	if len(c.RuntimeImages) == 0 {
 		return fmt.Errorf("runtimeImages must be set")
 	}
-	if _, ok := c.RuntimeImages[c.Name]; !ok {
-		return fmt.Errorf("image not found for runtime %q", c.Name)
+	if len(c.RuntimeImages[c.Name]) == 0 {
+		return fmt.Errorf("runtimeImages must be set")
 	}
 	if err := validateImagePullPolicy(c.PullerImagePullPolicy); err != nil {
 		return fmt.Errorf("pullerImagePullPolicy: %s", err)

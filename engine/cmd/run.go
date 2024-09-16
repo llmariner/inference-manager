@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -23,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 func runCmd() *cobra.Command {
@@ -45,7 +45,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("missing NAMESPACE")
 			}
 
-			return run(cmd.Context(), c, ns, logLevel)
+			return run(c, ns, logLevel)
 		},
 	}
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
@@ -54,10 +54,9 @@ func runCmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, c *config.Config, ns string, lv int) error {
+func run(c *config.Config, ns string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
-	ctx = ctrl.LoggerInto(ctx, logger)
 	bootLog := logger.WithName("boot")
 
 	restConfig, err := rest.InClusterConfig()
@@ -155,7 +154,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	bootLog.Info("Starting manager")
-	return mgr.Start(ctx)
+	return mgr.Start(signals.SetupSignalHandler())
 }
 
 type noopScaler struct{}

@@ -62,6 +62,7 @@ func (m *MultiAutoscaler) Start(ctx context.Context) error {
 	close(m.startCh)
 	<-ctx.Done()
 	close(m.stopCh)
+	m.logger.Info("Stopped multi-autoscaler")
 	return nil
 }
 
@@ -155,9 +156,11 @@ func (s *scaler) start(log logr.Logger, stopCh <-chan struct{}, initialDelay, pe
 	for {
 		select {
 		case <-stopCh:
+			log.Info("Stopped autoscaler by stop channel")
 			cancel()
 			return
 		case <-ctx.Done():
+			log.Info("Stopped autoscaler by context", "ctx", ctx.Err())
 			return
 		case <-ticker.C:
 			scale()

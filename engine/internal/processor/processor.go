@@ -311,7 +311,7 @@ func (p *P) processTask(
 			Status:     http.StatusText(http.StatusInternalServerError),
 			Body:       []byte(msg),
 		}
-		if err := p.sendHTTPResponse(ctx, stream, t, httpResp); err != nil {
+		if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
 			return err
 		}
 		return nil
@@ -336,7 +336,7 @@ func (p *P) processTask(
 			Status:     resp.Status,
 			Body:       body,
 		}
-		if err := p.sendHTTPResponse(ctx, stream, t, httpResp); err != nil {
+		if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
 			return err
 		}
 		return nil
@@ -362,7 +362,7 @@ func (p *P) processTask(
 		Header:     respHeader,
 		Body:       body,
 	}
-	if err := p.sendHTTPResponse(ctx, stream, t, httpResp); err != nil {
+	if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
 		return err
 	}
 
@@ -376,7 +376,7 @@ func (p *P) processTask(
 		e := &v1.ServerSentEvent{
 			Data: []byte(b + sse.DoubleNewline),
 		}
-		if err := p.sendServerSentEvent(ctx, stream, t, e); err != nil {
+		if err := p.sendServerSentEvent(stream, t, e); err != nil {
 			return err
 		}
 	}
@@ -389,7 +389,7 @@ func (p *P) processTask(
 	e := &v1.ServerSentEvent{
 		IsLastEvent: true,
 	}
-	if err := p.sendServerSentEvent(ctx, stream, t, e); err != nil {
+	if err := p.sendServerSentEvent(stream, t, e); err != nil {
 		return err
 	}
 
@@ -467,7 +467,6 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 }
 
 func (p *P) sendHTTPResponse(
-	ctx context.Context,
 	stream sender,
 	t *v1.Task,
 	resp *v1.HttpResponse,
@@ -478,14 +477,13 @@ func (p *P) sendHTTPResponse(
 			HttpResponse: resp,
 		},
 	}
-	if err := p.sendTaskResult(ctx, stream, result); err != nil {
+	if err := p.sendTaskResult(stream, result); err != nil {
 		return fmt.Errorf("send task result: %s", err)
 	}
 	return nil
 }
 
 func (p *P) sendServerSentEvent(
-	ctx context.Context,
 	stream sender,
 	t *v1.Task,
 	e *v1.ServerSentEvent,
@@ -496,14 +494,13 @@ func (p *P) sendServerSentEvent(
 			ServerSentEvent: e,
 		},
 	}
-	if err := p.sendTaskResult(ctx, stream, result); err != nil {
+	if err := p.sendTaskResult(stream, result); err != nil {
 		return fmt.Errorf("send task result: %s", err)
 	}
 	return nil
 }
 
 func (p *P) sendTaskResult(
-	ctx context.Context,
 	stream sender,
 	result *v1.TaskResult,
 ) error {

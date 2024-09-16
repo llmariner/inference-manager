@@ -365,6 +365,10 @@ type Config struct {
 
 	HealthPort int `yaml:"healthPort"`
 
+	// GracefulShutdownTimeout is the duration given to runnable to stop
+	// before the manager actually returns on stop. Default is 30 seconds.
+	GracefulShutdownTimeout time.Duration `yaml:"gracefulShutdownTimeout"`
+
 	LeaderElection LeaderElectionConfig `yaml:"leaderElection"`
 
 	Autoscaler AutoscalerConfig `yaml:"autoscaler"`
@@ -421,6 +425,11 @@ func (c *Config) Validate(mode runMode) error {
 		if length <= 0 {
 			return fmt.Errorf("model context length for model %q must be greater than 0", id)
 		}
+	}
+
+	if c.GracefulShutdownTimeout <= 0 {
+		// default period is same as the default value in ctrl.Manager.
+		c.GracefulShutdownTimeout = 30 * time.Second
 	}
 
 	switch mode {

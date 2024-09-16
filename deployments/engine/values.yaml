@@ -132,6 +132,9 @@ modelContextLengths:
 inferenceManagerServerWorkerServiceAddr: inference-manager-server-worker-service-grpc:8082
 modelManagerServerWorkerServiceAddr: model-manager-server-worker-service-grpc:8082
 
+gracefulShutdownTimeout:
+podTerminationGracePeriodSeconds:
+
 logLevel: 0
 
 replicaCount: 1

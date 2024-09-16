@@ -36,6 +36,7 @@ func TestP(t *testing.T) {
 		&fakeModelSyncer{},
 		logger,
 		&NoopMetricsCollector{},
+		time.Second,
 	)
 
 	fakeClient := &fakeProcessTasksClient{}
@@ -77,6 +78,7 @@ func TestEmbedding(t *testing.T) {
 		&fakeModelSyncer{},
 		logger,
 		&NoopMetricsCollector{},
+		time.Second,
 	)
 
 	fakeClient := &fakeProcessTasksClient{}

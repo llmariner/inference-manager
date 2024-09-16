@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -70,6 +71,7 @@ func run(c *config.Config, ns string, lv int) error {
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{ns: {}},
 		},
+		GracefulShutdownTimeout:       ptr.To(c.GracefulShutdownTimeout),
 		LeaderElection:                c.LeaderElection.Enable,
 		LeaderElectionID:              c.LeaderElection.ID,
 		LeaderElectionReleaseOnCancel: true,
@@ -143,6 +145,7 @@ func run(c *config.Config, ns string, lv int) error {
 		rtManager,
 		logger,
 		mClient,
+		c.GracefulShutdownTimeout,
 	)
 	if err := p.SetupWithManager(mgr); err != nil {
 		return err

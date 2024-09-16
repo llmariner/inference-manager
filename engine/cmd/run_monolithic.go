@@ -143,6 +143,7 @@ func runMono(ctx context.Context, c *config.Config, lv int) error {
 		syncer,
 		logger,
 		&processor.NoopMetricsCollector{},
+		c.GracefulShutdownTimeout,
 	)
 
 	healthHandler.AddProbe(p)

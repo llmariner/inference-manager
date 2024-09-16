@@ -61,10 +61,10 @@ data:
         contextLength: {{ .Values.model.default.contextLength }}
       overrides:
         {{- toYaml .Values.model.overrides | nindent 8 }}
-
     llmEngine: {{ .Values.llmEngine }}
     llmPort: {{ .Values.llmPort }}
     healthPort: {{ .Values.healthPort }}
+    gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
     leaderElection:
       enable: {{ include "leaderElection.enabled" . }}
       id: {{ include "inference-manager-engine.fullname" . }}

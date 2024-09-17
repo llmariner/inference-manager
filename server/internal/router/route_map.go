@@ -2,7 +2,6 @@ package router
 
 import (
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -125,13 +124,4 @@ func (r *routeMap) findLeastLoadedEngine() (string, error) {
 		}
 	}
 	return id, nil
-}
-
-func (r *routeMap) printRoute() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	log.Printf("Dumping the current route map:\n")
-	log.Printf("- engines: %+v\n", r.engines)
-	log.Printf("- route: %+v\n", r.m)
 }

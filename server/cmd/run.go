@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-logr/stdr"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llm-operator/inference-manager/server/internal/admin"
 	"github.com/llm-operator/inference-manager/server/internal/config"
@@ -26,38 +27,39 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const (
-	flagConfig = "config"
+const monitoringRunnerInterval = 10 * time.Second
 
-	monitoringRunnerInterval = 10 * time.Second
-)
+func runCmd() *cobra.Command {
+	var path string
+	var logLevel int
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "run",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := config.Parse(path)
+			if err != nil {
+				return err
+			}
+			if err := c.Validate(); err != nil {
+				return err
+			}
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "run",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		path, err := cmd.Flags().GetString(flagConfig)
-		if err != nil {
-			return err
-		}
-
-		c, err := config.Parse(path)
-		if err != nil {
-			return err
-		}
-
-		if err := c.Validate(); err != nil {
-			return err
-		}
-
-		if err := run(cmd.Context(), &c); err != nil {
-			return err
-		}
-		return nil
-	},
+			if err := run(cmd.Context(), &c, logLevel); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
+	cmd.Flags().IntVar(&logLevel, "v", 0, "Log level")
+	_ = cmd.MarkFlagRequired("config")
+	return cmd
 }
 
-func run(ctx context.Context, c *config.Config) error {
+func run(ctx context.Context, c *config.Config, lv int) error {
+	stdr.SetVerbosity(lv)
+	logger := stdr.New(log.Default())
+
 	errCh := make(chan error)
 
 	options := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -107,25 +109,25 @@ func run(ctx context.Context, c *config.Config) error {
 			return err
 		}
 		vsInternalClient := vsv1.NewVectorStoreInternalServiceClient(conn)
-		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient)
+		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient, logger)
 	}
 
 	queue := infprocessor.NewTaskQueue()
 
 	r := router.New()
-	infProcessor := infprocessor.NewP(queue, r)
+	infProcessor := infprocessor.NewP(queue, r, logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()
 
-	m := monitoring.NewMetricsMonitor(infProcessor)
+	m := monitoring.NewMetricsMonitor(infProcessor, logger)
 	go func() {
 		errCh <- m.Run(ctx, monitoringRunnerInterval)
 	}()
 
 	defer m.UnregisterAllCollectors()
 
-	s := server.New(m, mclient, vsClient, rwt, queue)
+	grpcSrv := server.New(m, mclient, vsClient, rwt, queue, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(
@@ -134,7 +136,7 @@ func run(ctx context.Context, c *config.Config) error {
 			[]string{"v1", "chat", "completions"},
 			"",
 		))
-	mux.Handle("POST", pat, s.CreateChatCompletion)
+	mux.Handle("POST", pat, grpcSrv.CreateChatCompletion)
 
 	pat = runtime.MustPattern(
 		runtime.NewPattern(
@@ -143,7 +145,7 @@ func run(ctx context.Context, c *config.Config) error {
 			[]string{"v1", "completions"},
 			"",
 		))
-	mux.Handle("POST", pat, s.CreateCompletion)
+	mux.Handle("POST", pat, grpcSrv.CreateCompletion)
 
 	pat = runtime.MustPattern(
 		runtime.NewPattern(
@@ -152,47 +154,37 @@ func run(ctx context.Context, c *config.Config) error {
 			[]string{"v1", "embeddings"},
 			"",
 		))
-	mux.Handle("POST", pat, s.CreateEmbedding)
+	mux.Handle("POST", pat, grpcSrv.CreateEmbedding)
 
 	go func() {
-		log.Printf("Starting HTTP server on port %d", c.HTTPPort)
+		log := logger.WithName("http")
+		log.Info("Starting HTTP server...", "port", c.HTTPPort)
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.HTTPPort), mux)
+		log.Info("Stopped HTTP server")
 	}()
 
 	go func() {
-		log.Printf("Starting metrics server on port %d", c.MonitoringPort)
+		log := logger.WithName("metrics")
+		log.Info("Starting metrics server...", "port", c.MonitoringPort)
 		monitorMux := http.NewServeMux()
 		monitorMux.Handle("/metrics", promhttp.Handler())
 		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.MonitoringPort), monitorMux)
-
+		log.Info("Stopped metrics server")
 	}()
 
 	go func() {
-		errCh <- s.Run(ctx, c.GRPCPort, c.AuthConfig)
+		errCh <- grpcSrv.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
 	go func() {
-		s := server.NewWorkerServiceServer(infProcessor)
-		errCh <- s.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
+		wsSrv := server.NewWorkerServiceServer(infProcessor, logger)
+		errCh <- wsSrv.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
 	}()
 
-	adminHandler := admin.NewHandler(infProcessor)
-	adminMux := http.NewServeMux()
-	adminMux.HandleFunc("/admin", adminHandler.AdminHandler)
-	srv := http.Server{
-		Addr:    fmt.Sprintf(":%d", c.AdminPort),
-		Handler: adminMux,
-	}
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			errCh <- err
-		}
+		adminSrv := admin.NewHandler(infProcessor, logger)
+		errCh <- adminSrv.Run(c.AdminPort)
 	}()
 
 	return <-errCh
-}
-
-func init() {
-	runCmd.Flags().StringP(flagConfig, "c", "", "Configuration file path")
-	_ = runCmd.MarkFlagRequired(flagConfig)
 }

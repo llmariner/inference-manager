@@ -11,7 +11,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	testutil "github.com/llm-operator/inference-manager/engine/internal/test"
+	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	"github.com/stretchr/testify/assert"
 	ctrl "sigs.k8s.io/controller-runtime"
 )

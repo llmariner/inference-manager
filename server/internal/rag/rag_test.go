@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -18,6 +19,7 @@ func TestProcessMessages(t *testing.T) {
 			query: query,
 			docs:  []string{"sky is red when the sun is setting", "sky is blue when the sun is shining"},
 		},
+		testutil.NewTestLogger(t),
 	)
 
 	vs := &vsv1.VectorStore{

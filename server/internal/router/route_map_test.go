@@ -35,7 +35,9 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 	r := newRouteMap()
 	r.addRoute(model{id: "model1"}, "engine1")
 	r.addOrUpdateEngine("engine2", []string{})
-	r.printRoute()
+	t.Logf("Dumping the current route map:\n")
+	t.Logf("- engines: %+v\n", r.engines)
+	t.Logf("- route: %+v\n", r.m)
 
 	got, err := r.findLeastLoadedEngine()
 	assert.NoError(t, err)

@@ -5,9 +5,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net"
+	"os"
 
+	"github.com/go-logr/logr"
 	"github.com/llm-operator/common/pkg/certlib/store"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
@@ -27,8 +28,9 @@ const (
 )
 
 // NewWorkerServiceServer creates a new worker service server.
-func NewWorkerServiceServer(infProcessor *infprocessor.P) *WS {
+func NewWorkerServiceServer(infProcessor *infprocessor.P, logger logr.Logger) *WS {
 	return &WS{
+		logger:       logger.WithName("worker"),
 		infProcessor: infProcessor,
 	}
 }
@@ -39,6 +41,7 @@ type WS struct {
 
 	srv *grpc.Server
 
+	logger       logr.Logger
 	infProcessor *infprocessor.P
 
 	enableAuth bool
@@ -46,7 +49,7 @@ type WS struct {
 
 // Run runs the worker service server.
 func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, tlsConfig *config.TLS) error {
-	log.Printf("Starting worker service server on port %d", port)
+	ws.logger.Info("Starting WS server...", "port", port)
 
 	var opts []grpc.ServerOption
 	if authConfig.Enable {
@@ -69,7 +72,7 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 	// The worker service endpoint is different from the rest of the endpoints as they can be directly hit by clients (as
 	// an ingress controller might not support gRPC streaming).
 	if tlsConfig != nil {
-		c, err := buildTLSConfig(ctx, tlsConfig)
+		c, err := ws.buildTLSConfig(ctx, tlsConfig)
 		if err != nil {
 			return err
 		}
@@ -89,6 +92,8 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 	if err := srv.Serve(l); err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}
+
+	ws.logger.Info("Stopped WS server")
 	return nil
 }
 
@@ -131,14 +136,14 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("processTasks error: %s\n", err)
+				ws.logger.Error(err, "processMessagesFromEngine error")
 			}
 			return err
 		}
 		if !registered && engineID != "" {
 			defer func() {
 				ws.infProcessor.RemoveEngine(engineID, clusterInfo)
-				log.Printf("Unregistered engine: %s\n", engineID)
+				ws.logger.Info("Unregistered engine", "engineID", engineID)
 			}()
 			registered = true
 		}
@@ -157,7 +162,7 @@ func (ws *WS) processMessagesFromEngine(
 	var engineID string
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
-		log.Printf("Received engine status: engineID=%s\n", msg.EngineStatus.EngineId)
+		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
@@ -171,7 +176,7 @@ func (ws *WS) processMessagesFromEngine(
 	return engineID, nil
 }
 
-func buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, error) {
+func (ws *WS) buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, error) {
 	st, err := store.NewReloadingFileStore(store.ReloadingFileStoreOpts{
 		KeyPath:  tlsConfig.Key,
 		CertPath: tlsConfig.Cert,
@@ -181,10 +186,11 @@ func buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, er
 	}
 
 	go func() {
-		log.Printf("Starting reloading certificate store.\n")
+		ws.logger.Info("Starting reloading certificate store")
 		if err := st.Run(ctx); err != nil {
+			ws.logger.Error(err, "run certificate store reloader")
 			// Ensure we fail fast if the cert store can not be reloaded.
-			log.Fatalf("Server run: run certificate store reloader: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
-	testutil "github.com/llm-operator/inference-manager/engine/internal/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

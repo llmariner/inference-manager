@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -71,7 +70,7 @@ func (s *S) CreateCompletion(
 		return
 	}
 
-	task, err := infprocessor.NewChatCompletionTask(userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header)
+	task, err := infprocessor.NewChatCompletionTask(userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header, s.logger)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
 	}
@@ -91,9 +90,9 @@ func (s *S) CreateCompletion(
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			// Gracefully handle the error.
-			log.Printf("Failed to read the body: %s\n", err)
+			s.logger.Error(err, "Failed to read the body")
 		}
-		log.Printf("Received an error response: statusCode=%d, status=%q, body=%q\n", resp.StatusCode, resp.Status, string(body))
+		s.logger.Info("Received an error response", "code", resp.StatusCode, "status", resp.Status, "body", string(body))
 		http.Error(w, string(body), resp.StatusCode)
 		return
 	}

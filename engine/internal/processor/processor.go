@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -17,6 +19,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -112,6 +115,7 @@ func NewP(
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
 	collector metrics.Collector,
+	gracefulShutdownTimeout time.Duration,
 ) *P {
 	return &P{
 		engineID:    engineID,
@@ -120,6 +124,11 @@ func NewP(
 		modelSyncer: modelSyncer,
 		logger:      logger,
 		metrics:     collector,
+		// taskGracePeriod is the grace period to wait for all tasks to complete.
+		// Grace period is shorter than the graceful shutdown timeout of 3s for safety.
+		// If tasks are not completed within the grace period, the processor forcibly
+		// cancels the tasks processing and stops.
+		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
 	}
 }
 
@@ -136,31 +145,8 @@ type P struct {
 	lastErr error
 	mu      sync.Mutex
 	logger  logr.Logger
-}
 
-// Start runs the processor.
-//
-// TODO(kenji): Gracefully handle an error from the server.
-func (p *P) Start(ctx context.Context) error {
-	log := p.logger.WithValues("engineID", p.engineID)
-	log.Info("Starting processor")
-	ctx = ctrl.LoggerInto(ctx, log)
-
-	for {
-		if err := p.run(ctx); err != nil {
-			log.Error(err, "Processor error")
-			p.mu.Lock()
-			p.lastErr = err
-			p.mu.Unlock()
-
-			log.Info(fmt.Sprintf("Will retry after %s", retryInterval))
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(retryInterval):
-			}
-		}
-	}
+	taskGracePeriod time.Duration
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -174,32 +160,48 @@ func (p *P) NeedLeaderElection() bool {
 	return true
 }
 
-func (p *P) run(ctx context.Context) error {
+// Start runs the processor.
+//
+// TODO(kenji): Gracefully handle an error from the server.
+func (p *P) Start(ctx context.Context) error {
+	log := p.logger.WithValues("engineID", p.engineID)
+	log.Info("Starting processor")
+	ctx = ctrl.LoggerInto(ctx, log)
 	ctx = auth.AppendWorkerAuthorization(ctx)
-	stream, err := p.client.ProcessTasks(ctx)
-	if err != nil {
-		return err
+
+	run := func() error {
+		streamCtx, streamCancel := context.WithCancel(context.Background())
+		streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
+		streamCtx = auth.AppendWorkerAuthorization(streamCtx)
+		defer streamCancel()
+		// Use separate context for the stream to gracefully handle the task requests.
+		stream, err := p.client.ProcessTasks(streamCtx)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = stream.CloseSend() }()
+
+		eg, ctx := errgroup.WithContext(ctx)
+		eg.Go(func() error { return p.sendEngineStatusPeriodically(ctx, stream) })
+		eg.Go(func() error { return p.processTasks(ctx, stream) })
+		return eg.Wait()
 	}
-	defer func() {
-		_ = stream.CloseSend()
-	}()
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	errCh := make(chan error, 2)
-	go func() {
-		if err := p.sendEngineStatusPeriodically(ctx, stream); err != nil {
-			errCh <- fmt.Errorf("send engine status: %s", err)
+	for {
+		if err := run(); err != nil {
+			log.Error(err, "Processor error")
+			p.mu.Lock()
+			p.lastErr = err
+			p.mu.Unlock()
 		}
-	}()
-
-	go func() {
-		if err := p.processTasks(ctx, stream); err != nil {
-			errCh <- fmt.Errorf("process tasks: %s", err)
+		select {
+		case <-ctx.Done():
+			log.Info("Stopped processor", "ctx", ctx.Err())
+			return nil
+		case <-time.After(retryInterval):
+			log.Info("Retrying processor", "retry-interval", retryInterval)
 		}
-	}()
-	return <-errCh
+	}
 }
 
 func (p *P) sendEngineStatusPeriodically(
@@ -208,6 +210,7 @@ func (p *P) sendEngineStatusPeriodically(
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("status")
 	ctx = ctrl.LoggerInto(ctx, log)
+	defer log.Info("Stopped status reporter")
 
 	isFirst := true
 	for {
@@ -227,8 +230,10 @@ func (p *P) sendEngineStatusPeriodically(
 		p.mu.Unlock()
 
 		select {
+		case <-stream.Context().Done():
+			return nil
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case <-time.After(statusReportInterval):
 		}
 	}
@@ -240,37 +245,66 @@ func (p *P) processTasks(
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("task")
 	ctx = ctrl.LoggerInto(ctx, log)
+	defer log.Info("Stopped process handler")
 
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			return fmt.Errorf("connection closed")
-		}
-		if err != nil {
-			return fmt.Errorf("receive task: %s", err)
-		}
-
-		// Create a goroutine to process the task so that we can receive the
-		// next task. llm then might process requests in parallel.
-		go func() {
-			p.metrics.Add(taskModel(resp.NewTask), 1)
-			defer p.metrics.Add(taskModel(resp.NewTask), -1)
-
-			log := log.WithValues("taskID", resp.NewTask.Id)
-			log.Info("Started processing task")
-			ctx = ctrl.LoggerInto(ctx, log)
-
-			if err := p.processTask(ctx, stream, resp.NewTask); err != nil {
-				// Gracefully handle the error.
-				log.Error(err, "Failed to process task")
+	respCh := make(chan *v1.ProcessTasksResponse)
+	errCh := make(chan error)
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					err = fmt.Errorf("connection closed")
+				} else {
+					err = fmt.Errorf("receive task: %s", err)
+				}
+				errCh <- err
 				return
 			}
-			log.Info("Completed task")
-		}()
+			respCh <- resp
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for {
+		select {
+		case resp := <-respCh:
+			// Create a goroutine to process the task so that we can receive the
+			// next task. llm then might process requests in parallel.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				p.metrics.Add(taskModel(resp.NewTask), 1)
+				defer p.metrics.Add(taskModel(resp.NewTask), -1)
+
+				log := log.WithValues("taskID", resp.NewTask.Id)
+				log.Info("Started processing task")
+				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask); errors.Is(err, context.Canceled) {
+					log.Info("Canceled task", "reason", err)
+				} else if err != nil {
+					log.Error(err, "Failed to process task")
+				} else {
+					log.Info("Completed task")
+				}
+			}()
+		case err := <-errCh:
+			return err
+		case <-ctx.Done():
+			log.Info("Stopping and Waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
+			wg.Wait()
+			return nil
+		}
 	}
 }
 
 type sender interface {
+	Context() context.Context
 	Send(*v1.ProcessTasksRequest) error
 }
 
@@ -285,9 +319,24 @@ func (p *P) processTask(
 	if err := p.modelSyncer.PullModel(ctx, taskModel(t)); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
-	// TODO(aya): Consider how to handle the case where the runtime is scaled down before the request is sent.
 
-	req, err := p.buildRequest(ctx, t)
+	var done atomic.Bool
+	taskCtx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer cancel()
+		select {
+		case <-ctx.Done():
+			// cancel the request immediately if the processor does not get first response,
+			// otherwise wait for the response within the grace period.
+			if done.Load() {
+				time.Sleep(p.taskGracePeriod)
+			}
+		case <-stream.Context().Done():
+		case <-taskCtx.Done():
+		}
+	}()
+
+	req, err := p.buildRequest(taskCtx, t)
 	if err != nil {
 		return fmt.Errorf("build request: %s", err)
 	}
@@ -304,24 +353,25 @@ func (p *P) processTask(
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to send request to the LLM server: %s", err)
-		log.Error(err, msg)
-		httpResp := &v1.HttpResponse{
-			StatusCode: http.StatusInternalServerError,
-			Status:     http.StatusText(http.StatusInternalServerError),
-			Body:       []byte(msg),
+		if stream.Context().Err() != nil {
+			return stream.Context().Err()
 		}
-		if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
-			return err
+		var code int32
+		if errors.Is(err, context.Canceled) {
+			code = http.StatusServiceUnavailable
+		} else {
+			log.Error(err, "Failed to send request to the LLM server")
+			code = http.StatusInternalServerError
 		}
-		return nil
+		return p.sendHTTPResponse(stream, t, &v1.HttpResponse{
+			StatusCode: code,
+			Status:     http.StatusText(int(code)),
+			Body:       []byte(fmt.Sprintf("Failed to send request to the LLM server: %s", err)),
+		})
 	}
-
-	log.Info(fmt.Sprintf("Received an initial response from the LLM server: status=%q", resp.Status))
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer func() { _ = resp.Body.Close() }()
+	done.Store(true)
+	log.Info("Received an initial response from the LLM server", "status", resp.Status)
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		log.Info("Received an error response from the LLM server", "statusCode", resp.StatusCode, "status", resp.Status)
@@ -478,7 +528,7 @@ func (p *P) sendHTTPResponse(
 		},
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
-		return fmt.Errorf("send task result: %s", err)
+		return fmt.Errorf("send http response: %s", err)
 	}
 	return nil
 }
@@ -495,7 +545,7 @@ func (p *P) sendServerSentEvent(
 		},
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
-		return fmt.Errorf("send task result: %s", err)
+		return fmt.Errorf("send server sent event: %s", err)
 	}
 	return nil
 }

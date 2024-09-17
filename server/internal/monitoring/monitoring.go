@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -27,7 +28,8 @@ const (
 
 // MetricsMonitor holds and updates Prometheus metrics.
 type MetricsMonitor struct {
-	p *infprocessor.P
+	p      *infprocessor.P
+	logger logr.Logger
 
 	completionLatencyHistVec       *prometheus.HistogramVec
 	completionRequestGaugeVec      *prometheus.GaugeVec
@@ -45,7 +47,7 @@ var latencyBuckets []float64 = []float64{
 }
 
 // NewMetricsMonitor returns a new MetricsMonitor.
-func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
+func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 	completionLatencyHistVec := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricNamespace,
@@ -120,7 +122,8 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 	)
 
 	m := &MetricsMonitor{
-		p: p,
+		p:      p,
+		logger: logger.WithName("monitor"),
 
 		completionLatencyHistVec:       completionLatencyHistVec,
 		completionRequestGaugeVec:      completionRequestGaugeVec,
@@ -148,6 +151,7 @@ func NewMetricsMonitor(p *infprocessor.P) *MetricsMonitor {
 
 // Run updates the metrics periodically.
 func (m *MetricsMonitor) Run(ctx context.Context, interval time.Duration) error {
+	m.logger.Info("Starting metrics monitor...", "interval", interval)
 	ticker := time.NewTicker(interval)
 	for {
 		select {

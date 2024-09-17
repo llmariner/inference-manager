@@ -120,7 +120,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		errCh <- infProcessor.Run(ctx)
 	}()
 
-	m := monitoring.NewMetricsMonitor(infProcessor)
+	m := monitoring.NewMetricsMonitor(infProcessor, logger)
 	go func() {
 		errCh <- m.Run(ctx, monitoringRunnerInterval)
 	}()

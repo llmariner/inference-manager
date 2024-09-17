@@ -223,6 +223,7 @@ type P struct {
 
 // Run runs the processor.
 func (p *P) Run(ctx context.Context) error {
+	p.logger.Info("Starting the processor...")
 	for {
 		t, err := p.queue.Dequeue(ctx)
 		if err != nil {

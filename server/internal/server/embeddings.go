@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -66,7 +65,7 @@ func (s *S) CreateEmbedding(
 		return
 	}
 
-	task, err := infprocessor.NewEmbeddingTask(userInfo.TenantID, &createReq, req.Header)
+	task, err := infprocessor.NewEmbeddingTask(userInfo.TenantID, &createReq, req.Header, s.logger)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
 	}
@@ -86,9 +85,9 @@ func (s *S) CreateEmbedding(
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			// Gracefully handle the error.
-			log.Printf("Failed to read the body: %s\n", err)
+			s.logger.Error(err, "Failed to read the body")
 		}
-		log.Printf("Received an error response: statusCode=%d, status=%q, body=%q\n", resp.StatusCode, resp.Status, string(body))
+		s.logger.Info("Received an error response", "code", resp.StatusCode, "status", resp.Status, "body", string(body))
 		http.Error(w, string(body), resp.StatusCode)
 		return
 	}
@@ -105,6 +104,5 @@ func (s *S) CreateEmbedding(
 		http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
 		return
 	}
-
-	log.Printf("Embedding creation completed: model=%s, duration=%s\n", createReq.Model, time.Since(st))
+	s.logger.Info("Embedding creation completed", "model", createReq.Model, "duration", time.Since(st))
 }

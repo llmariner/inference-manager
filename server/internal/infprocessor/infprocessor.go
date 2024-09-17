@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
@@ -25,8 +25,9 @@ func NewChatCompletionTask(
 	tenantID string,
 	req *v1.CreateChatCompletionRequest,
 	header http.Header,
+	logger logr.Logger,
 ) (*Task, error) {
-	return newTask(tenantID, req, nil, header)
+	return newTask(tenantID, req, nil, header, logger.WithName("chat"))
 }
 
 // NewEmbeddingTask creates a new embedding task.
@@ -34,8 +35,9 @@ func NewEmbeddingTask(
 	tenantID string,
 	req *v1.CreateEmbeddingRequest,
 	header http.Header,
+	logger logr.Logger,
 ) (*Task, error) {
-	return newTask(tenantID, nil, req, header)
+	return newTask(tenantID, nil, req, header, logger.WithName("embedded"))
 }
 
 func newTask(
@@ -43,6 +45,7 @@ func newTask(
 	chatCompletionReq *v1.CreateChatCompletionRequest,
 	embeddingReq *v1.CreateEmbeddingRequest,
 	header http.Header,
+	logger logr.Logger,
 ) (*Task, error) {
 	taskID, err := id.GenerateID("inf_", 24)
 	if err != nil {
@@ -60,6 +63,7 @@ func newTask(
 		RespCh:    make(chan *http.Response),
 		ErrCh:     make(chan error),
 		CreatedAt: time.Now(),
+		logger:    logger.WithValues("id", taskID),
 	}, nil
 }
 
@@ -81,6 +85,8 @@ type Task struct {
 	EngineID string
 
 	CreatedAt time.Time
+
+	logger logr.Logger
 }
 
 func (t *Task) model() string {
@@ -115,7 +121,7 @@ func (t *Task) request() *v1.TaskRequest {
 
 // WaitForCompletion waits for the completion of the task.
 func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
-	log.Printf("Waiting for the completion of the task (ID: %q)\n", t.ID)
+	t.logger.Info("Waiting for the completion of the task")
 	select {
 	case <-ctx.Done():
 		// When a task result comes, the processor still attempts to
@@ -124,10 +130,10 @@ func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
 		go t.discardResp()
 		return nil, ctx.Err()
 	case resp := <-t.RespCh:
-		log.Printf("Received an initial response: taskID=%s, statusCode=%d, status=%q\n", t.ID, resp.StatusCode, resp.Status)
+		t.logger.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
 		return resp, nil
 	case err := <-t.ErrCh:
-		log.Printf("Task (ID: %q) failed: %s\n", t.ID, err)
+		t.logger.Error(err, "Failed to process the task")
 		return nil, err
 	}
 }
@@ -138,7 +144,7 @@ func (t *Task) discardResp() {
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 	case err := <-t.ErrCh:
-		log.Printf("Task (ID: %q) failed: %s\n", t.ID, err)
+		t.logger.Error(err, "Task failed")
 	}
 }
 
@@ -179,12 +185,13 @@ type engineRouter interface {
 }
 
 // NewP creates a new processor.
-func NewP(queue *TaskQueue, engineRouter engineRouter) *P {
+func NewP(queue *TaskQueue, engineRouter engineRouter, logger logr.Logger) *P {
 	return &P{
 		queue:               queue,
 		engineRouter:        engineRouter,
 		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*Task{},
+		logger:              logger.WithName("processor"),
 	}
 }
 
@@ -210,6 +217,8 @@ type P struct {
 	engines             map[string]map[string]*engine
 	inProgressTasksByID map[string]*Task
 	mu                  sync.Mutex
+
+	logger logr.Logger
 }
 
 // Run runs the processor.
@@ -232,7 +241,7 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 
 	engineID := p.findLeastLoadedEngine(engineIDs)
 
-	log.Printf("Scheduling the task (ID: %q) to Inference Manager Engine (ID: %q)\n", t.ID, engineID)
+	p.logger.Info("Scheduling the task", "taskID", t.ID, "engineID", engineID)
 	engines := p.engines[t.TenantID]
 	if len(engines) == 0 {
 		t.ErrCh <- fmt.Errorf("no engine found")
@@ -314,7 +323,7 @@ func (p *P) AddOrUpdateEngineStatus(
 			srv: srv,
 		}
 		engines[engineStatus.EngineId] = e
-		log.Printf("Registered new engine: %s\n", engineStatus.EngineId)
+		p.logger.Info("Registered new engine", "engineID", engineStatus.EngineId)
 	}
 	e.modelIDs = engineStatus.ModelIds
 	// Check if the sync status is set for backward compatibility.
@@ -376,7 +385,7 @@ func (p *P) ProcessTaskResult(
 		return nil
 	}
 
-	log.Printf("Completed task: ID=%s\n", taskID)
+	p.logger.Info("Completed task", "taskID", taskID)
 	if err := t.bodyWriter.closeWrite(); err != nil {
 		return fmt.Errorf("close the body writer: %s", err)
 	}
@@ -405,22 +414,22 @@ func (p *P) writeTaskResultToChan(
 			}
 		}
 
-		p := newPipeReadWriteCloser()
-		t.bodyWriter = p
+		prwc := newPipeReadWriteCloser()
+		t.bodyWriter = prwc
 
 		t.RespCh <- &http.Response{
 			StatusCode: int(resp.StatusCode),
 			Status:     resp.Status,
 			Header:     header,
-			Body:       p,
+			Body:       prwc,
 		}
 		close(t.RespCh)
 
 		if d := resp.Body; len(d) > 0 {
-			if _, err := p.Write(d); err != nil {
+			if _, err := prwc.Write(d); err != nil {
 				// Gracefully handle the error as it can happen when the request is canceled and
 				// the body writer is closed by the client.
-				log.Printf("Failed to write the body writer: %s\n", err)
+				p.logger.Error(err, "Failed to write the body writer")
 			}
 		}
 
@@ -435,7 +444,7 @@ func (p *P) writeTaskResultToChan(
 			if _, err := t.bodyWriter.Write(d); err != nil {
 				// Gracefully handle the error as it can happen when the request is canceled and
 				// the body writer is closed by the client.
-				log.Printf("Failed to write the body writer: %s\n", err)
+				p.logger.Error(err, "Failed to write the body writer")
 			}
 		}
 

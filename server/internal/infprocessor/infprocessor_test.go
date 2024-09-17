@@ -3,12 +3,12 @@ package infprocessor
 import (
 	"context"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"testing"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,15 +22,13 @@ func TestP(t *testing.T) {
 	iprocessor := NewP(
 		queue,
 		&fakeEngineRouter{},
+		testutil.NewTestLogger(t),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	comm := &fakeEngineCommunicator{
-		taskCh:   make(chan *v1.Task),
-		resultCh: make(chan *v1.TaskResult),
-	}
+	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
 	clusterInfo := &auth.ClusterInfo{
@@ -100,15 +98,13 @@ func TestEmbedding(t *testing.T) {
 	iprocessor := NewP(
 		queue,
 		&fakeEngineRouter{},
+		testutil.NewTestLogger(t),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	comm := &fakeEngineCommunicator{
-		taskCh:   make(chan *v1.Task),
-		resultCh: make(chan *v1.TaskResult),
-	}
+	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
 	clusterInfo := &auth.ClusterInfo{
@@ -162,15 +158,13 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	iprocessor := NewP(
 		queue,
 		&fakeEngineRouter{},
+		testutil.NewTestLogger(t),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	comm := &fakeEngineCommunicator{
-		taskCh:   make(chan *v1.Task),
-		resultCh: make(chan *v1.TaskResult),
-	}
+	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
 	clusterInfo := &auth.ClusterInfo{
@@ -219,15 +213,13 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	iprocessor := NewP(
 		queue,
 		&fakeEngineRouter{},
+		testutil.NewTestLogger(t),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	comm := &fakeEngineCommunicator{
-		taskCh:   make(chan *v1.Task),
-		resultCh: make(chan *v1.TaskResult),
-	}
+	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
 	clusterInfo := &auth.ClusterInfo{
@@ -273,6 +265,7 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 	p := NewP(
 		NewTaskQueue(),
 		&fakeEngineRouter{},
+		testutil.NewTestLogger(t),
 	)
 
 	ts := []*Task{
@@ -408,7 +401,16 @@ func (r *fakeEngineRouter) DeleteEngine(engineID, tenantID string) {
 	r.engineID = ""
 }
 
+func newFakeEngineCommunicator(t *testing.T) *fakeEngineCommunicator {
+	return &fakeEngineCommunicator{
+		t:        t,
+		taskCh:   make(chan *v1.Task),
+		resultCh: make(chan *v1.TaskResult),
+	}
+}
+
 type fakeEngineCommunicator struct {
+	t        *testing.T
 	taskCh   chan *v1.Task
 	resultCh chan *v1.TaskResult
 }
@@ -433,7 +435,7 @@ func (c *fakeEngineCommunicator) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case t := <-c.taskCh:
-			log.Printf("Processing task: %s\n", t.Id)
+			c.t.Logf("Processing task: %s", t.Id)
 			c.resultCh <- &v1.TaskResult{
 				TaskId: t.Id,
 				Message: &v1.TaskResult_HttpResponse{

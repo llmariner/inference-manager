@@ -12,6 +12,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
@@ -41,6 +42,7 @@ func TestCreateChatCompletion(t *testing.T) {
 		},
 		&fakeRewriter{},
 		queue,
+		testutil.NewTestLogger(t),
 	)
 	srv.enableAuth = true
 

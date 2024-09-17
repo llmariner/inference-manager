@@ -3,11 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
@@ -107,6 +107,7 @@ func New(
 	vsClient VectorStoreClient,
 	r Rewriter,
 	taskQueue *infprocessor.TaskQueue,
+	logger logr.Logger,
 ) *S {
 	return &S{
 		metricsMonitor: m,
@@ -115,6 +116,7 @@ func New(
 		reqIntercepter: noopReqIntercepter{},
 		taskQueue:      taskQueue,
 		rewriter:       r,
+		logger:         logger.WithName("grpc"),
 	}
 }
 
@@ -137,11 +139,13 @@ type S struct {
 	reqIntercepter reqIntercepter
 
 	srv *grpc.Server
+
+	logger logr.Logger
 }
 
 // Run starts the gRPC server.
 func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) error {
-	log.Printf("Starting server on port %d\n", port)
+	s.logger.Info("Starting gRPC server...", "port", port)
 
 	var opts []grpc.ServerOption
 	if authConfig.Enable {
@@ -183,6 +187,7 @@ func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) err
 	if err := grpcServer.Serve(l); err != nil {
 		return fmt.Errorf("serve: %s", err)
 	}
+	s.logger.Info("Stopped gRPC server")
 	return nil
 }
 

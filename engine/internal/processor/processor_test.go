@@ -39,7 +39,7 @@ func TestP(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{}
+	fakeClient := &fakeProcessTasksClient{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -81,7 +81,7 @@ func TestEmbedding(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{}
+	fakeClient := &fakeProcessTasksClient{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -178,7 +178,12 @@ func (f *fakeModelSyncer) ListInProgressModels() []string {
 }
 
 type fakeProcessTasksClient struct {
+	ctx    context.Context
 	gotReq *v1.ProcessTasksRequest
+}
+
+func (c *fakeProcessTasksClient) Context() context.Context {
+	return c.ctx
 }
 
 func (c *fakeProcessTasksClient) Send(req *v1.ProcessTasksRequest) error {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -209,6 +210,7 @@ func (p *P) sendEngineStatusPeriodically(
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("status")
 	ctx = ctrl.LoggerInto(ctx, log)
+	defer log.Info("Stopped status reporter")
 
 	isFirst := true
 	for {
@@ -228,8 +230,9 @@ func (p *P) sendEngineStatusPeriodically(
 		p.mu.Unlock()
 
 		select {
+		case <-stream.Context().Done():
+			return nil
 		case <-ctx.Done():
-			log.Info("Stopped status reporter", "ctx", ctx.Err())
 			return nil
 		case <-time.After(statusReportInterval):
 		}
@@ -242,9 +245,10 @@ func (p *P) processTasks(
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("task")
 	ctx = ctrl.LoggerInto(ctx, log)
+	defer log.Info("Stopped process handler")
 
-	respChan := make(chan *v1.ProcessTasksResponse)
-	errChan := make(chan error)
+	respCh := make(chan *v1.ProcessTasksResponse)
+	errCh := make(chan error)
 	go func() {
 		for {
 			resp, err := stream.Recv()
@@ -254,10 +258,10 @@ func (p *P) processTasks(
 				} else {
 					err = fmt.Errorf("receive task: %s", err)
 				}
-				errChan <- err
+				errCh <- err
 				return
 			}
-			respChan <- resp
+			respCh <- resp
 
 			select {
 			case <-ctx.Done():
@@ -270,7 +274,7 @@ func (p *P) processTasks(
 	var wg sync.WaitGroup
 	for {
 		select {
-		case resp := <-respChan:
+		case resp := <-respCh:
 			// Create a goroutine to process the task so that we can receive the
 			// next task. llm then might process requests in parallel.
 			wg.Add(1)
@@ -281,24 +285,26 @@ func (p *P) processTasks(
 
 				log := log.WithValues("taskID", resp.NewTask.Id)
 				log.Info("Started processing task")
-				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask); err != nil {
+				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask); errors.Is(err, context.Canceled) {
+					log.Info("Canceled task", "reason", err)
+				} else if err != nil {
 					log.Error(err, "Failed to process task")
 				} else {
 					log.Info("Completed task")
 				}
 			}()
-		case err := <-errChan:
+		case err := <-errCh:
 			return err
 		case <-ctx.Done():
 			log.Info("Stopping and Waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
 			wg.Wait()
-			log.Info("Stopped process handler")
 			return nil
 		}
 	}
 }
 
 type sender interface {
+	Context() context.Context
 	Send(*v1.ProcessTasksRequest) error
 }
 
@@ -314,20 +320,18 @@ func (p *P) processTask(
 		return fmt.Errorf("pull model: %s", err)
 	}
 
-	done := make(chan string)
+	var done atomic.Bool
 	taskCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go func() {
+		defer cancel()
 		select {
 		case <-ctx.Done():
 			// cancel the request immediately if the processor does not get first response,
 			// otherwise wait for the response within the grace period.
-			select {
-			case <-done:
+			if done.Load() {
 				time.Sleep(p.taskGracePeriod)
-			default:
 			}
-			cancel()
+		case <-stream.Context().Done():
 		case <-taskCtx.Done():
 		}
 	}()
@@ -349,6 +353,9 @@ func (p *P) processTask(
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if stream.Context().Err() != nil {
+			return stream.Context().Err()
+		}
 		var code int32
 		if errors.Is(err, context.Canceled) {
 			code = http.StatusServiceUnavailable
@@ -363,7 +370,7 @@ func (p *P) processTask(
 		})
 	}
 	defer func() { _ = resp.Body.Close() }()
-	close(done)
+	done.Store(true)
 	log.Info("Received an initial response from the LLM server", "status", resp.Status)
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
@@ -521,7 +528,7 @@ func (p *P) sendHTTPResponse(
 		},
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
-		return fmt.Errorf("send task result: %s", err)
+		return fmt.Errorf("send http response: %s", err)
 	}
 	return nil
 }
@@ -538,7 +545,7 @@ func (p *P) sendServerSentEvent(
 		},
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
-		return fmt.Errorf("send task result: %s", err)
+		return fmt.Errorf("send server sent event: %s", err)
 	}
 	return nil
 }

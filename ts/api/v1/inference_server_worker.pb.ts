@@ -23,6 +23,7 @@ export type EngineStatus = {
   engineId?: string
   modelIds?: string[]
   syncStatus?: EngineStatusSyncStatus
+  unavailable?: boolean
 }
 
 export type HeaderValue = {

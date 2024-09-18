@@ -18,12 +18,11 @@ func TestP(t *testing.T) {
 		modelID = "m0"
 	)
 
-	queue := NewTaskQueue()
 	iprocessor := NewP(
-		queue,
 		&fakeEngineRouter{},
 		testutil.NewTestLogger(t),
 	)
+	iprocessor.taskTimeout = 0
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -54,18 +53,8 @@ func TestP(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	task := &Task{
-		ID:       "task0",
-		TenantID: "tenant0",
-		ChatCompletionReq: &v1.CreateChatCompletionRequest{
-			Model: modelID,
-		},
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
-	}
-	queue.Enqueue(task)
-
-	resp, err := task.WaitForCompletion(context.Background())
+	req := &v1.CreateChatCompletionRequest{Model: modelID}
+	resp, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
@@ -74,18 +63,7 @@ func TestP(t *testing.T) {
 
 	// Remove the engine. Check if a newly created task will fail.
 	iprocessor.RemoveEngine("engine_id0", clusterInfo)
-
-	task = &Task{
-		ID:       "task1",
-		TenantID: "tenant0",
-		ChatCompletionReq: &v1.CreateChatCompletionRequest{
-			Model: modelID,
-		},
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
-	}
-	queue.Enqueue(task)
-	_, err = task.WaitForCompletion(context.Background())
+	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
 
@@ -94,12 +72,11 @@ func TestEmbedding(t *testing.T) {
 		modelID = "m0"
 	)
 
-	queue := NewTaskQueue()
 	iprocessor := NewP(
-		queue,
 		&fakeEngineRouter{},
 		testutil.NewTestLogger(t),
 	)
+	iprocessor.taskTimeout = 0
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -130,18 +107,8 @@ func TestEmbedding(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	task := &Task{
-		ID:       "task0",
-		TenantID: "tenant0",
-		EmbeddingReq: &v1.CreateEmbeddingRequest{
-			Model: modelID,
-		},
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
-	}
-	queue.Enqueue(task)
-
-	resp, err := task.WaitForCompletion(context.Background())
+	req := &v1.CreateEmbeddingRequest{Model: modelID}
+	resp, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
@@ -154,12 +121,11 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		modelID = "m0"
 	)
 
-	queue := NewTaskQueue()
 	iprocessor := NewP(
-		queue,
 		&fakeEngineRouter{},
 		testutil.NewTestLogger(t),
 	)
+	iprocessor.taskTimeout = 0
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -183,24 +149,15 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		_ = iprocessor.Run(ctx)
 	}()
 
-	task := &Task{
-		ID:       "task0",
-		TenantID: "tenant0",
-		ChatCompletionReq: &v1.CreateChatCompletionRequest{
-			Model: modelID,
-		},
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
-	}
-	queue.Enqueue(task)
+	go func() {
+		// Wait for the task to be scheduled.
+		_, err := comm.Recv()
+		assert.NoError(t, err)
+		iprocessor.RemoveEngine("engine_id0", clusterInfo)
+	}()
 
-	// Wait for the task to be scheduled.
-	_, err := comm.Recv()
-	assert.NoError(t, err)
-
-	iprocessor.RemoveEngine("engine_id0", clusterInfo)
-
-	_, err = task.WaitForCompletion(context.Background())
+	req := &v1.CreateEmbeddingRequest{Model: modelID}
+	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
 
@@ -209,12 +166,11 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		modelID = "m0"
 	)
 
-	queue := NewTaskQueue()
 	iprocessor := NewP(
-		queue,
 		&fakeEngineRouter{},
 		testutil.NewTestLogger(t),
 	)
+	iprocessor.taskTimeout = 0
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -233,25 +189,16 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		},
 		clusterInfo,
 	)
+	iprocessor.taskTimeout = 0
 
 	go func(ctx context.Context) {
 		_ = iprocessor.Run(ctx)
 	}(ctx)
 
-	task := &Task{
-		ID:       "task0",
-		TenantID: "tenant0",
-		ChatCompletionReq: &v1.CreateChatCompletionRequest{
-			Model: modelID,
-		},
-		RespCh: make(chan *http.Response),
-		ErrCh:  make(chan error),
-	}
-	queue.Enqueue(task)
-
 	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
-	_, err := task.WaitForCompletion(ctx)
+	req := &v1.CreateEmbeddingRequest{Model: modelID}
+	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 
 	// Simulate a case where the task result is received after the context is canceled.
@@ -263,12 +210,11 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 
 func TestFindLeastLoadedEngine(t *testing.T) {
 	p := NewP(
-		NewTaskQueue(),
 		&fakeEngineRouter{},
 		testutil.NewTestLogger(t),
 	)
 
-	ts := []*Task{
+	ts := []*task{
 		{
 			ID:       "t0",
 			EngineID: "e0",
@@ -322,7 +268,7 @@ func TestDumpStatus(t *testing.T) {
 				},
 			},
 		},
-		inProgressTasksByID: map[string]*Task{
+		inProgressTasksByID: map[string]*task{
 			"task0": {
 				ID:       "task0",
 				EngineID: "e0",

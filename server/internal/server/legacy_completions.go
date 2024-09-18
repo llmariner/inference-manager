@@ -11,7 +11,6 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
-	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 )
 
@@ -70,21 +69,12 @@ func (s *S) CreateCompletion(
 		return
 	}
 
-	task, err := infprocessor.NewChatCompletionTask(userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header, s.logger)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create a task: %s", err), http.StatusInternalServerError)
-	}
-	s.taskQueue.Enqueue(task)
-
-	resp, err := task.WaitForCompletion(req.Context())
+	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)

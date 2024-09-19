@@ -38,6 +38,7 @@ func TestP(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
+			Ready:    true,
 		},
 		clusterInfo,
 	)
@@ -92,6 +93,7 @@ func TestEmbedding(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
+			Ready:    true,
 		},
 		clusterInfo,
 	)
@@ -141,6 +143,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
+			Ready:    true,
 		},
 		clusterInfo,
 	)
@@ -186,6 +189,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
+			Ready:    true,
 		},
 		clusterInfo,
 	)

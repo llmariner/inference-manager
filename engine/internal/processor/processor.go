@@ -215,7 +215,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 	isFirst := true
 	for {
-		if err := p.sendEngineStatus(ctx, stream, false); err != nil {
+		if err := p.sendEngineStatus(ctx, stream, true); err != nil {
 			return err
 		}
 
@@ -234,7 +234,7 @@ func (p *P) sendEngineStatusPeriodically(
 		case <-stream.Context().Done():
 			return nil
 		case <-ctx.Done():
-			if err := p.sendEngineStatus(ctx, stream, true); err != nil {
+			if err := p.sendEngineStatus(ctx, stream, false); err != nil {
 				return err
 			}
 			return nil
@@ -504,7 +504,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	return req, nil
 }
 
-func (p *P) sendEngineStatus(ctx context.Context, stream sender, unavailable bool) error {
+func (p *P) sendEngineStatus(ctx context.Context, stream sender, ready bool) error {
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
@@ -513,7 +513,7 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender, unavailable boo
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: p.modelSyncer.ListInProgressModels(),
 				},
-				Unavailable: unavailable,
+				Ready: ready,
 			},
 		},
 	}

@@ -279,7 +279,7 @@
         "syncStatus": {
           "$ref": "#/definitions/EngineStatusSyncStatus"
         },
-        "unavailable": {
+        "ready": {
           "type": "boolean"
         }
       }

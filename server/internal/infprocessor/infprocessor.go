@@ -21,9 +21,8 @@ const (
 )
 
 type result struct {
-	resp  *http.Response
-	err   error
-	retry bool
+	resp *http.Response
+	err  error
 }
 
 // task is an inference task.
@@ -38,7 +37,7 @@ type task struct {
 	Header http.Header
 
 	setResult  func(*result)
-	bodyWriter pipeReadWriteCloser
+	bodyWriter *pipeReadWriteCloser
 
 	EngineID string
 
@@ -118,7 +117,6 @@ func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 		engineRouter:        engineRouter,
 		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*task{},
-		unavailableEngines:  map[string]bool{},
 		logger:              logger.WithName("processor"),
 		taskTimeout:         30 * time.Second,
 		retryDelay:          3 * time.Second,
@@ -135,7 +133,6 @@ type engine struct {
 
 	modelIDs           []string
 	inProgressModelIDs []string
-	unavailable        bool
 }
 
 // P processes inference tasks.
@@ -147,7 +144,6 @@ type P struct {
 	// engines is a map from tenant ID and engine ID to engine.
 	engines             map[string]map[string]*engine
 	inProgressTasksByID map[string]*task
-	unavailableEngines  map[string]bool
 	mu                  sync.Mutex
 
 	logger logr.Logger
@@ -165,7 +161,7 @@ func (p *P) Run(ctx context.Context) error {
 			return err
 		}
 		if err := p.scheduleTask(ctx, t); err != nil {
-			t.setResult(&result{err: err, retry: true})
+			t.setResult(&result{err: err})
 		}
 	}
 }
@@ -230,9 +226,6 @@ func (p *P) findLeastLoadedEngine(engineIDs []string) string {
 	var minTasks int
 	var leastLoaded string
 	for _, engineID := range engineIDs {
-		if p.unavailableEngines[engineID] {
-			continue
-		}
 		n := numTasksByEngine[engineID]
 		if leastLoaded == "" || n < minTasks {
 			minTasks = n
@@ -284,6 +277,10 @@ func (p *P) sendTask(
 		EmbeddingReq:      embeddingReq,
 		CreatedAt:         time.Now(),
 		setResult: func(r *result) {
+			// done channel has one buffer, so at least one result
+			// will be received. If the channel gets an additional error,
+			// for example, the engine is removed after getting
+			// the initial error, it will be ignored.
 			select {
 			case done <- r:
 			default:
@@ -361,21 +358,13 @@ func (p *P) AddOrUpdateEngineStatus(
 	if s := engineStatus.SyncStatus; s != nil {
 		e.inProgressModelIDs = s.InProgressModelIds
 	}
-	curUnavailable := p.unavailableEngines[engineStatus.EngineId]
-	if curUnavailable && !engineStatus.Unavailable {
-		delete(p.unavailableEngines, engineStatus.EngineId)
-		log.Info("Marked the engine as available")
-	} else if !curUnavailable && engineStatus.Unavailable {
-		p.unavailableEngines[engineStatus.EngineId] = true
-		p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
-		log.Info("Marked the engine as unavailable")
-	}
-	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "unavailable", e.unavailable)
+	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
-	if engineStatus.Unavailable {
-		p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
-	} else {
+	if engineStatus.Ready {
 		p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+	} else {
+		p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
+		log.Info("Removed engine from the router", "reason", "engine not ready")
 	}
 }
 
@@ -391,7 +380,7 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 		}
 		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", t.ID)
 		delete(p.inProgressTasksByID, t.ID)
-		t.setResult(&result{err: fmt.Errorf("engine %s is removed", engineID), retry: true})
+		t.setResult(&result{err: fmt.Errorf("engine %s is removed", engineID)})
 		if err := t.bodyWriter.closeWrite(); err != nil {
 			p.logger.Error(err, "Failed to close the body writer when engine removed", "engine", t.EngineID, "task", t.ID)
 		}
@@ -401,11 +390,8 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 	if !ok {
 		return
 	}
-
 	p.engineRouter.DeleteEngine(engineID, clusterInfo.TenantID)
-
 	delete(engines, engineID)
-	delete(p.unavailableEngines, engineID)
 }
 
 // ProcessTaskResult processes the task result.
@@ -457,7 +443,7 @@ func (p *P) writeTaskResultToChan(
 			p.mu.Lock()
 			delete(p.inProgressTasksByID, t.ID)
 			p.mu.Unlock()
-			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID), retry: true})
+			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID)})
 			return false, nil
 		}
 

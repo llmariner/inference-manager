@@ -2,9 +2,9 @@ package infprocessor
 
 import "io"
 
-func newPipeReadWriteCloser() pipeReadWriteCloser {
+func newPipeReadWriteCloser() *pipeReadWriteCloser {
 	pr, pw := io.Pipe()
-	return pipeReadWriteCloser{
+	return &pipeReadWriteCloser{
 		PipeReader: pr,
 		PipeWriter: pw,
 	}
@@ -16,7 +16,7 @@ type pipeReadWriteCloser struct {
 }
 
 // Close closes the pipe.
-func (c pipeReadWriteCloser) Close() error {
+func (c *pipeReadWriteCloser) Close() error {
 	if err := c.PipeReader.Close(); err != nil {
 		return err
 	}
@@ -27,7 +27,10 @@ func (c pipeReadWriteCloser) Close() error {
 }
 
 // closeWrite closes the write pipe.
-func (c pipeReadWriteCloser) closeWrite() error {
+func (c *pipeReadWriteCloser) closeWrite() error {
+	if c == nil {
+		return nil
+	}
 	if err := c.PipeWriter.Close(); err != nil {
 		return err
 	}

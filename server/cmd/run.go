@@ -112,10 +112,8 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient, logger)
 	}
 
-	queue := infprocessor.NewTaskQueue()
-
 	r := router.New()
-	infProcessor := infprocessor.NewP(queue, r, logger)
+	infProcessor := infprocessor.NewP(r, logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()
@@ -127,7 +125,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 
 	defer m.UnregisterAllCollectors()
 
-	grpcSrv := server.New(m, mclient, vsClient, rwt, queue, logger)
+	grpcSrv := server.New(m, mclient, vsClient, rwt, infProcessor, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(

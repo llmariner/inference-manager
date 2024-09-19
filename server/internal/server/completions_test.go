@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +12,6 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
-	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -23,11 +21,8 @@ import (
 )
 
 func TestCreateChatCompletion(t *testing.T) {
-	const (
-		modelID = "m0"
-	)
+	const modelID = "m0"
 
-	queue := infprocessor.NewTaskQueue()
 	srv := New(
 		&fakeMetricsMonitor{},
 		&fakeModelClient{
@@ -41,26 +36,14 @@ func TestCreateChatCompletion(t *testing.T) {
 			},
 		},
 		&fakeRewriter{},
-		queue,
+		&fakeTaskSender{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte{})),
+			}},
 		testutil.NewTestLogger(t),
 	)
 	srv.enableAuth = true
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		for {
-			task, err := queue.Dequeue(ctx)
-			if err != nil {
-				assert.True(t, errors.Is(err, context.Canceled))
-				return
-			}
-			task.RespCh <- &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte{})),
-			}
-		}
-	}()
 
 	tcs := []struct {
 		name string
@@ -285,4 +268,17 @@ func (c *fakeVectorStoreClient) GetVectorStoreByName(
 		return nil, status.Errorf(codes.NotFound, "%s not found", req.Name)
 	}
 	return c.vs, nil
+}
+
+type fakeTaskSender struct {
+	resp *http.Response
+	err  error
+}
+
+func (s *fakeTaskSender) SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error) {
+	return s.resp, s.err
+}
+
+func (s *fakeTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
+	return s.resp, s.err
 }

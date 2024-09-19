@@ -20,56 +20,14 @@ const (
 	taskQueueSize = 100
 )
 
-// NewChatCompletionTask creates a new chat completion task.
-func NewChatCompletionTask(
-	tenantID string,
-	req *v1.CreateChatCompletionRequest,
-	header http.Header,
-	logger logr.Logger,
-) (*Task, error) {
-	return newTask(tenantID, req, nil, header, logger.WithName("chat"))
+type result struct {
+	resp *http.Response
+	err  error
 }
 
-// NewEmbeddingTask creates a new embedding task.
-func NewEmbeddingTask(
-	tenantID string,
-	req *v1.CreateEmbeddingRequest,
-	header http.Header,
-	logger logr.Logger,
-) (*Task, error) {
-	return newTask(tenantID, nil, req, header, logger.WithName("embedded"))
-}
-
-func newTask(
-	tenantID string,
-	chatCompletionReq *v1.CreateChatCompletionRequest,
-	embeddingReq *v1.CreateEmbeddingRequest,
-	header http.Header,
-	logger logr.Logger,
-) (*Task, error) {
-	taskID, err := id.GenerateID("inf_", 24)
-	if err != nil {
-		return nil, fmt.Errorf("generate task ID: %s", err)
-	}
-
-	return &Task{
-		ID:       taskID,
-		TenantID: tenantID,
-
-		ChatCompletionReq: chatCompletionReq,
-		EmbeddingReq:      embeddingReq,
-
-		Header:    header,
-		RespCh:    make(chan *http.Response),
-		ErrCh:     make(chan error),
-		CreatedAt: time.Now(),
-		logger:    logger.WithValues("id", taskID),
-	}, nil
-}
-
-// Task is an inference task.
+// task is an inference task.
 // TODO(kenji): Consider preserving the request context as well.
-type Task struct {
+type task struct {
 	ID       string
 	TenantID string
 
@@ -77,33 +35,30 @@ type Task struct {
 	EmbeddingReq      *v1.CreateEmbeddingRequest
 
 	Header http.Header
-	RespCh chan *http.Response
-	ErrCh  chan error
 
-	bodyWriter pipeReadWriteCloser
+	setResult  func(*result)
+	bodyWriter *pipeReadWriteCloser
 
 	EngineID string
 
 	CreatedAt time.Time
-
-	logger logr.Logger
 }
 
-func (t *Task) model() string {
+func (t *task) model() string {
 	if r := t.ChatCompletionReq; r != nil {
 		return r.Model
 	}
 	return t.EmbeddingReq.Model
 }
 
-func (t *Task) stream() bool {
+func (t *task) stream() bool {
 	if r := t.ChatCompletionReq; r != nil {
 		return r.Stream
 	}
 	return false
 }
 
-func (t *Task) request() *v1.TaskRequest {
+func (t *task) request() *v1.TaskRequest {
 	if r := t.ChatCompletionReq; r != nil {
 		return &v1.TaskRequest{
 			Request: &v1.TaskRequest_ChatCompletion{
@@ -119,56 +74,27 @@ func (t *Task) request() *v1.TaskRequest {
 	}
 }
 
-// WaitForCompletion waits for the completion of the task.
-func (t *Task) WaitForCompletion(ctx context.Context) (*http.Response, error) {
-	t.logger.Info("Waiting for the completion of the task")
-	select {
-	case <-ctx.Done():
-		// When a task result comes, the processor still attempts to
-		// write a response/error to a channel. We need to read
-		// from the channel to avoid a goroutine leak.
-		go t.discardResp()
-		return nil, ctx.Err()
-	case resp := <-t.RespCh:
-		t.logger.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
-		return resp, nil
-	case err := <-t.ErrCh:
-		t.logger.Error(err, "Failed to process the task")
-		return nil, err
+// newTaskQueue creates a new task queue.
+func newTaskQueue() *taskQueue {
+	return &taskQueue{
+		tasks: make(chan *task, taskQueueSize),
 	}
 }
 
-func (t *Task) discardResp() {
-	select {
-	case resp := <-t.RespCh:
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-	case err := <-t.ErrCh:
-		t.logger.Error(err, "Task failed")
-	}
-}
-
-// NewTaskQueue creates a new task queue.
-func NewTaskQueue() *TaskQueue {
-	return &TaskQueue{
-		tasks: make(chan *Task, taskQueueSize),
-	}
-}
-
-// TaskQueue is a queue for inference tasks.
-type TaskQueue struct {
-	tasks    chan *Task
+// taskQueue is a queue for inference tasks.
+type taskQueue struct {
+	tasks    chan *task
 	numTasks atomic.Int32
 }
 
 // Enqueue inserts a task into the queue.
-func (q *TaskQueue) Enqueue(t *Task) {
+func (q *taskQueue) Enqueue(t *task) {
 	q.numTasks.Add(1)
 	q.tasks <- t
 }
 
 // Dequeue removes a task from the queue.
-func (q *TaskQueue) Dequeue(ctx context.Context) (*Task, error) {
+func (q *taskQueue) Dequeue(ctx context.Context) (*task, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -185,13 +111,15 @@ type engineRouter interface {
 }
 
 // NewP creates a new processor.
-func NewP(queue *TaskQueue, engineRouter engineRouter, logger logr.Logger) *P {
+func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 	return &P{
-		queue:               queue,
+		queue:               newTaskQueue(),
 		engineRouter:        engineRouter,
 		engines:             map[string]map[string]*engine{},
-		inProgressTasksByID: map[string]*Task{},
+		inProgressTasksByID: map[string]*task{},
 		logger:              logger.WithName("processor"),
+		taskTimeout:         30 * time.Second,
+		retryDelay:          3 * time.Second,
 	}
 }
 
@@ -209,16 +137,19 @@ type engine struct {
 
 // P processes inference tasks.
 type P struct {
-	queue *TaskQueue
+	queue *taskQueue
 
 	engineRouter engineRouter
 
 	// engines is a map from tenant ID and engine ID to engine.
 	engines             map[string]map[string]*engine
-	inProgressTasksByID map[string]*Task
+	inProgressTasksByID map[string]*task
 	mu                  sync.Mutex
 
 	logger logr.Logger
+
+	taskTimeout time.Duration
+	retryDelay  time.Duration
 }
 
 // Run runs the processor.
@@ -229,29 +160,28 @@ func (p *P) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		p.scheduleTask(ctx, t)
+		if err := p.scheduleTask(ctx, t); err != nil {
+			t.setResult(&result{err: err})
+		}
 	}
 }
 
-func (p *P) scheduleTask(ctx context.Context, t *Task) {
+func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.TenantID)
 	if err != nil {
-		t.ErrCh <- fmt.Errorf("find pod to route the request: %s", err)
-		return
+		return fmt.Errorf("find pod to route the request: %s", err)
 	}
 
 	engineID := p.findLeastLoadedEngine(engineIDs)
+	p.logger.Info("Scheduling the task", "task", t.ID, "engine", engineID)
 
-	p.logger.Info("Scheduling the task", "taskID", t.ID, "engineID", engineID)
 	engines := p.engines[t.TenantID]
 	if len(engines) == 0 {
-		t.ErrCh <- fmt.Errorf("no engine found")
-		return
+		return fmt.Errorf("no engine found")
 	}
 	engine, ok := engines[engineID]
 	if !ok {
-		t.ErrCh <- fmt.Errorf("engine not found: %s", engineID)
-		return
+		return fmt.Errorf("engine not found: %s", engineID)
 	}
 
 	p.mu.Lock()
@@ -275,9 +205,12 @@ func (p *P) scheduleTask(ctx context.Context, t *Task) {
 			Header:                          header,
 		},
 	}); err != nil {
-		t.ErrCh <- fmt.Errorf("failed to send the task: %s", err)
-		return
+		p.mu.Lock()
+		delete(p.inProgressTasksByID, t.ID)
+		p.mu.Unlock()
+		return fmt.Errorf("failed to send the task: %s", err)
 	}
+	return nil
 }
 
 // findLeastLoadedEngine finds the least loaded engine from the given engine IDs.
@@ -299,8 +232,101 @@ func (p *P) findLeastLoadedEngine(engineIDs []string) string {
 			leastLoaded = engineID
 		}
 	}
-
 	return leastLoaded
+}
+
+// SendChatCompletionTask sends a chat completion task.
+func (p *P) SendChatCompletionTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.CreateChatCompletionRequest,
+	header http.Header,
+) (*http.Response, error) {
+	return p.sendTask(ctx, tenantID, req, nil, header, p.logger.WithName("chat"))
+}
+
+// SendEmbeddingTask sends an embedding task.
+func (p *P) SendEmbeddingTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.CreateEmbeddingRequest,
+	header http.Header,
+) (*http.Response, error) {
+	return p.sendTask(ctx, tenantID, nil, req, header, p.logger.WithName("embedded"))
+}
+
+func (p *P) sendTask(
+	ctx context.Context,
+	tenantID string,
+	chatCompletionReq *v1.CreateChatCompletionRequest,
+	embeddingReq *v1.CreateEmbeddingRequest,
+	header http.Header,
+	logger logr.Logger,
+) (*http.Response, error) {
+	taskID, err := id.GenerateID("inf_", 24)
+	if err != nil {
+		return nil, fmt.Errorf("generate task ID: %s", err)
+	}
+	log := logger.WithValues("id", taskID)
+	done := make(chan *result, 1)
+	task := &task{
+		ID:                taskID,
+		TenantID:          tenantID,
+		Header:            header,
+		ChatCompletionReq: chatCompletionReq,
+		EmbeddingReq:      embeddingReq,
+		CreatedAt:         time.Now(),
+		setResult: func(r *result) {
+			// done channel has one buffer, so at least one result
+			// will be received. If the channel gets an additional error,
+			// for example, the engine is removed after getting
+			// the initial error, it will be ignored.
+			select {
+			case done <- r:
+			default:
+			}
+		},
+	}
+
+	p.queue.Enqueue(task)
+
+	log.V(1).Info("Waiting to receive an initial response to the task")
+	for {
+		select {
+		case <-ctx.Done():
+			// When a task result comes, the processor still attempts to
+			// write a response/error to a channel. We need to read
+			// from the channel to avoid a goroutine leak.
+			go func() {
+				r := <-done
+				if r.resp != nil {
+					_, _ = io.Copy(io.Discard, r.resp.Body)
+					_ = r.resp.Body.Close()
+				}
+				if r.err != nil {
+					log.Error(r.err, "Task failed")
+				}
+			}()
+			return nil, ctx.Err()
+		case r := <-done:
+			if r.err != nil {
+				if p.taskTimeout > 0 && time.Since(task.CreatedAt.Add(p.retryDelay)) < p.taskTimeout {
+					_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
+					log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
+					continue
+				}
+				log.Error(r.err, "Failed to process the task")
+				return nil, r.err
+			}
+			if r.resp != nil {
+				log.Info("Received an initial response", "code", r.resp.StatusCode, "status", r.resp.Status)
+				return r.resp, nil
+			}
+			err := fmt.Errorf("unexpected empty result")
+			log.Error(err, "Failed to process the task")
+			return nil, err
+		}
+	}
 }
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
@@ -317,6 +343,7 @@ func (p *P) AddOrUpdateEngineStatus(
 		engines = map[string]*engine{}
 		p.engines[clusterInfo.TenantID] = engines
 	}
+	log := p.logger.WithValues("engineID", engineStatus.EngineId)
 
 	e, ok := engines[engineStatus.EngineId]
 	if !ok {
@@ -324,15 +351,21 @@ func (p *P) AddOrUpdateEngineStatus(
 			srv: srv,
 		}
 		engines[engineStatus.EngineId] = e
-		p.logger.Info("Registered new engine", "engineID", engineStatus.EngineId)
+		log.Info("Registered new engine")
 	}
 	e.modelIDs = engineStatus.ModelIds
 	// Check if the sync status is set for backward compatibility.
 	if s := engineStatus.SyncStatus; s != nil {
 		e.inProgressModelIDs = s.InProgressModelIds
 	}
+	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
-	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+	if engineStatus.Ready {
+		p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+	} else {
+		p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
+		log.Info("Removed engine from the router", "reason", "engine not ready")
+	}
 }
 
 // RemoveEngine removes the engine.
@@ -345,21 +378,19 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 		if t.EngineID != engineID {
 			continue
 		}
-		// Write to the error channel in a goroutine to avoid channel block while
-		// acquiring the lock.
-		go func(t *Task) {
-			t.ErrCh <- fmt.Errorf("engine %s is removed", engineID)
-		}(t)
+		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", t.ID)
 		delete(p.inProgressTasksByID, t.ID)
+		t.setResult(&result{err: fmt.Errorf("engine %s is removed", engineID)})
+		if err := t.bodyWriter.closeWrite(); err != nil {
+			p.logger.Error(err, "Failed to close the body writer when engine removed", "engine", t.EngineID, "task", t.ID)
+		}
 	}
 
 	engines, ok := p.engines[clusterInfo.TenantID]
 	if !ok {
 		return
 	}
-
 	p.engineRouter.DeleteEngine(engineID, clusterInfo.TenantID)
-
 	delete(engines, engineID)
 }
 
@@ -386,15 +417,14 @@ func (p *P) ProcessTaskResult(
 		return nil
 	}
 
-	p.logger.Info("Completed task", "taskID", taskID)
+	p.logger.Info("Completed task", "task", taskID)
 	if err := t.bodyWriter.closeWrite(); err != nil {
 		return fmt.Errorf("close the body writer: %s", err)
 	}
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	delete(p.inProgressTasksByID, taskID)
-
+	p.mu.Unlock()
 	return nil
 }
 
@@ -402,12 +432,21 @@ func (p *P) ProcessTaskResult(
 //
 // The return bool value indicates whether the task is completed.
 func (p *P) writeTaskResultToChan(
-	t *Task,
+	t *task,
 	taskResult *v1.TaskResult,
 ) (bool, error) {
 	switch msg := taskResult.Message.(type) {
 	case *v1.TaskResult_HttpResponse:
 		resp := msg.HttpResponse
+
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			p.mu.Lock()
+			delete(p.inProgressTasksByID, t.ID)
+			p.mu.Unlock()
+			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID)})
+			return false, nil
+		}
+
 		header := http.Header{}
 		for k, vs := range resp.Header {
 			for _, v := range vs.Values {
@@ -417,14 +456,14 @@ func (p *P) writeTaskResultToChan(
 
 		prwc := newPipeReadWriteCloser()
 		t.bodyWriter = prwc
-
-		t.RespCh <- &http.Response{
-			StatusCode: int(resp.StatusCode),
-			Status:     resp.Status,
-			Header:     header,
-			Body:       prwc,
-		}
-		close(t.RespCh)
+		t.setResult(&result{
+			resp: &http.Response{
+				StatusCode: int(resp.StatusCode),
+				Status:     resp.Status,
+				Header:     header,
+				Body:       prwc,
+			},
+		})
 
 		if d := resp.Body; len(d) > 0 {
 			if _, err := prwc.Write(d); err != nil {

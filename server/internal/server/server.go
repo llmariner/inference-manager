@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
-	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/llm-operator/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
@@ -100,13 +99,18 @@ type metricsMonitoring interface {
 	UpdateEmbeddingRequest(modelID string, c int)
 }
 
+type taskSender interface {
+	SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error)
+	SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error)
+}
+
 // New creates a server.
 func New(
 	m metricsMonitoring,
 	modelClient ModelClient,
 	vsClient VectorStoreClient,
 	r Rewriter,
-	taskQueue *infprocessor.TaskQueue,
+	taskSender taskSender,
 	logger logr.Logger,
 ) *S {
 	return &S{
@@ -114,7 +118,7 @@ func New(
 		modelClient:    modelClient,
 		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
-		taskQueue:      taskQueue,
+		taskSender:     taskSender,
 		rewriter:       r,
 		logger:         logger.WithName("grpc"),
 	}
@@ -134,7 +138,7 @@ type S struct {
 
 	rewriter Rewriter
 
-	taskQueue *infprocessor.TaskQueue
+	taskSender taskSender
 
 	reqIntercepter reqIntercepter
 

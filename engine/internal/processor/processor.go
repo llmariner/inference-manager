@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -214,7 +215,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 	isFirst := true
 	for {
-		if err := p.sendEngineStatus(ctx, stream); err != nil {
+		if err := p.sendEngineStatus(ctx, stream, true); err != nil {
 			return err
 		}
 
@@ -233,6 +234,9 @@ func (p *P) sendEngineStatusPeriodically(
 		case <-stream.Context().Done():
 			return nil
 		case <-ctx.Done():
+			if err := p.sendEngineStatus(ctx, stream, false); err != nil {
+				return err
+			}
 			return nil
 		case <-time.After(statusReportInterval):
 		}
@@ -249,11 +253,12 @@ func (p *P) processTasks(
 
 	respCh := make(chan *v1.ProcessTasksResponse)
 	errCh := make(chan error)
+	doneCh := make(chan struct{})
 	go func() {
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
-				if err == io.EOF {
+				if isConnClosedErr(err) {
 					err = fmt.Errorf("connection closed")
 				} else {
 					err = fmt.Errorf("receive task: %s", err)
@@ -264,7 +269,7 @@ func (p *P) processTasks(
 			respCh <- resp
 
 			select {
-			case <-ctx.Done():
+			case <-doneCh:
 				return
 			default:
 			}
@@ -298,6 +303,7 @@ func (p *P) processTasks(
 		case <-ctx.Done():
 			log.Info("Stopping and Waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
 			wg.Wait()
+			close(doneCh)
 			return nil
 		}
 	}
@@ -498,7 +504,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	return req, nil
 }
 
-func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
+func (p *P) sendEngineStatus(ctx context.Context, stream sender, ready bool) error {
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
@@ -507,6 +513,7 @@ func (p *P) sendEngineStatus(ctx context.Context, stream sender) error {
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: p.modelSyncer.ListInProgressModels(),
 				},
+				Ready: ready,
 			},
 		},
 	}
@@ -594,4 +601,10 @@ func taskStream(t *v1.Task) bool {
 	default:
 		return false
 	}
+}
+
+func isConnClosedErr(err error) bool {
+	return err == io.EOF ||
+		// connection error type is defined in the gRPC internal transpot package.
+		strings.Contains(err.Error(), "error reading from server: EOF")
 }

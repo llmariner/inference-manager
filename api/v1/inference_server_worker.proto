@@ -15,6 +15,7 @@ message EngineStatus {
   string engine_id = 1;
   repeated string model_ids = 2;
   SyncStatus sync_status = 3;
+  bool ready = 4;
 }
 
 message HeaderValue {

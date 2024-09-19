@@ -278,6 +278,9 @@
         },
         "syncStatus": {
           "$ref": "#/definitions/EngineStatusSyncStatus"
+        },
+        "ready": {
+          "type": "boolean"
         }
       }
     },

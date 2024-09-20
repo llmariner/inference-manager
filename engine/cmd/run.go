@@ -72,7 +72,7 @@ func run(c *config.Config, ns string, lv int) error {
 			DefaultNamespaces: map[string]cache.Config{ns: {}},
 		},
 		GracefulShutdownTimeout:       ptr.To(c.GracefulShutdownTimeout),
-		LeaderElection:                c.LeaderElection.Enable,
+		LeaderElection:                true,
 		LeaderElectionID:              c.LeaderElection.ID,
 		LeaderElectionReleaseOnCancel: true,
 		LeaseDuration:                 c.LeaderElection.LeaseDuration,
@@ -147,12 +147,17 @@ func run(c *config.Config, ns string, lv int) error {
 		mClient,
 		c.GracefulShutdownTimeout,
 	)
-	if err := p.SetupWithManager(mgr); err != nil {
+	if err := p.SetupWithManager(mgr, c.Autoscaler.Enable); err != nil {
 		return err
 	}
 
 	preloader := runtime.NewPreloader(rtManager, config.NewProcessedModelConfig(c).PreloadedModelIDs())
 	if err := preloader.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	updater := runtime.NewUpdater(ns, rtClientFactory)
+	if err := updater.SetupWithManager(mgr); err != nil {
 		return err
 	}
 

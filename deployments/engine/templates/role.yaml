@@ -44,7 +44,6 @@ rules:
   - create
   - patch
   - update
-{{- if include "leaderElection.enabled" . }}
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -57,4 +56,3 @@ rules:
   - update
   - patch
   - delete
-{{- end }}

@@ -182,12 +182,20 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			cleanup()
 			return err
 		}
-		nn, err := client.DeployRuntime(ctx, modelID)
+		sts, err := client.DeployRuntime(ctx, modelID, false)
 		if err != nil {
 			cleanup()
 			return err
 		}
-		m.autoscaler.Register(modelID, nn)
+		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
+		if sts.Status.ReadyReplicas > 0 {
+			// If this is called before the first cache sync of the reconciler
+			// is complete, the existing statefulset(STS) for the runtime is not
+			// registered in the manager's managed runtime map. If the runtime's
+			// STS is already ready, mark the runtime as ready without waiting
+			// for the reconciler (leader-election component) to process it.
+			m.markRuntimeReady(modelID, client.GetAddress(sts.Name))
+		}
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
@@ -228,6 +236,10 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 
 	ready, ok := m.isReady(modelID)
 	if !ok {
+		// If an statefulset for the unregistered runtime is found,
+		// the manager registers it to the managed runtime map.
+		// This would call when the manager synchronizes the cache
+		// for the first time or when another engine creates a runtime.
 		log.V(4).Info("Registering runtime", "model", modelID)
 		if added, err := m.addRuntime(modelID, sts); err != nil {
 			log.Error(err, "Failed to add runtime")

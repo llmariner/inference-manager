@@ -148,17 +148,25 @@ type P struct {
 	logger  logr.Logger
 
 	taskGracePeriod time.Duration
+
+	leaderElection bool
 }
 
 // SetupWithManager sets up the processor with the manager.
-func (p *P) SetupWithManager(mgr ctrl.Manager) error {
+func (p *P) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 	p.logger = mgr.GetLogger().WithName("processor")
 	return mgr.Add(p)
 }
 
-// NeedLeaderElection implements LeaderElectionRunnable and always returns true.
+// NeedLeaderElection implements LeaderElectionRunnable
 func (p *P) NeedLeaderElection() bool {
-	return true
+	// processor is only use leader election when the autoscaler is enabled.
+	// This is because the processor collects metrics and use it for scaling.
+	// Otherwise, the processor does not update k8s resources except for a
+	// new runtime creation, so it does not need leader election. This means
+	// that when using an existing runtime, such as during maintenance,
+	// requests can be handled quickly without waiting for leader-election.
+	return p.leaderElection
 }
 
 // Start runs the processor.

@@ -11,8 +11,8 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,15 +53,15 @@ type vllmClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
+func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	log.Printf("Deploying VLLM runtime for model %s\n", modelID)
 
 	params, err := v.deployRuntimeParams(ctx, modelID)
 	if err != nil {
-		return types.NamespacedName{}, fmt.Errorf("deploy runtime params: %s", err)
+		return nil, fmt.Errorf("deploy runtime params: %s", err)
 	}
 
-	return v.deployRuntime(ctx, params)
+	return v.deployRuntime(ctx, params, update)
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {

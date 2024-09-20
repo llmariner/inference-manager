@@ -66,7 +66,6 @@ data:
     healthPort: {{ .Values.healthPort }}
     gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
     leaderElection:
-      enable: {{ include "leaderElection.enabled" . }}
       id: {{ include "inference-manager-engine.fullname" . }}
       leaseDuration: {{ .Values.leaderElection.leaseDuration }}
       renewDeadline: {{ .Values.leaderElection.renewDeadline }}

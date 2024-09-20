@@ -32,17 +32,12 @@ spec:
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
-        - {{ .Values.commandName }}
+        - run
         - --config
         - /etc/config/config.yaml
         - --v
         - "{{ .Values.logLevel }}"
         ports:
-        {{- if eq .Values.commandName "run_monolithic" }}
-        - name: llm
-          containerPort: {{ .Values.llmPort }}
-          protocol: TCP
-        {{- end }}
         - name: health
           containerPort: {{ .Values.healthPort }}
           protocol: TCP
@@ -51,22 +46,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        {{- if eq .Values.commandName "run_monolithic" }}
-        {{- with .Values.global.awsSecret }}
-        {{- if .name }}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ .name }}
-              key: {{ .accessKeyIdKey }}
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ .name }}
-              key: {{ .secretAccessKeyKey }}
-        {{- end }}
-        {{- end }}
-        {{- end }}
         {{- with .Values.global.worker.registrationKeySecret }}
         {{- if .name }}
         - name: LLMO_CLUSTER_REGISTRATION_KEY
@@ -80,12 +59,6 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
-        {{- if eq .Values.commandName "run_monolithic" }}
-        - name: store
-          mountPath: /tmp
-        - name: store
-          mountPath: /.ollama
-        {{- end }}
         readinessProbe:
           {{- toYaml .Values.readinessProbe | nindent 10 }}
         resources:
@@ -106,12 +79,3 @@ spec:
       - name: config
         configMap:
           name: {{ include "inference-manager-engine.fullname" . }}
-      {{- if eq .Values.commandName "run_monolithic" }}
-      - name: store
-      {{- if .Values.persistentVolume.enabled }}
-        persistentVolumeClaim:
-          claimName: {{ .Values.persistentVolume.existingClaim | default (include "inference-manager-engine.fullname" .) }}
-      {{- else }}
-        emptyDir:
-      {{- end }}
-      {{- end }}

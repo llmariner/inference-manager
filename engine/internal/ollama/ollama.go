@@ -29,19 +29,7 @@ func CreateModelfile(
 	if err != nil {
 		return err
 	}
-	if err := WriteModelfile(modelID, spec, contextLength, file); err != nil {
-		return err
-	}
-	return nil
-}
 
-// WriteModelfile writes the model file.
-func WriteModelfile(
-	modelID string,
-	spec *ModelSpec,
-	contextLength int,
-	file *os.File,
-) error {
 	s := fmt.Sprintf("FROM %s\n", spec.From)
 	if p := spec.AdapterPath; p != "" {
 		s += fmt.Sprintf("Adapter %s\n", p)

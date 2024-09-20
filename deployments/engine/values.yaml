@@ -21,9 +21,6 @@ global:
 
   controlPlaneAddr: ""
 
-# Change this to "run_monolithic" to run the legacy monolithic mode.
-commandName: run
-
 runtime:
   name:
   runtimeImages:
@@ -116,7 +113,6 @@ autoscaler:
 # maxConcurentRequests is the maximun number of requests procssed in parallel.
 maxConcurrentRequests: 0
 
-llmPort: 8080
 healthPort: 8081
 
 leaderElection:

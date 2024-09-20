@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,8 @@ import (
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
@@ -37,7 +40,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := c.Validate(config.DefaultRunMode); err != nil {
+			if err := c.Validate(); err != nil {
 				return err
 			}
 
@@ -183,4 +186,11 @@ func (f *clientFactory) New(modelID string) (runtime.Client, error) {
 		return f.vllmClient, nil
 	}
 	return nil, fmt.Errorf("unknown runtime name: %q", mci.RuntimeName)
+}
+
+func grpcOption(c *config.Config) grpc.DialOption {
+	if c.Worker.TLS.Enable {
+		return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+	}
+	return grpc.WithTransportCredentials(insecure.NewCredentials())
 }

@@ -357,8 +357,6 @@ type Config struct {
 	Runtime RuntimeConfig `yaml:"runtime"`
 	Ollama  OllamaConfig  `yaml:"ollama"`
 	Model   ModelConfig   `yaml:"model"`
-	// LLMPort is the port llm listens on.
-	LLMPort int `yaml:"llmPort"`
 
 	HealthPort int `yaml:"healthPort"`
 
@@ -390,17 +388,8 @@ type Config struct {
 	Worker WorkerConfig `yaml:"worker"`
 }
 
-type runMode string
-
-const (
-	// DefaultRunMode is the default run mode.
-	DefaultRunMode runMode = "default"
-	// MonolithicRunMode is the monolithic run mode.
-	MonolithicRunMode runMode = "monolithic"
-)
-
 // Validate validates the configuration.
-func (c *Config) Validate(mode runMode) error {
+func (c *Config) Validate() error {
 	if c.HealthPort <= 0 {
 		return fmt.Errorf("healthPort must be greater than 0")
 	}
@@ -429,32 +418,12 @@ func (c *Config) Validate(mode runMode) error {
 		c.GracefulShutdownTimeout = 30 * time.Second
 	}
 
-	switch mode {
-	case DefaultRunMode:
-		if err := c.validateDefaultRunConfig(); err != nil {
-			return err
-		}
-	case MonolithicRunMode:
-		if err := c.validateMonolithicRunConfig(); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown run mode: %q", mode)
-	}
-
 	if err := c.Ollama.validate(); err != nil {
 		return fmt.Errorf("ollama: %s", err)
 	}
 
 	if err := c.Model.validate(); err != nil {
 		return fmt.Errorf("model: %s", err)
-	}
-	return nil
-}
-
-func (c *Config) validateDefaultRunConfig() error {
-	if c.Debug.Standalone {
-		return fmt.Errorf("standalone mode is not supported in default run mode")
 	}
 
 	if err := c.Runtime.validate(); err != nil {
@@ -467,13 +436,6 @@ func (c *Config) validateDefaultRunConfig() error {
 
 	if err := c.LeaderElection.validate(); err != nil {
 		return fmt.Errorf("leaderElection: %s", err)
-	}
-	return nil
-}
-
-func (c *Config) validateMonolithicRunConfig() error {
-	if c.LLMPort <= 0 {
-		return fmt.Errorf("llmPort must be greater than 0")
 	}
 	return nil
 }

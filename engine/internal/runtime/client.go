@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +40,7 @@ func ModelDir() string {
 // Client is the interface for managing runtimes.
 type Client interface {
 	GetAddress(name string) string
-	DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error)
+	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.
@@ -105,9 +107,13 @@ type deployRuntimeParams struct {
 func (c *commonClient) deployRuntime(
 	ctx context.Context,
 	params deployRuntimeParams,
-) (types.NamespacedName, error) {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deploying runtime", "model", params.modelID)
+	update bool,
+) (*appsv1.StatefulSet, error) {
+	mci := c.mconfig.ModelConfigItem(params.modelID)
+	name := resourceName(mci.RuntimeName, params.modelID)
+
+	log := ctrl.LoggerFrom(ctx).WithValues("name", name)
+	log.Info("Deploying runtime", "model", params.modelID, "update", update)
 
 	const (
 		tmpDir        = "/tmp"
@@ -117,8 +123,6 @@ func (c *commonClient) deployRuntime(
 		configVolName = "config"
 	)
 
-	mci := c.mconfig.ModelConfigItem(params.modelID)
-	name := resourceName(mci.RuntimeName, params.modelID)
 	nn := types.NamespacedName{Name: name, Namespace: c.namespace}
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "runtime",
@@ -195,7 +199,7 @@ func (c *commonClient) deployRuntime(
 		for name, v := range resConf.Requests {
 			val, err := resource.ParseQuantity(v)
 			if err != nil {
-				return nn, fmt.Errorf("invalid resource request %s: %s", name, err)
+				return nil, fmt.Errorf("invalid resource request %s: %s", name, err)
 			}
 			reqs[corev1.ResourceName(name)] = val
 		}
@@ -206,7 +210,7 @@ func (c *commonClient) deployRuntime(
 		for name, v := range resConf.Limits {
 			val, err := resource.ParseQuantity(v)
 			if err != nil {
-				return nn, fmt.Errorf("invalid resource limit %s: %s", name, err)
+				return nil, fmt.Errorf("invalid resource limit %s: %s", name, err)
 			}
 			limits[corev1.ResourceName(name)] = val
 		}
@@ -224,7 +228,7 @@ func (c *commonClient) deployRuntime(
 
 	image, ok := c.rconfig.RuntimeImages[mci.RuntimeName]
 	if !ok {
-		return nn, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
+		return nil, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
 	}
 
 	podSpec := corev1apply.PodSpec().
@@ -302,11 +306,22 @@ func (c *commonClient) deployRuntime(
 				WithLabels(labels).
 				WithSpec(podSpec)))
 
+	var curSts appsv1.StatefulSet
+	if err := c.k8sClient.Get(ctx, nn, &curSts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+	} else {
+		if !update {
+			log.V(2).Info("Already exists", "RV", curSts.ResourceVersion, "update", update)
+			return &curSts, nil
+		}
+	}
 	sts, err := c.applyObject(ctx, stsConf)
 	if err != nil {
-		return nn, err
+		return nil, err
 	}
-	log.V(2).Info("StatefulSet applied", "name", sts.GetName())
+	log.V(4).Info("StatefulSet applied")
 
 	gvk := sts.GetObjectKind().GroupVersionKind()
 	ownerRef := metav1apply.OwnerReference().
@@ -331,7 +346,7 @@ func (c *commonClient) deployRuntime(
 	if vol := resConf.Volume; vol != nil {
 		size, err := resource.ParseQuantity(vol.Size)
 		if err != nil {
-			return nn, fmt.Errorf("invalid volume size: %s", err)
+			return nil, fmt.Errorf("invalid volume size: %s", err)
 		}
 		objs = append(objs, corev1apply.PersistentVolumeClaim(name, c.namespace).
 			WithLabels(labels).
@@ -347,13 +362,22 @@ func (c *commonClient) deployRuntime(
 	for _, obj := range objs {
 		newObj, err := c.applyObject(ctx, obj)
 		if err != nil {
-			return nn, err
+			return nil, err
 		}
 		kind := newObj.GetObjectKind().GroupVersionKind().Kind
-		log.V(2).Info(fmt.Sprintf("%s applied", kind), "name", newObj.GetName())
+		log.V(4).Info(fmt.Sprintf("%s applied", kind))
 	}
 
-	return nn, nil
+	uobj, ok := sts.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("object is not of type Unstructured: %T", sts)
+	}
+	var stsObj appsv1.StatefulSet
+	if err := apiruntime.DefaultUnstructuredConverter.FromUnstructured(uobj.Object, &stsObj); err != nil {
+		return nil, err
+	}
+	log.V(2).Info("Deployed runtime")
+	return &stsObj, nil
 }
 
 func resourceName(runtime, modelID string) string {

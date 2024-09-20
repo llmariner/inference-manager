@@ -153,9 +153,10 @@ func TestPullModel(t *testing.T) {
 		testModelID = "mid-0"
 	)
 	var tests = []struct {
-		name     string
-		rt       *runtime
-		deployed bool
+		name          string
+		rt            *runtime
+		deployed      bool
+		readyReplicas int32
 	}{
 		{
 			name: "already ready",
@@ -169,10 +170,15 @@ func TestPullModel(t *testing.T) {
 			name:     "new model",
 			deployed: true,
 		},
+		{
+			name:          "not registered, but runtime already exists",
+			deployed:      true,
+			readyReplicas: 1,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rtClient := &fakeClient{deployed: map[string]bool{}}
+			rtClient := &fakeClient{deployed: map[string]bool{}, readyReplicas: test.readyReplicas}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := &Manager{
 				runtimes:        map[string]runtime{},
@@ -183,6 +189,7 @@ func TestPullModel(t *testing.T) {
 				mgr.runtimes[testModelID] = *test.rt
 			}
 			ctx, cancel := context.WithCancel(testutil.ContextWithLogger(t))
+			defer cancel()
 			go func() {
 				time.Sleep(2 * time.Second) // timeout
 				t.Log("canceling context")
@@ -190,9 +197,13 @@ func TestPullModel(t *testing.T) {
 			}()
 			go func() {
 				// emulate runtime to be ready
-				time.Sleep(300 * time.Millisecond)
-				t.Log("marking runtime ready")
-				mgr.markRuntimeReady(testModelID, "test")
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(300 * time.Millisecond):
+					t.Log("marking runtime ready")
+					mgr.markRuntimeReady(testModelID, "test")
+				}
 			}()
 			err := mgr.PullModel(ctx, testModelID)
 			assert.NoError(t, err)
@@ -410,16 +421,25 @@ func (f *fakeClientFactory) New(modelID string) (Client, error) {
 }
 
 type fakeClient struct {
-	deployed map[string]bool
+	deployed      map[string]bool
+	readyReplicas int32
 }
 
 func (m *fakeClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:1234", name)
 }
 
-func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
+func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	m.deployed[modelID] = true
-	return types.NamespacedName{Name: "test", Namespace: "default"}, nil
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Status: appsv1.StatefulSetStatus{
+			ReadyReplicas: m.readyReplicas,
+		},
+	}, nil
 }
 
 type fakeScalerRegister struct {

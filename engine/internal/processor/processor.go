@@ -148,17 +148,19 @@ type P struct {
 	logger  logr.Logger
 
 	taskGracePeriod time.Duration
+
+	leaderElection bool
 }
 
 // SetupWithManager sets up the processor with the manager.
-func (p *P) SetupWithManager(mgr ctrl.Manager) error {
+func (p *P) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 	p.logger = mgr.GetLogger().WithName("processor")
 	return mgr.Add(p)
 }
 
-// NeedLeaderElection implements LeaderElectionRunnable and always returns true.
+// NeedLeaderElection implements LeaderElectionRunnable
 func (p *P) NeedLeaderElection() bool {
-	return true
+	return p.leaderElection
 }
 
 // Start runs the processor.

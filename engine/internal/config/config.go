@@ -330,9 +330,7 @@ func (c *ScalingConfig) validate() error {
 
 // LeaderElectionConfig is the leader election configuration.
 type LeaderElectionConfig struct {
-	Enable bool   `yaml:"enable"`
-	ID     string `yaml:"id"`
-
+	ID string `yaml:"id"`
 	// LeaseDuration is the duration that non-leader candidates will
 	// wait to force acquire leadership. This is measured against time of
 	// last observed ack. Default is 15 seconds.
@@ -346,7 +344,7 @@ type LeaderElectionConfig struct {
 }
 
 func (c *LeaderElectionConfig) validate() error {
-	if c.Enable && c.ID == "" {
+	if c.ID == "" {
 		return fmt.Errorf("id must be set")
 	}
 	return nil

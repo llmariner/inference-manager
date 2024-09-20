@@ -11,8 +11,8 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	"google.golang.org/grpc"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,7 +54,7 @@ type ollamaClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types.NamespacedName, error) {
+func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
 
@@ -87,12 +87,12 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 
 	image, ok := o.rconfig.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
-		return types.NamespacedName{}, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
+		return nil, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
 
 	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)
 	if err != nil {
-		return types.NamespacedName{}, err
+		return nil, err
 	}
 
 	var modelIDs []string
@@ -101,7 +101,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string) (types
 	} else {
 		baseModelID, err := models.ExtractBaseModel(modelID)
 		if err != nil {
-			return types.NamespacedName{}, err
+			return nil, err
 		}
 		modelIDs = append(modelIDs, baseModelID, modelID)
 	}
@@ -145,5 +145,5 @@ kill ${serve_pid}
 			// Use the same policy as the runtime as the container image is the same as the runtime.
 			imagePullPolicy: corev1.PullPolicy(o.rconfig.RuntimeImagePullPolicy),
 		},
-	})
+	}, update)
 }

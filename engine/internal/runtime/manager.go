@@ -182,12 +182,15 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			cleanup()
 			return err
 		}
-		nn, err := client.DeployRuntime(ctx, modelID)
+		sts, err := client.DeployRuntime(ctx, modelID, false)
 		if err != nil {
 			cleanup()
 			return err
 		}
-		m.autoscaler.Register(modelID, nn)
+		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
+		if sts.Status.ReadyReplicas > 0 {
+			m.markRuntimeReady(modelID, client.GetAddress(sts.Name))
+		}
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {

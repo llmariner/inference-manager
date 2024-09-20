@@ -20,8 +20,8 @@ import (
 )
 
 func TestAddRuntime(t *testing.T) {
-	createSts := func(name string, readyReplicas int32) appsv1.StatefulSet {
-		return appsv1.StatefulSet{
+	createSts := func(name string, readyReplicas int32) *appsv1.StatefulSet {
+		return &appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: "test",

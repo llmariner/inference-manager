@@ -64,7 +64,7 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, error) {
+func (m *Manager) addRuntime(modelID string, sts *appsv1.StatefulSet) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.runtimes[modelID]; ok {
@@ -187,15 +187,20 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			cleanup()
 			return err
 		}
-		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
-		if sts.Status.ReadyReplicas > 0 {
-			// If this is called before the first cache sync of the reconciler
-			// is complete, the existing statefulset(STS) for the runtime is not
-			// registered in the manager's managed runtime map. If the runtime's
-			// STS is already ready, mark the runtime as ready without waiting
-			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(modelID, client.GetAddress(sts.Name))
+
+		// If this is called before the first cache sync of the reconciler
+		// is complete, the existing statefulset(STS) for the runtime is not
+		// registered in the manager's managed runtime map.
+		//
+		// Run reconcile() here so that if the runtime's STS is already ready,
+		// mark the runtime as ready without waiting for the reconciler
+		// (leader-election component) to process it.
+		if err := m.reconcile(ctx, sts); err != nil {
+			// Gracefully ignore an error and let the reconciler handle it. We don't want
+			// to return an error when the runtime is not yet reachable.
+			log.Error(err, "Failed to reconcile the runtime")
 		}
+		return nil
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
@@ -208,30 +213,36 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 
 // Reconcile reconciles the runtime.
 func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
-
 	var sts appsv1.StatefulSet
 	if err := m.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	if err := m.reconcile(ctx, &sts); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (m *Manager) reconcile(ctx context.Context, sts *appsv1.StatefulSet) error {
+	log := ctrl.LoggerFrom(ctx)
 
 	modelID := sts.GetAnnotations()[modelAnnotationKey]
 
 	if !sts.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&sts, finalizerKey) {
-			return ctrl.Result{}, nil
+		if !controllerutil.ContainsFinalizer(sts, finalizerKey) {
+			return nil
 		}
 		m.deleteRuntime(modelID)
-		m.autoscaler.Unregister(req.NamespacedName)
+		m.autoscaler.Unregister(types.NamespacedName{Namespace: sts.Namespace, Name: sts.Name})
 
-		patch := client.MergeFrom(&sts)
+		patch := client.MergeFrom(sts)
 		newSts := sts.DeepCopy()
 		controllerutil.RemoveFinalizer(newSts, finalizerKey)
 		if err := client.IgnoreNotFound(m.k8sClient.Patch(ctx, newSts, patch)); err != nil {
 			log.Error(err, "Failed to remove finalizer")
-			return ctrl.Result{}, err
+			return err
 		}
-		return ctrl.Result{}, nil
+		return nil
 	}
 
 	ready, ok := m.isReady(modelID)
@@ -243,11 +254,11 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		log.V(4).Info("Registering runtime", "model", modelID)
 		if added, err := m.addRuntime(modelID, sts); err != nil {
 			log.Error(err, "Failed to add runtime")
-			return ctrl.Result{}, err
+			return err
 		} else if added {
 			m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
 		}
-		return ctrl.Result{}, nil
+		return nil
 	} else if ready {
 		if sts.Status.Replicas == 0 {
 			m.markRuntimeIsPending(modelID)
@@ -257,7 +268,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		client, err := m.rtClientFactory.New(modelID)
 		if err != nil {
 			log.Error(err, "Failed to create runtime client")
-			return ctrl.Result{}, err
+			return err
 		}
 		addr := client.GetAddress(sts.Name)
 		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
@@ -267,13 +278,13 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 		if _, err := http.DefaultClient.Do(req); err != nil {
 			log.Error(err, "Failed to reach the runtime")
-			return ctrl.Result{}, err
+			return err
 		}
 		m.markRuntimeReady(modelID, addr)
 		log.Info("Runtime is ready")
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.

@@ -160,6 +160,12 @@ func (p *P) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 
 // NeedLeaderElection implements LeaderElectionRunnable
 func (p *P) NeedLeaderElection() bool {
+	// processor is only use leader election when the autoscaler is enabled.
+	// This is because the processor collects metrics and use it for scaling.
+	// Otherwise, the processor does not update k8s resources except for a
+	// new runtime creation, so it does not need leader election. This means
+	// that when using an existing runtime, such as during maintenance,
+	// requests can be handled quickly without waiting for leader-election.
 	return p.leaderElection
 }
 

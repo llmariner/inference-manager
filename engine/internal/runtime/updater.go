@@ -56,6 +56,7 @@ func (u *Updater) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to list runtimes: %s", err)
 	}
 
+	// TODO: support runtime(ollama, vllm) changes
 	for _, sts := range stsList.Items {
 		modelID := sts.GetAnnotations()[modelAnnotationKey]
 		client, err := u.rtClientFactory.New(modelID)

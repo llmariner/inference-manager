@@ -19,7 +19,7 @@ import (
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	"github.com/llm-operator/inference-manager/engine/internal/metrics"
 	"github.com/llm-operator/inference-manager/engine/internal/ollama"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 )

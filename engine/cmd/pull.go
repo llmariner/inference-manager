@@ -12,7 +12,7 @@ import (
 	"github.com/llm-operator/inference-manager/engine/internal/runtime"
 	"github.com/llm-operator/inference-manager/engine/internal/s3"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )

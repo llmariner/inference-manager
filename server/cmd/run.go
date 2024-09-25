@@ -17,7 +17,7 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"

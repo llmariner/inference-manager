@@ -11,7 +11,7 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 
 // CreateCompletion creates a (legacy) completion.

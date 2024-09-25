@@ -8,7 +8,7 @@ import (
 	"time"
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 
 // CreateEmbedding creates an embedding.

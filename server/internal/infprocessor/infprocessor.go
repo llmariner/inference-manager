@@ -13,7 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/llm-operator/common/pkg/id"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 
 const (

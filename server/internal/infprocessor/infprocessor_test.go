@@ -9,7 +9,7 @@ import (
 
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
-	"github.com/llm-operator/rbac-manager/pkg/auth"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 

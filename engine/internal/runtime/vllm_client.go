@@ -24,6 +24,8 @@ const nvidiaGPUResource = "nvidia.com/gpu"
 
 type modelClient interface {
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+	GetModelAttributes(ctx context.Context, in *mv1.GetModelAttributesRequest, opts ...grpc.CallOption) (*mv1.ModelAttributes, error)
 }
 
 // NewVLLMClient creates a new VLLM runtime client.
@@ -65,9 +67,11 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update b
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
-	modelFilePath, err := v.modelFilePath(ctx, modelID)
+	model, err := v.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
 	if err != nil {
-		return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
+		return deployRuntimeParams{}, fmt.Errorf("get model: %s", err)
 	}
 
 	template, err := chatTemplate(modelID)
@@ -77,11 +81,51 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
-		"--model", modelFilePath,
 		"--served-model-name", modelID,
 		// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 		// such as stop tokens.
 		"--chat-template", template,
+	}
+
+	if isBaseModel(model) {
+		mPath, err := v.baseModelFilePath(ctx, modelID)
+		if err != nil {
+			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
+		}
+		args = append(args, "--model", mPath)
+	} else {
+		attr, err := v.modelClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
+			Id: modelID,
+		})
+		if err != nil {
+			return deployRuntimeParams{}, fmt.Errorf("get model attributes: %s", err)
+		}
+		if attr.BaseModel == "" {
+			return deployRuntimeParams{}, fmt.Errorf("base model ID is not set for %q", modelID)
+		}
+		format, err := v.preferredBaseModelFormat(ctx, attr.BaseModel)
+		if err != nil {
+			return deployRuntimeParams{}, err
+		}
+
+		mPath, err := modeldownloader.ModelFilePath(modelDir, modelID, format)
+		if err != nil {
+			return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
+		}
+
+		if attr.Adapter == mv1.AdapterType_ADAPTER_TYPE_LORA {
+			bmPath, err := v.baseModelFilePath(ctx, attr.BaseModel)
+			if err != nil {
+				return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
+			}
+			args = append(args,
+				"--model", bmPath,
+				"--enable-lora",
+				"--lora-modules", fmt.Sprintf("%s=%s", modelID, mPath),
+			)
+		} else {
+			args = append(args, "--model", mPath)
+		}
 	}
 
 	if gpus, err := v.numGPUs(modelID); err != nil {
@@ -101,9 +145,15 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--quantization", "awq")
 	}
 
+	envs := []*corev1apply.EnvVarApplyConfiguration{
+		corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"),
+		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue("DEBUG"),
+	}
+
 	shmVolName := "devshm"
 	return deployRuntimeParams{
 		modelID: modelID,
+		envs:    envs,
 		// Shared memory is required for Pytorch
 		// (See https://docs.vllm.ai/en/latest/serving/deploying_with_docker.html#deploying-with-docker).
 		volumes: []*corev1apply.VolumeApplyConfiguration{
@@ -141,19 +191,28 @@ func (v *vllmClient) numGPUs(modelID string) (int, error) {
 	return int(val.Value()), nil
 }
 
-func (v *vllmClient) modelFilePath(ctx context.Context, modelID string) (string, error) {
+func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID string) (mv1.ModelFormat, error) {
 	// TODO(kenji): Support non-base model.
 	resp, err := v.modelClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
 		Id: modelID,
 	})
 	if err != nil {
-		return "", err
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("get base model path: %s", err)
 	}
-	format, err := PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
+	return PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
+}
+
+func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (string, error) {
+	format, err := v.preferredBaseModelFormat(ctx, modelID)
 	if err != nil {
 		return "", err
 	}
 	return modeldownloader.ModelFilePath(modelDir, modelID, format)
+}
+
+func isBaseModel(model *mv1.Model) bool {
+	const systemOwner = "system"
+	return model.OwnedBy == systemOwner
 }
 
 // isAWQQuantizedModel returns true if the model name is an AWQ quantized model.
@@ -165,8 +224,8 @@ func isAWQQuantizedModel(modelID string) bool {
 func chatTemplate(modelID string) (string, error) {
 	switch {
 	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
-		strings.HasPrefix(modelID, "TinyLlama-TinyLlama-1.1B-Chat-v1.0"),
-		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"):
+		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"),
+		strings.Contains(modelID, "TinyLlama-1.1B"):
 		// This is a simplified template that does not support functions etc.
 		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
 		return `

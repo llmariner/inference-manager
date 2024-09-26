@@ -81,7 +81,10 @@ func pull(ctx context.Context, o opts, c *config.Config) error {
 		return pullBaseModel(ctx, o, c, mClient, s3Client)
 	}
 
-	return pullFineTunedModel(ctx, o, c, mClient, s3Client)
+	if o.runtime == config.RuntimeNameVLLM {
+		return pullFineTunedModelForVLLM(ctx, o, c, mClient, s3Client)
+	}
+	return pullFineTunedModelForOllama(ctx, o, c, mClient, s3Client)
 }
 
 func pullBaseModel(
@@ -104,7 +107,19 @@ func pullBaseModel(
 	if err != nil {
 		return err
 	}
-	if err := d.Download(ctx, o.modelID, resp, format); err != nil {
+
+	var srcPath string
+	switch format {
+	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
+		srcPath = resp.Path
+	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
+		srcPath = resp.GgufModelPath
+	default:
+		return fmt.Errorf("unsupported format: %v", format)
+	}
+
+
+	if err := d.Download(ctx, o.modelID, srcPath, format); err != nil {
 		return err
 	}
 
@@ -129,17 +144,13 @@ func pullBaseModel(
 	return nil
 }
 
-func pullFineTunedModel(
+func pullFineTunedModelForOllama(
 	ctx context.Context,
 	o opts,
 	c *config.Config,
 	mClient mv1.ModelsWorkerServiceClient,
 	s3Client *s3.Client,
 ) error {
-	if o.runtime == config.RuntimeNameVLLM {
-		return fmt.Errorf("not supporting fine-tuned jobs for vllm")
-	}
-
 	baseModelID, err := models.ExtractBaseModel(o.modelID)
 	if err != nil {
 		return err
@@ -178,6 +189,49 @@ func pullFineTunedModel(
 		return err
 	}
 	log.Printf("Successfully created the Ollama modelfile\n")
+
+	return nil
+}
+
+func pullFineTunedModelForVLLM(
+	ctx context.Context,
+	o opts,
+	c *config.Config,
+	mClient mv1.ModelsWorkerServiceClient,
+	s3Client *s3.Client,
+) error {
+	attr, err := mClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
+		Id: o.modelID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if attr.BaseModel == "" {
+		return fmt.Errorf("base model ID is not set for %q", o.modelID)
+	}
+	if err := pullBaseModel(ctx, opts{modelID: attr.BaseModel, runtime: o.runtime}, c, mClient, s3Client); err != nil {
+		return err
+	}
+
+	resp, err := mClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
+		Id: attr.BaseModel,
+	})
+	if err != nil {
+		return err
+	}
+
+	format, err := runtime.PreferredModelFormat(o.runtime, resp.Formats)
+	if err != nil {
+		return err
+	}
+
+	d := modeldownloader.New(runtime.ModelDir(), s3Client)
+
+	if err := d.Download(ctx, o.modelID, attr.Path, format); err != nil {
+		return err
+	}
+	log.Printf("Successfully pulled the fine-tuning adapter\n")
 
 	return nil
 }

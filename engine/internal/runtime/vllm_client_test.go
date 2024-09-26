@@ -30,6 +30,8 @@ func TestDeployRuntimeParams(t *testing.T) {
 		name     string
 		modelID  string
 		resp     *mv1.GetBaseModelPathResponse
+		attr     *mv1.ModelAttributes
+		model    *mv1.Model
 		wantArgs []string
 	}{
 		{
@@ -41,6 +43,15 @@ func TestDeployRuntimeParams(t *testing.T) {
 					mv1.ModelFormat_MODEL_FORMAT_GGUF,
 					mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
 				},
+			},
+			attr: &mv1.ModelAttributes{
+				Quantization: mv1.QuantizationType_QUANTIZATION_TYPE_GGUF,
+				BaseModel:    "base-model0",
+				Path:         "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			},
+			model: &mv1.Model{
+				OwnedBy: "user",
+				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 			},
 			wantArgs: []string{
 				"--port", "80",
@@ -59,12 +70,70 @@ func TestDeployRuntimeParams(t *testing.T) {
 					mv1.ModelFormat_MODEL_FORMAT_GGUF,
 				},
 			},
+			attr: &mv1.ModelAttributes{
+				Quantization: mv1.QuantizationType_QUANTIZATION_TYPE_GGUF,
+				BaseModel:    "base-model0",
+				Path:         "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0/model.gguf",
+			},
+			model: &mv1.Model{
+				OwnedBy: "user",
+				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			},
 			wantArgs: []string{
 				"--port", "80",
 				"--model", "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0/model.gguf",
 				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
 				"--tensor-parallel-size", "2",
+			},
+		},
+		{
+			name:    "base model",
+			modelID: "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			resp: &mv1.GetBaseModelPathResponse{
+				Path: "path",
+				Formats: []mv1.ModelFormat{
+					mv1.ModelFormat_MODEL_FORMAT_GGUF,
+				},
+			},
+			model: &mv1.Model{
+				OwnedBy: "system",
+				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			},
+			wantArgs: []string{
+				"--port", "80",
+				"--model", "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0/model.gguf",
+				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
+				"--tensor-parallel-size", "2",
+			},
+		},
+		{
+			name:    "lora adapter",
+			modelID: "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			resp: &mv1.GetBaseModelPathResponse{
+				Path: "path",
+				Formats: []mv1.ModelFormat{
+					mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
+				},
+			},
+			attr: &mv1.ModelAttributes{
+				Adapter:   mv1.AdapterType_ADAPTER_TYPE_LORA,
+				BaseModel: "base-model0",
+				Path:      "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			},
+			model: &mv1.Model{
+				OwnedBy: "user",
+				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+			},
+			wantArgs: []string{
+				"--port", "80",
+				"--model", "/models/base-model0",
+				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
+				"--tensor-parallel-size", "2",
+				"--enable-lora",
+				"--lora-modules", "TinyLlama-TinyLlama-1.1B-Chat-v1.0=/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 			},
 		},
 	}
@@ -74,13 +143,15 @@ func TestDeployRuntimeParams(t *testing.T) {
 			v := &vllmClient{
 				commonClient: commonClient,
 				modelClient: &fakeModelClient{
-					resp: tc.resp,
+					resp:  tc.resp,
+					attr:  tc.attr,
+					model: tc.model,
 				},
 			}
 
 			got, err := v.deployRuntimeParams(context.Background(), tc.modelID)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.wantArgs, got.args)
+			assert.ElementsMatch(t, tc.wantArgs, got.args)
 		})
 	}
 }
@@ -135,9 +206,19 @@ func TestNumGPUs(t *testing.T) {
 }
 
 type fakeModelClient struct {
-	resp *mv1.GetBaseModelPathResponse
+	resp  *mv1.GetBaseModelPathResponse
+	attr  *mv1.ModelAttributes
+	model *mv1.Model
 }
 
 func (c *fakeModelClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {
 	return c.resp, nil
+}
+
+func (c *fakeModelClient) GetModelAttributes(ctx context.Context, in *mv1.GetModelAttributesRequest, opts ...grpc.CallOption) (*mv1.ModelAttributes, error) {
+	return c.attr, nil
+}
+
+func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
+	return c.model, nil
 }

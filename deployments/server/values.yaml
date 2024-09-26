@@ -30,7 +30,7 @@ workerServiceTls:
   enable: false
   secretName:
 
-certifiate:
+certificate:
   create: false
   name:
   dnsNames:

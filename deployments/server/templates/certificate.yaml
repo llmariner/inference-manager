@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.certificate.name }}
 spec:
   dnsNames:
-  {{- toYaml .certificate.dnsNames | nindent 2 }}
+  {{- toYaml .Values.certificate.dnsNames | nindent 2 }}
   secretName: {{ .Values.workerServiceTls.secretName }}
   issuerRef:
     group: cert-manager.io

@@ -2,32 +2,33 @@ package s3
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llm-operator/inference-manager/engine/internal/config"
+	laws "github.com/llmariner/common/pkg/aws"
 )
 
 // NewClient returns a new S3 client.
 func NewClient(ctx context.Context, c config.S3Config) (*Client, error) {
-	conf, err := awsconfig.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't load default configuration: %s", err)
+	opts := laws.NewS3ClientOptions{
+		EndpointURL: c.EndpointURL,
+		Region:      c.Region,
 	}
-	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
-		if u := c.EndpointURL; u != "" {
-			o.BaseEndpoint = aws.String(u)
+	if ar := c.AssumeRole; ar != nil {
+		opts.AssumeRole = &laws.AssumeRole{
+			RoleARN:    ar.RoleARN,
+			ExternalID: ar.ExternalID,
 		}
-		// This is needed as the minio server does not support the virtual host style.
-		o.UsePathStyle = true
-		o.Region = c.Region
-	})
+	}
+	svc, err := laws.NewS3Client(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
-		svc:    s3Client,
+		svc:    svc,
 		bucket: c.Bucket,
 	}, nil
 }

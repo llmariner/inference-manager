@@ -4,6 +4,9 @@ global:
       endpointUrl:
       region:
       bucket:
+      assumeRole:
+        roleArn:
+        externalId:
 
   awsSecret:
     name:

@@ -30,6 +30,14 @@ workerServiceTls:
   enable: false
   secretName:
 
+certifiate:
+  create: false
+  name:
+  dnsNames:
+  issuerRef:
+    kind: ClusterIssuer
+    name:
+
 # The following default values work if model manager server runs in the same namespace.
 modelManagerServerAddr: model-manager-server-grpc:8081
 

@@ -1,0 +1,14 @@
+{{- if .Values.certificate.create -}}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.certificate.name }}
+spec:
+  dnsNames:
+  {{- toYaml .certificate.dnsNames | nindent 2 }}
+  secretName: {{ .Values.workerServiceTls.secretName }}
+  issuerRef:
+    group: cert-manager.io
+    kind: {{ .Values.certificate.issuerRef.kind }}
+    name: {{ .Values.certificate.issuerRef.name }}
+{{- end -}}

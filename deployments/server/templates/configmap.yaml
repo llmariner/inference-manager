@@ -22,3 +22,5 @@ data:
     auth:
       enable: {{ .Values.global.auth.enable }}
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}
+    usageSender:
+      {{- toYaml .Values.global.usageSender | nindent 6 }}

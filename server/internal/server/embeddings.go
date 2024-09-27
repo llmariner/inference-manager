@@ -29,26 +29,32 @@ func (s *S) CreateEmbedding(
 		return
 	}
 
+	usage := newUsageRecord(userInfo, st, "CreateEmbedding")
+	defer func() {
+		usage.LatencyMs = int32(time.Since(st).Milliseconds())
+		s.usageSetter.AddUsage(&usage)
+	}()
+
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	if createReq.Input == "" {
-		http.Error(w, "Input is required", http.StatusBadRequest)
+		httpError(w, "Input is required", http.StatusBadRequest, &usage)
 		return
 	}
 
 	if createReq.Model == "" {
-		http.Error(w, "Model is required", http.StatusBadRequest)
+		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
 
@@ -60,13 +66,13 @@ func (s *S) CreateEmbedding(
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
 	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
-		http.Error(w, err.Error(), code)
+		httpError(w, err.Error(), code, &usage)
 		return
 	}
 
 	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, req.Header)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -78,7 +84,7 @@ func (s *S) CreateEmbedding(
 			s.logger.Error(err, "Failed to read the body")
 		}
 		s.logger.Info("Received an error response", "code", resp.StatusCode, "status", resp.Status, "body", string(body))
-		http.Error(w, string(body), resp.StatusCode)
+		httpError(w, string(body), resp.StatusCode, &usage)
 		return
 	}
 
@@ -91,7 +97,7 @@ func (s *S) CreateEmbedding(
 	w.WriteHeader(resp.StatusCode)
 
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
+		httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 		return
 	}
 	s.logger.Info("Embedding creation completed", "model", createReq.Model, "duration", time.Since(st))

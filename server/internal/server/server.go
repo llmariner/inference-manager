@@ -11,8 +11,9 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
+	"github.com/llmariner/api-usage/pkg/sender"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -107,6 +108,7 @@ type taskSender interface {
 // New creates a server.
 func New(
 	m metricsMonitoring,
+	usage sender.UsageSetter,
 	modelClient ModelClient,
 	vsClient VectorStoreClient,
 	r Rewriter,
@@ -115,6 +117,7 @@ func New(
 ) *S {
 	return &S{
 		metricsMonitor: m,
+		usageSetter:    usage,
 		modelClient:    modelClient,
 		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
@@ -131,6 +134,7 @@ type S struct {
 	enableAuth bool
 
 	metricsMonitor metricsMonitoring
+	usageSetter    sender.UsageSetter
 
 	modelClient ModelClient
 

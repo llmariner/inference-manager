@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/llmariner/api-usage/pkg/sender"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,6 +23,8 @@ type Config struct {
 	AuthConfig AuthConfig `yaml:"auth"`
 
 	WorkerServiceTLS *TLS `yaml:"workerServiceTls"`
+
+	UsageSender sender.Config `yaml:"usageSender"`
 
 	Debug DebugConfig `yaml:"debug"`
 }
@@ -92,7 +95,9 @@ func (c *Config) Validate() error {
 			return err
 		}
 	}
-
+	if err := c.UsageSender.Validate(); err != nil {
+		return err
+	}
 	return nil
 }
 

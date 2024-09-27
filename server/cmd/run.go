@@ -17,8 +17,9 @@ import (
 	"github.com/llm-operator/inference-manager/server/internal/router"
 	"github.com/llm-operator/inference-manager/server/internal/server"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
+	"github.com/llmariner/api-usage/pkg/sender"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -125,7 +126,13 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 
 	defer m.UnregisterAllCollectors()
 
-	grpcSrv := server.New(m, mclient, vsClient, rwt, infProcessor, logger)
+	usage, err := sender.New(ctx, c.UsageSender, options, logger)
+	if err != nil {
+		return err
+	}
+	go func() { usage.Run(ctx) }()
+
+	grpcSrv := server.New(m, usage, mclient, vsClient, rwt, infProcessor, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(

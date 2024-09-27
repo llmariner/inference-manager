@@ -37,21 +37,27 @@ func (s *S) CreateCompletion(
 		return
 	}
 
+	usage := newUsageRecord(userInfo, st, "CreateCompletion")
+	defer func() {
+		usage.LatencyMs = int32(time.Since(st).Milliseconds())
+		s.usageSetter.AddUsage(&usage)
+	}()
+
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	if createReq.Model == "" {
-		http.Error(w, "Model is required", http.StatusBadRequest)
+		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
 
@@ -65,13 +71,13 @@ func (s *S) CreateCompletion(
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
 	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
-		http.Error(w, err.Error(), code)
+		httpError(w, err.Error(), code, &usage)
 		return
 	}
 
 	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -83,7 +89,7 @@ func (s *S) CreateCompletion(
 			s.logger.Error(err, "Failed to read the body")
 		}
 		s.logger.Info("Received an error response", "code", resp.StatusCode, "status", resp.Status, "body", string(body))
-		http.Error(w, string(body), resp.StatusCode)
+		httpError(w, string(body), resp.StatusCode, &usage)
 		return
 	}
 
@@ -100,7 +106,7 @@ func (s *S) CreateCompletion(
 
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 
@@ -108,18 +114,18 @@ func (s *S) CreateCompletion(
 		// That one correctly handles the JSON field names of the snake case.
 		var cc v1.ChatCompletion
 		if err := json.Unmarshal(respBody, &cc); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 		c := toCompletion(&cc)
 		b, err := json.Marshal(&c)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 
 		if _, err := io.Copy(w, bytes.NewBuffer(b)); err != nil {
-			http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}
 		return
@@ -129,7 +135,7 @@ func (s *S) CreateCompletion(
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "SSE not supported", http.StatusInternalServerError)
+		httpError(w, "SSE not supported", http.StatusInternalServerError, &usage)
 		return
 	}
 
@@ -139,7 +145,7 @@ func (s *S) CreateCompletion(
 		if !strings.HasPrefix(resp, "data: ") {
 			// TODO(kenji): Handle other case.
 			if _, err := w.Write([]byte(resp + sse.DoubleNewline)); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 				return
 			}
 			continue
@@ -148,7 +154,7 @@ func (s *S) CreateCompletion(
 		respD := resp[5:]
 		if respD == " [DONE]" {
 			if _, err := w.Write([]byte(resp + sse.DoubleNewline)); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 				return
 			}
 			break
@@ -156,25 +162,25 @@ func (s *S) CreateCompletion(
 
 		var chunk v1.ChatCompletionChunk
 		if err := json.Unmarshal([]byte(respD), &chunk); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 
 		c := toCompletionChunk(&chunk)
 		bs, err := json.Marshal(&c)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 		if _, err := w.Write([]byte("data: " + string(bs) + sse.DoubleNewline)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 		flusher.Flush()
 	}
 
 	if err := scanner.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 }

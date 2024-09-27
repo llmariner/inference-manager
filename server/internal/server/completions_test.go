@@ -14,6 +14,7 @@ import (
 	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
+	"github.com/llmariner/api-usage/pkg/sender"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -25,6 +26,7 @@ func TestCreateChatCompletion(t *testing.T) {
 
 	srv := New(
 		&fakeMetricsMonitor{},
+		&sender.NoopUsageSetter{},
 		&fakeModelClient{
 			models: map[string]*mv1.Model{
 				modelID: {},

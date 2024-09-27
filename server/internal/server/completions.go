@@ -11,8 +11,9 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
+	auv1 "github.com/llmariner/api-usage/api/v1"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -46,21 +47,27 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
+	usage := newUsageRecord(userInfo, st, "CreateEmbedding")
+	defer func() {
+		usage.LatencyMs = int32(time.Since(st).Milliseconds())
+		s.usageSetter.AddUsage(&usage)
+	}()
+
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
 	if createReq.Model == "" {
-		http.Error(w, "Model is required", http.StatusBadRequest)
+		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
 
@@ -74,18 +81,18 @@ func (s *S) CreateChatCompletion(
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
 	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
-		http.Error(w, err.Error(), code)
+		httpError(w, err.Error(), code, &usage)
 		return
 	}
 
 	if code, err := s.handleTools(ctx, &createReq); err != nil {
-		http.Error(w, err.Error(), code)
+		httpError(w, err.Error(), code, &usage)
 		return
 	}
 
 	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, &createReq, req.Header)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -97,7 +104,7 @@ func (s *S) CreateChatCompletion(
 			s.logger.Error(err, "Failed to read the body")
 		}
 		s.logger.Info("Received an error response", "code", resp.StatusCode, "status", resp.Status, "body", string(body))
-		http.Error(w, string(body), resp.StatusCode)
+		httpError(w, string(body), resp.StatusCode, &usage)
 		return
 	}
 
@@ -112,7 +119,7 @@ func (s *S) CreateChatCompletion(
 	if !createReq.Stream {
 		// Non streaming response. Just copy the response body.
 		if _, err := io.Copy(w, resp.Body); err != nil {
-			http.Error(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}
 		return
@@ -122,7 +129,7 @@ func (s *S) CreateChatCompletion(
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "SSE not supported", http.StatusInternalServerError)
+		httpError(w, "SSE not supported", http.StatusInternalServerError, &usage)
 		return
 	}
 
@@ -130,14 +137,14 @@ func (s *S) CreateChatCompletion(
 	for scanner.Scan() {
 		b := scanner.Text()
 		if _, err := w.Write([]byte(b + sse.DoubleNewline)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
 		flusher.Flush()
 	}
 
 	if err := scanner.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 }
@@ -208,4 +215,21 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 		return http.StatusInternalServerError, fmt.Errorf("get model: %s", err)
 	}
 	return http.StatusOK, nil
+}
+
+func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageRecord {
+	return auv1.UsageRecord{
+		User:         ui.UserID,
+		Tenant:       ui.TenantID,
+		Organization: ui.OrganizationID,
+		Project:      ui.ProjectID,
+		ApiMethod:    fmt.Sprintf("/llmariner.chat.server.v1/%s", method),
+		StatusCode:   http.StatusOK,
+		Timestamp:    t.UnixNano(),
+	}
+}
+
+func httpError(w http.ResponseWriter, error string, code int, usage *auv1.UsageRecord) {
+	usage.StatusCode = int32(code)
+	http.Error(w, error, code)
 }

@@ -47,7 +47,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	usage := newUsageRecord(userInfo, st, "CreateEmbedding")
+	usage := newUsageRecord(userInfo, st, "CreateChatCompletion")
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)

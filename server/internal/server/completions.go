@@ -219,7 +219,7 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 
 func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageRecord {
 	return auv1.UsageRecord{
-		User:         ui.UserID,
+		User:         ui.InternalUserID,
 		Tenant:       ui.TenantID,
 		Organization: ui.OrganizationID,
 		Project:      ui.ProjectID,

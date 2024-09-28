@@ -119,8 +119,8 @@ github.com/llmariner/api-usage v0.7.0 h1:bhg9yjIShIlUd2co7DZ7K2K/yHjWfkN2yyO9PIA
 github.com/llmariner/api-usage v0.7.0/go.mod h1:jH3cIq0s3LeBP4H/s9XqXq/3MQX8Rr5XI4ot5bdxWBg=
 github.com/llmariner/common v0.9.0 h1:9Rfn7Ipyrb7gwqsZLyuCZEaNkTR45Mx/akjXKEnntW8=
 github.com/llmariner/common v0.9.0/go.mod h1:JqSFYrWWA9efZi7Z+LN3iQGaQHZdnvba+IzyZEXYNNY=
-github.com/llmariner/rbac-manager v0.101.0 h1:QacLmhEisGR53yNitJwtLTlS7RtpveV8sUHMR0sI5qM=
-github.com/llmariner/rbac-manager v0.101.0/go.mod h1:Iw3nEUVyccxAnyaIle8048xaYFaplPrGGi1q23HV2mI=
+github.com/llmariner/rbac-manager v0.105.0 h1:8hUCej/YP0F1h02FU+ONK8m8wljmF9hoAHqzu0bU8c4=
+github.com/llmariner/rbac-manager v0.105.0/go.mod h1:4tSqJIHqhVnUPqlR5rGasJuMSkFjsWaXI9RCmkWk31M=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=

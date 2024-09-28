@@ -15,7 +15,7 @@ require (
 	github.com/llm-operator/vector-store-manager v0.30.0
 	github.com/llmariner/api-usage v0.7.0
 	github.com/llmariner/common v0.9.0
-	github.com/llmariner/rbac-manager v0.101.0
+	github.com/llmariner/rbac-manager v0.105.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0

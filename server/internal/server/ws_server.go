@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
+	v1legacy "github.com/llm-operator/inference-manager/api/v1/legacy"
 	"github.com/llm-operator/inference-manager/server/internal/config"
 	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/common/pkg/certlib/store"
@@ -35,6 +36,17 @@ func NewWorkerServiceServer(infProcessor *infprocessor.P, logger logr.Logger) *W
 	}
 }
 
+type legacyService struct {
+	v1legacy.UnimplementedInferenceWorkerServiceServer
+
+	ws *WS
+}
+
+// ProcessTasks processes tasks.
+func (ls *legacyService) ProcessTasks(srv v1legacy.InferenceWorkerService_ProcessTasksServer) error {
+	return ls.ws.ProcessTasks(srv)
+}
+
 // WS is a server for worker services.
 type WS struct {
 	v1.UnimplementedInferenceWorkerServiceServer
@@ -45,6 +57,8 @@ type WS struct {
 	infProcessor *infprocessor.P
 
 	enableAuth bool
+
+	legacyService legacyService
 }
 
 // Run runs the worker service server.
@@ -93,6 +107,9 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 		return fmt.Errorf("serve: %w", err)
 	}
 
+	ws.legacyService.ws = ws
+	v1legacy.RegisterInferenceWorkerServiceServer(srv, &ws.legacyService)
+
 	ws.logger.Info("Stopped WS server")
 	return nil
 }
@@ -118,6 +135,16 @@ func (ws *WS) extractClusterInfoFromContext(ctx context.Context) (*auth.ClusterI
 
 // ProcessTasks processes tasks.
 func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) error {
+	return ws.processTasks(srv)
+}
+
+type serverInterface interface {
+	Context() context.Context
+	Send(*v1.ProcessTasksResponse) error
+	Recv() (*v1.ProcessTasksRequest, error)
+}
+
+func (ws *WS) processTasks(srv serverInterface) error {
 	clusterInfo, err := ws.extractClusterInfoFromContext(srv.Context())
 	if err != nil {
 		return err
@@ -151,7 +178,7 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 }
 
 func (ws *WS) processMessagesFromEngine(
-	srv v1.InferenceWorkerService_ProcessTasksServer,
+	srv serverInterface,
 	clusterInfo *auth.ClusterInfo,
 ) (string, error) {
 	req, err := srv.Recv()

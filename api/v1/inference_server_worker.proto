@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package llmoperator.inference.server.v1;
+package llmariner.inference.server.v1;
 
 import "api/v1/inference_server.proto";
 import "api/v1/inference_server_embeddings.proto";
@@ -52,8 +52,8 @@ message ProcessTasksRequest {
 
 message TaskRequest {
   oneof request {
-    llmoperator.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
-    llmoperator.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
+    llmariner.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
+    llmariner.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
   }
 }
 
@@ -64,7 +64,7 @@ message Task {
   map<string, HeaderValue> header = 3;
 
   // For backward compatibility for old engine.
-  llmoperator.chat.server.v1.CreateChatCompletionRequest deprecated_chat_completion_request = 2;
+  llmariner.chat.server.v1.CreateChatCompletionRequest deprecated_chat_completion_request = 2;
 
   // Next ID: 5
 }

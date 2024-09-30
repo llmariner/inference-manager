@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/models"

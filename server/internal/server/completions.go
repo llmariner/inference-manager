@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/sse"

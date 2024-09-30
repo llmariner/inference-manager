@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	models "github.com/llmariner/inference-manager/engine/internal/models"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"

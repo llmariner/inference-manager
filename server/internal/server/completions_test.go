@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"

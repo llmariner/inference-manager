@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/go-logr/stdr"
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"

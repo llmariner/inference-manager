@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 )
 

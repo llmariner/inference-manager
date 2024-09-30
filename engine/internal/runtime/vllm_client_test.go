@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"

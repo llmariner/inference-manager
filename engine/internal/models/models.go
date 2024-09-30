@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	mv1 "github.com/llm-operator/model-manager/api/v1"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 )
 

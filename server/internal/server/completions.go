@@ -11,9 +11,9 @@ import (
 	v1 "github.com/llm-operator/inference-manager/api/v1"
 	"github.com/llm-operator/inference-manager/common/pkg/sse"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
-	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
 	auv1 "github.com/llmariner/api-usage/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
+	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

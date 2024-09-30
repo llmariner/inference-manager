@@ -4,8 +4,8 @@
 * This file is a generated Typescript file for GRPC Gateway, DO NOT MODIFY
 */
 
-import * as LlmoperatorChatServerV1Inference_server from "./inference_server.pb"
-import * as LlmoperatorEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb"
+import * as LlmarinerChatServerV1Inference_server from "./inference_server.pb"
+import * as LlmarinerEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb"
 
 type Absent<T, K extends keyof T> = { [k in Exclude<keyof T, K>]?: undefined };
 type OneOf<T> =
@@ -62,13 +62,13 @@ type BaseTaskRequest = {
 }
 
 export type TaskRequest = BaseTaskRequest
-  & OneOf<{ chatCompletion: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmoperatorEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest }>
+  & OneOf<{ chatCompletion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest }>
 
 export type Task = {
   id?: string
   request?: TaskRequest
   header?: {[key: string]: HeaderValue}
-  deprecatedChatCompletionRequest?: LlmoperatorChatServerV1Inference_server.CreateChatCompletionRequest
+  deprecatedChatCompletionRequest?: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest
 }
 
 export type ProcessTasksResponse = {

@@ -1,5 +1,5 @@
 {
-  "name": "@llm-operator-types/inference-manager",
+  "name": "@llmariner-types/inference-manager",
   "version": "1.0.0",
   "description": "inference-manager",
   "main": "dist/index.js",
@@ -17,12 +17,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/llm-operator/inference-manager.git"
+    "url": "git+https://github.com/llmariner/inference-manager.git"
   },
-  "author": "llm-operator",
+  "author": "llmariner",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/llm-operator/inference-manager/issues"
+    "url": "https://github.com/llmariner/inference-manager/issues"
   },
-  "homepage": "https://github.com/llm-operator/inference-manager#readme"
+  "homepage": "https://github.com/llmariner/inference-manager#readme"
 }

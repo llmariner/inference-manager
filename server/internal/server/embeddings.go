@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	v1 "github.com/llm-operator/inference-manager/api/v1"
+	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 

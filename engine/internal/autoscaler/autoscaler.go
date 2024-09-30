@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/llm-operator/inference-manager/engine/internal/config"
-	"github.com/llm-operator/inference-manager/engine/internal/metrics"
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/types"

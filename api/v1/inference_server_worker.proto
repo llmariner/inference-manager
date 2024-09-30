@@ -5,7 +5,7 @@ package llmariner.inference.server.v1;
 import "api/v1/inference_server.proto";
 import "api/v1/inference_server_embeddings.proto";
 
-option go_package = "github.com/llm-operator/inference-manager/api/v1";
+option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 message EngineStatus {
   message SyncStatus {

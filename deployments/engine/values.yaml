@@ -138,7 +138,7 @@ logLevel: 0
 
 replicaCount: 1
 image:
-  repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-engine
+  repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-engine
   pullPolicy: IfNotPresent
 
 serviceAccount:

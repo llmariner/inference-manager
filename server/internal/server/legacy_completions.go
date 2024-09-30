@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/llm-operator/inference-manager/api/v1"
-	"github.com/llm-operator/inference-manager/common/pkg/sse"
+	v1 "github.com/llmariner/inference-manager/api/v1"
+	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 

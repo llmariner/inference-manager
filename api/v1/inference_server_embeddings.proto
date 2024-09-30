@@ -4,7 +4,7 @@ package llmariner.embeddings.server.v1;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/llm-operator/inference-manager/api/v1";
+option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 message CreateEmbeddingRequest {
    // This can be a string or an array of strings, but we use string assuming that it is more common.

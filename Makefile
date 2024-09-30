@@ -22,8 +22,8 @@ build-engine:
 
 .PHONY: build-docker-server
 build-docker-server:
-	docker build --build-arg TARGETARCH=amd64 -t llm-operator/inference-manager-server:latest -f build/server/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-server:latest -f build/server/Dockerfile .
 
 .PHONY: build-docker-engine
 build-docker-engine:
-	docker build --build-arg TARGETARCH=amd64 -t llm-operator/inference-manager-engine:latest -f build/engine/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-engine:latest -f build/engine/Dockerfile .

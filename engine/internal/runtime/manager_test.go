@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
+	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llm-operator/inference-manager/api/v1"
-	vsv1 "github.com/llm-operator/vector-store-manager/api/v1"
+	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"google.golang.org/grpc"
 )
 

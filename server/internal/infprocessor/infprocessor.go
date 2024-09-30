@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/llm-operator/common/pkg/id"
-	v1 "github.com/llm-operator/inference-manager/api/v1"
+	"github.com/llmariner/common/pkg/id"
+	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 

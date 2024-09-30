@@ -35,7 +35,7 @@ docker run \
   -v ./configs/engine:/config \
   -p 8080:8080 \
   -p 8081:8081 \
-  llm-operator/inference-manager-engine \
+  llmariner/inference-manager-engine \
   run \
   --config /config/config.yaml
 ```
@@ -58,7 +58,7 @@ docker run \
   -p 8080:8080 \
   -p 8081:8081 \
   -v ./models:/models \
-  llm-operator/inference-manager-engine \
+  llmariner/inference-manager-engine \
   run \
   --config /config/config.yaml
 ```

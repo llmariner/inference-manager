@@ -1,4 +1,4 @@
-module github.com/llm-operator/inference-manager
+module github.com/llmariner/inference-manager
 
 go 1.23.1
 
@@ -10,7 +10,6 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/stdr v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
-	github.com/llm-operator/common v0.3.0
 	github.com/llm-operator/model-manager v0.95.0
 	github.com/llmariner/api-usage v0.7.0
 	github.com/llmariner/common v0.9.0

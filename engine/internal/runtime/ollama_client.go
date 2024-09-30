@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/llm-operator/inference-manager/engine/internal/config"
-	models "github.com/llm-operator/inference-manager/engine/internal/models"
-	"github.com/llm-operator/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	models "github.com/llmariner/inference-manager/engine/internal/models"
+	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

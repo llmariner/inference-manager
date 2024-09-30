@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
+	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 )
 
 // NewHandler returns a new admin handler.

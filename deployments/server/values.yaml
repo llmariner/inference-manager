@@ -49,7 +49,7 @@ vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:
 
 replicaCount: 1
 image:
-  repository: public.ecr.aws/cloudnatix/llm-operator/inference-manager-server
+  repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-server
   pullPolicy: IfNotPresent
 
 podAnnotations:

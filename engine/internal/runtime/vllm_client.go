@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/llm-operator/inference-manager/engine/internal/config"
-	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

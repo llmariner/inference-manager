@@ -63,8 +63,8 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          public.ecr.aws/cloudnatix/llm-operator/inference-manager-engine:${{ needs.update-tag.outputs.new_version }}
-          public.ecr.aws/cloudnatix/llm-operator/inference-manager-engine:latest
+          public.ecr.aws/cloudnatix/llmariner/inference-manager-engine:${{ needs.update-tag.outputs.new_version }}
+          public.ecr.aws/cloudnatix/llmariner/inference-manager-engine:latest
     - name: Build, tag, and push server to Amazon ECR
       uses: docker/build-push-action@v5
       with:
@@ -72,8 +72,8 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          public.ecr.aws/cloudnatix/llm-operator/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
-          public.ecr.aws/cloudnatix/llm-operator/inference-manager-server:latest
+          public.ecr.aws/cloudnatix/llmariner/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
+          public.ecr.aws/cloudnatix/llmariner/inference-manager-server:latest
 
   publish-helm-chart:
     runs-on: ubuntu-latest
@@ -97,8 +97,8 @@ jobs:
     - name: build and push engine helm chart
       run: |
         helm package --version ${{ needs.update-tag.outputs.new_version }} ./deployments/engine
-        helm push inference-manager-engine-${{ needs.update-tag.outputs.new_version }}.tgz oci://public.ecr.aws/cloudnatix/llm-operator-charts
+        helm push inference-manager-engine-${{ needs.update-tag.outputs.new_version }}.tgz oci://public.ecr.aws/cloudnatix/llmariner-charts
     - name: build and push server helm chart
       run: |
         helm package --version ${{ needs.update-tag.outputs.new_version }} ./deployments/server
-        helm push inference-manager-server-${{ needs.update-tag.outputs.new_version }}.tgz oci://public.ecr.aws/cloudnatix/llm-operator-charts
+        helm push inference-manager-server-${{ needs.update-tag.outputs.new_version }}.tgz oci://public.ecr.aws/cloudnatix/llmariner-charts

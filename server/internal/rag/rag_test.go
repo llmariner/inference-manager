@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	v1 "github.com/llm-operator/inference-manager/api/v1"
-	testutil "github.com/llm-operator/inference-manager/common/pkg/test"
+	v1 "github.com/llmariner/inference-manager/api/v1"
+	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"

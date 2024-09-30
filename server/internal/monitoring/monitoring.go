@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/llm-operator/inference-manager/server/internal/infprocessor"
+	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

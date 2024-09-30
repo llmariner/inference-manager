@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/llm-operator/inference-manager/engine/internal/modeldownloader/huggingface"
 	mv1 "github.com/llm-operator/model-manager/api/v1"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/huggingface"
 )
 
 type s3Client interface {

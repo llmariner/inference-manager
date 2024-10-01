@@ -223,7 +223,7 @@ func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageReco
 		Tenant:       ui.TenantID,
 		Organization: ui.OrganizationID,
 		Project:      ui.ProjectID,
-		ApiMethod:    fmt.Sprintf("/llmariner.chat.server.v1/%s", method),
+		ApiMethod:    fmt.Sprintf("/llmariner.chat.server.v1.ChatService/%s", method),
 		StatusCode:   http.StatusOK,
 		Timestamp:    t.UnixNano(),
 	}

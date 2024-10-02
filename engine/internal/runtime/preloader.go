@@ -5,18 +5,22 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // NewPreloader creates a new Preloader.
-func NewPreloader(rtManager *Manager, ids []string) *Preloader {
+func NewPreloader(rtManager *Manager, ids []string, modelClient modelGetter) *Preloader {
 	return &Preloader{
 		rtManager:             rtManager,
 		ids:                   ids,
 		initialDelay:          3 * time.Second,
 		preloadingParallelism: 3,
+		modelClient:           modelClient,
 	}
 }
 
@@ -27,6 +31,8 @@ type Preloader struct {
 
 	initialDelay          time.Duration
 	preloadingParallelism int
+
+	modelClient modelGetter
 
 	logger logr.Logger
 }
@@ -48,13 +54,41 @@ func (p *Preloader) Start(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(p.preloadingParallelism)
 	for _, id := range p.ids {
-		g.Go(func() error { return p.rtManager.PullModel(ctx, id) })
+		g.Go(func() error { return p.pullModel(ctx, id) })
 	}
 	if err := g.Wait(); err != nil {
 		return err
 	}
 	p.logger.Info("Preloading finished")
 	return nil
+}
+
+func (p *Preloader) pullModel(ctx context.Context, id string) error {
+	// Wait for the model to be available. This is to avoid crash-looping at the initial LLMariner deployment as
+	// model loading might be in-progress.
+	//
+	// TODO(kenji): Somehow report an error when a specified model ID is never available (e.g., mistyped ID).
+	log := p.logger.WithValues("modelID", id)
+	for {
+		_, err := p.modelClient.GetModel(ctx, &mv1.GetModelRequest{Id: id})
+		if err == nil {
+			break
+		}
+		if status.Code(err) != codes.NotFound {
+			return err
+		}
+
+		log.Info("Model not found, retrying after sleep", "model", id)
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+
+	return p.rtManager.PullModel(ctx, id)
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable and always returns true.

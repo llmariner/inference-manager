@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/go-logr/stdr"
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
@@ -15,6 +14,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/llmariner/inference-manager/engine/internal/processor"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -106,22 +106,24 @@ func run(c *config.Config, ns string, lv int) error {
 		return err
 	}
 
+	processedConfig := config.NewProcessedModelConfig(c)
+	modelClient := mv1.NewModelsWorkerServiceClient(conn)
 	rtClientFactory := &clientFactory{
 		config: c,
 		ollamaClient: runtime.NewOllamaClient(
 			mgr.GetClient(),
 			ns,
 			&c.Runtime,
-			config.NewProcessedModelConfig(c),
+			processedConfig,
 			c.Ollama,
-			mv1.NewModelsWorkerServiceClient(conn),
+			modelClient,
 		),
 		vllmClient: runtime.NewVLLMClient(
 			mgr.GetClient(),
 			ns,
 			&c.Runtime,
-			config.NewProcessedModelConfig(c),
-			mv1.NewModelsWorkerServiceClient(conn),
+			processedConfig,
+			modelClient,
 		),
 	}
 
@@ -154,7 +156,7 @@ func run(c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(rtManager, config.NewProcessedModelConfig(c).PreloadedModelIDs())
+	preloader := runtime.NewPreloader(rtManager, processedConfig.PreloadedModelIDs(), modelClient)
 	if err := preloader.SetupWithManager(mgr); err != nil {
 		return err
 	}

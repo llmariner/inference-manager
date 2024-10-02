@@ -360,12 +360,16 @@ func (p *P) AddOrUpdateEngineStatus(
 	}
 	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
-	if engineStatus.Ready {
-		p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
-	} else {
-		p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
-		log.Info("Removed engine from the router", "reason", "engine not ready")
-	}
+	/*
+		   // TODO(kenji): Add this back once the engine is updated.
+		if engineStatus.Ready {
+			p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+		} else {
+			p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
+			log.Info("Removed engine from the router", "reason", "engine not ready")
+		}
+	*/
+	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
 
 // RemoveEngine removes the engine.

@@ -9,11 +9,11 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
+	"github.com/llmariner/common/pkg/certlib/store"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	v1legacy "github.com/llmariner/inference-manager/api/v1/legacy"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
-	"github.com/llmariner/common/pkg/certlib/store"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -99,6 +99,9 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 
 	ws.srv = srv
 
+	ws.legacyService.ws = ws
+	v1legacy.RegisterInferenceWorkerServiceServer(srv, &ws.legacyService)
+
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -106,9 +109,6 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 	if err := srv.Serve(l); err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}
-
-	ws.legacyService.ws = ws
-	v1legacy.RegisterInferenceWorkerServiceServer(srv, &ws.legacyService)
 
 	ws.logger.Info("Stopped WS server")
 	return nil

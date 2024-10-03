@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	models "github.com/llmariner/inference-manager/engine/internal/models"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -92,7 +92,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 
 	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check base model %q: %s", modelID, err)
 	}
 
 	var modelIDs []string
@@ -101,7 +101,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	} else {
 		baseModelID, err := models.ExtractBaseModel(modelID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("extract base model %q: %s", modelID, err)
 		}
 		modelIDs = append(modelIDs, baseModelID, modelID)
 	}

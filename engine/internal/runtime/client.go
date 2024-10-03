@@ -71,7 +71,7 @@ func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client
 	obj := &unstructured.Unstructured{Object: uobj}
 	opts := &client.PatchOptions{FieldManager: managerName, Force: ptr.To(true)}
 	if err := c.k8sClient.Patch(ctx, obj, client.Apply, opts); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to apply object: %s", err)
 	}
 	return obj, nil
 }

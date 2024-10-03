@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -54,10 +55,15 @@ func (p *Preloader) Start(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(p.preloadingParallelism)
 	for _, id := range p.ids {
-		g.Go(func() error { return p.pullModel(ctx, id) })
+		g.Go(func() error {
+			if err := p.pullModel(ctx, id); err != nil {
+				return fmt.Errorf("pull model %s: %s", id, err)
+			}
+			return nil
+		})
 	}
 	if err := g.Wait(); err != nil {
-		return err
+		return fmt.Errorf("preloading: %s", err)
 	}
 	p.logger.Info("Preloading finished")
 	return nil
@@ -75,7 +81,7 @@ func (p *Preloader) pullModel(ctx context.Context, id string) error {
 			break
 		}
 		if status.Code(err) != codes.NotFound {
-			return err
+			return fmt.Errorf("get model: %s", err)
 		}
 
 		log.Info("Model not found, retrying after sleep", "model", id)

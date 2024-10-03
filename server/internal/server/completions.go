@@ -1,11 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	auv1 "github.com/llmariner/api-usage/api/v1"
@@ -48,6 +50,12 @@ func (s *S) CreateChatCompletion(
 	}
 
 	usage := newUsageRecord(userInfo, st, "CreateChatCompletion")
+	details := &auv1.CreateChatCompletion{}
+	usage.Details = &auv1.UsageDetails{
+		Message: &auv1.UsageDetails_CreateChatCompletion{
+			CreateChatCompletion: details,
+		},
+	}
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
@@ -70,6 +78,7 @@ func (s *S) CreateChatCompletion(
 		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
+	details.ModelId = createReq.Model
 
 	// Increment the number of requests for the specified model.
 	s.metricsMonitor.UpdateCompletionRequest(createReq.Model, 1)
@@ -97,6 +106,8 @@ func (s *S) CreateChatCompletion(
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
+
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -118,7 +129,27 @@ func (s *S) CreateChatCompletion(
 
 	if !createReq.Stream {
 		// Non streaming response. Just copy the response body.
-		if _, err := io.Copy(w, resp.Body); err != nil {
+
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+			return
+		}
+
+		// Unmarshal the response to get usage details.
+		// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
+		// That one correctly handles the JSON field names of the snake case.
+		var c v1.ChatCompletion
+		if err := json.Unmarshal(respBody, &c); err != nil {
+			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+			return
+		}
+		if u := c.Usage; u != nil {
+			details.PromptTokens = u.PromptTokens
+			details.CompletionTokens = u.CompletionTokens
+		}
+
+		if _, err := io.Copy(w, bytes.NewBuffer(respBody)); err != nil {
 			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}
@@ -135,8 +166,26 @@ func (s *S) CreateChatCompletion(
 
 	scanner := sse.NewScanner(resp.Body)
 	for scanner.Scan() {
-		b := scanner.Text()
-		if _, err := w.Write([]byte(b + sse.DoubleNewline)); err != nil {
+		resp := scanner.Text()
+		if strings.HasPrefix(resp, "data: ") {
+			respD := resp[5:]
+			if respD != " [DONE]" {
+				// Unmarshal the response to get usage details.
+				// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
+				// That one correctly handles the JSON field names of the snake case.
+				var chunk v1.ChatCompletionChunk
+				if err := json.Unmarshal([]byte(respD), &chunk); err != nil {
+					httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+					return
+				}
+				if u := chunk.Usage; u != nil {
+					details.PromptTokens = u.PromptTokens
+					details.CompletionTokens = u.CompletionTokens
+				}
+			}
+		}
+
+		if _, err := w.Write([]byte(resp + sse.DoubleNewline)); err != nil {
 			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 			return
 		}
@@ -219,7 +268,7 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 
 func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageRecord {
 	return auv1.UsageRecord{
-		User:         ui.InternalUserID,
+		UserId:       ui.InternalUserID,
 		Tenant:       ui.TenantID,
 		Organization: ui.OrganizationID,
 		Project:      ui.ProjectID,

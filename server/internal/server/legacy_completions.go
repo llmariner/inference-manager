@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/rbac-manager/pkg/auth"
@@ -38,6 +39,12 @@ func (s *S) CreateCompletion(
 	}
 
 	usage := newUsageRecord(userInfo, st, "CreateCompletion")
+	details := &auv1.CreateCompletion{}
+	usage.Details = &auv1.UsageDetails{
+		Message: &auv1.UsageDetails_CreateCompletion{
+			CreateCompletion: details,
+		},
+	}
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
@@ -60,6 +67,7 @@ func (s *S) CreateCompletion(
 		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
+	details.ModelId = createReq.Model
 
 	// Increment the number of requests for the specified model.
 	s.metricsMonitor.UpdateCompletionRequest(createReq.Model, 1)
@@ -81,6 +89,8 @@ func (s *S) CreateCompletion(
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
@@ -118,6 +128,12 @@ func (s *S) CreateCompletion(
 			return
 		}
 		c := toCompletion(&cc)
+
+		if u := c.Usage; u != nil {
+			details.PromptTokens = u.PromptTokens
+			details.CompletionTokens = u.CompletionTokens
+		}
+
 		b, err := json.Marshal(&c)
 		if err != nil {
 			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
@@ -167,6 +183,12 @@ func (s *S) CreateCompletion(
 		}
 
 		c := toCompletionChunk(&chunk)
+
+		if u := c.Usage; u != nil {
+			details.PromptTokens = u.PromptTokens
+			details.CompletionTokens = u.CompletionTokens
+		}
+
 		bs, err := json.Marshal(&c)
 		if err != nil {
 			httpError(w, err.Error(), http.StatusInternalServerError, &usage)

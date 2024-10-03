@@ -10,10 +10,10 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/stdr v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
-	github.com/llmariner/api-usage v0.7.0
+	github.com/llmariner/api-usage v0.12.0
 	github.com/llmariner/common v0.9.0
 	github.com/llmariner/model-manager v0.112.0
-	github.com/llmariner/rbac-manager v0.105.0
+	github.com/llmariner/rbac-manager v0.106.0
 	github.com/llmariner/vector-store-manager v0.50.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cobra v1.8.1

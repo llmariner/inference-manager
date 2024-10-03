@@ -167,7 +167,10 @@ func (s *S) CreateChatCompletion(
 	scanner := sse.NewScanner(resp.Body)
 	for scanner.Scan() {
 		resp := scanner.Text()
-		if strings.HasPrefix(resp, "data: ") {
+		if so := createReq.StreamOptions; so != nil && so.IncludeUsage && strings.HasPrefix(resp, "data: ") {
+			// Extract the usage information.
+			// This works only with vLLM (https://github.com/vllm-project/vllm/pull/5135) as of Oct 3, 2024.
+			// Ollama supports need https://github.com/ollama/ollama/issues/5200.
 			respD := resp[5:]
 			if respD != " [DONE]" {
 				// Unmarshal the response to get usage details.

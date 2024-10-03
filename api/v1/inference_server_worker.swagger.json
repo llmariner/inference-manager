@@ -50,6 +50,14 @@
         }
       }
     },
+    "CreateChatCompletionRequestStreamOptions": {
+      "type": "object",
+      "properties": {
+        "includeUsage": {
+          "type": "boolean"
+        }
+      }
+    },
     "CreateChatCompletionRequestTool": {
       "type": "object",
       "properties": {
@@ -197,6 +205,9 @@
         },
         "stream": {
           "type": "boolean"
+        },
+        "streamOptions": {
+          "$ref": "#/definitions/CreateChatCompletionRequestStreamOptions"
         },
         "temperature": {
           "type": "number",

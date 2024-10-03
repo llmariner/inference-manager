@@ -59,13 +59,17 @@ func (u *Updater) Start(ctx context.Context) error {
 	// TODO: support runtime(ollama, vllm) changes
 	for _, sts := range stsList.Items {
 		modelID := sts.GetAnnotations()[modelAnnotationKey]
+		if modelID == "" {
+			u.logger.Error(nil, "No model ID found", "sts", sts.Name)
+			continue
+		}
 		client, err := u.rtClientFactory.New(modelID)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create runtime client: %s", err)
 		}
 		_, err = client.DeployRuntime(ctx, modelID, true)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to update runtime: %s", err)
 		}
 		u.logger.V(1).Info("Updated runtime", "model", modelID)
 	}

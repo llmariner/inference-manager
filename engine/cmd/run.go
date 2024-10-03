@@ -167,7 +167,11 @@ func run(c *config.Config, ns string, lv int) error {
 	}
 
 	bootLog.Info("Starting manager")
-	return mgr.Start(signals.SetupSignalHandler())
+	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+		logger.Error(err, "Manager exited non-zero")
+		return err
+	}
+	return nil
 }
 
 type noopScaler struct{}

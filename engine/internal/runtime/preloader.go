@@ -90,7 +90,6 @@ func (p *Preloader) pullModel(ctx context.Context, id string) error {
 		case <-timer.C:
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
 		}
 	}
 

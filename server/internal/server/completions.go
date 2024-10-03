@@ -80,6 +80,13 @@ func (s *S) CreateChatCompletion(
 	}
 	details.ModelId = createReq.Model
 
+	// Include the usage by default. This is a temporary solution as continue.ev does not provide a way to the stream options.
+	if createReq.StreamOptions == nil {
+		createReq.StreamOptions = &v1.CreateChatCompletionRequest_StreamOptions{
+			IncludeUsage: true,
+		}
+	}
+
 	// Increment the number of requests for the specified model.
 	s.metricsMonitor.UpdateCompletionRequest(createReq.Model, 1)
 	defer func() {

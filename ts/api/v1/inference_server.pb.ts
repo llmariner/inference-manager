@@ -46,6 +46,10 @@ export type CreateChatCompletionRequestToolChoice = {
   function?: CreateChatCompletionRequestToolChoiceFunction
 }
 
+export type CreateChatCompletionRequestStreamOptions = {
+  includeUsage?: boolean
+}
+
 export type CreateChatCompletionRequest = {
   messages?: CreateChatCompletionRequestMessage[]
   model?: string
@@ -60,6 +64,7 @@ export type CreateChatCompletionRequest = {
   seed?: number
   stop?: string[]
   stream?: boolean
+  streamOptions?: CreateChatCompletionRequestStreamOptions
   temperature?: number
   topP?: number
   tools?: CreateChatCompletionRequestTool[]

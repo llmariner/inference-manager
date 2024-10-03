@@ -54,6 +54,10 @@ message CreateChatCompletionRequest {
     Function function = 3;
   }
 
+  message StreamOptions {
+    bool include_usage = 1;
+  }
+
   // TODO(kenji): Revisit this.
   repeated Message messages = 1;
   string model = 2;
@@ -69,11 +73,14 @@ message CreateChatCompletionRequest {
   // string / arrary/ null
   repeated string stop = 12;
   bool stream = 13;
+  StreamOptions stream_options = 19;
   double temperature = 14;
   double top_p = 15;
   repeated Tool tools = 16;
   ToolChoice tool_choice = 17;
   string user = 18;
+
+  // Next ID: 20
 }
 
 message ToolCall {

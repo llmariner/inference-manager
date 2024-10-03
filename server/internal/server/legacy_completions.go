@@ -184,6 +184,9 @@ func (s *S) CreateCompletion(
 
 		c := toCompletionChunk(&chunk)
 
+		// Extract the usage information.n
+		// This works only with vLLM (https://github.com/vllm-project/vllm/pull/5135) as of Oct 3, 2024.
+		// Ollama supports need https://github.com/ollama/ollama/issues/5200.
 		if u := c.Usage; u != nil {
 			details.PromptTokens = u.PromptTokens
 			details.CompletionTokens = u.CompletionTokens
@@ -229,7 +232,11 @@ func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateCh
 		Seed:   req.Seed,
 		Stop:   req.Stop,
 		Stream: req.Stream,
-		// No StreamOptions and Suffix in the non-legacy request.
+		// Always include the usage in the streaming repsonse.
+		StreamOptions: &v1.CreateChatCompletionRequest_StreamOptions{
+			IncludeUsage: true,
+		},
+		// No Suffix in the non-legacy request.
 		Temperature: req.Temperature,
 		TopP:        req.TopP,
 		// No Tools and ToolChoice in the legacy request.

@@ -115,8 +115,8 @@ github.com/llmariner/common v0.9.0 h1:9Rfn7Ipyrb7gwqsZLyuCZEaNkTR45Mx/akjXKEnntW
 github.com/llmariner/common v0.9.0/go.mod h1:JqSFYrWWA9efZi7Z+LN3iQGaQHZdnvba+IzyZEXYNNY=
 github.com/llmariner/model-manager v0.112.0 h1:ESr+PbWplOz8s0+eZbYcpN8QO7DPxP3r0vr2QTQ2h3A=
 github.com/llmariner/model-manager v0.112.0/go.mod h1:pXk+bnymyb9842B4xURE/20QpzJGeDPJlXGUuWu0ozA=
-github.com/llmariner/rbac-manager v0.112.0 h1:cgPxefTA3pyMBXzrU9wn6hTO5Y0IZeRvff9TcMdqgVY=
-github.com/llmariner/rbac-manager v0.112.0/go.mod h1:+bAR4omJ0J5vP9JI16rdvsE7l4XWFVKBzom5SuzthYw=
+github.com/llmariner/rbac-manager v0.113.0 h1:ow8tKjkH09Qfi1Cw3xPNatQ7OBjICih4ztV4xHyxt4A=
+github.com/llmariner/rbac-manager v0.113.0/go.mod h1:+bAR4omJ0J5vP9JI16rdvsE7l4XWFVKBzom5SuzthYw=
 github.com/llmariner/vector-store-manager v0.50.0 h1:0OVspFjaC6p8pCRWFy9AfZkt2IcHkELPDFncuZ1vn3M=
 github.com/llmariner/vector-store-manager v0.50.0/go.mod h1:bufjxCl0EdLMqrtLdwWW8ZstJW7zpr3mvFtXIyU+9Aw=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=

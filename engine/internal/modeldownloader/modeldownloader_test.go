@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,17 +22,12 @@ func TestDownload(t *testing.T) {
 	ctx := context.Background()
 	s3Client := &fakeS3Client{}
 	d := New(modelDir, s3Client)
-	resp := &mv1.GetBaseModelPathResponse{
-		Formats: []mv1.ModelFormat{
-			mv1.ModelFormat_MODEL_FORMAT_GGUF,
-		},
-	}
-	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF)
+	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 
 	// Run again.
-	err = d.Download(ctx, "model0", resp, mv1.ModelFormat_MODEL_FORMAT_GGUF)
+	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 }
@@ -42,5 +38,12 @@ type fakeS3Client struct {
 
 func (c *fakeS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
 	c.numDownload++
+	return nil
+}
+
+func (c *fakeS3Client) ListObjectsPages(
+	ctx context.Context,
+	prefix string,
+	f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error {
 	return nil
 }

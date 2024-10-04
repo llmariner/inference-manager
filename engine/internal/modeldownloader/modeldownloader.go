@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 
-	mv1 "github.com/llmariner/model-manager/api/v1"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/huggingface"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
 type s3Client interface {
 	Download(ctx context.Context, f io.WriterAt, path string) error
+	ListObjectsPages(ctx context.Context, prefix string, f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error
 }
 
 // New returns a new Manager.
@@ -35,22 +37,12 @@ type D struct {
 func (d *D) Download(
 	ctx context.Context,
 	modelID string,
-	resp *mv1.GetBaseModelPathResponse,
+	srcPath string,
 	format mv1.ModelFormat,
 ) error {
 	destPath, err := ModelFilePath(d.modelDir, modelID, format)
 	if err != nil {
 		return err
-	}
-
-	var srcPath string
-	switch format {
-	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
-		srcPath = resp.GgufModelPath
-	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
-		srcPath = resp.Path
-	default:
-		return fmt.Errorf("unsupported model format: %s", format)
 	}
 	return d.download(ctx, modelID, format, srcPath, destPath)
 }
@@ -83,7 +75,7 @@ func (d *D) download(
 	completionIndicationFile := filepath.Join(completionDir, "completed.txt")
 
 	if _, err := os.Stat(completionIndicationFile); err == nil {
-		log.Printf("The model has already been downloaded. Skipping the download.\n")
+		log.Printf("The model %s has already been downloaded at %s. Skipping the download.\n", modelID, completionDir)
 		return nil
 	}
 

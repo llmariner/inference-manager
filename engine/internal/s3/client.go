@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/llmariner/inference-manager/engine/internal/config"
 	laws "github.com/llmariner/common/pkg/aws"
+	"github.com/llmariner/inference-manager/engine/internal/config"
 )
 
 // NewClient returns a new S3 client.
@@ -53,6 +53,30 @@ func (c *Client) Download(ctx context.Context, w io.WriterAt, key string) error 
 	})
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// ListObjectsPages returns S3 objects with pagination.
+func (c *Client) ListObjectsPages(
+	ctx context.Context,
+	prefix string,
+	f func(page *s3.ListObjectsV2Output, lastPage bool) bool,
+) error {
+	p := s3.NewListObjectsV2Paginator(
+		c.svc,
+		&s3.ListObjectsV2Input{
+			Bucket: aws.String(c.bucket),
+			Prefix: aws.String(prefix),
+		},
+		func(o *s3.ListObjectsV2PaginatorOptions) {},
+	)
+	for p.HasMorePages() {
+		page, err := p.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+		f(page, !p.HasMorePages())
 	}
 	return nil
 }

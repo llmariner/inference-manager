@@ -12,7 +12,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
 	github.com/llmariner/api-usage v0.14.0
 	github.com/llmariner/common v0.9.0
-	github.com/llmariner/model-manager v0.112.0
+	github.com/llmariner/model-manager v0.119.0
 	github.com/llmariner/rbac-manager v0.113.0
 	github.com/llmariner/vector-store-manager v0.50.0
 	github.com/prometheus/client_golang v1.19.1

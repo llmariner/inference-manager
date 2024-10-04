@@ -10,27 +10,53 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDownloadModelFiles(t *testing.T) {
+	fs1 := []string{
+		"/src/model.safetensors.index.json",
+		"/src/config.json",
+		"/src/generation_config.json",
+		"/src/special_tokens_map.json",
+		"/src/tokenizer.json",
+		"/src/tokenizer_config.json",
+		"/src/model.safetensors",
+	}
+	fs2 := []string{
+		"/src/model.safetensors.index.json",
+		"/src/config.json",
+		"/src/generation_config.json",
+		"/src/special_tokens_map.json",
+		"/src/tokenizer.json",
+		"/src/tokenizer_config.json",
+		"/src/model-00001-of-00002.safetensors",
+		"/src/model-00002-of-00002.safetensors",
+	}
+	fs3 := []string{
+		"/src/adapter_config.json",
+		"/src/generation_config.json",
+		"/src/special_tokens_map.json",
+		"/src/tokenizer.json",
+		"/src/tokenizer_config.json",
+		"/src/model-00001-of-00002.safetensors",
+		"/src/model-00002-of-00002.safetensors",
+	}
+
 	tcs := []struct {
 		name            string
 		s3Client        *fakeS3Client
 		downloadedFiles []string
 	}{
 		{
-			name:     "no safe tensors index",
-			s3Client: &fakeS3Client{},
-			downloadedFiles: []string{
-				"/src/model.safetensors.index.json",
-				"/src/config.json",
-				"/src/generation_config.json",
-				"/src/special_tokens_map.json",
-				"/src/tokenizer.json",
-				"/src/tokenizer_config.json",
-				"/src/model.safetensors",
+			name: "no safe tensors index",
+			s3Client: &fakeS3Client{
+				objs: fs1,
 			},
+			downloadedFiles: fs1,
 		},
 		{
 			name: "safe tensors index",
@@ -42,17 +68,16 @@ func TestDownloadModelFiles(t *testing.T) {
 						"model.norm.weight":                       "model-00002-of-00002.safetensors",
 					},
 				},
+				objs: fs2,
 			},
-			downloadedFiles: []string{
-				"/src/model.safetensors.index.json",
-				"/src/config.json",
-				"/src/generation_config.json",
-				"/src/special_tokens_map.json",
-				"/src/tokenizer.json",
-				"/src/tokenizer_config.json",
-				"/src/model-00001-of-00002.safetensors",
-				"/src/model-00002-of-00002.safetensors",
+			downloadedFiles: fs2,
+		},
+		{
+			name: "all files",
+			s3Client: &fakeS3Client{
+				objs: fs3,
 			},
+			downloadedFiles: fs3,
 		},
 	}
 
@@ -76,6 +101,7 @@ type fakeS3Client struct {
 	safetensorsIndex *safetensorsIndex
 
 	downloadedFiles []string
+	objs            []string
 }
 
 func (c *fakeS3Client) Download(ctx context.Context, f io.WriterAt, path string) error {
@@ -96,4 +122,16 @@ func (c *fakeS3Client) Download(ctx context.Context, f io.WriterAt, path string)
 	_, err = f.WriteAt(b, 0)
 	return err
 
+}
+
+func (c *fakeS3Client) ListObjectsPages(
+	ctx context.Context,
+	prefix string,
+	f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error {
+	var objs []types.Object
+	for _, key := range c.objs {
+		objs = append(objs, types.Object{Key: aws.String(key)})
+	}
+	f(&s3.ListObjectsV2Output{Contents: objs}, true)
+	return nil
 }

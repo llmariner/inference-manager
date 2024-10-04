@@ -9,8 +9,9 @@ import (
 
 // PreferredModelFormat returns the preferred model format.
 func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (mv1.ModelFormat, error) {
+	// TODO(guangrui): revisit.
 	if len(supportedFormats) == 0 {
-		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("no formats")
+		return mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE, nil
 	}
 
 	switch runtime {

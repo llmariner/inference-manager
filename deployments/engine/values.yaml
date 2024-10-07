@@ -29,6 +29,10 @@ runtime:
   runtimeImages:
     ollama: mirror.gcr.io/ollama/ollama:0.3.6
     vllm: mirror.gcr.io/vllm/vllm-openai:v0.6.0
+    # Release 2.50.0 (https://github.com/triton-inference-server/server/releases/tag/v2.50.0).
+    # We might need to recompile models when we upgrade the version of Triton Inference Server
+    # and TensortRT-LLM.
+    triton: nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
   imagePullPolicy: IfNotPresent
   modelResources:
     # sample-model:
@@ -140,6 +144,9 @@ replicaCount: 1
 image:
   repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-engine
   pullPolicy: IfNotPresent
+
+tritonProxyImage:
+  repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-triton-proxy
 
 serviceAccount:
   # Set this to false if an existing service account is used.

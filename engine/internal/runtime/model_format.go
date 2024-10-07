@@ -32,6 +32,12 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 			preferredFormat = f
 		}
 		return preferredFormat, nil
+	case config.RuntimeNameTriton:
+		// Only support the Triton model format.
+		if !isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON) {
+			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("Nvidia Triton format is not included in the supported formats")
+		}
+		return mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON, nil
 	default:
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("unknown runtime: %s", runtime)
 	}

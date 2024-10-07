@@ -126,6 +126,12 @@ func run(c *config.Config, ns string, lv int) error {
 				processedConfig,
 				modelClient,
 			),
+			config.RuntimeNameTriton: runtime.NewTritonClient(
+				mgr.GetClient(),
+				ns,
+				&c.Runtime,
+				processedConfig,
+			),
 		},
 	}
 

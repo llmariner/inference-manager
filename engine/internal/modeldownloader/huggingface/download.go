@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
 const siFilename = "model.safetensors.index.json"
@@ -22,22 +23,17 @@ type s3Client interface {
 }
 
 // DownloadModelFiles downloads model files from S3.
-func DownloadModelFiles(ctx context.Context, s3Client s3Client, srcS3Path string, destDir string) error {
-	keys, err := listFiles(ctx, s3Client, srcS3Path)
-	if err != nil {
-		return fmt.Errorf("list files: %s", err)
-	}
-
-	// if "model.safetensors.index.json" and "model.safetensors" do not exists, download all files.
-	found := false
-	for _, key := range keys {
-		if filepath.Base(key) == siFilename || filepath.Base(key) == "model.safetensors" {
-			found = true
-			break
+func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.AdapterType, srcS3Path string, destDir string) error {
+	if adapterType != mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED {
+		// Download all files for adapters.
+		keys, err := listFiles(ctx, s3Client, srcS3Path)
+		if err != nil {
+			return err
 		}
-	}
-	if len(keys) > 0 && !found {
-		return downloadAllModelFiles(ctx, s3Client, keys, destDir)
+		if err := downloadAllModelFiles(ctx, s3Client, keys, destDir); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// Check if "model.safetensors.index.json" exists.

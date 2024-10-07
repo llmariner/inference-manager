@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,6 +50,7 @@ func TestDownloadModelFiles(t *testing.T) {
 	tcs := []struct {
 		name            string
 		s3Client        *fakeS3Client
+		adapterType     mv1.AdapterType
 		downloadedFiles []string
 	}{
 		{
@@ -56,6 +58,7 @@ func TestDownloadModelFiles(t *testing.T) {
 			s3Client: &fakeS3Client{
 				objs: fs1,
 			},
+			adapterType:     mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED,
 			downloadedFiles: fs1,
 		},
 		{
@@ -70,6 +73,7 @@ func TestDownloadModelFiles(t *testing.T) {
 				},
 				objs: fs2,
 			},
+			adapterType:     mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED,
 			downloadedFiles: fs2,
 		},
 		{
@@ -77,6 +81,7 @@ func TestDownloadModelFiles(t *testing.T) {
 			s3Client: &fakeS3Client{
 				objs: fs3,
 			},
+			adapterType:     mv1.AdapterType_ADAPTER_TYPE_LORA,
 			downloadedFiles: fs3,
 		},
 	}
@@ -90,7 +95,7 @@ func TestDownloadModelFiles(t *testing.T) {
 				_ = os.RemoveAll(dir)
 			}()
 
-			err = DownloadModelFiles(context.Background(), tc.s3Client, "/src", dir)
+			err = DownloadModelFiles(context.Background(), tc.s3Client, tc.adapterType, "/src", dir)
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tc.s3Client.downloadedFiles, tc.downloadedFiles)
 		})

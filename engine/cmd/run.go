@@ -110,21 +110,23 @@ func run(c *config.Config, ns string, lv int) error {
 	modelClient := mv1.NewModelsWorkerServiceClient(conn)
 	rtClientFactory := &clientFactory{
 		config: c,
-		ollamaClient: runtime.NewOllamaClient(
-			mgr.GetClient(),
-			ns,
-			&c.Runtime,
-			processedConfig,
-			c.Ollama,
-			modelClient,
-		),
-		vllmClient: runtime.NewVLLMClient(
-			mgr.GetClient(),
-			ns,
-			&c.Runtime,
-			processedConfig,
-			modelClient,
-		),
+		clients: map[string]runtime.Client{
+			config.RuntimeNameOllama: runtime.NewOllamaClient(
+				mgr.GetClient(),
+				ns,
+				&c.Runtime,
+				processedConfig,
+				c.Ollama,
+				modelClient,
+			),
+			config.RuntimeNameVLLM: runtime.NewVLLMClient(
+				mgr.GetClient(),
+				ns,
+				&c.Runtime,
+				processedConfig,
+				modelClient,
+			),
+		},
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
@@ -183,20 +185,18 @@ func (n *noopScaler) Unregister(target types.NamespacedName) {
 }
 
 type clientFactory struct {
-	config       *config.Config
-	ollamaClient runtime.Client
-	vllmClient   runtime.Client
+	config  *config.Config
+	clients map[string]runtime.Client
 }
 
 func (f *clientFactory) New(modelID string) (runtime.Client, error) {
 	mci := config.NewProcessedModelConfig(f.config).ModelConfigItem(modelID)
-	switch mci.RuntimeName {
-	case config.RuntimeNameOllama:
-		return f.ollamaClient, nil
-	case config.RuntimeNameVLLM:
-		return f.vllmClient, nil
+	c, ok := f.clients[mci.RuntimeName]
+	if !ok {
+		return nil, fmt.Errorf("unknown runtime name: %q", mci.RuntimeName)
 	}
-	return nil, fmt.Errorf("unknown runtime name: %q", mci.RuntimeName)
+	return c, nil
+
 }
 
 func grpcOption(c *config.Config) grpc.DialOption {

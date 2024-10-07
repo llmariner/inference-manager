@@ -108,6 +108,10 @@ func (c *RuntimeConfig) validate() error {
 		return fmt.Errorf("runtimeImagePullPolicy: %s", err)
 	}
 
+	if n := c.Name; n != "" && !isValidRuntimeName(n) {
+		return fmt.Errorf("invalid name: %q", n)
+	}
+
 	if c.ConfigMapName == "" {
 		return fmt.Errorf("configMapName must be set")
 	}
@@ -178,6 +182,10 @@ type ModelConfigItem struct {
 }
 
 func (c *ModelConfigItem) validate() error {
+	if n := c.RuntimeName; n != "" && !isValidRuntimeName(n) {
+		return fmt.Errorf("invalid runtimeName: %q", n)
+	}
+
 	if c.Replicas < 0 {
 		return fmt.Errorf("replicas must be non-negative")
 	}
@@ -185,6 +193,14 @@ func (c *ModelConfigItem) validate() error {
 		return fmt.Errorf("contextLength must be non-negative")
 	}
 	return nil
+}
+
+func isValidRuntimeName(name string) bool {
+	switch name {
+	case RuntimeNameOllama, RuntimeNameVLLM:
+		return true
+	}
+	return false
 }
 
 // Resources is the resources configuration.

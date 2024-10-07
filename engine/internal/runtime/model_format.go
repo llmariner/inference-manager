@@ -3,8 +3,8 @@ package runtime
 import (
 	"fmt"
 
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
 // PreferredModelFormat returns the preferred model format.
@@ -17,15 +17,8 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 	switch runtime {
 	case config.RuntimeNameOllama:
 		// Only support GGUF.
-		hasGGUF := false
-		for _, f := range supportedFormats {
-			if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
-				hasGGUF = true
-				break
-			}
-		}
-		if !hasGGUF {
-			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("GGUF format is not supported")
+		if !isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_GGUF) {
+			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("GGUF format is not included in the supported formats")
 		}
 		return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
 	case config.RuntimeNameVLLM:
@@ -42,4 +35,13 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 	default:
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("unknown runtime: %s", runtime)
 	}
+}
+
+func isSupportedFormat(formats []mv1.ModelFormat, format mv1.ModelFormat) bool {
+	for _, f := range formats {
+		if f == mv1.ModelFormat_MODEL_FORMAT_GGUF {
+			return true
+		}
+	}
+	return false
 }

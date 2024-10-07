@@ -81,10 +81,14 @@ func pull(ctx context.Context, o opts, c *config.Config) error {
 		return pullBaseModel(ctx, o, c, mClient, s3Client)
 	}
 
-	if o.runtime == config.RuntimeNameVLLM {
+	switch o.runtime {
+	case config.RuntimeNameOllama:
+		return pullFineTunedModelForOllama(ctx, o, c, mClient, s3Client)
+	case config.RuntimeNameVLLM:
 		return pullFineTunedModelForVLLM(ctx, o, c, mClient, s3Client)
+	default:
+		return fmt.Errorf("unsupported runtime: %s", o.runtime)
 	}
-	return pullFineTunedModelForOllama(ctx, o, c, mClient, s3Client)
 }
 
 func pullBaseModel(
@@ -122,23 +126,27 @@ func pullBaseModel(
 		return err
 	}
 
-	if o.runtime == config.RuntimeNameOllama {
-		filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
-		log.Printf("Creating an Ollama modelfile at %q\n", filePath)
-		modelPath, err := modeldownloader.ModelFilePath(runtime.ModelDir(), o.modelID, format)
-		if err != nil {
-			return err
-		}
-		spec := &ollama.ModelSpec{
-			From: modelPath,
-		}
-
-		mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
-		if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
-			return err
-		}
-		log.Printf("Successfully created the Ollama modelfile\n")
+	if o.runtime != config.RuntimeNameOllama {
+		return nil
 	}
+
+	// Create a modelfile for Ollama.
+
+	filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
+	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
+	modelPath, err := modeldownloader.ModelFilePath(runtime.ModelDir(), o.modelID, format)
+	if err != nil {
+		return err
+	}
+	spec := &ollama.ModelSpec{
+		From: modelPath,
+	}
+
+	mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
+	if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
+		return err
+	}
+	log.Printf("Successfully created the Ollama modelfile\n")
 
 	return nil
 }

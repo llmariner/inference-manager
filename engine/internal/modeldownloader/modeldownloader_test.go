@@ -22,12 +22,12 @@ func TestDownload(t *testing.T) {
 	ctx := context.Background()
 	s3Client := &fakeS3Client{}
 	d := New(modelDir, s3Client)
-	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF)
+	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 
 	// Run again.
-	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF)
+	err = d.Download(ctx, "model0", "", mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, s3Client.numDownload)
 }

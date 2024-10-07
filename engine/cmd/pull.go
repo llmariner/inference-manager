@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log"
 
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/models"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/llmariner/inference-manager/engine/internal/s3"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -118,8 +118,7 @@ func pullBaseModel(
 		return fmt.Errorf("unsupported format: %v", format)
 	}
 
-
-	if err := d.Download(ctx, o.modelID, srcPath, format); err != nil {
+	if err := d.Download(ctx, o.modelID, srcPath, format, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED); err != nil {
 		return err
 	}
 
@@ -169,7 +168,7 @@ func pullFineTunedModelForOllama(
 		return err
 	}
 
-	if err := d.DownloadAdapter(ctx, o.modelID, mresp); err != nil {
+	if err := d.DownloadAdapterOfGGUF(ctx, o.modelID, mresp); err != nil {
 		return err
 	}
 
@@ -228,7 +227,7 @@ func pullFineTunedModelForVLLM(
 
 	d := modeldownloader.New(runtime.ModelDir(), s3Client)
 
-	if err := d.Download(ctx, o.modelID, attr.Path, format); err != nil {
+	if err := d.Download(ctx, o.modelID, attr.Path, format, attr.Adapter); err != nil {
 		return err
 	}
 	log.Printf("Successfully pulled the fine-tuning adapter\n")

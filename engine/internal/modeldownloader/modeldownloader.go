@@ -39,16 +39,17 @@ func (d *D) Download(
 	modelID string,
 	srcPath string,
 	format mv1.ModelFormat,
+	adapterType mv1.AdapterType,
 ) error {
 	destPath, err := ModelFilePath(d.modelDir, modelID, format)
 	if err != nil {
 		return err
 	}
-	return d.download(ctx, modelID, format, srcPath, destPath)
+	return d.download(ctx, modelID, format, adapterType, srcPath, destPath)
 }
 
-// DownloadAdapter downloads the adapter.
-func (d *D) DownloadAdapter(
+// DownloadAdapterOfGGUF downloads the adapter.
+func (d *D) DownloadAdapterOfGGUF(
 	ctx context.Context,
 	modelID string,
 	resp *mv1.GetModelPathResponse,
@@ -57,13 +58,16 @@ func (d *D) DownloadAdapter(
 	if err != nil {
 		return err
 	}
-	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, resp.Path, destPath)
+
+	// TODO(kenji): Revisit the adapater type. Currently this is no-op as we don't use the HuggingFace downloader.
+	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_QLORA, resp.Path, destPath)
 }
 
 func (d *D) download(
 	ctx context.Context,
 	modelID string,
 	format mv1.ModelFormat,
+	adapter mv1.AdapterType,
 	srcPath string,
 	destPath string,
 ) error {
@@ -98,7 +102,7 @@ func (d *D) download(
 		if err := os.MkdirAll(destPath, 0755); err != nil {
 			return fmt.Errorf("create directory: %s", err)
 		}
-		if err := huggingface.DownloadModelFiles(ctx, d.s3Client, srcPath, destPath); err != nil {
+		if err := huggingface.DownloadModelFiles(ctx, d.s3Client, adapter, srcPath, destPath); err != nil {
 			return fmt.Errorf("download: %s", err)
 		}
 		log.Printf("Downloaded the model to %q\n", destPath)

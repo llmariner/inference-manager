@@ -42,7 +42,8 @@ type tritonClient struct {
 
 // DeployRuntime deploys the runtime for the given model.
 func (c *tritonClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
-	log.Printf("Deploying Triton runtime for model %s\n", modelID)
+    log := ctrl.LoggerFrom(ctx)
+	log.Info("Deploying Triton runtime for model", "model", modelID)
 
 	params, err := c.deployRuntimeParams(ctx, modelID)
 	if err != nil {

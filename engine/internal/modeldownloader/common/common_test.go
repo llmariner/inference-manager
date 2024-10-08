@@ -54,7 +54,6 @@ func (c *fakeS3Client) ListObjectsPages(
 		Contents: []types.Object{
 			{Key: aws.String("v1/base-models/meta-llama/Meta-Llama-3.1-70B-Instruct-awq-triton/test.txt")},
 			{Key: aws.String("v1/base-models/meta-llama/Meta-Llama-3.1-70B-Instruct-awq-triton/repo/llama3/tensorrt_llm/1/rank0.engine")},
-			{Key: aws.String("v1/base-models/meta-llama/Meta-Llama-3.1-70B-Instruct-awq-triton/.hidden")},
 		},
 	}
 	_ = f(page, true)

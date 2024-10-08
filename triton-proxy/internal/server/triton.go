@@ -22,6 +22,10 @@ func buildEnsembleGenerateRequest(req *v1.CreateChatCompletionRequest) *ensemble
 	}
 	return &ensembleGenerateRequest{
 		TextInput: input,
+		// TODO(kenji): Revisit.
+		MaxTokens: 1024,
+		BadWords:  "",
+		StopWords: "",
 	}
 }
 

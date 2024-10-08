@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	appsv1 "k8s.io/api/apps/v1"
@@ -84,7 +85,9 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 				WithPath("/v2/health/ready")),
 		args: []string{
 			"tritonserver",
-			"--model-repository", modelDir,
+			// TODO(kenji): Make Model Manager tracks the path and and returns.
+			// This is a hack to make this work for the model we compiled for LLama3.1 7B.
+			"--model-repository", filepath.Join(modelDir, "repo/llama3"),
 		},
 		runtimePort:          tritonHTTPPort,
 		additionalContainers: []*corev1apply.ContainerApplyConfiguration{proxyContainer},

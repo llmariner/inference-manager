@@ -16,7 +16,7 @@ import (
 
 const (
 	tritonHTTPPort = 8000
-	proxyHTTPPort  = 8001
+	proxyHTTPPort  = 9000
 )
 
 // NewTritonClient creates a new Triton runtime client.

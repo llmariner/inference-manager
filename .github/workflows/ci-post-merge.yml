@@ -73,7 +73,7 @@ jobs:
         platforms: linux/amd64,linux/arm64
         tags: |
           public.ecr.aws/cloudnatix/llmariner/inference-manager-server:${{ needs.update-tag.outputs.new_version }}
-          public.ecr.aws/cloudnatix/llmariner/inference-manager-triton-proxy:latest
+          public.ecr.aws/cloudnatix/llmariner/inference-manager-server:latest
     - name: Build, tag, and push triton-proxy to Amazon ECR
       uses: docker/build-push-action@v5
       with:

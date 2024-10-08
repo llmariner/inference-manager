@@ -87,7 +87,7 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 			"tritonserver",
 			// TODO(kenji): Make Model Manager tracks the path and and returns.
 			// This is a hack to make this work for the model we compiled for LLama3.1 7B.
-			"--model-repository", filepath.Join(modelDir, "repo/llama3"),
+			"--model-repository", filepath.Join(modelDir, modelID, "repo/llama3"),
 		},
 		runtimePort:          tritonHTTPPort,
 		additionalContainers: []*corev1apply.ContainerApplyConfiguration{proxyContainer},

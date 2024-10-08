@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -56,7 +56,8 @@ type vllmClient struct {
 
 // DeployRuntime deploys the runtime for the given model.
 func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
-	log.Printf("Deploying VLLM runtime for model %s\n", modelID)
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Deploying VLLM runtime for model %s\n", modelID)
 
 	params, err := v.deployRuntimeParams(ctx, modelID)
 	if err != nil {

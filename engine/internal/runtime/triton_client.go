@@ -3,13 +3,13 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,7 +42,7 @@ type tritonClient struct {
 
 // DeployRuntime deploys the runtime for the given model.
 func (c *tritonClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
-    log := ctrl.LoggerFrom(ctx)
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deploying Triton runtime for model", "model", modelID)
 
 	params, err := c.deployRuntimeParams(ctx, modelID)

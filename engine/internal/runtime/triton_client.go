@@ -72,8 +72,6 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 
 	return deployRuntimeParams{
 		modelID: modelID,
-		// Shared memory is required for Pytorch
-		// (See https://docs.triton.ai/en/latest/serving/deploying_with_docker.html#deploying-with-docker).
 		volumes: []*corev1apply.VolumeApplyConfiguration{
 			shmemVolume(),
 		},

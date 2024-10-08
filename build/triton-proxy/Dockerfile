@@ -15,7 +15,6 @@ RUN --mount=type=cache,target=${GOCACHE} \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} GO111MODULE=on make build-triton-proxy
 
 FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot
-ARG TARGETARCH
 
 WORKDIR /run
 

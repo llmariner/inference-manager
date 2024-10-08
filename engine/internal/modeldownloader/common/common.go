@@ -25,7 +25,7 @@ func DownloadAllModelFiles(ctx context.Context, s3Client s3Client, srcS3Path str
 	if err != nil {
 		return err
 	}
-	if err := downloadAllModelFiles(ctx, s3Client, keys, destDir); err != nil {
+	if err := downloadAllModelFiles(ctx, s3Client, keys, srcS3Path, destDir); err != nil {
 		return err
 	}
 	return nil
@@ -58,22 +58,29 @@ func isAccessDenied(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "AccessDenied"
 }
 
-func downloadAllModelFiles(ctx context.Context, s3Client s3Client, keys []string, destDir string) error {
+func downloadAllModelFiles(ctx context.Context, s3Client s3Client, keys []string, srcS3Path, destDir string) error {
 	for _, key := range keys {
-		names := strings.Split(key, "/")
-		fname := names[len(names)-1]
-		if strings.HasPrefix(fname, ".") {
+		destPath := filepath.Join(destDir, strings.TrimPrefix(key, srcS3Path))
+
+		if strings.HasPrefix(filepath.Base(destPath), ".") {
 			log.Printf("Skip downloading hidden file: %q", key)
 			continue
 		}
+
 		log.Printf("Downloading %q to %q\n", key, destDir)
-		df, err := os.Create(filepath.Join(destDir, fname))
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return fmt.Errorf("create directory: %s", err)
+		}
+
+		df, err := os.Create(destPath)
 		if err != nil {
 			return fmt.Errorf("create file %s: %s", key, err)
 		}
 		if err := s3Client.Download(ctx, df, key); err != nil {
 			return fmt.Errorf("download %q: %s", key, err)
 		}
+
 		log.Printf("Downloaded %q\n", key)
 	}
 

@@ -150,21 +150,16 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue("DEBUG"),
 	}
 
-	shmVolName := "devshm"
 	return deployRuntimeParams{
 		modelID: modelID,
 		envs:    envs,
 		// Shared memory is required for Pytorch
 		// (See https://docs.vllm.ai/en/latest/serving/deploying_with_docker.html#deploying-with-docker).
 		volumes: []*corev1apply.VolumeApplyConfiguration{
-			corev1apply.Volume().WithName(shmVolName).
-				// TODO(kenji): Set the limit.
-				WithEmptyDir(corev1apply.EmptyDirVolumeSource()),
+			shmemVolume(),
 		},
 		volumeMounts: []*corev1apply.VolumeMountApplyConfiguration{
-			corev1apply.VolumeMount().
-				WithName(shmVolName).
-				WithMountPath("/dev/shm"),
+			shmemVolumeMount(),
 		},
 		// TODO(kenji): Fix the readiness check. A 200 response from the /health endpoint does not indicate
 		// that the model has been loaded (https://github.com/vllm-project/vllm/issues/6073), but

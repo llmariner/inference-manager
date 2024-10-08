@@ -20,6 +20,10 @@ build-server:
 build-engine:
 	go build -o ./bin/engine ./engine/cmd/
 
+.PHONY: build-triton-proxy
+build-triton-proxy:
+	go build -o ./bin/triton-proxy ./triton-proxy/cmd/
+
 .PHONY: build-docker-server
 build-docker-server:
 	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-server:latest -f build/server/Dockerfile .
@@ -27,3 +31,7 @@ build-docker-server:
 .PHONY: build-docker-engine
 build-docker-engine:
 	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-engine:latest -f build/engine/Dockerfile .
+
+.PHONY: build-docker-triton-proxy
+build-docker-triton-proxy:
+	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-triton-proxy:latest -f build/triton-proxy/Dockerfile .

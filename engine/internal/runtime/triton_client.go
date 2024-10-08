@@ -62,6 +62,7 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 		WithImage(c.rconfig.TritonProxyImage).
 		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.TritonProxyImagePullPolicy)).
 		WithArgs(
+			"run",
 			"--port", fmt.Sprintf("%d", proxyHTTPPort),
 			"--triton-server-base-url", fmt.Sprintf("http://localhost:%d", tritonHTTPPort)).
 		WithPorts(corev1apply.ContainerPort().
@@ -84,6 +85,7 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 				WithPort(intstr.FromInt(tritonHTTPPort)).
 				WithPath("/v2/health/ready")),
 		args: []string{
+			"tritonserver",
 			"--model-repository", modelDir,
 		},
 		runtimePort:          tritonHTTPPort,

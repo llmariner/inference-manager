@@ -8,7 +8,7 @@ import (
 func New(tritonBaseURL string, logger logr.Logger) *S {
 	return &S{
 		tritonBaseURL: tritonBaseURL,
-		logger:        logger.WithName("grpc"),
+		logger:        logger.WithName("server"),
 	}
 }
 

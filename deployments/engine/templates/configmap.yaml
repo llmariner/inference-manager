@@ -9,9 +9,11 @@ data:
     runtime:
       name: {{ .Values.runtime.name }}
       pullerImage: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}
+      tritonProxyImage: {{ .Values.tritonProxyImage.repository }}:{{ default .Chart.Version .Values.version }}
       runtimeImages:
         {{- toYaml .Values.runtime.runtimeImages | nindent 8 }}
       pullerImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
+      tritonProxyImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
       runtimeImagePullPolicy: {{ .Values.runtime.imagePullPolicy }}
       configMapName: {{ include "inference-manager-engine.fullname" . }}
       {{- with .Values.global.awsSecret }}

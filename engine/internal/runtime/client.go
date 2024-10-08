@@ -101,6 +101,11 @@ type deployRuntimeParams struct {
 	args []string
 
 	initContainerSpec *initContainerSpec
+
+	additionalContainers []*corev1apply.ContainerApplyConfiguration
+
+	// runtimePort is set to a non-zero value when the runtime serve requests on a port different from the serving port.
+	runtimePort int
 }
 
 // deployRuntime deploys the runtime for the given model.
@@ -250,19 +255,27 @@ func (c *commonClient) deployRuntime(
 			WithVolumeMounts(initVolumeMounts...))
 	}
 
-	podSpec = podSpec.WithContainers(corev1apply.Container().
-		WithName("runtime").
-		WithImage(image).
-		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
-		WithArgs(params.args...).
-		WithPorts(corev1apply.ContainerPort().
-			WithName("http").
-			WithContainerPort(int32(c.servingPort)).
-			WithProtocol(corev1.ProtocolTCP)).
-		WithEnv(params.envs...).
-		WithVolumeMounts(volumeMounts...).
-		WithResources(runtimeResources).
-		WithReadinessProbe(params.readinessProbe)).
+	cport := c.servingPort
+	if p := params.runtimePort; p != 0 {
+		cport = p
+	}
+	containers := []*corev1apply.ContainerApplyConfiguration{
+		corev1apply.Container().
+			WithName("runtime").
+			WithImage(image).
+			WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
+			WithArgs(params.args...).
+			WithPorts(corev1apply.ContainerPort().
+				WithName("http").
+				WithContainerPort(int32(cport)).
+				WithProtocol(corev1.ProtocolTCP)).
+			WithEnv(params.envs...).
+			WithVolumeMounts(volumeMounts...).
+			WithResources(runtimeResources).
+			WithReadinessProbe(params.readinessProbe),
+	}
+	containers = append(containers, params.additionalContainers...)
+	podSpec = podSpec.WithContainers(containers...).
 		WithVolumes(volumes...)
 
 	if sa := c.rconfig.ServiceAccountName; sa != "" {

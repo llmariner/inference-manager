@@ -59,14 +59,18 @@ const (
 	RuntimeNameOllama string = "ollama"
 	// RuntimeNameVLLM is the VLLM runtime name.
 	RuntimeNameVLLM string = "vllm"
+	// RuntimeNameTriton is the runtime name for Nvidia Triton Inference Server.
+	RuntimeNameTriton string = "triton"
 )
 
 // RuntimeConfig is the runtime configuration.
 type RuntimeConfig struct {
-	PullerImage            string            `yaml:"pullerImage"`
-	RuntimeImages          map[string]string `yaml:"runtimeImages"`
-	PullerImagePullPolicy  string            `yaml:"pullerImagePullPolicy"`
-	RuntimeImagePullPolicy string            `yaml:"runtimeImagePullPolicy"`
+	PullerImage                string            `yaml:"pullerImage"`
+	TritonProxyImage           string            `yaml:"tritonProxyImage"`
+	RuntimeImages              map[string]string `yaml:"runtimeImages"`
+	PullerImagePullPolicy      string            `yaml:"pullerImagePullPolicy"`
+	TritonProxyImagePullPolicy string            `yaml:"tritonProxyImagePullPolicy"`
+	RuntimeImagePullPolicy     string            `yaml:"runtimeImagePullPolicy"`
 
 	ConfigMapName        string `yaml:"configMapName"`
 	AWSSecretName        string `yaml:"awsSecretName"`
@@ -98,11 +102,17 @@ func (c *RuntimeConfig) validate() error {
 	if c.PullerImage == "" {
 		return fmt.Errorf("pullerImage must be set")
 	}
+	if c.TritonProxyImage == "" {
+		return fmt.Errorf("tritonProxyImage must be set")
+	}
 	if len(c.RuntimeImages) == 0 {
 		return fmt.Errorf("runtimeImages must be set")
 	}
 	if err := validateImagePullPolicy(c.PullerImagePullPolicy); err != nil {
 		return fmt.Errorf("pullerImagePullPolicy: %s", err)
+	}
+	if err := validateImagePullPolicy(c.TritonProxyImagePullPolicy); err != nil {
+		return fmt.Errorf("tritonProxyImagePullPolicy: %s", err)
 	}
 	if err := validateImagePullPolicy(c.RuntimeImagePullPolicy); err != nil {
 		return fmt.Errorf("runtimeImagePullPolicy: %s", err)
@@ -197,7 +207,7 @@ func (c *ModelConfigItem) validate() error {
 
 func isValidRuntimeName(name string) bool {
 	switch name {
-	case RuntimeNameOllama, RuntimeNameVLLM:
+	case RuntimeNameOllama, RuntimeNameVLLM, RuntimeNameTriton:
 		return true
 	}
 	return false

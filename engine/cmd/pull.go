@@ -118,6 +118,8 @@ func pullBaseModel(
 		srcPath = resp.Path
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
 		srcPath = resp.GgufModelPath
+	case mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
+		srcPath = resp.Path
 	default:
 		return fmt.Errorf("unsupported format: %v", format)
 	}

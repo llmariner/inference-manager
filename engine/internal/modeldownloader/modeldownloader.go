@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/common"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/huggingface"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 )
@@ -106,6 +107,17 @@ func (d *D) download(
 			return fmt.Errorf("download: %s", err)
 		}
 		log.Printf("Downloaded the model to %q\n", destPath)
+	case mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
+		log.Printf("Downloading the Nvidia Triton model from %q\n", srcPath)
+		if err := os.MkdirAll(destPath, 0755); err != nil {
+			return fmt.Errorf("create directory: %s", err)
+		}
+
+		if err := common.DownloadAllModelFiles(ctx, d.s3Client, srcPath, destPath); err != nil {
+			return err
+		}
+
+		log.Printf("Downloaded the model to %q\n", destPath)
 	default:
 		return fmt.Errorf("unsupported model format: %s", format)
 	}
@@ -129,6 +141,8 @@ func ModelFilePath(modelDir, modelID string, format mv1.ModelFormat) (string, er
 		return filepath.Join(modelDir, modelID, "model.gguf"), nil
 	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
 		return filepath.Join(modelDir, modelID), nil
+	case mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
+		return modelDir, nil
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)
 	}

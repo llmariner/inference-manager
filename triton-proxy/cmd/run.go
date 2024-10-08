@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/stdr"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/llmariner/inference-manager/triton-proxy/internal/config"
 	"github.com/llmariner/inference-manager/triton-proxy/internal/server"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
@@ -16,33 +15,30 @@ import (
 )
 
 func runCmd() *cobra.Command {
-	var path string
-	var logLevel int
+	var (
+		port                int
+		tritonServerBaseURL string
+		logLevel            int
+	)
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "run",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := config.Parse(path)
-			if err != nil {
-				return err
-			}
-			if err := c.Validate(); err != nil {
-				return err
-			}
-
-			if err := run(cmd.Context(), &c, logLevel); err != nil {
+			if err := run(cmd.Context(), port, tritonServerBaseURL, logLevel); err != nil {
 				return err
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
+	cmd.Flags().IntVar(&port, "port", 0, "HTTP port")
+	cmd.Flags().StringVar(&tritonServerBaseURL, "triton-server-base-url", "", "Triton server base URL")
 	cmd.Flags().IntVar(&logLevel, "v", 0, "Log level")
-	_ = cmd.MarkFlagRequired("config")
+	_ = cmd.MarkFlagRequired("port")
+	_ = cmd.MarkFlagRequired("triton-server-base-url")
 	return cmd
 }
 
-func run(ctx context.Context, c *config.Config, lv int) error {
+func run(ctx context.Context, port int, tritonServerBaseURL string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 
@@ -59,7 +55,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		}),
 		runtime.WithIncomingHeaderMatcher(auth.HeaderMatcher),
 	)
-	srv := server.New(c.TritonServerBaseURL, logger)
+	srv := server.New(tritonServerBaseURL, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(
@@ -71,8 +67,8 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	mux.Handle("POST", pat, srv.CreateChatCompletion)
 
 	log := logger.WithName("http")
-	log.Info("Starting HTTP server...", "port", c.HTTPPort)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", c.HTTPPort), mux)
+	log.Info("Starting HTTP server...", "port", port)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
 	log.Info("Stopped HTTP server")
 
 	return err

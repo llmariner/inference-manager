@@ -27,9 +27,10 @@ func NewTritonClient(
 ) Client {
 	return &tritonClient{
 		commonClient: &commonClient{
-			k8sClient:   k8sClient,
-			namespace:   namespace,
-			servingPort: tritonHTTPPort,
+			k8sClient: k8sClient,
+			namespace: namespace,
+			// Set the servingPort to the proxy port so that requests first hit the proxy (and then the proxy forwards to Triton).
+			servingPort: proxyHTTPPort,
 			rconfig:     rconfig,
 			mconfig:     mconfig,
 		},
@@ -85,6 +86,7 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 		args: []string{
 			"--model-repository", modelDir,
 		},
+		runtimePort:          tritonHTTPPort,
 		additionalContainers: []*corev1apply.ContainerApplyConfiguration{proxyContainer},
 	}, nil
 }

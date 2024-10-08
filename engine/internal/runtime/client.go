@@ -103,6 +103,9 @@ type deployRuntimeParams struct {
 	initContainerSpec *initContainerSpec
 
 	additionalContainers []*corev1apply.ContainerApplyConfiguration
+
+	// runtimePort is set to a non-zero value when the runtime serve requests on a port different from the serving port.
+	runtimePort int
 }
 
 // deployRuntime deploys the runtime for the given model.
@@ -252,6 +255,10 @@ func (c *commonClient) deployRuntime(
 			WithVolumeMounts(initVolumeMounts...))
 	}
 
+	cport := c.servingPort
+	if p := params.runtimePort; p != 0 {
+		cport = p
+	}
 	containers := []*corev1apply.ContainerApplyConfiguration{
 		corev1apply.Container().
 			WithName("runtime").
@@ -260,7 +267,7 @@ func (c *commonClient) deployRuntime(
 			WithArgs(params.args...).
 			WithPorts(corev1apply.ContainerPort().
 				WithName("http").
-				WithContainerPort(int32(c.servingPort)).
+				WithContainerPort(int32(cport)).
 				WithProtocol(corev1.ProtocolTCP)).
 			WithEnv(params.envs...).
 			WithVolumeMounts(volumeMounts...).

@@ -8,6 +8,7 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
+	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
@@ -80,9 +81,15 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		return deployRuntimeParams{}, fmt.Errorf("get chat template: %s", err)
 	}
 
+	// Remove the "ft:" suffix if it exists. This is confusing, but we
+	// need to do this because the processor does the same converesion when
+	// processing requests (for Ollama)
+	// TODO(kenji): Remove this once the processor does not require this conversion.
+	oModelID := ollama.ModelName(modelID)
+
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
-		"--served-model-name", modelID,
+		"--served-model-name", oModelID,
 		// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 		// such as stop tokens.
 		"--chat-template", template,
@@ -122,7 +129,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			args = append(args,
 				"--model", bmPath,
 				"--enable-lora",
-				"--lora-modules", fmt.Sprintf("%s=%s", modelID, mPath),
+				"--lora-modules", fmt.Sprintf("%s=%s", oModelID, mPath),
 			)
 		} else {
 			args = append(args, "--model", mPath)

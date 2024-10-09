@@ -29,7 +29,7 @@ func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([
 	defer r.mu.Unlock()
 	m, ok := r.mapsByTenantID[tenantID]
 	if !ok {
-		return nil, fmt.Errorf("tenant %q not found", tenantID)
+		return nil, fmt.Errorf("no route found")
 	}
 
 	routes := m.getRoute(model{id: modelID})

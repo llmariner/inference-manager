@@ -60,8 +60,12 @@ func (d *D) DownloadAdapterOfGGUF(
 		return err
 	}
 
+	// TODO(kenji): Do not use the hard coded path. This currently works since the fine-tuning job
+	// use the fixed output name for the GGUF file, but we should let Model Manager return the GGUF file path.
+	ggufFilePath := filepath.Join(resp.Path, "ggml-adapter-model.bin")
+
 	// TODO(kenji): Revisit the adapater type. Currently this is no-op as we don't use the HuggingFace downloader.
-	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_QLORA, resp.Path, destPath)
+	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_QLORA, ggufFilePath, destPath)
 }
 
 func (d *D) download(
@@ -116,6 +120,9 @@ func (d *D) download(
 		if err := common.DownloadAllModelFiles(ctx, d.s3Client, srcPath, destPath); err != nil {
 			return err
 		}
+
+		// TODO(kenji): Create empty dir "repo/llama3/ensemble/1". The directory is required for Triton, but
+		// S3 might not have any objects under the path.
 
 		log.Printf("Downloaded the model to %q\n", destPath)
 	default:

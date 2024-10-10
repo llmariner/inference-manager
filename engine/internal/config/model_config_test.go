@@ -107,6 +107,36 @@ func TestModelConfigItem(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fine-tined model",
+			c: &ProcessedModelConfig{
+				model: &ModelConfig{
+					Default: ModelConfigItem{},
+				},
+				runtime: &RuntimeConfig{
+					DefaultResources: Resources{
+						Requests: map[string]string{},
+					},
+				},
+				items: map[string]ModelConfigItem{
+					"google-gemma-2b-it": {
+						Resources: Resources{
+							Requests: map[string]string{
+								"nvidia.com/gpu": "1",
+							},
+						},
+					},
+				},
+			},
+			modelID: "ft:google-gemma-2b-it:fine-tuning-BN2TAF-WGA",
+			want: ModelConfigItem{
+				Resources: Resources{
+					Requests: map[string]string{
+						"nvidia.com/gpu": "1",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcs {

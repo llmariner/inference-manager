@@ -3,6 +3,8 @@ package config
 import (
 	"reflect"
 	"sync"
+
+	"github.com/llmariner/inference-manager/engine/internal/models"
 )
 
 // NewProcessedModelConfig returns a new ProcessedModelConfig.
@@ -32,6 +34,12 @@ type ProcessedModelConfig struct {
 func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// If this is a fine-tuned model, use the runtime that the base model uses.
+	// TODO(kenji): Have a better way to determine if the model is a base model or not.
+	if baseModelID, err := models.ExtractBaseModel(modelID); err == nil {
+		modelID = baseModelID
+	}
 
 	modelID = formatModelID(modelID)
 	if item, ok := c.items[modelID]; ok {

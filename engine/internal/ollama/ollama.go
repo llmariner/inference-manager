@@ -65,7 +65,8 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 	switch {
 	case strings.HasPrefix(modelID, "google-gemma-"):
 		return 0, false, nil
-	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3-8B-Instruct"):
+	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3-8B-Instruct"),
+		strings.HasPrefix(modelID, "nvidia-Llama-3.1-Nemotron-"):
 		return 0, false, nil
 	case strings.HasPrefix(modelID, "mistralai-Mistral-7B-Instruct"):
 		return 0, false, nil
@@ -130,7 +131,8 @@ PARAMETER stop "[INST]"
 PARAMETER stop "[/INST]"`, nil
 
 	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
-		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"):
+		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"),
+		strings.HasPrefix(modelID, "nvidia-Llama-3.1-Nemotron-"):
 		// Output of "ollama show llama3.1 --modelfile" except the context length parameter.
 		// The publicly announced max context length is 128K, but we limit the context length
 		// to 64K here to make this work smoothly in g5.48xlarge.

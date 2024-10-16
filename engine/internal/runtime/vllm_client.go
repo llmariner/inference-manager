@@ -228,7 +228,8 @@ func chatTemplate(modelID string) (string, error) {
 	switch {
 	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
 		strings.HasPrefix(modelID, "mattshumer-Reflection-Llama-3.1-70B"),
-		strings.Contains(modelID, "TinyLlama-1.1B"):
+		strings.Contains(modelID, "TinyLlama-1.1B"),
+		strings.HasPrefix(modelID, "nvidia-Llama-3.1-Nemotron-"):
 		// This is a simplified template that does not support functions etc.
 		// Please see https://llama.meta.com/docs/model-cards-and-prompt-formats/llama3_1/ for the spec.
 		return `

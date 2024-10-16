@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/config"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"google.golang.org/grpc"

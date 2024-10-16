@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"

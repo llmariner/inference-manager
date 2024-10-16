@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-logr/stdr"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/api-usage/pkg/sender"
 	"github.com/llmariner/inference-manager/server/internal/admin"
 	"github.com/llmariner/inference-manager/server/internal/config"
@@ -18,6 +17,7 @@ import (
 	"github.com/llmariner/inference-manager/server/internal/rag"
 	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/inference-manager/server/internal/server"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

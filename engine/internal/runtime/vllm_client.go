@@ -157,6 +157,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		}
 	}
 
+	if fs := mci.VLLMExtraFlags; len(fs) > 0 {
+		args = append(args, fs...)
+	}
+
 	envs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"),
 		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue("DEBUG"),

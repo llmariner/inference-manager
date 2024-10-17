@@ -203,6 +203,9 @@ type ModelConfigItem struct {
 	// ContextLength is the context length for the model. If the value is 0,
 	// the default context length is used.
 	ContextLength int `yaml:"contextLength"`
+
+	// VLLMExtraFlags is the extra flags for VLLM.
+	VLLMExtraFlags []string `yaml:"vllmExtraFlags"`
 }
 
 func (c *ModelConfigItem) validate() error {

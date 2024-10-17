@@ -236,6 +236,7 @@ type Resources struct {
 
 // PersistentVolume is the persistent volume configuration.
 type PersistentVolume struct {
+	// ShareWithReplicas sets whether to share the volume among replicas.
 	ShareWithReplicas bool   `yaml:"shareWithReplicas"`
 	StorageClassName  string `yaml:"storageClassName"`
 	Size              string `yaml:"size"`

@@ -34,7 +34,7 @@ runtime:
     # and TensortRT-LLM.
     triton: nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
   imagePullPolicy: IfNotPresent
-  # If you want to controle pod and volume availability zone and topologies,
+  # If you want to control pod and volume availability zone and topologies,
   # please use the `WaitForFirstConsumer` as the `volumeBindingMode` and
   # ensure that your CSI plugin supports this mode.
   # https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies

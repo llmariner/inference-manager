@@ -155,6 +155,8 @@ func (c *commonClient) deployRuntime(
 					corev1apply.PersistentVolumeClaimVolumeSource().
 						WithClaimName(name)))
 		} else {
+			// If shareWithReplicas is false, use StatefulSet volumeClaimTemplates
+			// instead of directly specifying a volume.
 			forcePull = true
 		}
 		spec := corev1apply.PersistentVolumeClaimSpec().
@@ -307,7 +309,7 @@ func (c *commonClient) deployRuntime(
 	if sa := c.rconfig.ServiceAccountName; sa != "" {
 		podSpec = podSpec.WithServiceAccountName(sa)
 	}
-	if c.rconfig.UnstructuredAffinity != nil {
+	if c.rconfig.Affinity != nil {
 		podSpec = podSpec.WithAffinity(buildAffinityApplyConfig(c.rconfig.Affinity))
 	}
 	if len(c.rconfig.NodeSelector) > 0 {
@@ -467,10 +469,17 @@ func buildAffinityApplyConfig(affinity *corev1.Affinity) *corev1apply.AffinityAp
 			ac = ac.WithMatchLabels(lsl.MatchLabels)
 		}
 		for _, lse := range lsl.MatchExpressions {
-			ac = ac.WithMatchExpressions(metav1apply.LabelSelectorRequirement().
-				WithKey(lse.Key).
-				WithOperator(metav1.LabelSelectorOperator(lse.Operator)).
-				WithValues(lse.Values...))
+			lsrAC := metav1apply.LabelSelectorRequirement()
+			if lse.Key != "" {
+				lsrAC = lsrAC.WithKey(lse.Key)
+			}
+			if lse.Operator != "" {
+				lsrAC = lsrAC.WithOperator(metav1.LabelSelectorOperator(lse.Operator))
+			}
+			if len(lse.Values) > 0 {
+				lsrAC = lsrAC.WithValues(lse.Values...)
+			}
+			ac = ac.WithMatchExpressions(lsrAC)
 		}
 		return ac
 	}

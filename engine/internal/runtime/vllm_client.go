@@ -149,8 +149,8 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--max-model-len", strconv.Itoa(mci.ContextLength))
 	}
 
-	if isAWQQuantizedModel(modelID) {
-		args = append(args, "--quantization", "awq")
+	if q, ok := vllmQuantization(modelID); ok {
+		args = append(args, "--quantization", q)
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
@@ -218,9 +218,20 @@ func isBaseModel(model *mv1.Model) bool {
 	return model.OwnedBy == systemOwner
 }
 
-// isAWQQuantizedModel returns true if the model name is an AWQ quantized model.
-func isAWQQuantizedModel(modelID string) bool {
-	return strings.HasSuffix(modelID, "-awq")
+// vllmQuantization returns the quantization type of the given model.
+// The second return value is true if the model is quantized.
+//
+// TODO(kenji): Instead of using a model ID suffix, store the quantization type in the model attributes.
+func vllmQuantization(modelID string) (string, bool) {
+	if strings.HasSuffix(modelID, "-awq") {
+		return "awq", true
+	}
+
+	if strings.HasSuffix(modelID, "-bnb-4bit") {
+		return "bitsandbytes", true
+	}
+
+	return "", false
 }
 
 // chatTemplate returns the chat template for the given model.

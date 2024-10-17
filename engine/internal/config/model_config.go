@@ -75,6 +75,9 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 		if l := override.ContextLength; l > 0 {
 			item.ContextLength = l
 		}
+		if fs := override.VLLMExtraFlags; len(fs) > 0 {
+			item.VLLMExtraFlags = fs
+		}
 	}
 
 	// For backward compatibility, look at legacy fields.

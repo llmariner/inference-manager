@@ -80,6 +80,7 @@ model:
     replicas: 1
     preloaded: false
     contextLength: 0
+    vllmExtraFlags:
 
   overrides:
     # sample-model:

@@ -151,6 +151,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 
 	if q, ok := vllmQuantization(modelID); ok {
 		args = append(args, "--quantization", q)
+		if q == "bitsandbytes" {
+			// BitsAndBytes quantization only supports 'bitsandbytes' load format.
+			args = append(args, "--load-format", "bitsandbytes")
+		}
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{

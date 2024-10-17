@@ -144,6 +144,8 @@ func (c *commonClient) deployRuntime(
 			WithConfigMap(corev1apply.ConfigMapVolumeSource().
 				WithName(c.rconfig.ConfigMapName)),
 	}
+	volumes = append(volumes, params.volumes...)
+
 	var volClaim *corev1apply.PersistentVolumeClaimApplyConfiguration
 	var forcePull bool
 	if vol := resConf.Volume; vol != nil {

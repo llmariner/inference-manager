@@ -205,6 +205,38 @@ func TestNumGPUs(t *testing.T) {
 	}
 }
 
+func TestVLLMQuantization(t *testing.T) {
+	tcs := []struct {
+		modelID   string
+		wantQ     string
+		wantFound bool
+	}{
+		{
+			modelID:   "model-awq",
+			wantQ:     "awq",
+			wantFound: true,
+		},
+		{
+			modelID:   "model-bnb-4bit",
+			wantQ:     "bitsandbytes",
+			wantFound: true,
+		},
+		{
+			modelID:   "model",
+			wantQ:     "",
+			wantFound: false,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.modelID, func(t *testing.T) {
+			gotQ, gotFound := vllmQuantization(tc.modelID)
+			assert.Equal(t, tc.wantQ, gotQ)
+			assert.Equal(t, tc.wantFound, gotFound)
+		})
+	}
+}
+
 type fakeModelClient struct {
 	resp  *mv1.GetBaseModelPathResponse
 	attr  *mv1.ModelAttributes

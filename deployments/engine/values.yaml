@@ -34,6 +34,10 @@ runtime:
     # and TensortRT-LLM.
     triton: nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
   imagePullPolicy: IfNotPresent
+  # If you want to control pod and volume availability zone and topologies,
+  # please use the `WaitForFirstConsumer` as the `volumeBindingMode` and
+  # ensure that your CSI plugin supports this mode.
+  # https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies
   modelResources:
     # sample-model:
     #   requests:
@@ -43,6 +47,7 @@ runtime:
     #     cpu: "200m"
     #     memory: "256Mi"
     #   volume:
+    #     shareWithReplicas: false
     #     storageClassName: "standard"
     #     size: "1Gi"
     #     accessMode: "ReadWriteOnce"
@@ -53,6 +58,7 @@ runtime:
     # limits:
     #   nvidia.com/gpu: 1
     # volume:
+    #   shareWithReplicas: false
     #   storageClassName: "fast"
     #   size: "100Gi"
     #   accessMode: "ReadWriteOnce"

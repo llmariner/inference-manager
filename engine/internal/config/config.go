@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 // preloadedModelIDsEnv is the environment variable for the preloaded model IDs.
@@ -81,9 +82,10 @@ type RuntimeConfig struct {
 
 	ServiceAccountName string `yaml:"serviceAccountName"`
 
-	NodeSelector map[string]string `yaml:"nodeSelector"`
-	// TODO(kenji): Support affinity
-	Tolerations []TolerationConfig `yaml:"tolerations"`
+	NodeSelector         map[string]string  `yaml:"nodeSelector"`
+	Tolerations          []TolerationConfig `yaml:"tolerations"`
+	UnstructuredAffinity any                `yaml:"affinity"`
+	Affinity             *corev1.Affinity   `yaml:"-"`
 
 	// TODO(kenji): Remove the following fields once every env uses ModelConfig.
 	Name string `yaml:"name"`
@@ -140,6 +142,18 @@ func (c *RuntimeConfig) validate() error {
 		return fmt.Errorf("llmoKeyEnvKey must be set")
 	}
 
+	if vol := c.DefaultResources.Volume; vol != nil {
+		if err := vol.validate(); err != nil {
+			return fmt.Errorf("defaultResources.volume: %s", err)
+		}
+	}
+	for model, res := range c.ModelResources {
+		if vol := res.Volume; vol != nil {
+			if err := vol.validate(); err != nil {
+				return fmt.Errorf("modelResources[%q].volume: %s", model, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -222,9 +236,18 @@ type Resources struct {
 
 // PersistentVolume is the persistent volume configuration.
 type PersistentVolume struct {
-	StorageClassName string `yaml:"storageClassName"`
-	Size             string `yaml:"size"`
-	AccessMode       string `yaml:"accessMode"`
+	// ShareWithReplicas sets whether to share the volume among replicas.
+	ShareWithReplicas bool   `yaml:"shareWithReplicas"`
+	StorageClassName  string `yaml:"storageClassName"`
+	Size              string `yaml:"size"`
+	AccessMode        string `yaml:"accessMode"`
+}
+
+func (c *PersistentVolume) validate() error {
+	if c.AccessMode == "" {
+		return fmt.Errorf("accessMode must be set")
+	}
+	return nil
 }
 
 // AssumeRoleConfig is the assume role configuration.
@@ -502,6 +525,18 @@ func Parse(path string) (*Config, error) {
 
 	if err = yaml.Unmarshal(b, &config); err != nil {
 		return &config, fmt.Errorf("config: unmarshal: %s", err)
+	}
+
+	if config.Runtime.UnstructuredAffinity != nil {
+		data, err := yaml.Marshal(config.Runtime.UnstructuredAffinity)
+		if err != nil {
+			return nil, fmt.Errorf("config: marshal affinity: %s", err)
+		}
+		var affinity corev1.Affinity
+		if err := kyaml.Unmarshal(data, &affinity); err != nil {
+			return nil, fmt.Errorf("config: unmarshal affinity: %s", err)
+		}
+		config.Runtime.Affinity = &affinity
 	}
 
 	if val := os.Getenv(preloadedModelIDsEnv); val != "" {

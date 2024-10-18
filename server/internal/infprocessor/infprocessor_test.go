@@ -236,6 +236,20 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 		p.inProgressTasksByID[t.ID] = t
 	}
 
+	p.engines = map[string]map[string]*engine{
+		"tenant0": {
+			"e0": {
+				id: "e0",
+			},
+			"e1": {
+				id: "e1",
+			},
+			"e2": {
+				id: "e2",
+			},
+		},
+	}
+
 	tcs := []struct {
 		engineIDs []string
 		want      string
@@ -254,8 +268,9 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 		},
 	}
 	for _, tc := range tcs {
-		engineID := p.findLeastLoadedEngine(tc.engineIDs)
-		assert.Equal(t, tc.want, engineID)
+		engine, err := p.findLeastLoadedEngine(tc.engineIDs, "tenant0")
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, engine.id)
 	}
 }
 

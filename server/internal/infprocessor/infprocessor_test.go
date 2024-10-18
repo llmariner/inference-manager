@@ -20,6 +20,7 @@ func TestP(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -75,6 +76,7 @@ func TestEmbedding(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -125,6 +127,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -171,6 +174,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -215,6 +219,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 func TestFindLeastLoadedEngine(t *testing.T) {
 	p := NewP(
 		&fakeEngineRouter{},
+		true,
 		testutil.NewTestLogger(t),
 	)
 

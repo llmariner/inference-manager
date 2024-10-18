@@ -16,6 +16,17 @@ data:
     {{- end }}
     monitoringPort: {{ .Values.monitoringPort }}
     adminPort: {{ .Values.adminPort }}
+    database:
+      host: {{ .Values.global.database.host }}
+      port: {{ .Values.global.database.port }}
+      database: {{ .Values.database.database }}
+      username: {{ .Values.global.database.username }}
+      passwordEnvName: DB_PASSWORD
+      ssl:
+        mode: {{ .Values.global.database.ssl.mode }}
+        rootCert: {{ .Values.global.database.ssl.rootCert }}
+      createDatabase: {{ .Values.global.database.createDatabase }}
+      originalDatabase: {{ .Values.global.database.originalDatabase }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}

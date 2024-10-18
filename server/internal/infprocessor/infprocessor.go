@@ -129,6 +129,8 @@ type engineCommunicator interface {
 }
 
 type engine struct {
+	id string
+
 	srv engineCommunicator
 
 	modelIDs           []string
@@ -169,23 +171,17 @@ func (p *P) Run(ctx context.Context) error {
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.TenantID)
 	if err != nil {
-		return fmt.Errorf("find pod to route the request: %s", err)
+		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
 
-	engineID := p.findLeastLoadedEngine(engineIDs)
-	p.logger.Info("Scheduling the task", "task", t.ID, "engine", engineID)
-
-	engines := p.engines[t.TenantID]
-	if len(engines) == 0 {
-		return fmt.Errorf("no engine found")
+	engine, err := p.findLeastLoadedEngine(engineIDs, t.TenantID)
+	if err != nil {
+		return fmt.Errorf("find the least loaded engine: %s", err)
 	}
-	engine, ok := engines[engineID]
-	if !ok {
-		return fmt.Errorf("engine not found: %s", engineID)
-	}
+	p.logger.Info("Scheduling the task", "task", t.ID, "engine", engine.id)
 
 	p.mu.Lock()
-	t.EngineID = engineID
+	t.EngineID = engine.id
 	p.inProgressTasksByID[t.ID] = t
 	p.mu.Unlock()
 
@@ -214,7 +210,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 }
 
 // findLeastLoadedEngine finds the least loaded engine from the given engine IDs.
-func (p *P) findLeastLoadedEngine(engineIDs []string) string {
+func (p *P) findLeastLoadedEngine(engineIDs []string, tenantID string) (*engine, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -232,7 +228,17 @@ func (p *P) findLeastLoadedEngine(engineIDs []string) string {
 			leastLoaded = engineID
 		}
 	}
-	return leastLoaded
+
+	engines := p.engines[tenantID]
+	if len(engines) == 0 {
+		return nil, fmt.Errorf("no engine found")
+	}
+	engine, ok := engines[leastLoaded]
+	if !ok {
+		return nil, fmt.Errorf("engine not found: %s", leastLoaded)
+	}
+
+	return engine, nil
 }
 
 // SendChatCompletionTask sends a chat completion task.
@@ -348,6 +354,7 @@ func (p *P) AddOrUpdateEngineStatus(
 	e, ok := engines[engineStatus.EngineId]
 	if !ok {
 		e = &engine{
+			id:  engineStatus.EngineId,
 			srv: srv,
 		}
 		engines[engineStatus.EngineId] = e

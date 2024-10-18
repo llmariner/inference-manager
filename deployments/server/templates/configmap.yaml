@@ -24,3 +24,4 @@ data:
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}
     usageSender:
       {{- toYaml .Values.global.usageSender | nindent 6 }}
+    enableEngineReadinessCheck: {{ .Values.enableEngineReadinessCheck }}

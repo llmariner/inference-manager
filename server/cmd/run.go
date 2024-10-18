@@ -114,7 +114,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	}
 
 	r := router.New()
-	infProcessor := infprocessor.NewP(r, logger)
+	infProcessor := infprocessor.NewP(r, c.EnableEngineReadinessCheck, logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()

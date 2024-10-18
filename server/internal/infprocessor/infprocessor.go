@@ -111,7 +111,7 @@ type engineRouter interface {
 }
 
 // NewP creates a new processor.
-func NewP(engineRouter engineRouter, logger logr.Logger) *P {
+func NewP(engineRouter engineRouter, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
 	return &P{
 		queue:               newTaskQueue(),
 		engineRouter:        engineRouter,
@@ -120,6 +120,8 @@ func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 		logger:              logger.WithName("processor"),
 		taskTimeout:         30 * time.Second,
 		retryDelay:          3 * time.Second,
+
+		isEngineReadinessCheckEnabled: isEngineReadinessCheckEnabled,
 	}
 }
 
@@ -152,6 +154,8 @@ type P struct {
 
 	taskTimeout time.Duration
 	retryDelay  time.Duration
+
+	isEngineReadinessCheckEnabled bool
 }
 
 // Run runs the processor.
@@ -367,15 +371,14 @@ func (p *P) AddOrUpdateEngineStatus(
 	}
 	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
-	/*
-		   // TODO(kenji): Add this back once the engine is updated.
+	if p.isEngineReadinessCheckEnabled {
 		if engineStatus.Ready {
 			p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 		} else {
 			p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
 			log.Info("Removed engine from the router", "reason", "engine not ready")
 		}
-	*/
+	}
 	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
 

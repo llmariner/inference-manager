@@ -57,6 +57,12 @@ spec:
           mountPath: /var/run/tls
           readOnly: true
         {{- end }}
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.global.databaseSecret.name }}
+              key: {{ .Values.global.databaseSecret.key }}
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         resources:

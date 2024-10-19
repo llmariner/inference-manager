@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/server/internal/store"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,9 +19,11 @@ func TestP(t *testing.T) {
 		modelID = "m0"
 	)
 
+	st, tearDown := store.NewTest(t)
+	defer tearDown()
+
 	iprocessor := NewP(
-		&fakeEngineRouter{},
-		&fakeEngineTracker{},
+		NewEngineTracker(st, "pod0", "podAddr0"),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -36,14 +39,16 @@ func TestP(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	iprocessor.AddOrUpdateEngineStatus(
+	err := iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
+			ModelIds: []string{modelID},
 			Ready:    true,
 		},
 		clusterInfo,
 	)
+	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -65,7 +70,8 @@ func TestP(t *testing.T) {
 	assert.Equal(t, "ok", string(body))
 
 	// Remove the engine. Check if a newly created task will fail.
-	iprocessor.RemoveEngine("engine_id0", clusterInfo)
+	err = iprocessor.RemoveEngine("engine_id0", clusterInfo)
+	assert.NoError(t, err)
 	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
@@ -75,9 +81,11 @@ func TestEmbedding(t *testing.T) {
 		modelID = "m0"
 	)
 
+	st, tearDown := store.NewTest(t)
+	defer tearDown()
+
 	iprocessor := NewP(
-		&fakeEngineRouter{},
-		&fakeEngineTracker{},
+		NewEngineTracker(st, "pod0", "podAddr0"),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -93,7 +101,7 @@ func TestEmbedding(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	iprocessor.AddOrUpdateEngineStatus(
+	err := iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -101,6 +109,7 @@ func TestEmbedding(t *testing.T) {
 		},
 		clusterInfo,
 	)
+	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -127,9 +136,11 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		modelID = "m0"
 	)
 
+	st, tearDown := store.NewTest(t)
+	defer tearDown()
+
 	iprocessor := NewP(
-		&fakeEngineRouter{},
-		&fakeEngineTracker{},
+		NewEngineTracker(st, "pod0", "podAddr0"),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -145,7 +156,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	iprocessor.AddOrUpdateEngineStatus(
+	err := iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -153,6 +164,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		},
 		clusterInfo,
 	)
+	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -162,11 +174,12 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		// Wait for the task to be scheduled.
 		_, err := comm.Recv()
 		assert.NoError(t, err)
-		iprocessor.RemoveEngine("engine_id0", clusterInfo)
+		err = iprocessor.RemoveEngine("engine_id0", clusterInfo)
+		assert.NoError(t, err)
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, err = iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
 
@@ -175,9 +188,11 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		modelID = "m0"
 	)
 
+	st, tearDown := store.NewTest(t)
+	defer tearDown()
+
 	iprocessor := NewP(
-		&fakeEngineRouter{},
-		&fakeEngineTracker{},
+		NewEngineTracker(st, "pod0", "podAddr0"),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -193,7 +208,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	iprocessor.AddOrUpdateEngineStatus(
+	err := iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -201,6 +216,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		},
 		clusterInfo,
 	)
+	assert.NoError(t, err)
 	iprocessor.taskTimeout = 0
 
 	go func(ctx context.Context) {
@@ -210,7 +226,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, err = iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 
 	// Simulate a case where the task result is received after the context is canceled.
@@ -221,9 +237,11 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 }
 
 func TestFindLeastLoadedEngine(t *testing.T) {
+	st, tearDown := store.NewTest(t)
+	defer tearDown()
+
 	p := NewP(
-		&fakeEngineRouter{},
-		&fakeEngineTracker{},
+		NewEngineTracker(st, "pod0", "podAddr0"),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -358,33 +376,6 @@ func TestDumpStatus(t *testing.T) {
 		},
 	}
 	assert.True(t, reflect.DeepEqual(want, got), "want: %v, got: %v", want, got)
-}
-
-type fakeEngineRouter struct {
-	engineID string
-}
-
-func (r *fakeEngineRouter) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error) {
-	return []string{r.engineID}, nil
-}
-
-func (r *fakeEngineRouter) AddOrUpdateEngine(engineID, tenantID string, modelIDs []string) {
-	r.engineID = engineID
-}
-
-func (r *fakeEngineRouter) DeleteEngine(engineID, tenantID string) {
-	r.engineID = ""
-}
-
-type fakeEngineTracker struct {
-}
-
-func (r *fakeEngineTracker) addOrUpdateEngine(status *v1.EngineStatus, tenantID string) error {
-	return nil
-}
-
-func (r *fakeEngineTracker) deleteEngine(engineID string) error {
-	return nil
 }
 
 func newFakeEngineCommunicator(t *testing.T) *fakeEngineCommunicator {

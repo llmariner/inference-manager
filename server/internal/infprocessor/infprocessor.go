@@ -378,8 +378,9 @@ func (p *P) AddOrUpdateEngineStatus(
 			p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
 			log.Info("Removed engine from the router", "reason", "engine not ready")
 		}
+	} else {
+		p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 	}
-	p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
 }
 
 // RemoveEngine removes the engine.

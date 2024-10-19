@@ -17,7 +17,6 @@ import (
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/inference-manager/server/internal/monitoring"
 	"github.com/llmariner/inference-manager/server/internal/rag"
-	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/inference-manager/server/internal/server"
 	"github.com/llmariner/inference-manager/server/internal/store"
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -136,8 +135,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient, logger)
 	}
 
-	r := router.New()
-	infProcessor := infprocessor.NewP(r, engineTracker, c.EnableEngineReadinessCheck, logger)
+	infProcessor := infprocessor.NewP(engineTracker, c.EnableEngineReadinessCheck, logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()

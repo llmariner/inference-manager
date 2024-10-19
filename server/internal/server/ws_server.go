@@ -169,7 +169,9 @@ func (ws *WS) processTasks(srv serverInterface) error {
 		}
 		if !registered && engineID != "" {
 			defer func() {
-				ws.infProcessor.RemoveEngine(engineID, clusterInfo)
+				if err := ws.infProcessor.RemoveEngine(engineID, clusterInfo); err != nil {
+					ws.logger.Error(err, "RemoveEngine error", "engineID", engineID)
+				}
 				ws.logger.Info("Unregistered engine", "engineID", engineID)
 			}()
 			registered = true
@@ -190,7 +192,9 @@ func (ws *WS) processMessagesFromEngine(
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
 		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
+		if err := ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo); err != nil {
+			return "", err
+		}
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
 		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {

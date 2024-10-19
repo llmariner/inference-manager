@@ -104,22 +104,16 @@ func (q *taskQueue) Dequeue(ctx context.Context) (*task, error) {
 	}
 }
 
-type engineRouter interface {
-	GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error)
-	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
-	DeleteEngine(engineID, tenantID string)
-}
-
 type engineTracker interface {
 	addOrUpdateEngine(status *v1.EngineStatus, tenantID string) error
-	deleteEngine(engineID string) error
+	deleteEngine(engineID, tenantID string) error
+	getEngineIDsForModel(modelID, tenantID string) ([]string, error)
 }
 
 // NewP creates a new processor.
-func NewP(engineRouter engineRouter, engineTracker engineTracker, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
+func NewP(engineTracker engineTracker, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
 	return &P{
 		queue:               newTaskQueue(),
-		engineRouter:        engineRouter,
 		engineTracker:       engineTracker,
 		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*task{},
@@ -149,7 +143,6 @@ type engine struct {
 type P struct {
 	queue *taskQueue
 
-	engineRouter  engineRouter
 	engineTracker engineTracker
 
 	// engines is a map from tenant ID and engine ID to engine.
@@ -180,7 +173,7 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
-	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.TenantID)
+	engineIDs, err := p.engineTracker.getEngineIDsForModel(t.model(), t.TenantID)
 	if err != nil {
 		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
@@ -190,6 +183,9 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 		return fmt.Errorf("find the least loaded engine: %s", err)
 	}
 	p.logger.Info("Scheduling the task", "task", t.ID, "engine", engine.id)
+
+	// TODO(kenji): Forward a request to other server pod if the selected engine is not connected
+	// to this server pod.
 
 	p.mu.Lock()
 	t.EngineID = engine.id
@@ -351,7 +347,7 @@ func (p *P) AddOrUpdateEngineStatus(
 	srv engineCommunicator,
 	engineStatus *v1.EngineStatus,
 	clusterInfo *auth.ClusterInfo,
-) {
+) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -380,18 +376,25 @@ func (p *P) AddOrUpdateEngineStatus(
 
 	if p.isEngineReadinessCheckEnabled {
 		if engineStatus.Ready {
-			p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+			if err := p.engineTracker.addOrUpdateEngine(engineStatus, clusterInfo.TenantID); err != nil {
+				return err
+			}
 		} else {
-			p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
+			if err := p.engineTracker.deleteEngine(engineStatus.EngineId, clusterInfo.TenantID); err != nil {
+				return err
+			}
 			log.Info("Removed engine from the router", "reason", "engine not ready")
 		}
 	} else {
-		p.engineRouter.AddOrUpdateEngine(engineStatus.EngineId, clusterInfo.TenantID, engineStatus.ModelIds)
+		if err := p.engineTracker.addOrUpdateEngine(engineStatus, clusterInfo.TenantID); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // RemoveEngine removes the engine.
-func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
+func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -410,10 +413,14 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 
 	engines, ok := p.engines[clusterInfo.TenantID]
 	if !ok {
-		return
+		return nil
 	}
-	p.engineRouter.DeleteEngine(engineID, clusterInfo.TenantID)
+
+	if err := p.engineTracker.deleteEngine(engineID, clusterInfo.TenantID); err != nil {
+		return err
+	}
 	delete(engines, engineID)
+	return nil
 }
 
 // ProcessTaskResult processes the task result.

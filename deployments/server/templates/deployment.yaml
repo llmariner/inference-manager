@@ -63,6 +63,14 @@ spec:
             secretKeyRef:
               name: {{ .Values.global.databaseSecret.name }}
               key: {{ .Values.global.databaseSecret.key }}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         resources:

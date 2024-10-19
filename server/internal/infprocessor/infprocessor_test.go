@@ -20,6 +20,7 @@ func TestP(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		&fakeEngineTracker{},
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -76,6 +77,7 @@ func TestEmbedding(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		&fakeEngineTracker{},
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -127,6 +129,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		&fakeEngineTracker{},
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -174,6 +177,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 
 	iprocessor := NewP(
 		&fakeEngineRouter{},
+		&fakeEngineTracker{},
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -219,6 +223,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 func TestFindLeastLoadedEngine(t *testing.T) {
 	p := NewP(
 		&fakeEngineRouter{},
+		&fakeEngineTracker{},
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -369,6 +374,17 @@ func (r *fakeEngineRouter) AddOrUpdateEngine(engineID, tenantID string, modelIDs
 
 func (r *fakeEngineRouter) DeleteEngine(engineID, tenantID string) {
 	r.engineID = ""
+}
+
+type fakeEngineTracker struct {
+}
+
+func (r *fakeEngineTracker) addOrUpdateEngine(status *v1.EngineStatus, tenantID string) error {
+	return nil
+}
+
+func (r *fakeEngineTracker) deleteEngine(engineID string) error {
+	return nil
 }
 
 func newFakeEngineCommunicator(t *testing.T) *fakeEngineCommunicator {

@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-logr/stdr"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llmariner/api-usage/pkg/sender"
+	"github.com/llmariner/common/pkg/db"
 	"github.com/llmariner/inference-manager/server/internal/admin"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
@@ -17,6 +19,7 @@ import (
 	"github.com/llmariner/inference-manager/server/internal/rag"
 	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/inference-manager/server/internal/server"
+	"github.com/llmariner/inference-manager/server/internal/store"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
@@ -60,6 +63,26 @@ func runCmd() *cobra.Command {
 func run(ctx context.Context, c *config.Config, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
+
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		return fmt.Errorf("env var POD_NAME is not set")
+	}
+	podIP := os.Getenv("POD_IP")
+	if podIP == "" {
+		return fmt.Errorf("env var POD_IP is not set")
+	}
+
+	dbInst, err := db.OpenDB(c.Database)
+	if err != nil {
+		return err
+	}
+
+	st := store.New(dbInst)
+	if err := st.AutoMigrate(); err != nil {
+		return err
+	}
+	engineTracker := infprocessor.NewEngineTracker(st, podName, podIP)
 
 	errCh := make(chan error)
 
@@ -114,7 +137,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	}
 
 	r := router.New()
-	infProcessor := infprocessor.NewP(r, c.EnableEngineReadinessCheck, logger)
+	infProcessor := infprocessor.NewP(r, engineTracker, c.EnableEngineReadinessCheck, logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()

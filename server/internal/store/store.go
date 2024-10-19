@@ -22,5 +22,7 @@ func (s *S) AutoMigrate() error {
 }
 
 func autoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate()
+	return db.AutoMigrate(
+		&Engine{},
+	)
 }

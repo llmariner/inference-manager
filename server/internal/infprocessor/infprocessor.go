@@ -110,11 +110,17 @@ type engineRouter interface {
 	DeleteEngine(engineID, tenantID string)
 }
 
+type engineTracker interface {
+	addOrUpdateEngine(status *v1.EngineStatus, tenantID string) error
+	deleteEngine(engineID string) error
+}
+
 // NewP creates a new processor.
-func NewP(engineRouter engineRouter, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
+func NewP(engineRouter engineRouter, engineTracker engineTracker, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
 	return &P{
 		queue:               newTaskQueue(),
 		engineRouter:        engineRouter,
+		engineTracker:       engineTracker,
 		engines:             map[string]map[string]*engine{},
 		inProgressTasksByID: map[string]*task{},
 		logger:              logger.WithName("processor"),
@@ -143,7 +149,8 @@ type engine struct {
 type P struct {
 	queue *taskQueue
 
-	engineRouter engineRouter
+	engineRouter  engineRouter
+	engineTracker engineTracker
 
 	// engines is a map from tenant ID and engine ID to engine.
 	engines             map[string]map[string]*engine

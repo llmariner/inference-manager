@@ -437,11 +437,14 @@ func (p *P) ProcessTaskResult(
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
-	completed, err := p.writeTaskResultToChan(t, taskResult)
-	if err != nil {
+	if err := p.writeTaskResultToChan(t, taskResult); err != nil {
 		return fmt.Errorf("write task result to chan: %s", err)
 	}
 
+	completed, err := isTaskCompleted(t, taskResult)
+	if err != nil {
+		return fmt.Errorf("is last result: %s", err)
+	}
 	if !completed {
 		return nil
 	}
@@ -458,12 +461,10 @@ func (p *P) ProcessTaskResult(
 }
 
 // writeTaskResultToChan writes the task result to the channel.
-//
-// The return bool value indicates whether the task is completed.
 func (p *P) writeTaskResultToChan(
 	t *task,
 	taskResult *v1.TaskResult,
-) (bool, error) {
+) error {
 	switch msg := taskResult.Message.(type) {
 	case *v1.TaskResult_HttpResponse:
 		resp := msg.HttpResponse
@@ -473,8 +474,7 @@ func (p *P) writeTaskResultToChan(
 			delete(p.inProgressTasksByID, t.ID)
 			p.mu.Unlock()
 			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID)})
-			// We return false here (= not completed) as the task might be retried.
-			return false, nil
+			return nil
 		}
 
 		header := http.Header{}
@@ -503,11 +503,10 @@ func (p *P) writeTaskResultToChan(
 			}
 		}
 
-		isErr := resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest
-		return isErr || (!t.stream()), nil
+		return nil
 	case *v1.TaskResult_ServerSentEvent:
 		if !t.stream() {
-			return false, fmt.Errorf("unexpected chunked response for non-streaming request")
+			return fmt.Errorf("unexpected chunked response for non-streaming request")
 		}
 
 		if d := msg.ServerSentEvent.Data; len(d) > 0 {
@@ -518,9 +517,9 @@ func (p *P) writeTaskResultToChan(
 			}
 		}
 
-		return msg.ServerSentEvent.IsLastEvent, nil
+		return nil
 	default:
-		return false, fmt.Errorf("unexpected message type: %T", msg)
+		return fmt.Errorf("unexpected message type: %T", msg)
 	}
 }
 
@@ -642,4 +641,31 @@ func (p *P) DumpStatus() *Status {
 	}
 
 	return status
+}
+
+// isTaskCompleted returns whether the task is completed.
+func isTaskCompleted(t *task, taskResult *v1.TaskResult) (bool, error) {
+	switch msg := taskResult.Message.(type) {
+	case *v1.TaskResult_HttpResponse:
+		// A non-streaming request is considered completed when the initial response is received.
+		if !t.stream() {
+			return true, nil
+		}
+
+		code := msg.HttpResponse.StatusCode
+		switch {
+		case code == http.StatusServiceUnavailable:
+			// Consider that it is not completed as the task might be retried.
+			return false, nil
+		case code < http.StatusOK || code >= http.StatusBadRequest:
+			// The task completed when it receives an error response.
+			return true, nil
+		default:
+			return false, nil
+		}
+	case *v1.TaskResult_ServerSentEvent:
+		return msg.ServerSentEvent.IsLastEvent, nil
+	default:
+		return false, fmt.Errorf("unexpected message type: %T", msg)
+	}
 }

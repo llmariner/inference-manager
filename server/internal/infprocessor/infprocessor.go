@@ -181,15 +181,10 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	}
 	p.logger.Info("Scheduling the task", "task", t.id, "engine", engine.id)
 
-	// TODO(kenji): Forward a request to other server pod if the selected engine is not connected
-	// to this server pod.
-
 	if err := p.assignTaskToEngine(t, engine.id); err != nil {
 		return fmt.Errorf("assign the task to the engine: %s", err)
 	}
 
-	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
-	// when there is more than one instance of inference-manager-server.
 	header := map[string]*v1.HeaderValue{}
 	for k, vs := range t.header {
 		header[k] = &v1.HeaderValue{Values: vs}

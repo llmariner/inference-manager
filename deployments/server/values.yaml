@@ -1,18 +1,4 @@
 global:
-  database:
-    host:
-    port:
-    username:
-    ssl:
-      mode:
-      rootCert:
-    createDatabase:
-    originalDatabase:
-
-  databaseSecret:
-    name:
-    key:
-
   ingress:
     ingressClassName:
     annotations:

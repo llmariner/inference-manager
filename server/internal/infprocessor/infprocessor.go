@@ -473,6 +473,7 @@ func (p *P) writeTaskResultToChan(
 			delete(p.inProgressTasksByID, t.ID)
 			p.mu.Unlock()
 			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID)})
+			// We return false here (= not completed) as the task might be retried.
 			return false, nil
 		}
 

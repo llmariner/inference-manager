@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package llmariner.inference.server.v1;
+
+import "api/v1/inference_server.proto";
+import "api/v1/inference_server_worker.proto";
+
+option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+message ServerStatus {
+  string pod_name = 1;
+
+  message EngineStatusWithTenantID {
+    EngineStatus engine_status = 2;
+    string tenant_id = 3;
+  }
+  repeated EngineStatusWithTenantID engine_statuses = 4;
+}
+
+message ProcessTasksInternalRequest {
+  oneof message {
+    ServerStatus server_status = 1;
+    TaskResult task_result = 2;
+  }
+}
+
+message ProcessTasksInternalResponse {
+  Task new_task = 1;
+  string tenant_id = 2;
+}
+
+service InferenceInternalService {
+  rpc ProcessTasksInternal(stream ProcessTasksInternalRequest) returns (stream ProcessTasksInternalResponse) {}
+
+}

@@ -19,8 +19,9 @@ global:
 httpPort: 8080
 grpcPort: 8081
 workerServiceGrpcPort: 8082
-monitoringPort: 8083
-adminPort: 8084
+internalGrpcPort: 8083
+monitoringPort: 8084
+adminPort: 8085
 
 database:
   database: inference_manager

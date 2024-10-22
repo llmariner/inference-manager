@@ -9,7 +9,7 @@ import (
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
-	"github.com/llmariner/inference-manager/server/internal/store"
+	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,11 +19,8 @@ func TestP(t *testing.T) {
 		modelID = "m0"
 	)
 
-	st, tearDown := store.NewTest(t)
-	defer tearDown()
-
 	iprocessor := NewP(
-		NewEngineTracker(st, "pod0", "podAddr0"),
+		router.New(),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -39,7 +36,7 @@ func TestP(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	err := iprocessor.AddOrUpdateEngineStatus(
+	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -48,7 +45,6 @@ func TestP(t *testing.T) {
 		},
 		clusterInfo,
 	)
-	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -70,8 +66,7 @@ func TestP(t *testing.T) {
 	assert.Equal(t, "ok", string(body))
 
 	// Remove the engine. Check if a newly created task will fail.
-	err = iprocessor.RemoveEngine("engine_id0", clusterInfo)
-	assert.NoError(t, err)
+	iprocessor.RemoveEngine("engine_id0", clusterInfo)
 	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
@@ -81,11 +76,8 @@ func TestEmbedding(t *testing.T) {
 		modelID = "m0"
 	)
 
-	st, tearDown := store.NewTest(t)
-	defer tearDown()
-
 	iprocessor := NewP(
-		NewEngineTracker(st, "pod0", "podAddr0"),
+		router.New(),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -101,7 +93,7 @@ func TestEmbedding(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	err := iprocessor.AddOrUpdateEngineStatus(
+	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -109,7 +101,6 @@ func TestEmbedding(t *testing.T) {
 		},
 		clusterInfo,
 	)
-	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -136,11 +127,8 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		modelID = "m0"
 	)
 
-	st, tearDown := store.NewTest(t)
-	defer tearDown()
-
 	iprocessor := NewP(
-		NewEngineTracker(st, "pod0", "podAddr0"),
+		router.New(),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -156,7 +144,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	err := iprocessor.AddOrUpdateEngineStatus(
+	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -164,7 +152,6 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		},
 		clusterInfo,
 	)
-	assert.NoError(t, err)
 
 	go func() {
 		_ = iprocessor.Run(ctx)
@@ -174,12 +161,11 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		// Wait for the task to be scheduled.
 		_, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.RemoveEngine("engine_id0", clusterInfo)
-		assert.NoError(t, err)
+		iprocessor.RemoveEngine("engine_id0", clusterInfo)
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err = iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
 
@@ -188,11 +174,8 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		modelID = "m0"
 	)
 
-	st, tearDown := store.NewTest(t)
-	defer tearDown()
-
 	iprocessor := NewP(
-		NewEngineTracker(st, "pod0", "podAddr0"),
+		router.New(),
 		true,
 		testutil.NewTestLogger(t),
 	)
@@ -208,7 +191,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		TenantID: "tenant0",
 	}
 
-	err := iprocessor.AddOrUpdateEngineStatus(
+	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
@@ -216,7 +199,6 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 		},
 		clusterInfo,
 	)
-	assert.NoError(t, err)
 	iprocessor.taskTimeout = 0
 
 	go func(ctx context.Context) {
@@ -226,7 +208,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err = iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 
 	// Simulate a case where the task result is received after the context is canceled.
@@ -237,11 +219,8 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 }
 
 func TestFindLeastLoadedEngine(t *testing.T) {
-	st, tearDown := store.NewTest(t)
-	defer tearDown()
-
 	p := NewP(
-		NewEngineTracker(st, "pod0", "podAddr0"),
+		router.New(),
 		true,
 		testutil.NewTestLogger(t),
 	)

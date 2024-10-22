@@ -19,6 +19,9 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.podTerminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.podTerminationGracePeriodSeconds }}
+      {{- end }}
       serviceAccountName: {{ include "inference-manager-server.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
@@ -51,6 +54,9 @@ spec:
         - name: admin
           containerPort: {{ .Values.adminPort }}
           protocol: TCP
+        - name: km-metrics
+          containerPort: {{ .Values.kubernetesManagerMetricsPort }}
+          protocol: TCP
         volumeMounts:
         - name: config
           mountPath: /etc/config
@@ -65,10 +71,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: POD_IP
+        - name: NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP
+              fieldPath: metadata.namespace
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         resources:

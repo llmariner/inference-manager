@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/llmariner/api-usage/pkg/sender"
-	"github.com/llmariner/common/pkg/db"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,8 +15,6 @@ type Config struct {
 	WorkerServiceGRPCPort int `yaml:"workerServiceGrpcPort"`
 	MonitoringPort        int `yaml:"monitoringPort"`
 	AdminPort             int `yaml:"adminPort"`
-
-	Database db.Config `yaml:"database"`
 
 	ModelManagerServerAddr               string `yaml:"modelManagerServerAddr"`
 	VectorStoreManagerServerAddr         string `yaml:"vectorStoreManagerServerAddr"`
@@ -92,10 +89,6 @@ func (c *Config) Validate() error {
 	}
 	if c.AdminPort <= 0 {
 		return fmt.Errorf("adminPort must be greater than 0")
-	}
-
-	if err := c.Database.Validate(); err != nil {
-		return fmt.Errorf("database: %s", err)
 	}
 
 	if err := c.AuthConfig.validate(); err != nil {

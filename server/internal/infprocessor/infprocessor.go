@@ -13,7 +13,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
-	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 
 const (
@@ -346,15 +345,15 @@ func (p *P) sendTask(
 func (p *P) AddOrUpdateEngineStatus(
 	srv engineCommunicator,
 	engineStatus *v1.EngineStatus,
-	clusterInfo *auth.ClusterInfo,
+	tenantID string,
 ) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	engines, ok := p.engines[clusterInfo.TenantID]
+	engines, ok := p.engines[tenantID]
 	if !ok {
 		engines = map[string]*engine{}
-		p.engines[clusterInfo.TenantID] = engines
+		p.engines[tenantID] = engines
 	}
 	log := p.logger.WithValues("engineID", engineStatus.EngineId)
 
@@ -376,18 +375,18 @@ func (p *P) AddOrUpdateEngineStatus(
 
 	if p.isEngineReadinessCheckEnabled {
 		if engineStatus.Ready {
-			p.engineRouter.AddOrUpdateEngine(e.id, clusterInfo.TenantID, e.modelIDs)
+			p.engineRouter.AddOrUpdateEngine(e.id, tenantID, e.modelIDs)
 		} else {
-			p.engineRouter.DeleteEngine(engineStatus.EngineId, clusterInfo.TenantID)
+			p.engineRouter.DeleteEngine(engineStatus.EngineId, tenantID)
 			log.Info("Removed engine from the router", "reason", "engine not ready")
 		}
 	} else {
-		p.engineRouter.AddOrUpdateEngine(e.id, clusterInfo.TenantID, e.modelIDs)
+		p.engineRouter.AddOrUpdateEngine(e.id, tenantID, e.modelIDs)
 	}
 }
 
 // RemoveEngine removes the engine.
-func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
+func (p *P) RemoveEngine(engineID string, tenantID string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -404,20 +403,17 @@ func (p *P) RemoveEngine(engineID string, clusterInfo *auth.ClusterInfo) {
 		}
 	}
 
-	engines, ok := p.engines[clusterInfo.TenantID]
+	engines, ok := p.engines[tenantID]
 	if !ok {
 		return
 	}
 
-	p.engineRouter.DeleteEngine(engineID, clusterInfo.TenantID)
+	p.engineRouter.DeleteEngine(engineID, tenantID)
 	delete(engines, engineID)
 }
 
 // ProcessTaskResult processes the task result.
-func (p *P) ProcessTaskResult(
-	taskResult *v1.TaskResult,
-	clusterInfo *auth.ClusterInfo,
-) error {
+func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 	taskID := taskResult.TaskId
 
 	p.mu.Lock()

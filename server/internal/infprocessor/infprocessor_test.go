@@ -214,20 +214,20 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 
 	ts := []*task{
 		{
-			ID:       "t0",
-			EngineID: "e0",
+			id:       "t0",
+			engineID: "e0",
 		},
 		{
-			ID:       "t1",
-			EngineID: "e0",
+			id:       "t1",
+			engineID: "e0",
 		},
 		{
-			ID:       "t2",
-			EngineID: "e1",
+			id:       "t2",
+			engineID: "e1",
 		},
 	}
 	for _, t := range ts {
-		p.inProgressTasksByID[t.ID] = t
+		p.inProgressTasksByID[t.id] = t
 	}
 
 	p.engines = map[string]map[string]*engine{
@@ -283,26 +283,26 @@ func TestDumpStatus(t *testing.T) {
 		},
 		inProgressTasksByID: map[string]*task{
 			"task0": {
-				ID:       "task0",
-				EngineID: "e0",
-				TenantID: "tenant0",
-				ChatCompletionReq: &v1.CreateChatCompletionRequest{
+				id:       "task0",
+				engineID: "e0",
+				tenantID: "tenant0",
+				chatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m0",
 				},
 			},
 			"task1": {
-				ID:       "task1",
-				EngineID: "e0",
-				TenantID: "tenant0",
-				ChatCompletionReq: &v1.CreateChatCompletionRequest{
+				id:       "task1",
+				engineID: "e0",
+				tenantID: "tenant0",
+				chatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m1",
 				},
 			},
 			"task2": {
-				ID:       "task2",
-				EngineID: "e1",
-				TenantID: "tenant0",
-				ChatCompletionReq: &v1.CreateChatCompletionRequest{
+				id:       "task2",
+				engineID: "e1",
+				tenantID: "tenant0",
+				chatCompletionReq: &v1.CreateChatCompletionRequest{
 					Model: "m2",
 				},
 			},

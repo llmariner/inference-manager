@@ -27,48 +27,48 @@ type result struct {
 // task is an inference task.
 // TODO(kenji): Consider preserving the request context as well.
 type task struct {
-	ID       string
-	TenantID string
+	id       string
+	tenantID string
 
-	ChatCompletionReq *v1.CreateChatCompletionRequest
-	EmbeddingReq      *v1.CreateEmbeddingRequest
+	chatCompletionReq *v1.CreateChatCompletionRequest
+	embeddingReq      *v1.CreateEmbeddingRequest
 
-	Header http.Header
+	header http.Header
 
 	setResult  func(*result)
 	bodyWriter *pipeReadWriteCloser
 
-	EngineID string
+	engineID string
 
-	CreatedAt time.Time
+	createdAt time.Time
 }
 
 func (t *task) model() string {
-	if r := t.ChatCompletionReq; r != nil {
+	if r := t.chatCompletionReq; r != nil {
 		return r.Model
 	}
-	return t.EmbeddingReq.Model
+	return t.embeddingReq.Model
 }
 
 func (t *task) stream() bool {
-	if r := t.ChatCompletionReq; r != nil {
+	if r := t.chatCompletionReq; r != nil {
 		return r.Stream
 	}
 	return false
 }
 
 func (t *task) request() *v1.TaskRequest {
-	if r := t.ChatCompletionReq; r != nil {
+	if r := t.chatCompletionReq; r != nil {
 		return &v1.TaskRequest{
 			Request: &v1.TaskRequest_ChatCompletion{
-				ChatCompletion: t.ChatCompletionReq,
+				ChatCompletion: t.chatCompletionReq,
 			},
 		}
 	}
 
 	return &v1.TaskRequest{
 		Request: &v1.TaskRequest_Embedding{
-			Embedding: t.EmbeddingReq,
+			Embedding: t.embeddingReq,
 		},
 	}
 }
@@ -172,43 +172,43 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
-	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.TenantID)
+	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID)
 	if err != nil {
 		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
 
-	engine, err := p.findLeastLoadedEngine(engineIDs, t.TenantID)
+	engine, err := p.findLeastLoadedEngine(engineIDs, t.tenantID)
 	if err != nil {
 		return fmt.Errorf("find the least loaded engine: %s", err)
 	}
-	p.logger.Info("Scheduling the task", "task", t.ID, "engine", engine.id)
+	p.logger.Info("Scheduling the task", "task", t.id, "engine", engine.id)
 
 	// TODO(kenji): Forward a request to other server pod if the selected engine is not connected
 	// to this server pod.
 
 	p.mu.Lock()
-	t.EngineID = engine.id
-	p.inProgressTasksByID[t.ID] = t
+	t.engineID = engine.id
+	p.inProgressTasksByID[t.id] = t
 	p.mu.Unlock()
 
 	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
 	// when there is more than one instance of inference-manager-server.
 	header := map[string]*v1.HeaderValue{}
-	for k, vs := range t.Header {
+	for k, vs := range t.header {
 		header[k] = &v1.HeaderValue{Values: vs}
 	}
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id: t.ID,
+			Id: t.id,
 			// TODO(kenji): Remove once all the engines are updated to a newer
 			// version that don't use the deprecated field.
-			DeprecatedChatCompletionRequest: t.ChatCompletionReq,
+			DeprecatedChatCompletionRequest: t.chatCompletionReq,
 			Request:                         t.request(),
 			Header:                          header,
 		},
 	}); err != nil {
 		p.mu.Lock()
-		delete(p.inProgressTasksByID, t.ID)
+		delete(p.inProgressTasksByID, t.id)
 		p.mu.Unlock()
 		return fmt.Errorf("failed to send the task: %s", err)
 	}
@@ -222,7 +222,7 @@ func (p *P) findLeastLoadedEngine(engineIDs []string, tenantID string) (*engine,
 
 	numTasksByEngine := map[string]int{}
 	for _, t := range p.inProgressTasksByID {
-		numTasksByEngine[t.EngineID]++
+		numTasksByEngine[t.engineID]++
 	}
 
 	var minTasks int
@@ -282,12 +282,12 @@ func (p *P) sendTask(
 	log := logger.WithValues("id", taskID)
 	done := make(chan *result, 1)
 	task := &task{
-		ID:                taskID,
-		TenantID:          tenantID,
-		Header:            header,
-		ChatCompletionReq: chatCompletionReq,
-		EmbeddingReq:      embeddingReq,
-		CreatedAt:         time.Now(),
+		id:                taskID,
+		tenantID:          tenantID,
+		header:            header,
+		chatCompletionReq: chatCompletionReq,
+		embeddingReq:      embeddingReq,
+		createdAt:         time.Now(),
 		setResult: func(r *result) {
 			// done channel has one buffer, so at least one result
 			// will be received. If the channel gets an additional error,
@@ -322,7 +322,7 @@ func (p *P) sendTask(
 			return nil, ctx.Err()
 		case r := <-done:
 			if r.err != nil {
-				if p.taskTimeout > 0 && time.Since(task.CreatedAt.Add(p.retryDelay)) < p.taskTimeout {
+				if p.taskTimeout > 0 && time.Since(task.createdAt.Add(p.retryDelay)) < p.taskTimeout {
 					_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
 					log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
 					continue
@@ -392,14 +392,14 @@ func (p *P) RemoveEngine(engineID string, tenantID string) {
 
 	// Cancel in-progress tasks allocated to this engine.
 	for _, t := range p.inProgressTasksByID {
-		if t.EngineID != engineID {
+		if t.engineID != engineID {
 			continue
 		}
-		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", t.ID)
-		delete(p.inProgressTasksByID, t.ID)
+		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", t.id)
+		delete(p.inProgressTasksByID, t.id)
 		t.setResult(&result{err: fmt.Errorf("engine %s is removed", engineID)})
 		if err := t.bodyWriter.closeWrite(); err != nil {
-			p.logger.Error(err, "Failed to close the body writer when engine removed", "engine", t.EngineID, "task", t.ID)
+			p.logger.Error(err, "Failed to close the body writer when engine removed", "engine", t.engineID, "task", t.id)
 		}
 	}
 
@@ -457,9 +457,9 @@ func (p *P) writeTaskResultToChan(
 
 		if resp.StatusCode == http.StatusServiceUnavailable {
 			p.mu.Lock()
-			delete(p.inProgressTasksByID, t.ID)
+			delete(p.inProgressTasksByID, t.id)
 			p.mu.Unlock()
-			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.EngineID)})
+			t.setResult(&result{err: fmt.Errorf("engine %s is unavailable", t.engineID)})
 			return nil
 		}
 
@@ -550,7 +550,7 @@ func (p *P) MaxInProgressTaskDuration() time.Duration {
 	defer p.mu.Unlock()
 	var maxD time.Duration
 	for _, t := range p.inProgressTasksByID {
-		d := time.Since(t.CreatedAt)
+		d := time.Since(t.createdAt)
 		if d > maxD {
 			maxD = d
 		}
@@ -619,21 +619,21 @@ func (p *P) DumpStatus() *Status {
 	}
 
 	for _, task := range p.inProgressTasksByID {
-		t, ok := status.Tenants[task.TenantID]
+		t, ok := status.Tenants[task.tenantID]
 		if !ok {
 			t = &TenantStatus{
 				Engines: map[string]*EngineStatus{},
 			}
-			status.Tenants[task.TenantID] = t
+			status.Tenants[task.tenantID] = t
 		}
-		e, ok := t.Engines[task.EngineID]
+		e, ok := t.Engines[task.engineID]
 		if !ok {
 			e = &EngineStatus{}
-			t.Engines[task.EngineID] = e
+			t.Engines[task.engineID] = e
 		}
 
 		e.Tasks = append(e.Tasks, &TaskStatus{
-			ID:      task.ID,
+			ID:      task.id,
 			ModelID: task.model(),
 		})
 	}

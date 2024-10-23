@@ -205,11 +205,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 			Header:                          header,
 		},
 	}); err != nil {
-		close(t.resultCh)
-
-		p.mu.Lock()
-		delete(p.inProgressTasksByID, t.id)
-		p.mu.Unlock()
+		p.deleteTaskFromInProgress(t)
 		return fmt.Errorf("failed to send the task: %s", err)
 	}
 	return nil
@@ -320,22 +316,15 @@ func (p *P) sendTask(
 				break
 			}
 
-			// TODO(kenji): Revisit. Currently we remove the task from the in-progress map only when a task
-			// is retried, but we might want to remove in other cases as well. If a task result is not received,
-			// the task is not removed from the in-progress map.
-			p.mu.Lock()
-			delete(p.inProgressTasksByID, task.id)
-			p.mu.Unlock()
-
 			_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
 			log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
 		}
 
-		// When a task result comes, the processor still attempts to
-		// write a response/error to a channel. We need to read
-		// from the channel to avoid a goroutine leak.
+		p.deleteTaskFromInProgress(task)
+
+		// Drain the result channel as ProcessTaskResult might get blocked.
 		go func() {
-			for range resultCh {
+			for range task.resultCh {
 			}
 		}()
 
@@ -424,8 +413,10 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 	p.mu.Lock()
 	t, ok := p.inProgressTasksByID[taskID]
 	p.mu.Unlock()
+
 	if !ok {
-		return fmt.Errorf("task not found: %s", taskID)
+		// The task has already been removed from the in-progress tasks map due to an error.
+		return nil
 	}
 
 	t.resultCh <- &resultOrError{result: taskResult}
@@ -440,11 +431,8 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 
 	p.logger.Info("Completed task", "task", taskID)
 
-	close(t.resultCh)
+	p.deleteTaskFromInProgress(t)
 
-	p.mu.Lock()
-	delete(p.inProgressTasksByID, taskID)
-	p.mu.Unlock()
 	return nil
 }
 
@@ -560,6 +548,18 @@ func (p *P) Engines() map[string][]*v1.EngineStatus {
 		result[tenantID] = engines
 	}
 	return result
+}
+
+func (p *P) deleteTaskFromInProgress(task *task) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if _, ok := p.inProgressTasksByID[task.id]; !ok {
+		return
+	}
+
+	close(task.resultCh)
+	delete(p.inProgressTasksByID, task.id)
 }
 
 // NumQueuedTasks returns the number of queued tasks.

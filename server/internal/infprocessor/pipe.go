@@ -28,9 +28,6 @@ func (c *pipeReadWriteCloser) Close() error {
 
 // closeWrite closes the write pipe.
 func (c *pipeReadWriteCloser) closeWrite() error {
-	if c == nil {
-		return nil
-	}
 	if err := c.PipeWriter.Close(); err != nil {
 		return err
 	}

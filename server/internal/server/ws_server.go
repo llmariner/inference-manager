@@ -160,7 +160,7 @@ func (ws *WS) processTasks(srv serverInterface) error {
 		default:
 		}
 
-		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo)
+		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo.TenantID)
 		if err != nil {
 			if err != io.EOF {
 				ws.logger.Error(err, "processMessagesFromEngine error")
@@ -169,7 +169,7 @@ func (ws *WS) processTasks(srv serverInterface) error {
 		}
 		if !registered && engineID != "" {
 			defer func() {
-				ws.infProcessor.RemoveEngine(engineID, clusterInfo)
+				ws.infProcessor.RemoveEngine(engineID, clusterInfo.TenantID)
 				ws.logger.Info("Unregistered engine", "engineID", engineID)
 			}()
 			registered = true
@@ -179,7 +179,7 @@ func (ws *WS) processTasks(srv serverInterface) error {
 
 func (ws *WS) processMessagesFromEngine(
 	srv serverInterface,
-	clusterInfo *auth.ClusterInfo,
+	tenantID string,
 ) (string, error) {
 	req, err := srv.Recv()
 	if err != nil {
@@ -190,10 +190,10 @@ func (ws *WS) processMessagesFromEngine(
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
 		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo)
+		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
-		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult, clusterInfo); err != nil {
+		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult); err != nil {
 			return "", err
 		}
 	default:

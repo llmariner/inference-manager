@@ -10,7 +10,6 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/llmariner/inference-manager/server/internal/router"
-	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,10 +31,6 @@ func TestP(t *testing.T) {
 	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
-	clusterInfo := &auth.ClusterInfo{
-		TenantID: "tenant0",
-	}
-
 	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
@@ -43,7 +38,7 @@ func TestP(t *testing.T) {
 			ModelIds: []string{modelID},
 			Ready:    true,
 		},
-		clusterInfo,
+		"tenant0",
 	)
 
 	go func() {
@@ -53,7 +48,7 @@ func TestP(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
 		assert.NoError(t, err)
 	}()
 
@@ -66,7 +61,7 @@ func TestP(t *testing.T) {
 	assert.Equal(t, "ok", string(body))
 
 	// Remove the engine. Check if a newly created task will fail.
-	iprocessor.RemoveEngine("engine_id0", clusterInfo)
+	iprocessor.RemoveEngine("engine_id0", "tenant0")
 	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }
@@ -89,17 +84,13 @@ func TestEmbedding(t *testing.T) {
 	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
-	clusterInfo := &auth.ClusterInfo{
-		TenantID: "tenant0",
-	}
-
 	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
 			Ready:    true,
 		},
-		clusterInfo,
+		"tenant0",
 	)
 
 	go func() {
@@ -109,7 +100,7 @@ func TestEmbedding(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
 		assert.NoError(t, err)
 	}()
 
@@ -140,17 +131,13 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
-	clusterInfo := &auth.ClusterInfo{
-		TenantID: "tenant0",
-	}
-
 	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
 			Ready:    true,
 		},
-		clusterInfo,
+		"tenant0",
 	)
 
 	go func() {
@@ -161,7 +148,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 		// Wait for the task to be scheduled.
 		_, err := comm.Recv()
 		assert.NoError(t, err)
-		iprocessor.RemoveEngine("engine_id0", clusterInfo)
+		iprocessor.RemoveEngine("engine_id0", "tenant0")
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
@@ -187,17 +174,13 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	comm := newFakeEngineCommunicator(t)
 	go comm.run(ctx)
 
-	clusterInfo := &auth.ClusterInfo{
-		TenantID: "tenant0",
-	}
-
 	iprocessor.AddOrUpdateEngineStatus(
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
 			Ready:    true,
 		},
-		clusterInfo,
+		"tenant0",
 	)
 	iprocessor.taskTimeout = 0
 
@@ -214,7 +197,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	// Simulate a case where the task result is received after the context is canceled.
 	resp, err := comm.Recv()
 	assert.NoError(t, err)
-	err = iprocessor.ProcessTaskResult(resp.GetTaskResult(), clusterInfo)
+	err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
 	assert.NoError(t, err)
 }
 

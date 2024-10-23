@@ -509,6 +509,29 @@ func (p *P) writeTaskResultToChan(
 	}
 }
 
+// Engines returns the engine statuses grouped by tenant ID.
+func (p *P) Engines() map[string][]*v1.EngineStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	result := map[string][]*v1.EngineStatus{}
+	for tenantID, es := range p.engines {
+		var engines []*v1.EngineStatus
+		for _, e := range es {
+			engines = append(engines, &v1.EngineStatus{
+				EngineId: e.id,
+				ModelIds: e.modelIDs,
+				SyncStatus: &v1.EngineStatus_SyncStatus{
+					InProgressModelIds: e.inProgressModelIDs,
+				},
+				Ready: true,
+			})
+		}
+		result[tenantID] = engines
+	}
+	return result
+}
+
 // NumQueuedTasks returns the number of queued tasks.
 func (p *P) NumQueuedTasks() int32 {
 	return p.queue.numTasks.Load()

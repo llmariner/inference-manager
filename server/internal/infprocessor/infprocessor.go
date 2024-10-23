@@ -124,15 +124,15 @@ func NewP(engineRouter engineRouter, isEngineReadinessCheckEnabled bool, logger 
 	}
 }
 
-type engineCommunicator interface {
+// taskSender sends a new task to the engine.
+type taskSender interface {
 	Send(*v1.ProcessTasksResponse) error
-	Recv() (*v1.ProcessTasksRequest, error)
 }
 
 type engine struct {
 	id string
 
-	srv engineCommunicator
+	taskSender taskSender
 
 	modelIDs           []string
 	inProgressModelIDs []string
@@ -197,7 +197,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	for k, vs := range t.Header {
 		header[k] = &v1.HeaderValue{Values: vs}
 	}
-	if err := engine.srv.Send(&v1.ProcessTasksResponse{
+	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
 			Id: t.ID,
 			// TODO(kenji): Remove once all the engines are updated to a newer
@@ -343,7 +343,7 @@ func (p *P) sendTask(
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
 func (p *P) AddOrUpdateEngineStatus(
-	srv engineCommunicator,
+	taskSender taskSender,
 	engineStatus *v1.EngineStatus,
 	tenantID string,
 ) {
@@ -360,8 +360,8 @@ func (p *P) AddOrUpdateEngineStatus(
 	e, ok := engines[engineStatus.EngineId]
 	if !ok {
 		e = &engine{
-			id:  engineStatus.EngineId,
-			srv: srv,
+			id:         engineStatus.EngineId,
+			taskSender: taskSender,
 		}
 		engines[engineStatus.EngineId] = e
 		log.Info("Registered new engine")

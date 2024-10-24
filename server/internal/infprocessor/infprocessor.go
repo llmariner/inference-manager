@@ -287,7 +287,7 @@ func (p *P) SendAndProcessTask(
 ) error {
 	log := p.logger.WithValues("id", origTask.Id)
 
-	var header http.Header
+	header := http.Header{}
 	for k, vs := range origTask.Header {
 		for _, v := range vs.Values {
 			header.Add(k, v)

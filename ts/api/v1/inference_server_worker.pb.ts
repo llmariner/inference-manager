@@ -68,7 +68,6 @@ export type Task = {
   id?: string
   request?: TaskRequest
   header?: {[key: string]: HeaderValue}
-  deprecatedChatCompletionRequest?: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest
 }
 
 export type ProcessTasksResponse = {

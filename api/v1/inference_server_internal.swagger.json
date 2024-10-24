@@ -391,10 +391,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1HeaderValue"
           }
-        },
-        "deprecatedChatCompletionRequest": {
-          "$ref": "#/definitions/v1CreateChatCompletionRequest",
-          "description": "For backward compatibility for old engine."
         }
       }
     },

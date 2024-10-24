@@ -196,12 +196,9 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	}
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id: t.id,
-			// TODO(kenji): Remove once all the engines are updated to a newer
-			// version that don't use the deprecated field.
-			DeprecatedChatCompletionRequest: t.chatCompletionReq,
-			Request:                         t.request(),
-			Header:                          header,
+			Id:      t.id,
+			Request: t.request(),
+			Header:  header,
 		},
 	}); err != nil {
 		return fmt.Errorf("send the task: %s", err)

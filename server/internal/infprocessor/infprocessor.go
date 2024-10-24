@@ -135,6 +135,9 @@ type engine struct {
 
 	modelIDs           []string
 	inProgressModelIDs []string
+
+	// isLocal indicates whether the engine is connected to this local server or not.
+	isLocal bool
 }
 
 // P processes inference tasks.
@@ -176,7 +179,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
 
-	engine, err := p.findLeastLoadedEngine(engineIDs, t.tenantID)
+	engine, err := p.findMostPreferredtEngine(engineIDs, t.tenantID)
 	if err != nil {
 		return fmt.Errorf("find the least loaded engine: %s", err)
 	}
@@ -228,36 +231,58 @@ func (p *P) unassignTaskFromEngine(t *task) {
 	t.engineID = ""
 }
 
-// findLeastLoadedEngine finds the least loaded engine from the given engine IDs.
-func (p *P) findLeastLoadedEngine(engineIDs []string, tenantID string) (*engine, error) {
+// findMostPreferredtEngine finds the most preferred engine for scheduling a task from a given engines.
+func (p *P) findMostPreferredtEngine(engineIDs []string, tenantID string) (*engine, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	engines := p.engines[tenantID]
+	if len(engines) == 0 {
+		return nil, fmt.Errorf("no engine found")
+	}
+
+	// Prefer locally connected engines to remote engines.
+	var localEngines, remoteEngines []*engine
+	for _, engineID := range engineIDs {
+		e, ok := engines[engineID]
+		if !ok {
+			return nil, fmt.Errorf("engine not found: %s", engineID)
+		}
+		if e.isLocal {
+			localEngines = append(localEngines, e)
+		} else {
+			remoteEngines = append(remoteEngines, e)
+		}
+	}
+
+	if len(localEngines) > 0 {
+		return p.findLeastLoadedEngine(localEngines)
+	}
+
+	return p.findLeastLoadedEngine(remoteEngines)
+}
+
+func (p *P) findLeastLoadedEngine(engines []*engine) (*engine, error) {
 	numTasksByEngine := map[string]int{}
 	for _, t := range p.inProgressTasksByID {
 		numTasksByEngine[t.engineID]++
 	}
 
 	var minTasks int
-	var leastLoaded string
-	for _, engineID := range engineIDs {
-		n := numTasksByEngine[engineID]
-		if leastLoaded == "" || n < minTasks {
+	var leastLoaded *engine
+	for _, e := range engines {
+		n := numTasksByEngine[e.id]
+		if leastLoaded == nil || n < minTasks {
 			minTasks = n
-			leastLoaded = engineID
+			leastLoaded = e
 		}
 	}
 
-	engines := p.engines[tenantID]
-	if len(engines) == 0 {
+	if leastLoaded == nil {
 		return nil, fmt.Errorf("no engine found")
 	}
-	engine, ok := engines[leastLoaded]
-	if !ok {
-		return nil, fmt.Errorf("engine not found: %s", leastLoaded)
-	}
 
-	return engine, nil
+	return leastLoaded, nil
 }
 
 // SendAndProcessTask sends a task and processes the results.
@@ -450,6 +475,7 @@ func (p *P) AddOrUpdateEngineStatus(
 	taskSender taskSender,
 	engineStatus *v1.EngineStatus,
 	tenantID string,
+	isLocal bool,
 ) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -466,6 +492,7 @@ func (p *P) AddOrUpdateEngineStatus(
 		e = &engine{
 			id:         engineStatus.EngineId,
 			taskSender: taskSender,
+			isLocal:    isLocal,
 		}
 		engines[engineStatus.EngineId] = e
 		log.Info("Registered new engine")

@@ -190,7 +190,7 @@ func (ws *WS) processMessagesFromEngine(
 	switch msg := req.Message.(type) {
 	case *v1.ProcessTasksRequest_EngineStatus:
 		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID)
+		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID, true /* isLocal */)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
 		ws.infProcessor.ProcessTaskResult(msg.TaskResult)

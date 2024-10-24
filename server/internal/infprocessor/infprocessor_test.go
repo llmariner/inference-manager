@@ -205,6 +205,67 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSendAndProcessTask(t *testing.T) {
+	const (
+		modelID = "m0"
+	)
+
+	iprocessor := NewP(
+		router.New(),
+		true,
+		testutil.NewTestLogger(t),
+	)
+	iprocessor.taskTimeout = 0
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	comm := newFakeEngineCommunicator(t)
+	go comm.run(ctx)
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+			ModelIds: []string{modelID},
+			Ready:    true,
+		},
+		"tenant0",
+	)
+
+	go func() {
+		_ = iprocessor.Run(ctx)
+	}()
+
+	go func() {
+		resp, err := comm.Recv()
+		assert.NoError(t, err)
+		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
+		assert.NoError(t, err)
+	}()
+
+	task := &v1.Task{
+		Id: "task0",
+		Request: &v1.TaskRequest{
+			Request: &v1.TaskRequest_ChatCompletion{
+				ChatCompletion: &v1.CreateChatCompletionRequest{Model: modelID},
+			},
+		},
+	}
+
+	resultCh := make(chan *v1.TaskResult)
+	go func() {
+		f := func(r *v1.TaskResult) error {
+			resultCh <- r
+			return nil
+		}
+		_ = iprocessor.SendAndProcessTask(ctx, task, "tenant0", f)
+	}()
+
+	resp := <-resultCh
+	assert.Equal(t, http.StatusOK, int(resp.GetHttpResponse().StatusCode))
+}
+
 func TestFindLeastLoadedEngine(t *testing.T) {
 	p := NewP(
 		router.New(),

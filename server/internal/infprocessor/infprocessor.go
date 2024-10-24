@@ -2,6 +2,7 @@ package infprocessor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -186,7 +187,6 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 
 	p.mu.Lock()
 	t.engineID = engine.id
-	p.inProgressTasksByID[t.id] = t
 	p.mu.Unlock()
 
 	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
@@ -205,8 +205,8 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 			Header:                          header,
 		},
 	}); err != nil {
-		p.deleteTaskFromInProgress(t)
-		return fmt.Errorf("failed to send the task: %s", err)
+		t.resultCh <- &resultOrError{err: fmt.Errorf("send the task: %s", err)}
+		return fmt.Errorf("send the task: %s", err)
 	}
 	return nil
 }
@@ -241,6 +241,35 @@ func (p *P) findLeastLoadedEngine(engineIDs []string, tenantID string) (*engine,
 	}
 
 	return engine, nil
+}
+
+// SendAndProcessTask sends a task and processes the results.
+func (p *P) SendAndProcessTask(
+	ctx context.Context,
+	origTask *v1.Task,
+	tenantID string,
+	processResult func(*v1.TaskResult) error,
+) error {
+	log := p.logger.WithValues("id", origTask.Id)
+
+	var header http.Header
+	for k, vs := range origTask.Header {
+		for _, v := range vs.Values {
+			header.Add(k, v)
+		}
+	}
+	resultCh := make(chan *resultOrError)
+	task := &task{
+		id:                origTask.Id,
+		tenantID:          tenantID,
+		header:            header,
+		chatCompletionReq: origTask.Request.GetChatCompletion(),
+		embeddingReq:      origTask.Request.GetEmbedding(),
+		createdAt:         time.Now(),
+		resultCh:          resultCh,
+	}
+
+	return p.enqueueAndProcessTask(ctx, task, processResult, log)
 }
 
 // SendChatCompletionTask sends a chat completion task.
@@ -288,47 +317,29 @@ func (p *P) sendTask(
 		resultCh:          resultCh,
 	}
 
-	p.queue.Enqueue(task)
-
 	log.V(1).Info("Waiting to receive an initial response to the task")
 
 	respCh := make(chan *http.Response)
 	errCh := make(chan error)
 
 	go func() {
-		var err error
-		for {
-			var retriable bool
-			retriable, err = processTaskResults(ctx, task, resultCh, respCh, log)
-			if err == nil {
-				// The task is completed.
-				break
-			}
-
-			// Retry the task if possible.
-
-			if !retriable {
-				break
-			}
-
-			if p.taskTimeout == 0 || time.Since(task.createdAt.Add(p.retryDelay)) >= p.taskTimeout {
-				log.Error(err, "Failed to process the task")
-				break
-			}
-
-			_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
-			log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
-		}
-
-		p.deleteTaskFromInProgress(task)
-
-		// Drain the result channel as ProcessTaskResult might get blocked.
-		go func() {
-			for range task.resultCh {
+		bodyWriter := newPipeReadWriteCloser()
+		defer func() {
+			if err := bodyWriter.closeWrite(); err != nil {
+				log.Error(err, "Failed to close the body writer")
 			}
 		}()
 
-		errCh <- err
+		f := func(r *v1.TaskResult) error {
+			return processTaskResult(task, r, bodyWriter, respCh, log)
+		}
+		if err := p.enqueueAndProcessTask(ctx, task, f, log); err != nil {
+			// Use a non-blocking write as an error might happen after the respCh is written.
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
 	}()
 
 	select {
@@ -337,6 +348,81 @@ func (p *P) sendTask(
 	case err := <-errCh:
 		return nil, err
 	}
+}
+
+type retriableError struct {
+	error
+}
+
+func (p *P) enqueueAndProcessTask(
+	ctx context.Context,
+	task *task,
+	processResult func(*v1.TaskResult) error,
+	log logr.Logger,
+) error {
+	p.mu.Lock()
+	p.inProgressTasksByID[task.id] = task
+	p.mu.Unlock()
+
+	defer func() {
+		p.mu.Lock()
+		delete(p.inProgressTasksByID, task.id)
+		p.mu.Unlock()
+
+		// Drain the result channel as ProcessTaskResult might get blocked.
+		for {
+			select {
+			case r := <-task.resultCh:
+				if r == nil {
+					return
+				}
+			default:
+				return
+			}
+		}
+	}()
+
+	p.queue.Enqueue(task)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case r, ok := <-task.resultCh:
+			if !ok {
+				// The channel is closed.
+				return nil
+			}
+
+			var err error
+			if r.err != nil {
+				err = retriableError{error: r.err}
+			} else if r.result != nil {
+				err = processResult(r.result)
+			} else {
+				return fmt.Errorf("unexpected empty result")
+			}
+
+			if err == nil {
+				continue
+			}
+
+			if !p.canRetry(task, err) {
+				return r.err
+			}
+
+			_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
+			log.V(2).Info("Requeued the task", "reason", r.err, "delay", p.retryDelay)
+		}
+	}
+}
+
+func (p *P) canRetry(t *task, err error) bool {
+	if !errors.As(err, &retriableError{}) {
+		return false
+	}
+
+	return p.taskTimeout > 0 && time.Since(t.createdAt.Add(p.retryDelay)) < p.taskTimeout
 }
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
@@ -415,7 +501,7 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 	p.mu.Unlock()
 
 	if !ok {
-		// The task has already been removed from the in-progress tasks map due to an error.
+		// The task has already been removed from the in-progress tasks map due to an error or context cancel.
 		return nil
 	}
 
@@ -431,100 +517,66 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 
 	p.logger.Info("Completed task", "task", taskID)
 
-	p.deleteTaskFromInProgress(t)
+	close(t.resultCh)
 
 	return nil
 }
 
-// processTaskResults processes task results until the task is completed.
-//
-// It returns an error if the task is failed or the context is canceled. The returned
-// bool value indicates if the error is retriable or not.
-func processTaskResults(
-	ctx context.Context,
+// processTaskResults processes a task result.
+func processTaskResult(
 	task *task,
-	resultCh <-chan *resultOrError,
+	result *v1.TaskResult,
+	bodyWriter *pipeReadWriteCloser,
 	respCh chan<- *http.Response,
 	log logr.Logger,
-) (bool, error) {
-	var bodyWriter *pipeReadWriteCloser
-	defer func() {
-		if bodyWriter != nil {
-			if err := bodyWriter.closeWrite(); err != nil {
-				log.Error(err, "Failed to close the body writer")
+) error {
+	switch msg := result.Message.(type) {
+	case *v1.TaskResult_HttpResponse:
+		resp := msg.HttpResponse
+
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			return retriableError{error: fmt.Errorf("engine is unavailable")}
+		}
+
+		header := http.Header{}
+		for k, vs := range resp.Header {
+			for _, v := range vs.Values {
+				header.Add(k, v)
 			}
 		}
-	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
+		log.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
 
-		case r, ok := <-resultCh:
-			if !ok {
-				// The channel is closed.
-				return false, nil
-			}
+		respCh <- &http.Response{
+			StatusCode: int(resp.StatusCode),
+			Status:     resp.Status,
+			Header:     header,
+			Body:       bodyWriter,
+		}
 
-			if r.err != nil {
-				return true, r.err
-			}
-
-			if r.result == nil {
-				return false, fmt.Errorf("unexpected empty result")
-			}
-
-			switch msg := r.result.Message.(type) {
-			case *v1.TaskResult_HttpResponse:
-				resp := msg.HttpResponse
-
-				if resp.StatusCode == http.StatusServiceUnavailable {
-					return true, fmt.Errorf("engine is unavailable")
-				}
-
-				header := http.Header{}
-				for k, vs := range resp.Header {
-					for _, v := range vs.Values {
-						header.Add(k, v)
-					}
-				}
-
-				bodyWriter = newPipeReadWriteCloser()
-
-				log.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
-
-				respCh <- &http.Response{
-					StatusCode: int(resp.StatusCode),
-					Status:     resp.Status,
-					Header:     header,
-					Body:       bodyWriter,
-				}
-
-				if d := resp.Body; len(d) > 0 {
-					if _, err := bodyWriter.Write(d); err != nil {
-						// Gracefully handle the error as it can happen when the request is canceled and
-						// the body writer is closed by the client.
-						log.Error(err, "Failed to write the body writer")
-					}
-				}
-			case *v1.TaskResult_ServerSentEvent:
-				if !task.stream() {
-					return false, fmt.Errorf("unexpected chunked response for non-streaming request")
-				}
-
-				if d := msg.ServerSentEvent.Data; len(d) > 0 {
-					if _, err := bodyWriter.Write(d); err != nil {
-						// Gracefully handle the error as it can happen when the request is canceled and
-						// the body writer is closed by the client.
-						log.Error(err, "Failed to write the body writer")
-					}
-				}
-			default:
-				return false, fmt.Errorf("unexpected message type: %T", msg)
+		if d := resp.Body; len(d) > 0 {
+			if _, err := bodyWriter.Write(d); err != nil {
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Error(err, "Failed to write the body writer")
 			}
 		}
+	case *v1.TaskResult_ServerSentEvent:
+		if !task.stream() {
+			return fmt.Errorf("unexpected chunked response for non-streaming request")
+		}
+
+		if d := msg.ServerSentEvent.Data; len(d) > 0 {
+			if _, err := bodyWriter.Write(d); err != nil {
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Error(err, "Failed to write the body writer")
+			}
+		}
+	default:
+		return fmt.Errorf("unexpected message type: %T", msg)
 	}
+	return nil
 }
 
 // Engines returns the engine statuses grouped by tenant ID.
@@ -548,18 +600,6 @@ func (p *P) Engines() map[string][]*v1.EngineStatus {
 		result[tenantID] = engines
 	}
 	return result
-}
-
-func (p *P) deleteTaskFromInProgress(task *task) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if _, ok := p.inProgressTasksByID[task.id]; !ok {
-		return
-	}
-
-	close(task.resultCh)
-	delete(p.inProgressTasksByID, task.id)
 }
 
 // NumQueuedTasks returns the number of queued tasks.

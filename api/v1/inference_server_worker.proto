@@ -63,9 +63,6 @@ message Task {
   TaskRequest request = 4;
   map<string, HeaderValue> header = 3;
 
-  // For backward compatibility for old engine.
-  llmariner.chat.server.v1.CreateChatCompletionRequest deprecated_chat_completion_request = 2;
-
   // Next ID: 5
 }
 

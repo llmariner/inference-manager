@@ -193,9 +193,7 @@ func (ws *WS) processMessagesFromEngine(
 		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID)
 		engineID = msg.EngineStatus.EngineId
 	case *v1.ProcessTasksRequest_TaskResult:
-		if err := ws.infProcessor.ProcessTaskResult(msg.TaskResult); err != nil {
-			return "", err
-		}
+		ws.infProcessor.ProcessTaskResult(msg.TaskResult)
 	default:
 		return "", fmt.Errorf("unknown message type: %T", msg)
 	}

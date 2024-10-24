@@ -678,6 +678,7 @@ type EngineStatus struct {
 	RegisteredModelIDs []string      `json:"registeredModelIds"`
 	InProgressModelIDs []string      `json:"inProgressModelIds"`
 	Tasks              []*TaskStatus `json:"tasks"`
+	IsLocal            bool          `json:"isLocal"`
 }
 
 // TenantStatus is the status of a tenant.
@@ -712,6 +713,7 @@ func (p *P) DumpStatus() *Status {
 			t.Engines[id] = &EngineStatus{
 				RegisteredModelIDs: e.modelIDs,
 				InProgressModelIDs: e.inProgressModelIDs,
+				IsLocal:            e.isLocal,
 			}
 		}
 	}

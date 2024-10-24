@@ -205,7 +205,6 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 			Header:                          header,
 		},
 	}); err != nil {
-		p.writeResultToTask(t.id, &resultOrError{err: fmt.Errorf("send the task: %s", err)})
 		return fmt.Errorf("send the task: %s", err)
 	}
 	return nil
@@ -373,10 +372,7 @@ func (p *P) enqueueAndProcessTask(
 		// the task is deleted from the in-progress tasks map.
 		for {
 			select {
-			case r := <-task.resultCh:
-				if r == nil {
-					return
-				}
+			case <-task.resultCh:
 			default:
 				return
 			}
@@ -393,31 +389,30 @@ func (p *P) enqueueAndProcessTask(
 			var err error
 			if r.err != nil {
 				err = retriableError{error: r.err}
-			} else if r.result == nil {
-				err = fmt.Errorf("unexpected empty result")
 			} else {
 				err = processResult(r.result)
-				if err == nil {
-					// Check if the task is completed.
-					var completed bool
-					completed, err = isTaskCompleted(task, r.result)
-					if err == nil && completed {
-						log.Info("Completed task")
-						return nil
-					}
-				}
 			}
 
-			if err == nil {
+			if err != nil {
+				// Retry if possible.
+				if !p.canRetry(task, err) {
+					return err
+				}
+
+				_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
+				log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
 				continue
 			}
 
-			if !p.canRetry(task, err) {
-				return r.err
+			// Check if the task is completed.
+			completed, err := isTaskCompleted(task, r.result)
+			if err != nil {
+				return fmt.Errorf("check if the task is completed: %s", err)
 			}
-
-			_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
-			log.V(2).Info("Requeued the task", "reason", r.err, "delay", p.retryDelay)
+			if completed {
+				log.Info("Completed task")
+				return nil
+			}
 		}
 	}
 }

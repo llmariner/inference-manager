@@ -607,8 +607,8 @@ func processTaskResult(
 	return nil
 }
 
-// Engines returns the engine statuses grouped by tenant ID.
-func (p *P) Engines() map[string][]*v1.EngineStatus {
+// LocalEngines returns the local engine statuses grouped by tenant ID.
+func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -616,6 +616,10 @@ func (p *P) Engines() map[string][]*v1.EngineStatus {
 	for tenantID, es := range p.engines {
 		var engines []*v1.EngineStatus
 		for _, e := range es {
+			if !e.isLocal {
+				continue
+			}
+
 			engines = append(engines, &v1.EngineStatus{
 				EngineId: e.id,
 				ModelIds: e.modelIDs,

@@ -165,7 +165,7 @@ func (s *fakeOllamaServer) port() int {
 type fakeModelSyncer struct {
 }
 
-func (f *fakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
+func (f *fakeModelSyncer) ListSyncedModelIDs() []string {
 	return nil
 }
 

@@ -130,7 +130,7 @@ func TestListSyncedModelIDs(t *testing.T) {
 			"model-2": newReadyRuntime("test2"),
 		},
 	}
-	models := mgr.ListSyncedModelIDs(context.Background())
+	models := mgr.ListSyncedModelIDs()
 	assert.Len(t, models, 2)
 	assert.Contains(t, models, "model-0")
 	assert.Contains(t, models, "model-2")

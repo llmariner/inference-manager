@@ -38,7 +38,7 @@ const (
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
-	ListSyncedModelIDs(ctx context.Context) []string
+	ListSyncedModelIDs() []string
 	PullModel(ctx context.Context, modelID string) error
 	ListInProgressModels() []string
 }
@@ -223,7 +223,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 	isFirst := true
 	for {
-		if err := p.sendEngineStatus(ctx, stream, true); err != nil {
+		if err := p.sendEngineStatus(stream, true); err != nil {
 			return err
 		}
 
@@ -242,7 +242,7 @@ func (p *P) sendEngineStatusPeriodically(
 		case <-stream.Context().Done():
 			return nil
 		case <-ctx.Done():
-			if err := p.sendEngineStatus(ctx, stream, false); err != nil {
+			if err := p.sendEngineStatus(stream, false); err != nil {
 				return err
 			}
 			return nil
@@ -512,12 +512,12 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	return req, nil
 }
 
-func (p *P) sendEngineStatus(ctx context.Context, stream sender, ready bool) error {
+func (p *P) sendEngineStatus(stream sender, ready bool) error {
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: p.engineID,
-				ModelIds: p.modelSyncer.ListSyncedModelIDs(ctx),
+				ModelIds: p.modelSyncer.ListSyncedModelIDs(),
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: p.modelSyncer.ListInProgressModels(),
 				},

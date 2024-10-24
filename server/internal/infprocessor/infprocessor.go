@@ -165,7 +165,7 @@ func (p *P) Run(ctx context.Context) error {
 			return err
 		}
 		if err := p.scheduleTask(ctx, t); err != nil {
-			t.resultCh <- &resultOrError{err: err}
+			p.writeResultToTask(t.id, &resultOrError{err: err})
 		}
 	}
 }
@@ -205,7 +205,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 			Header:                          header,
 		},
 	}); err != nil {
-		t.resultCh <- &resultOrError{err: fmt.Errorf("send the task: %s", err)}
+		p.writeResultToTask(t.id, &resultOrError{err: fmt.Errorf("send the task: %s", err)})
 		return fmt.Errorf("send the task: %s", err)
 	}
 	return nil
@@ -369,7 +369,8 @@ func (p *P) enqueueAndProcessTask(
 		delete(p.inProgressTasksByID, task.id)
 		p.mu.Unlock()
 
-		// Drain the result channel as ProcessTaskResult might get blocked.
+		// Drain the result channel as a result might have been written just before
+		// the task is deleted from the in-progress tasks map.
 		for {
 			select {
 			case r := <-task.resultCh:
@@ -388,12 +389,7 @@ func (p *P) enqueueAndProcessTask(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case r, ok := <-task.resultCh:
-			if !ok {
-				// The channel is closed.
-				return nil
-			}
-
+		case r := <-task.resultCh:
 			var err error
 			if r.err != nil {
 				err = retriableError{error: r.err}
@@ -481,30 +477,36 @@ func (p *P) AddOrUpdateEngineStatus(
 // RemoveEngine removes the engine.
 func (p *P) RemoveEngine(engineID string, tenantID string) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	// Cancel in-progress tasks allocated to this engine.
+	var taskIDs []string
 	for _, t := range p.inProgressTasksByID {
 		if t.engineID != engineID {
 			continue
 		}
-		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", t.id)
-		t.resultCh <- &resultOrError{err: fmt.Errorf("engine %s is removed", engineID)}
+		taskIDs = append(taskIDs, t.id)
 	}
 
 	engines, ok := p.engines[tenantID]
-	if !ok {
-		return
+	if ok {
+		p.engineRouter.DeleteEngine(engineID, tenantID)
+		delete(engines, engineID)
 	}
+	p.mu.Unlock()
 
-	p.engineRouter.DeleteEngine(engineID, tenantID)
-	delete(engines, engineID)
+	// Write the result outside of the lock.
+	for _, taskID := range taskIDs {
+		p.logger.Info("Canceled task", "reason", "engine removed", "engine", engineID, "task", taskID)
+		p.writeResultToTask(taskID, &resultOrError{err: fmt.Errorf("engine %s is removed", engineID)})
+	}
 }
 
 // ProcessTaskResult processes the task result.
 func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) {
-	taskID := taskResult.TaskId
+	p.writeResultToTask(taskResult.TaskId, &resultOrError{result: taskResult})
+}
 
+func (p *P) writeResultToTask(taskID string, r *resultOrError) {
 	p.mu.Lock()
 	t, ok := p.inProgressTasksByID[taskID]
 	p.mu.Unlock()
@@ -514,10 +516,10 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) {
 		return
 	}
 
-	t.resultCh <- &resultOrError{result: taskResult}
+	t.resultCh <- r
 }
 
-// processTaskResults processes a task result.
+// processTaskResult processes a task result.
 func processTaskResult(
 	task *task,
 	result *v1.TaskResult,

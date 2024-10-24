@@ -137,13 +137,26 @@ func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		default:
 		}
 
-		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo.TenantID)
+		req, err := srv.Recv()
 		if err != nil {
 			if err != io.EOF {
 				ws.logger.Error(err, "processMessagesFromEngine error")
 			}
 			return err
 		}
+
+		var engineID string
+		switch msg := req.Message.(type) {
+		case *v1.ProcessTasksRequest_EngineStatus:
+			ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
+			ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo.TenantID, true /* isLocal */)
+			engineID = msg.EngineStatus.EngineId
+		case *v1.ProcessTasksRequest_TaskResult:
+			ws.infProcessor.ProcessTaskResult(msg.TaskResult)
+		default:
+			return fmt.Errorf("unknown message type: %T", msg)
+		}
+
 		if !registered && engineID != "" {
 			defer func() {
 				ws.infProcessor.RemoveEngine(engineID, clusterInfo.TenantID)
@@ -152,30 +165,6 @@ func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 			registered = true
 		}
 	}
-}
-
-func (ws *WS) processMessagesFromEngine(
-	srv v1.InferenceWorkerService_ProcessTasksServer,
-	tenantID string,
-) (string, error) {
-	req, err := srv.Recv()
-	if err != nil {
-		return "", err
-	}
-
-	var engineID string
-	switch msg := req.Message.(type) {
-	case *v1.ProcessTasksRequest_EngineStatus:
-		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID, true /* isLocal */)
-		engineID = msg.EngineStatus.EngineId
-	case *v1.ProcessTasksRequest_TaskResult:
-		ws.infProcessor.ProcessTaskResult(msg.TaskResult)
-	default:
-		return "", fmt.Errorf("unknown message type: %T", msg)
-	}
-
-	return engineID, nil
 }
 
 func (ws *WS) buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, error) {

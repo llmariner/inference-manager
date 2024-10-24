@@ -20,7 +20,6 @@ func TestP(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -60,7 +59,7 @@ func TestP(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
 
-	engines := iprocessor.Engines()
+	engines := iprocessor.LocalEngines()
 	assert.Len(t, engines, 1)
 	assert.Len(t, engines["tenant0"], 1)
 
@@ -77,7 +76,6 @@ func TestEmbedding(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -124,7 +122,6 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -168,7 +165,6 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -214,7 +210,6 @@ func TestSendAndProcessTask(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -272,7 +267,6 @@ func TestSendAndProcessTask(t *testing.T) {
 func TestFindMostPreferredtEngine(t *testing.T) {
 	p := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 
@@ -338,7 +332,6 @@ func TestFindMostPreferredtEngine(t *testing.T) {
 func TestFindMostPreferredtEngine_PreferLocal(t *testing.T) {
 	p := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 
@@ -384,6 +377,30 @@ func TestFindMostPreferredtEngine_PreferLocal(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, engine.id)
 	}
+}
+
+func TestLocalEngines(t *testing.T) {
+	p := NewP(
+		router.New(),
+		testutil.NewTestLogger(t),
+	)
+
+	p.engines = map[string]map[string]*engine{
+		"tenant0": {
+			"e0": {
+				id:      "e0",
+				isLocal: true,
+			},
+			"e1": {
+				id:      "e1",
+				isLocal: false,
+			},
+		},
+	}
+
+	got := p.LocalEngines()
+	assert.Len(t, got, 1)
+	assert.Equal(t, "e0", got["tenant0"][0].EngineId)
 }
 
 func TestDumpStatus(t *testing.T) {

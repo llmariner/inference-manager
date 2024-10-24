@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/llmariner/common/pkg/certlib/store"
 	v1 "github.com/llmariner/inference-manager/api/v1"
-	v1legacy "github.com/llmariner/inference-manager/api/v1/legacy"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/rbac-manager/pkg/auth"
@@ -36,17 +35,6 @@ func NewWorkerServiceServer(infProcessor *infprocessor.P, logger logr.Logger) *W
 	}
 }
 
-type legacyService struct {
-	v1legacy.UnimplementedInferenceWorkerServiceServer
-
-	ws *WS
-}
-
-// ProcessTasks processes tasks.
-func (ls *legacyService) ProcessTasks(srv v1legacy.InferenceWorkerService_ProcessTasksServer) error {
-	return ls.ws.ProcessTasks(srv)
-}
-
 // WS is a server for worker services.
 type WS struct {
 	v1.UnimplementedInferenceWorkerServiceServer
@@ -57,8 +45,6 @@ type WS struct {
 	infProcessor *infprocessor.P
 
 	enableAuth bool
-
-	legacyService legacyService
 }
 
 // Run runs the worker service server.
@@ -99,9 +85,6 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 
 	ws.srv = srv
 
-	ws.legacyService.ws = ws
-	v1legacy.RegisterInferenceWorkerServiceServer(srv, &ws.legacyService)
-
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -138,13 +121,7 @@ func (ws *WS) ProcessTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 	return ws.processTasks(srv)
 }
 
-type serverInterface interface {
-	Context() context.Context
-	Send(*v1.ProcessTasksResponse) error
-	Recv() (*v1.ProcessTasksRequest, error)
-}
-
-func (ws *WS) processTasks(srv serverInterface) error {
+func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) error {
 	clusterInfo, err := ws.extractClusterInfoFromContext(srv.Context())
 	if err != nil {
 		return err
@@ -160,13 +137,26 @@ func (ws *WS) processTasks(srv serverInterface) error {
 		default:
 		}
 
-		engineID, err := ws.processMessagesFromEngine(srv, clusterInfo.TenantID)
+		req, err := srv.Recv()
 		if err != nil {
 			if err != io.EOF {
 				ws.logger.Error(err, "processMessagesFromEngine error")
 			}
 			return err
 		}
+
+		var engineID string
+		switch msg := req.Message.(type) {
+		case *v1.ProcessTasksRequest_EngineStatus:
+			ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
+			ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo.TenantID, true /* isLocal */)
+			engineID = msg.EngineStatus.EngineId
+		case *v1.ProcessTasksRequest_TaskResult:
+			ws.infProcessor.ProcessTaskResult(msg.TaskResult)
+		default:
+			return fmt.Errorf("unknown message type: %T", msg)
+		}
+
 		if !registered && engineID != "" {
 			defer func() {
 				ws.infProcessor.RemoveEngine(engineID, clusterInfo.TenantID)
@@ -175,30 +165,6 @@ func (ws *WS) processTasks(srv serverInterface) error {
 			registered = true
 		}
 	}
-}
-
-func (ws *WS) processMessagesFromEngine(
-	srv serverInterface,
-	tenantID string,
-) (string, error) {
-	req, err := srv.Recv()
-	if err != nil {
-		return "", err
-	}
-
-	var engineID string
-	switch msg := req.Message.(type) {
-	case *v1.ProcessTasksRequest_EngineStatus:
-		ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
-		ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, tenantID, true /* isLocal */)
-		engineID = msg.EngineStatus.EngineId
-	case *v1.ProcessTasksRequest_TaskResult:
-		ws.infProcessor.ProcessTaskResult(msg.TaskResult)
-	default:
-		return "", fmt.Errorf("unknown message type: %T", msg)
-	}
-
-	return engineID, nil
 }
 
 func (ws *WS) buildTLSConfig(ctx context.Context, tlsConfig *config.TLS) (*tls.Config, error) {

@@ -109,7 +109,7 @@ type engineRouter interface {
 }
 
 // NewP creates a new processor.
-func NewP(engineRouter engineRouter, isEngineReadinessCheckEnabled bool, logger logr.Logger) *P {
+func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 	return &P{
 		queue:               newTaskQueue(),
 		engineRouter:        engineRouter,
@@ -118,8 +118,6 @@ func NewP(engineRouter engineRouter, isEngineReadinessCheckEnabled bool, logger 
 		logger:              logger.WithName("processor"),
 		taskTimeout:         30 * time.Second,
 		retryDelay:          3 * time.Second,
-
-		isEngineReadinessCheckEnabled: isEngineReadinessCheckEnabled,
 	}
 }
 
@@ -155,8 +153,6 @@ type P struct {
 
 	taskTimeout time.Duration
 	retryDelay  time.Duration
-
-	isEngineReadinessCheckEnabled bool
 }
 
 // Run runs the processor.
@@ -200,12 +196,9 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	}
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id: t.id,
-			// TODO(kenji): Remove once all the engines are updated to a newer
-			// version that don't use the deprecated field.
-			DeprecatedChatCompletionRequest: t.chatCompletionReq,
-			Request:                         t.request(),
-			Header:                          header,
+			Id:      t.id,
+			Request: t.request(),
+			Header:  header,
 		},
 	}); err != nil {
 		return fmt.Errorf("send the task: %s", err)
@@ -294,7 +287,7 @@ func (p *P) SendAndProcessTask(
 ) error {
 	log := p.logger.WithValues("id", origTask.Id)
 
-	var header http.Header
+	header := http.Header{}
 	for k, vs := range origTask.Header {
 		for _, v := range vs.Values {
 			header.Add(k, v)
@@ -505,15 +498,11 @@ func (p *P) AddOrUpdateEngineStatus(
 	}
 	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
-	if p.isEngineReadinessCheckEnabled {
-		if engineStatus.Ready {
-			p.engineRouter.AddOrUpdateEngine(e.id, tenantID, e.modelIDs)
-		} else {
-			p.engineRouter.DeleteEngine(engineStatus.EngineId, tenantID)
-			log.Info("Removed engine from the router", "reason", "engine not ready")
-		}
-	} else {
+	if engineStatus.Ready {
 		p.engineRouter.AddOrUpdateEngine(e.id, tenantID, e.modelIDs)
+	} else {
+		p.engineRouter.DeleteEngine(engineStatus.EngineId, tenantID)
+		log.Info("Removed engine from the router", "reason", "engine not ready")
 	}
 }
 
@@ -562,8 +551,8 @@ func (p *P) writeResultToTask(taskID string, r *resultOrError) {
 	t.resultCh <- r
 }
 
-// Engines returns the engine statuses grouped by tenant ID.
-func (p *P) Engines() map[string][]*v1.EngineStatus {
+// LocalEngines returns the local engine statuses grouped by tenant ID.
+func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -571,6 +560,10 @@ func (p *P) Engines() map[string][]*v1.EngineStatus {
 	for tenantID, es := range p.engines {
 		var engines []*v1.EngineStatus
 		for _, e := range es {
+			if !e.isLocal {
+				continue
+			}
+
 			engines = append(engines, &v1.EngineStatus{
 				EngineId: e.id,
 				ModelIds: e.modelIDs,
@@ -633,6 +626,7 @@ type EngineStatus struct {
 	RegisteredModelIDs []string      `json:"registeredModelIds"`
 	InProgressModelIDs []string      `json:"inProgressModelIds"`
 	Tasks              []*TaskStatus `json:"tasks"`
+	IsLocal            bool          `json:"isLocal"`
 }
 
 // TenantStatus is the status of a tenant.
@@ -667,6 +661,7 @@ func (p *P) DumpStatus() *Status {
 			t.Engines[id] = &EngineStatus{
 				RegisteredModelIDs: e.modelIDs,
 				InProgressModelIDs: e.inProgressModelIDs,
+				IsLocal:            e.isLocal,
 			}
 		}
 	}

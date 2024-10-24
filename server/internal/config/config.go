@@ -15,6 +15,7 @@ type Config struct {
 	WorkerServiceGRPCPort int `yaml:"workerServiceGrpcPort"`
 	MonitoringPort        int `yaml:"monitoringPort"`
 	AdminPort             int `yaml:"adminPort"`
+	InternalGRPCPort      int `yaml:"internalGrpcPort"`
 
 	ModelManagerServerAddr               string `yaml:"modelManagerServerAddr"`
 	VectorStoreManagerServerAddr         string `yaml:"vectorStoreManagerServerAddr"`
@@ -83,6 +84,9 @@ func (c *Config) Validate() error {
 	}
 	if c.WorkerServiceGRPCPort <= 0 {
 		return fmt.Errorf("workerServiceGrpcPort must be greater than 0")
+	}
+	if c.InternalGRPCPort <= 0 {
+		return fmt.Errorf("internalGrpcPort must be greater than 0")
 	}
 	if c.MonitoringPort <= 0 {
 		return fmt.Errorf("monitoringPort must be greater than 0")

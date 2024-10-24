@@ -1,0 +1,427 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api/v1/inference_server_internal.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "InferenceInternalService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "CreateChatCompletionRequestMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCallFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateChatCompletionRequestResponseFormat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateChatCompletionRequestStreamOptions": {
+      "type": "object",
+      "properties": {
+        "includeUsage": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CreateChatCompletionRequestTool": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolChoice": {
+      "type": "object",
+      "properties": {
+        "choice": {
+          "type": "string",
+          "description": "TODO(guangrui): revisit on how to assign string value of ToolChoice."
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolChoiceFunction"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolChoiceFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateChatCompletionRequestToolFunction": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "string",
+          "description": "TODO(kenji): Revisit this. This specifies parameters the functions accepts,\ndescribed as a JSON Schema object."
+        }
+      }
+    },
+    "EngineStatusSyncStatus": {
+      "type": "object",
+      "properties": {
+        "inProgressModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "in_progress_model_ids is a list of model ids that are currently being synced."
+        }
+      }
+    },
+    "ServerStatusEngineStatusWithTenantID": {
+      "type": "object",
+      "properties": {
+        "engineStatus": {
+          "$ref": "#/definitions/v1EngineStatus"
+        },
+        "tenantId": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1CreateChatCompletionRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1CreateChatCompletionRequestMessage"
+          },
+          "description": "TODO(kenji): Revisit this."
+        },
+        "model": {
+          "type": "string"
+        },
+        "frequencyPenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "logitBias": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "logprobs": {
+          "type": "boolean"
+        },
+        "topLogprobs": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "n": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "presencePenalty": {
+          "type": "number",
+          "format": "double"
+        },
+        "responseFormat": {
+          "$ref": "#/definitions/CreateChatCompletionRequestResponseFormat"
+        },
+        "seed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stop": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "string / arrary/ null"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "streamOptions": {
+          "$ref": "#/definitions/CreateChatCompletionRequestStreamOptions"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "double"
+        },
+        "topP": {
+          "type": "number",
+          "format": "double"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateChatCompletionRequestTool"
+          }
+        },
+        "toolChoice": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolChoice"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The type of content varies. For eample, it is string or array for UserMesasge."
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCall"
+          }
+        }
+      },
+      "description": "Message has fields for system message, user message, assistant message, and tool message."
+    },
+    "v1CreateEmbeddingRequest": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "string",
+          "description": "This can be a string or an array of strings, but we use string assuming that it is more common."
+        },
+        "model": {
+          "type": "string"
+        },
+        "encodingFormat": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1EngineStatus": {
+      "type": "object",
+      "properties": {
+        "engineId": {
+          "type": "string"
+        },
+        "modelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "syncStatus": {
+          "$ref": "#/definitions/EngineStatusSyncStatus"
+        },
+        "ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1HeaderValue": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1HttpResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1HeaderValue"
+          }
+        },
+        "body": {
+          "type": "string",
+          "format": "byte",
+          "description": "body is empty for server sent events."
+        }
+      }
+    },
+    "v1ProcessTasksInternalResponse": {
+      "type": "object",
+      "properties": {
+        "newTask": {
+          "$ref": "#/definitions/v1Task"
+        },
+        "tenantId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ServerSentEvent": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte"
+        },
+        "isLastEvent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ServerStatus": {
+      "type": "object",
+      "properties": {
+        "podName": {
+          "type": "string"
+        },
+        "engineStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ServerStatusEngineStatusWithTenantID"
+          }
+        }
+      }
+    },
+    "v1Task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/definitions/v1TaskRequest"
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1HeaderValue"
+          }
+        },
+        "deprecatedChatCompletionRequest": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequest",
+          "description": "For backward compatibility for old engine."
+        }
+      }
+    },
+    "v1TaskRequest": {
+      "type": "object",
+      "properties": {
+        "chatCompletion": {
+          "$ref": "#/definitions/v1CreateChatCompletionRequest"
+        },
+        "embedding": {
+          "$ref": "#/definitions/v1CreateEmbeddingRequest"
+        }
+      }
+    },
+    "v1TaskResult": {
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string"
+        },
+        "httpResponse": {
+          "$ref": "#/definitions/v1HttpResponse"
+        },
+        "serverSentEvent": {
+          "$ref": "#/definitions/v1ServerSentEvent"
+        }
+      }
+    }
+  }
+}

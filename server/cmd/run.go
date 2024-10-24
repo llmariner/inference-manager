@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 const monitoringRunnerInterval = 10 * time.Second
@@ -183,6 +184,11 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 	go func() {
 		wsSrv := server.NewWorkerServiceServer(infProcessor, logger)
 		errCh <- wsSrv.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
+	}()
+
+	go func() {
+		s := server.NewInternalServer(logger)
+		errCh <- s.Run(ctx, c.InternalGRPCPort)
 	}()
 
 	go func() {

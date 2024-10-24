@@ -80,23 +80,6 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 		}
 	}
 
-	// For backward compatibility, look at legacy fields.
-	if n := c.runtime.Name; n != "" {
-		item.RuntimeName = n
-	}
-	if r := c.runtime.DefaultResources; !reflect.DeepEqual(r, Resources{}) {
-		item.Resources = r
-	}
-	for id, r := range c.runtime.ModelResources {
-		if formatModelID(id) == modelID {
-			item.Resources = r
-			break
-		}
-	}
-	if r := c.runtime.DefaultReplicas; r > 0 {
-		item.Replicas = r
-	}
-
 	for _, id := range c.preloadedModelIDs {
 		if formatModelID(id) == modelID {
 			item.Preloaded = true

@@ -47,75 +47,13 @@ func TestModelConfigItem(t *testing.T) {
 			},
 		},
 		{
-			name: "runtime in the legacy field",
+			name: "fine-tuned model",
 			c: &ProcessedModelConfig{
-				runtime: &RuntimeConfig{
-					Name: RuntimeNameVLLM,
-				},
 				model: &ModelConfig{
 					Default: ModelConfigItem{
-						RuntimeName: RuntimeNameOllama,
-					},
-				},
-				items: map[string]ModelConfigItem{},
-			},
-			modelID: "google/gemma-2b-it-q4",
-			want: ModelConfigItem{
-				RuntimeName: RuntimeNameVLLM,
-			},
-		},
-		{
-			name: "context length in the legacy field",
-			c: &ProcessedModelConfig{
-				runtime: &RuntimeConfig{},
-				model: &ModelConfig{
-					Default: ModelConfigItem{
-						ContextLength: 1024,
-					},
-				},
-				modelContextLengths: map[string]int{
-					"google/gemma-2b-it-q4": 2048,
-				},
-				items: map[string]ModelConfigItem{},
-			},
-			modelID: "google/gemma-2b-it-q4",
-			want: ModelConfigItem{
-				ContextLength: 2048,
-			},
-		},
-		{
-			name: "resources in the legacy field",
-			c: &ProcessedModelConfig{
-				model: &ModelConfig{
-					Default: ModelConfigItem{},
-				},
-				runtime: &RuntimeConfig{
-					DefaultResources: Resources{
-						Requests: map[string]string{
-							"nvidia.com/gpu": "1",
+						Resources: Resources{
+							Requests: map[string]string{},
 						},
-					},
-				},
-				items: map[string]ModelConfigItem{},
-			},
-			modelID: "google/gemma-2b-it-q4",
-			want: ModelConfigItem{
-				Resources: Resources{
-					Requests: map[string]string{
-						"nvidia.com/gpu": "1",
-					},
-				},
-			},
-		},
-		{
-			name: "fine-tined model",
-			c: &ProcessedModelConfig{
-				model: &ModelConfig{
-					Default: ModelConfigItem{},
-				},
-				runtime: &RuntimeConfig{
-					DefaultResources: Resources{
-						Requests: map[string]string{},
 					},
 				},
 				items: map[string]ModelConfigItem{

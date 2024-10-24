@@ -51,8 +51,6 @@ modelManagerServerAddr: model-manager-server-grpc:8081
 vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
-enableEngineReadinessCheck: true
-
 replicaCount: 1
 image:
   repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-server

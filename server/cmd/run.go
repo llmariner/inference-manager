@@ -114,7 +114,7 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient, logger)
 	}
 
-	infProcessor := infprocessor.NewP(router.New(), c.EnableEngineReadinessCheck, logger)
+	infProcessor := infprocessor.NewP(router.New(), logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()

@@ -20,7 +20,6 @@ func TestP(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -77,7 +76,6 @@ func TestEmbedding(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -124,7 +122,6 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -168,7 +165,6 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -214,7 +210,6 @@ func TestSendAndProcessTask(t *testing.T) {
 
 	iprocessor := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 	iprocessor.taskTimeout = 0
@@ -272,7 +267,6 @@ func TestSendAndProcessTask(t *testing.T) {
 func TestFindMostPreferredtEngine(t *testing.T) {
 	p := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 
@@ -338,7 +332,6 @@ func TestFindMostPreferredtEngine(t *testing.T) {
 func TestFindMostPreferredtEngine_PreferLocal(t *testing.T) {
 	p := NewP(
 		router.New(),
-		true,
 		testutil.NewTestLogger(t),
 	)
 

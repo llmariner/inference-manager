@@ -48,8 +48,7 @@ func TestP(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
-		assert.NoError(t, err)
+		iprocessor.ProcessTaskResult(resp.GetTaskResult())
 	}()
 
 	req := &v1.CreateChatCompletionRequest{Model: modelID}
@@ -104,8 +103,7 @@ func TestEmbedding(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
-		assert.NoError(t, err)
+		iprocessor.ProcessTaskResult(resp.GetTaskResult())
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
@@ -201,7 +199,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	// Simulate a case where the task result is received after the context is canceled.
 	resp, err := comm.Recv()
 	assert.NoError(t, err)
-	err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
+	iprocessor.ProcessTaskResult(resp.GetTaskResult())
 	assert.NoError(t, err)
 }
 
@@ -240,7 +238,7 @@ func TestSendAndProcessTask(t *testing.T) {
 	go func() {
 		resp, err := comm.Recv()
 		assert.NoError(t, err)
-		err = iprocessor.ProcessTaskResult(resp.GetTaskResult())
+		iprocessor.ProcessTaskResult(resp.GetTaskResult())
 		assert.NoError(t, err)
 	}()
 

@@ -397,10 +397,19 @@ func (p *P) enqueueAndProcessTask(
 			var err error
 			if r.err != nil {
 				err = retriableError{error: r.err}
-			} else if r.result != nil {
-				err = processResult(r.result)
+			} else if r.result == nil {
+				err = fmt.Errorf("unexpected empty result")
 			} else {
-				return fmt.Errorf("unexpected empty result")
+				err = processResult(r.result)
+				if err == nil {
+					// Check if the task is completed.
+					var completed bool
+					completed, err = isTaskCompleted(task, r.result)
+					if err == nil && completed {
+						log.Info("Completed task")
+						return nil
+					}
+				}
 			}
 
 			if err == nil {
@@ -493,7 +502,7 @@ func (p *P) RemoveEngine(engineID string, tenantID string) {
 }
 
 // ProcessTaskResult processes the task result.
-func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
+func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) {
 	taskID := taskResult.TaskId
 
 	p.mu.Lock()
@@ -502,24 +511,10 @@ func (p *P) ProcessTaskResult(taskResult *v1.TaskResult) error {
 
 	if !ok {
 		// The task has already been removed from the in-progress tasks map due to an error or context cancel.
-		return nil
+		return
 	}
 
 	t.resultCh <- &resultOrError{result: taskResult}
-
-	completed, err := isTaskCompleted(t, taskResult)
-	if err != nil {
-		return fmt.Errorf("is last result: %s", err)
-	}
-	if !completed {
-		return nil
-	}
-
-	p.logger.Info("Completed task", "task", taskID)
-
-	close(t.resultCh)
-
-	return nil
 }
 
 // processTaskResults processes a task result.

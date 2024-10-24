@@ -39,6 +39,7 @@ func TestP(t *testing.T) {
 			Ready:    true,
 		},
 		"tenant0",
+		true,
 	)
 
 	go func() {
@@ -94,6 +95,7 @@ func TestEmbedding(t *testing.T) {
 			Ready:    true,
 		},
 		"tenant0",
+		true,
 	)
 
 	go func() {
@@ -140,6 +142,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 			Ready:    true,
 		},
 		"tenant0",
+		true,
 	)
 
 	go func() {
@@ -183,6 +186,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 			Ready:    true,
 		},
 		"tenant0",
+		true,
 	)
 	iprocessor.taskTimeout = 0
 
@@ -229,6 +233,7 @@ func TestSendAndProcessTask(t *testing.T) {
 			Ready:    true,
 		},
 		"tenant0",
+		true,
 	)
 
 	go func() {
@@ -264,7 +269,7 @@ func TestSendAndProcessTask(t *testing.T) {
 	assert.Equal(t, http.StatusOK, int(resp.GetHttpResponse().StatusCode))
 }
 
-func TestFindLeastLoadedEngine(t *testing.T) {
+func TestFindMostPreferredtEngine(t *testing.T) {
 	p := NewP(
 		router.New(),
 		true,
@@ -292,13 +297,16 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 	p.engines = map[string]map[string]*engine{
 		"tenant0": {
 			"e0": {
-				id: "e0",
+				id:      "e0",
+				isLocal: true,
 			},
 			"e1": {
-				id: "e1",
+				id:      "e1",
+				isLocal: true,
 			},
 			"e2": {
-				id: "e2",
+				id:      "e2",
+				isLocal: true,
 			},
 		},
 	}
@@ -321,7 +329,58 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 		},
 	}
 	for _, tc := range tcs {
-		engine, err := p.findLeastLoadedEngine(tc.engineIDs, "tenant0")
+		engine, err := p.findMostPreferredtEngine(tc.engineIDs, "tenant0")
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, engine.id)
+	}
+}
+
+func TestFindMostPreferredtEngine_PreferLocal(t *testing.T) {
+	p := NewP(
+		router.New(),
+		true,
+		testutil.NewTestLogger(t),
+	)
+
+	ts := []*task{
+		{
+			id:       "t0",
+			engineID: "e0",
+		},
+	}
+	for _, t := range ts {
+		p.inProgressTasksByID[t.id] = t
+	}
+
+	p.engines = map[string]map[string]*engine{
+		"tenant0": {
+			"e0": {
+				id:      "e0",
+				isLocal: true,
+			},
+			"e1": {
+				id:      "e1",
+				isLocal: false,
+			},
+		},
+	}
+
+	tcs := []struct {
+		engineIDs []string
+		want      string
+	}{
+		// "e0" has an in-progress task, but it should be preferred as it is a local engine.
+		{
+			engineIDs: []string{"e0", "e1"},
+			want:      "e0",
+		},
+		{
+			engineIDs: []string{"e1"},
+			want:      "e1",
+		},
+	}
+	for _, tc := range tcs {
+		engine, err := p.findMostPreferredtEngine(tc.engineIDs, "tenant0")
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, engine.id)
 	}

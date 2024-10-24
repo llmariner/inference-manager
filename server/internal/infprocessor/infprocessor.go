@@ -185,9 +185,9 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	// TODO(kenji): Forward a request to other server pod if the selected engine is not connected
 	// to this server pod.
 
-	p.mu.Lock()
-	t.engineID = engine.id
-	p.mu.Unlock()
+	if err := p.assignTaskToEngine(t, engine.id); err != nil {
+		return fmt.Errorf("assign the task to the engine: %s", err)
+	}
 
 	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
 	// when there is more than one instance of inference-manager-server.
@@ -208,6 +208,24 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 		return fmt.Errorf("send the task: %s", err)
 	}
 	return nil
+}
+
+func (p *P) assignTaskToEngine(t *task, engineID string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// Check again if the engine still exists as it might have been just removed.
+	if _, ok := p.engines[t.tenantID][engineID]; !ok {
+		p.mu.Unlock()
+		return fmt.Errorf("engine is already removed")
+	}
+	t.engineID = engineID
+	return nil
+}
+
+func (p *P) unassignTaskFromEngine(t *task) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	t.engineID = ""
 }
 
 // findLeastLoadedEngine finds the least loaded engine from the given engine IDs.
@@ -398,6 +416,8 @@ func (p *P) enqueueAndProcessTask(
 				if !p.canRetry(task, err) {
 					return err
 				}
+
+				p.unassignTaskFromEngine(task)
 
 				_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
 				log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)

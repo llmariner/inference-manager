@@ -86,16 +86,6 @@ type RuntimeConfig struct {
 	Tolerations          []TolerationConfig `yaml:"tolerations"`
 	UnstructuredAffinity any                `yaml:"affinity"`
 	Affinity             *corev1.Affinity   `yaml:"-"`
-
-	// TODO(kenji): Remove the following fields once every env uses ModelConfig.
-	Name string `yaml:"name"`
-
-	ModelResources   map[string]Resources `yaml:"modelResources"`
-	DefaultResources Resources            `yaml:"defaultResources"`
-
-	// DefaultReplicas specifies the number of replicas of the runtime (per model).
-	// TODO(kenji): Revisit this once we support autoscaling.
-	DefaultReplicas int `yaml:"defaultReplicas"`
 }
 
 func (c *RuntimeConfig) validate() error {
@@ -120,10 +110,6 @@ func (c *RuntimeConfig) validate() error {
 		return fmt.Errorf("runtimeImagePullPolicy: %s", err)
 	}
 
-	if n := c.Name; n != "" && !isValidRuntimeName(n) {
-		return fmt.Errorf("invalid name: %q", n)
-	}
-
 	if c.ConfigMapName == "" {
 		return fmt.Errorf("configMapName must be set")
 	}
@@ -142,18 +128,6 @@ func (c *RuntimeConfig) validate() error {
 		return fmt.Errorf("llmoKeyEnvKey must be set")
 	}
 
-	if vol := c.DefaultResources.Volume; vol != nil {
-		if err := vol.validate(); err != nil {
-			return fmt.Errorf("defaultResources.volume: %s", err)
-		}
-	}
-	for model, res := range c.ModelResources {
-		if vol := res.Volume; vol != nil {
-			if err := vol.validate(); err != nil {
-				return fmt.Errorf("modelResources[%q].volume: %s", model, err)
-			}
-		}
-	}
 	return nil
 }
 

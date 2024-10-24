@@ -25,7 +25,6 @@ global:
   controlPlaneAddr: ""
 
 runtime:
-  name:
   runtimeImages:
     ollama: mirror.gcr.io/ollama/ollama:0.3.6
     vllm: mirror.gcr.io/vllm/vllm-openai:v0.6.3
@@ -34,37 +33,12 @@ runtime:
     # and TensortRT-LLM.
     triton: nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
   imagePullPolicy: IfNotPresent
+
+model:
   # If you want to control pod and volume availability zone and topologies,
   # please use the `WaitForFirstConsumer` as the `volumeBindingMode` and
   # ensure that your CSI plugin supports this mode.
   # https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies
-  modelResources:
-    # sample-model:
-    #   requests:
-    #     cpu: "100m"
-    #     memory: "128Mi"
-    #   limits:
-    #     cpu: "200m"
-    #     memory: "256Mi"
-    #   volume:
-    #     shareWithReplicas: false
-    #     storageClassName: "standard"
-    #     size: "1Gi"
-    #     accessMode: "ReadWriteOnce"
-  defaultResources:
-    # requests:
-    #   cpu: "1000m"
-    #   memory: "500Mi"
-    # limits:
-    #   nvidia.com/gpu: 1
-    # volume:
-    #   shareWithReplicas: false
-    #   storageClassName: "fast"
-    #   size: "100Gi"
-    #   accessMode: "ReadWriteOnce"
-  defaultReplicas: 0
-
-model:
   default:
     runtimeName: ollama
     resources:

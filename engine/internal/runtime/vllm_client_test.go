@@ -13,12 +13,14 @@ import (
 func TestDeployRuntimeParams(t *testing.T) {
 	commonClient := &commonClient{
 		mconfig: config.NewProcessedModelConfig(&config.Config{
-			Runtime: config.RuntimeConfig{
-				ModelResources: map[string]config.Resources{
+			Model: config.ModelConfig{
+				Overrides: map[string]config.ModelConfigItem{
 					"TinyLlama-TinyLlama-1.1B-Chat-v1.0": {
-						Limits: map[string]string{
-							"cpu":            "1",
-							"nvidia.com/gpu": "2",
+						Resources: config.Resources{
+							Limits: map[string]string{
+								"cpu":            "1",
+								"nvidia.com/gpu": "2",
+							},
 						},
 					},
 				},
@@ -160,17 +162,21 @@ func TestNumGPUs(t *testing.T) {
 	v := &vllmClient{
 		commonClient: &commonClient{
 			mconfig: config.NewProcessedModelConfig(&config.Config{
-				Runtime: config.RuntimeConfig{
-					ModelResources: map[string]config.Resources{
+				Model: config.ModelConfig{
+					Overrides: map[string]config.ModelConfigItem{
 						"model0": {
-							Limits: map[string]string{
-								nvidiaGPUResource: "2",
-								"cpu":             "4",
+							Resources: config.Resources{
+								Limits: map[string]string{
+									nvidiaGPUResource: "2",
+									"cpu":             "4",
+								},
 							},
 						},
 						"model1": {
-							Limits: map[string]string{
-								"cpu": "8",
+							Resources: config.Resources{
+								Limits: map[string]string{
+									"cpu": "8",
+								},
 							},
 						},
 					},

@@ -130,7 +130,7 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 }
 
 // ListSyncedModelIDs returns the list of models that are synced.
-func (m *Manager) ListSyncedModelIDs(ctx context.Context) []string {
+func (m *Manager) ListSyncedModelIDs() []string {
 	return m.listModels(true)
 }
 

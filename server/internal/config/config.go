@@ -28,11 +28,6 @@ type Config struct {
 	UsageSender sender.Config `yaml:"usageSender"`
 
 	Debug DebugConfig `yaml:"debug"`
-
-	// EnableEngineReadinessCheck enables the engine readiness check. This is set to false
-	// when the server still connects to an old version of engines that don't set the 'ready'
-	// field in the status.
-	EnableEngineReadinessCheck bool `yaml:"enableEngineReadinessCheck"`
 }
 
 // AuthConfig is the authentication configuration.

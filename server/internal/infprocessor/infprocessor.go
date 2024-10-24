@@ -373,10 +373,11 @@ func (p *P) sendTask(
 		}()
 
 		f := func(r *v1.TaskResult) error {
-			return processTaskResult(task, r, bodyWriter, respCh, log)
+			return writeTaskResultToHTTPRespCh(r, bodyWriter, respCh, log)
 		}
 		if err := p.enqueueAndProcessTask(ctx, task, f, log); err != nil {
-			// Use a non-blocking write as an error might happen after the respCh is written.
+			// Use a non-blocking write as an error might happen after the message is respCh is written
+			// and this function ends.
 			select {
 			case errCh <- err:
 			default:
@@ -561,63 +562,6 @@ func (p *P) writeResultToTask(taskID string, r *resultOrError) {
 	t.resultCh <- r
 }
 
-// processTaskResult processes a task result.
-func processTaskResult(
-	task *task,
-	result *v1.TaskResult,
-	bodyWriter *pipeReadWriteCloser,
-	respCh chan<- *http.Response,
-	log logr.Logger,
-) error {
-	switch msg := result.Message.(type) {
-	case *v1.TaskResult_HttpResponse:
-		resp := msg.HttpResponse
-
-		if resp.StatusCode == http.StatusServiceUnavailable {
-			return retriableError{error: fmt.Errorf("engine is unavailable")}
-		}
-
-		header := http.Header{}
-		for k, vs := range resp.Header {
-			for _, v := range vs.Values {
-				header.Add(k, v)
-			}
-		}
-
-		log.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
-
-		respCh <- &http.Response{
-			StatusCode: int(resp.StatusCode),
-			Status:     resp.Status,
-			Header:     header,
-			Body:       bodyWriter,
-		}
-
-		if d := resp.Body; len(d) > 0 {
-			if _, err := bodyWriter.Write(d); err != nil {
-				// Gracefully handle the error as it can happen when the request is canceled and
-				// the body writer is closed by the client.
-				log.Error(err, "Failed to write the body writer")
-			}
-		}
-	case *v1.TaskResult_ServerSentEvent:
-		if !task.stream() {
-			return fmt.Errorf("unexpected chunked response for non-streaming request")
-		}
-
-		if d := msg.ServerSentEvent.Data; len(d) > 0 {
-			if _, err := bodyWriter.Write(d); err != nil {
-				// Gracefully handle the error as it can happen when the request is canceled and
-				// the body writer is closed by the client.
-				log.Error(err, "Failed to write the body writer")
-			}
-		}
-	default:
-		return fmt.Errorf("unexpected message type: %T", msg)
-	}
-	return nil
-}
-
 // Engines returns the engine statuses grouped by tenant ID.
 func (p *P) Engines() map[string][]*v1.EngineStatus {
 	p.mu.Lock()
@@ -759,6 +703,59 @@ func (p *P) DumpStatus() *Status {
 	}
 
 	return status
+}
+
+// writeTaskResultToHTTPRespch processes a task result and write an http.Response to a given channel.
+// The body of the response is also written to the bodyWriter.
+func writeTaskResultToHTTPRespCh(
+	result *v1.TaskResult,
+	bodyWriter *pipeReadWriteCloser,
+	respCh chan<- *http.Response,
+	log logr.Logger,
+) error {
+	switch msg := result.Message.(type) {
+	case *v1.TaskResult_HttpResponse:
+		resp := msg.HttpResponse
+
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			return retriableError{error: fmt.Errorf("engine is unavailable")}
+		}
+
+		header := http.Header{}
+		for k, vs := range resp.Header {
+			for _, v := range vs.Values {
+				header.Add(k, v)
+			}
+		}
+
+		log.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
+
+		respCh <- &http.Response{
+			StatusCode: int(resp.StatusCode),
+			Status:     resp.Status,
+			Header:     header,
+			Body:       bodyWriter,
+		}
+
+		if d := resp.Body; len(d) > 0 {
+			if _, err := bodyWriter.Write(d); err != nil {
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Error(err, "Failed to write the body writer")
+			}
+		}
+	case *v1.TaskResult_ServerSentEvent:
+		if d := msg.ServerSentEvent.Data; len(d) > 0 {
+			if _, err := bodyWriter.Write(d); err != nil {
+				// Gracefully handle the error as it can happen when the request is canceled and
+				// the body writer is closed by the client.
+				log.Error(err, "Failed to write the body writer")
+			}
+		}
+	default:
+		return fmt.Errorf("unexpected message type: %T", msg)
+	}
+	return nil
 }
 
 // isTaskCompleted returns whether the task is completed.

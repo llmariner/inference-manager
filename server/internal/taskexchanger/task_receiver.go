@@ -138,8 +138,6 @@ func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
 	// engines since that will cause a loop.
 	enginesByTenantID := r.infProcessor.LocalEngines()
 
-	r.logger.Info("Sending server status", "ready", ready, "engines", enginesByTenantID, "podName", r.localPodName)
-
 	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
 	for tenantID, es := range enginesByTenantID {
 		for _, e := range es {
@@ -229,20 +227,20 @@ func (r *taskReceiver) processTasks(
 	}
 }
 
+// processTask processes the task and forwards the task result to the connecting remote server.
 func (r *taskReceiver) processTask(
 	ctx context.Context,
 	stream senderSrv,
 	t *v1.Task,
 	tenantID string,
 ) error {
-	processTaskResult := func(result *v1.TaskResult) error {
+	return r.infProcessor.SendAndProcessTask(ctx, t, tenantID, func(result *v1.TaskResult) error {
 		return stream.Send(&v1.ProcessTasksInternalRequest{
 			Message: &v1.ProcessTasksInternalRequest_TaskResult{
 				TaskResult: result,
 			},
 		})
-	}
-	return r.infProcessor.SendAndProcessTask(ctx, t, tenantID, processTaskResult)
+	})
 }
 
 func isConnClosedErr(err error) bool {

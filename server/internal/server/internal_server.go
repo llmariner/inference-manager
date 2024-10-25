@@ -3,24 +3,36 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
+	"github.com/llmariner/inference-manager/server/internal/infprocessor"
+	"github.com/llmariner/inference-manager/server/internal/taskexchanger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 // NewInternalServer creates a new internal server.
-func NewInternalServer(logger logr.Logger) *IS {
+func NewInternalServer(
+	infProcessor *infprocessor.P,
+	taskExchanger *taskexchanger.E,
+	logger logr.Logger,
+) *IS {
 	return &IS{
-		logger: logger.WithName("internal"),
+		infProcessor:  infProcessor,
+		taskExchanger: taskExchanger,
+		logger:        logger.WithName("internal"),
 	}
 }
 
 // IS is a server for internal services.
 type IS struct {
 	v1.UnimplementedInferenceInternalServiceServer
+
+	infProcessor  *infprocessor.P
+	taskExchanger *taskexchanger.E
 
 	logger logr.Logger
 
@@ -54,9 +66,44 @@ func (is *IS) Stop() {
 	is.srv.Stop()
 }
 
-// ProcessTasks processes tasks.
-func (is *IS) ProcessTasks(srv v1.InferenceInternalService_ProcessTasksInternalServer) error {
-	// TODO(kenji): Implement.
+// ProcessTasksInternal processes tasks.
+func (is *IS) ProcessTasksInternal(srv v1.InferenceInternalService_ProcessTasksInternalServer) error {
+	var registered bool
+	for {
+		// Check if the context is done with a non-blocking select.
+		ctx := srv.Context()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 
-	return nil
+		req, err := srv.Recv()
+		if err != nil {
+			if err != io.EOF {
+				is.logger.Error(err, "processMessagesFromEngine error")
+			}
+			return err
+		}
+
+		var serverPodName string
+		switch msg := req.Message.(type) {
+		case *v1.ProcessTasksInternalRequest_ServerStatus:
+			is.logger.Info("Received server status", "serverPodName", msg.ServerStatus.PodName)
+			is.taskExchanger.AddOrUpdateServerStatus(srv, msg.ServerStatus)
+			serverPodName = msg.ServerStatus.PodName
+		case *v1.ProcessTasksInternalRequest_TaskResult:
+			is.infProcessor.ProcessTaskResult(msg.TaskResult)
+		default:
+			return fmt.Errorf("unknown message type: %T", msg)
+		}
+
+		if !registered && serverPodName != "" {
+			defer func() {
+				is.taskExchanger.RemoveServer(serverPodName)
+				is.logger.Info("Unregistered server", "serverPodName", serverPodName)
+			}()
+			registered = true
+		}
+	}
 }

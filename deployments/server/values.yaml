@@ -22,6 +22,7 @@ workerServiceGrpcPort: 8082
 internalGrpcPort: 8083
 monitoringPort: 8084
 adminPort: 8085
+kubernetesManagerMetricsPort: 8086
 
 database:
   database: inference_manager
@@ -50,6 +51,16 @@ modelManagerServerAddr: model-manager-server-grpc:8081
 
 vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
+
+kubernetesManager:
+  enableLeaderElection: false
+  metricsBindAddress: :8086
+  # TODO(kenji): Enable the health check
+  healthBindAddress:
+  pprofBindAddress:
+
+gracefulShutdownTimeout:
+podTerminationGracePeriodSeconds:
 
 replicaCount: 1
 image:

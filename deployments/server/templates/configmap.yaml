@@ -14,9 +14,11 @@ data:
       cert: /var/run/tls/tls.crt
       key: /var/run/tls/tls.key
     {{- end }}
+    internalGrpcPort: {{ .Values.internalGrpcPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     adminPort: {{ .Values.adminPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
+    kubernetesManagerMetricsPort: {{ .Values.kubernetesManagerMetricsPort }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}
     auth:
@@ -24,3 +26,12 @@ data:
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}
     usageSender:
       {{- toYaml .Values.global.usageSender | nindent 6 }}
+    kubernetesManager:
+      enableLeaderElection: {{ .Values.kubernetesManager.enableLeaderElection }}
+      leaderElectionID: {{ include "job-manager-dispatcher.fullname" . }}
+      metricsBindAddress: {{ .Values.kubernetesManager.metricsBindAddress }}
+      healthBindAddress: {{ .Values.kubernetesManager.healthBindAddress }}
+      pprofBindAddress: {{ .Values.kubernetesManager.pprofBindAddress }}
+    gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
+    serverPodLabelKey: app.kubernetes.io/name
+    serverPodLabelValue: {{ include "inference-manager-server.name" . }}

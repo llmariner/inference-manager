@@ -136,7 +136,7 @@ func (e *E) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (ctrl.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
+	log := ctrl.LoggerFrom(ctx).WithValues("serverPodName", req.Name)
 
 	var pod corev1.Pod
 	if err := e.k8sClient.Get(ctx, req.NamespacedName, &pod); err != nil {
@@ -152,6 +152,11 @@ func (e *E) Reconcile(
 
 	if pod.Name == e.localPodName {
 		// Ignore itself.
+		return ctrl.Result{}, nil
+	}
+
+	if pod.Status.PodIP == "" {
+		// IP has not yet been bound.
 		return ctrl.Result{}, nil
 	}
 
@@ -204,12 +209,14 @@ func (e *E) deleteTaskReceiver(serverPodName string, log logr.Logger) {
 // AddOrUpdateServerStatus adds or udpates the server status. A new task sender is created if needed.
 func (e *E) AddOrUpdateServerStatus(taskSenderSrv taskSenderSrv, status *v1.ServerStatus) {
 	log := e.logger.WithValues("serverPodName", status.PodName)
-	log.Info("Adding/updating server status")
+
+	log.Info("Adding or updating server status")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	s, ok := e.taskSenders[status.PodName]
 	if !ok {
+		log.Info("Creating a new task sender")
 		s = newTaskSender(taskSenderSrv, e.infProcessor, log)
 		e.taskSenders[status.PodName] = s
 	}
@@ -220,7 +227,7 @@ func (e *E) AddOrUpdateServerStatus(taskSenderSrv taskSenderSrv, status *v1.Serv
 // RemoveServer removes the server.
 func (e *E) RemoveServer(serverPodName string) {
 	log := e.logger.WithValues("serverPodName", serverPodName)
-	log.Info("Removing server")
+	log.Info("Deleting task sender")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()

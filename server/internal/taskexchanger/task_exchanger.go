@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -27,20 +26,18 @@ func NewE(
 	localPodName string,
 	podLabelKey string,
 	podLabelValue string,
-	gracefulShutdownTimeout time.Duration,
 	logger logr.Logger,
 ) *E {
 	return &E{
-		infProcessor:            infProcessor,
-		k8sClient:               k8sClient,
-		gRPCPort:                gRPCPort,
-		localPodName:            localPodName,
-		podLabelKey:             podLabelKey,
-		podLabelValue:           podLabelValue,
-		gracefulShutdownTimeout: gracefulShutdownTimeout,
-		logger:                  logger.WithName("taskexchanger"),
-		taskReceivers:           map[string]*taskReceiver{},
-		taskSenders:             map[string]*taskSender{},
+		infProcessor:  infProcessor,
+		k8sClient:     k8sClient,
+		gRPCPort:      gRPCPort,
+		localPodName:  localPodName,
+		podLabelKey:   podLabelKey,
+		podLabelValue: podLabelValue,
+		logger:        logger.WithName("taskexchanger"),
+		taskReceivers: map[string]*taskReceiver{},
+		taskSenders:   map[string]*taskSender{},
 	}
 }
 
@@ -92,8 +89,6 @@ type E struct {
 
 	localPodName string
 
-	gracefulShutdownTimeout time.Duration
-
 	podLabelKey   string
 	podLabelValue string
 
@@ -118,7 +113,8 @@ func (e *E) SetupWithManager(mgr ctrl.Manager) error {
 	e.logger = mgr.GetLogger().WithName("taskExchanger")
 
 	filter := (predicate.NewPredicateFuncs(func(object k8sclient.Object) bool {
-		return object.GetLabels()[e.podLabelKey] == e.podLabelValue
+		// Include other server pods.
+		return object.GetLabels()[e.podLabelKey] == e.podLabelValue && object.GetName() != e.localPodName
 	}))
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.WithPredicates(filter)).
@@ -137,6 +133,7 @@ func (e *E) Reconcile(
 	req ctrl.Request,
 ) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("serverPodName", req.Name)
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	var pod corev1.Pod
 	if err := e.k8sClient.Get(ctx, req.NamespacedName, &pod); err != nil {
@@ -145,13 +142,8 @@ func (e *E) Reconcile(
 			return ctrl.Result{}, err
 		}
 
-		e.deleteTaskReceiver(req.Name, log)
+		e.deleteTaskReceiver(ctx, req.Name)
 
-		return ctrl.Result{}, nil
-	}
-
-	if pod.Name == e.localPodName {
-		// Ignore itself.
 		return ctrl.Result{}, nil
 	}
 
@@ -160,12 +152,12 @@ func (e *E) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	e.createTaskReceiver(ctx, &pod, log)
+	e.createTaskReceiver(ctx, &pod)
 
 	return ctrl.Result{}, nil
 }
 
-func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod, log logr.Logger) {
+func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -173,6 +165,7 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod, log logr.Lo
 		return
 	}
 
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("Creating a new task receiver")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -180,7 +173,6 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod, log logr.Lo
 		e.infProcessor,
 		e.localPodName,
 		fmt.Sprintf("%s:%d", pod.Status.PodIP, e.gRPCPort),
-		e.gracefulShutdownTimeout,
 		cancel,
 		log,
 	)
@@ -194,10 +186,11 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod, log logr.Lo
 	}()
 }
 
-func (e *E) deleteTaskReceiver(serverPodName string, log logr.Logger) {
+func (e *E) deleteTaskReceiver(ctx context.Context, serverPodName string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deleting task receiver")
 
 	if r, ok := e.taskReceivers[serverPodName]; ok {

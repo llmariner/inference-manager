@@ -27,27 +27,24 @@ func newTaskReceiver(
 	infProcessor *infprocessor.P,
 	localPodName string,
 	serverAddr string,
-	gracefulShutdownTimeout time.Duration,
 	cancelF context.CancelFunc,
 	logger logr.Logger,
 ) *taskReceiver {
 	return &taskReceiver{
-		infProcessor:    infProcessor,
-		localPodName:    localPodName,
-		serverAddr:      serverAddr,
-		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
-		cancelF:         cancelF,
-		logger:          logger,
+		infProcessor: infProcessor,
+		localPodName: localPodName,
+		serverAddr:   serverAddr,
+		cancelF:      cancelF,
+		logger:       logger,
 	}
 }
 
 type taskReceiver struct {
-	infProcessor    *infprocessor.P
-	localPodName    string
-	serverAddr      string
-	taskGracePeriod time.Duration
-	cancelF         context.CancelFunc
-	logger          logr.Logger
+	infProcessor *infprocessor.P
+	localPodName string
+	serverAddr   string
+	cancelF      context.CancelFunc
+	logger       logr.Logger
 }
 
 func (r *taskReceiver) run(ctx context.Context) error {
@@ -219,7 +216,7 @@ func (r *taskReceiver) processTasks(
 		case err := <-errCh:
 			return err
 		case <-ctx.Done():
-			log.Info("Stopping and waiting for all tasks to complete", "grace-period", r.taskGracePeriod)
+			log.Info("Stopping and waiting for all tasks to complete")
 			wg.Wait()
 			close(doneCh)
 			return nil

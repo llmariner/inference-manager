@@ -241,7 +241,6 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		podName,
 		c.ServerPodLabelKey,
 		c.ServerPodLabelValue,
-		c.GracefulShutdownTimeout,
 		logger,
 	)
 	if err := te.SetupWithManager(mgr); err != nil {

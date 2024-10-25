@@ -5,6 +5,12 @@ on:
     - main
 
 jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    name: labeler
+    steps:
+    - name: Add labels
+      uses: fuxingloh/multi-labeler@v4
 
   test:
     runs-on: ubuntu-latest

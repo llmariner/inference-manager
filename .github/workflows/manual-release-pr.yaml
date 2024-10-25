@@ -32,3 +32,4 @@ jobs:
         reviewers: ${{ github.actor }}
         body: This pull-request is created by `manual workflow` by ${{ github.actor }}
         author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+        labels: skip-changelog

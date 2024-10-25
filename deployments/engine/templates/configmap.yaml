@@ -7,7 +7,6 @@ metadata:
 data:
   config.yaml: |
     runtime:
-      name: {{ .Values.runtime.name }}
       pullerImage: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}
       tritonProxyImage: {{ .Values.tritonProxyImage.repository }}:{{ default .Chart.Version .Values.version }}
       runtimeImages:
@@ -29,11 +28,6 @@ data:
       llmoKeyEnvKey: {{ .key }}
       {{- end }}
       {{- end }}
-      modelResources:
-        {{- toYaml .Values.runtime.modelResources | nindent 8 }}
-      defaultResources:
-        {{- toYaml .Values.runtime.defaultResources | nindent 8 }}
-      defaultReplicas: {{ .Values.runtime.defaultReplicas }}
       serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

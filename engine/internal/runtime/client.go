@@ -351,7 +351,7 @@ func (c *commonClient) deployRuntime(
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(map[string]string{
-			runtimeAnnotationKey: c.rconfig.Name,
+			runtimeAnnotationKey: mci.RuntimeName,
 			modelAnnotationKey:   params.modelID}).
 		WithFinalizers(finalizerKey).
 		WithSpec(stsSpecConf)

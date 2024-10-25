@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-logr/stdr"
@@ -17,6 +18,7 @@ import (
 	"github.com/llmariner/inference-manager/server/internal/rag"
 	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/inference-manager/server/internal/server"
+	"github.com/llmariner/inference-manager/server/internal/taskexchanger"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
@@ -27,6 +29,13 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 const monitoringRunnerInterval = 10 * time.Second
@@ -46,7 +55,17 @@ func runCmd() *cobra.Command {
 				return err
 			}
 
-			if err := run(cmd.Context(), &c, logLevel); err != nil {
+			podName := os.Getenv("POD_NAME")
+			if podName == "" {
+				return fmt.Errorf("missing POD_NAME")
+			}
+
+			ns, ok := os.LookupEnv("NAMESPACE")
+			if !ok {
+				return fmt.Errorf("missing NAMESPACE")
+			}
+
+			if err := run(cmd.Context(), &c, podName, ns, logLevel); err != nil {
 				return err
 			}
 			return nil
@@ -58,9 +77,38 @@ func runCmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, c *config.Config, lv int) error {
+func run(ctx context.Context, c *config.Config, podName, ns string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
+	log := logger.WithName("boot")
+	ctx = ctrl.LoggerInto(ctx, log)
+	ctrl.SetLogger(logger)
+
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+		LeaderElection:   c.KubernetesManager.EnableLeaderElection,
+		LeaderElectionID: c.KubernetesManager.LeaderElectionID,
+		Metrics: metricsserver.Options{
+			BindAddress: c.KubernetesManager.MetricsBindAddress,
+		},
+		HealthProbeBindAddress: c.KubernetesManager.HealthBindAddress,
+		PprofBindAddress:       c.KubernetesManager.PprofBindAddress,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{ns: {}},
+		},
+		GracefulShutdownTimeout: ptr.To(c.GracefulShutdownTimeout),
+	})
+	if err != nil {
+		return err
+	}
+	if c.KubernetesManager.HealthBindAddress != "" {
+		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+			return err
+		}
+	}
 
 	errCh := make(chan error)
 
@@ -186,14 +234,32 @@ func run(ctx context.Context, c *config.Config, lv int) error {
 		errCh <- wsSrv.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
 	}()
 
+	te := taskexchanger.NewE(
+		infProcessor,
+		mgr.GetClient(),
+		c.InternalGRPCPort,
+		podName,
+		c.ServerPodLabelKey,
+		c.ServerPodLabelValue,
+		logger,
+	)
+	if err := te.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	go func() {
-		s := server.NewInternalServer(logger)
+		s := server.NewInternalServer(infProcessor, te, logger)
 		errCh <- s.Run(ctx, c.InternalGRPCPort)
 	}()
 
 	go func() {
 		adminSrv := admin.NewHandler(infProcessor, logger)
 		errCh <- adminSrv.Run(c.AdminPort)
+	}()
+
+	go func() {
+		log.Info("Starting manager")
+		errCh <- mgr.Start(signals.SetupSignalHandler())
 	}()
 
 	return <-errCh

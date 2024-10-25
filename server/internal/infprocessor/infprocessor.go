@@ -121,15 +121,15 @@ func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 	}
 }
 
-// taskSender sends a new task to the engine.
-type taskSender interface {
+// TaskSender sends a new task to the engine.
+type TaskSender interface {
 	Send(*v1.ProcessTasksResponse) error
 }
 
 type engine struct {
 	id string
 
-	taskSender taskSender
+	taskSender TaskSender
 
 	modelIDs           []string
 	inProgressModelIDs []string
@@ -181,15 +181,10 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	}
 	p.logger.Info("Scheduling the task", "task", t.id, "engine", engine.id)
 
-	// TODO(kenji): Forward a request to other server pod if the selected engine is not connected
-	// to this server pod.
-
 	if err := p.assignTaskToEngine(t, engine.id); err != nil {
 		return fmt.Errorf("assign the task to the engine: %s", err)
 	}
 
-	// TODO(kenji): Currently we can directly send from here, but later this needs to be changed
-	// when there is more than one instance of inference-manager-server.
 	header := map[string]*v1.HeaderValue{}
 	for k, vs := range t.header {
 		header[k] = &v1.HeaderValue{Values: vs}
@@ -466,7 +461,7 @@ func (p *P) canRetry(t *task, err error) bool {
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
 func (p *P) AddOrUpdateEngineStatus(
-	taskSender taskSender,
+	taskSender TaskSender,
 	engineStatus *v1.EngineStatus,
 	tenantID string,
 	isLocal bool,

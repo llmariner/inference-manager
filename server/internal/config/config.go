@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/llmariner/api-usage/pkg/sender"
 	"gopkg.in/yaml.v3"
@@ -26,6 +27,17 @@ type Config struct {
 	WorkerServiceTLS *TLS `yaml:"workerServiceTls"`
 
 	UsageSender sender.Config `yaml:"usageSender"`
+
+	KubernetesManager KubernetesManagerConfig `yaml:"kubernetesManager"`
+
+	// GracefulShutdownTimeout is the duration given to runnable to stop
+	// before the manager actually returns on stop. Default is 30 seconds.
+	GracefulShutdownTimeout time.Duration `yaml:"gracefulShutdownTimeout"`
+
+	// ServerPodLabelKey is the key of the label that the server pod has.
+	ServerPodLabelKey string `yaml:"serverPodLabelKey"`
+	// ServerPodLabelKey is the value of the label that the server pod has for ServerPodLabelKey.
+	ServerPodLabelValue string `yaml:"serverPodLabelValue"`
 
 	Debug DebugConfig `yaml:"debug"`
 }
@@ -60,6 +72,23 @@ func (c *TLS) validate() error {
 	}
 	if c.Cert == "" {
 		return fmt.Errorf("cert must be set")
+	}
+	return nil
+}
+
+// KubernetesManagerConfig is the Kubernetes manager configuration.
+type KubernetesManagerConfig struct {
+	EnableLeaderElection bool   `yaml:"enableLeaderElection"`
+	LeaderElectionID     string `yaml:"leaderElectionID"`
+
+	MetricsBindAddress string `yaml:"metricsBindAddress"`
+	HealthBindAddress  string `yaml:"healthBindAddress"`
+	PprofBindAddress   string `yaml:"pprofBindAddress"`
+}
+
+func (c *KubernetesManagerConfig) validate() error {
+	if c.EnableLeaderElection && c.LeaderElectionID == "" {
+		return fmt.Errorf("leader election ID must be set")
 	}
 	return nil
 }
@@ -102,6 +131,23 @@ func (c *Config) Validate() error {
 	if err := c.UsageSender.Validate(); err != nil {
 		return err
 	}
+
+	if err := c.KubernetesManager.validate(); err != nil {
+		return fmt.Errorf("kubernetesManager: %s", err)
+	}
+
+	if c.GracefulShutdownTimeout <= 0 {
+		// default period is same as the default value in ctrl.Manager.
+		c.GracefulShutdownTimeout = 30 * time.Second
+	}
+
+	if c.ServerPodLabelKey == "" {
+		return fmt.Errorf("serverPodLabelKey must be set")
+	}
+	if c.ServerPodLabelValue == "" {
+		return fmt.Errorf("serverPodLabelValue must be set")
+	}
+
 	return nil
 }
 

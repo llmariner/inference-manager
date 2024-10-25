@@ -8,14 +8,14 @@ import (
 
 func newTaskSender(
 	taskSenderSrv taskSenderSrv,
-	infProcessor *infprocessor.P,
+	engineStatusUpdater engineStatusUpdater,
 	logger logr.Logger,
 ) *taskSender {
 	return &taskSender{
-		taskSenderSrv: taskSenderSrv,
-		infProcessor:  infProcessor,
-		logger:        logger,
-		activeEngines: map[string]*activeEngineStatus{},
+		taskSenderSrv:       taskSenderSrv,
+		engineStatusUpdater: engineStatusUpdater,
+		logger:              logger,
+		activeEngines:       map[string]*activeEngineStatus{},
 	}
 }
 
@@ -28,12 +28,17 @@ type taskSenderSrv interface {
 	Send(*v1.ProcessTasksInternalResponse) error
 }
 
+type engineStatusUpdater interface {
+	AddOrUpdateEngineStatus(taskSender infprocessor.TaskSender, engineStatus *v1.EngineStatus, tenantID string, isLocal bool)
+	RemoveEngine(engineID string, tenantID string)
+}
+
 // taskSender sends tasks to a remote server. It also updates the statuses of the engines that connect
 // to the remote server so that infProcessor.P can route tasks.
 type taskSender struct {
-	taskSenderSrv taskSenderSrv
-	infProcessor  *infprocessor.P
-	logger        logr.Logger
+	taskSenderSrv       taskSenderSrv
+	engineStatusUpdater engineStatusUpdater
+	logger              logr.Logger
 
 	// activeEngines tracks the active engines reported from the server.
 	activeEngines map[string]*activeEngineStatus
@@ -47,7 +52,7 @@ func (s *taskSender) addOrUpdateEngines(statuses []*v1.ServerStatus_EngineStatus
 			taskSenderSrv: s.taskSenderSrv,
 			tenantID:      status.TenantId,
 		}
-		s.infProcessor.AddOrUpdateEngineStatus(sender, status.EngineStatus, status.TenantId, false /* isLocal */)
+		s.engineStatusUpdater.AddOrUpdateEngineStatus(sender, status.EngineStatus, status.TenantId, false /* isLocal */)
 
 		engines[status.EngineStatus.EngineId] = &activeEngineStatus{
 			engineID: status.EngineStatus.EngineId,
@@ -64,7 +69,7 @@ func (s *taskSender) addOrUpdateEngines(statuses []*v1.ServerStatus_EngineStatus
 	}
 
 	for _, status := range toDelete {
-		s.infProcessor.RemoveEngine(status.engineID, status.tenantID)
+		s.engineStatusUpdater.RemoveEngine(status.engineID, status.tenantID)
 	}
 
 	s.activeEngines = engines

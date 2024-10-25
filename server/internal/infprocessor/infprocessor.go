@@ -121,15 +121,15 @@ func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 	}
 }
 
-// taskSender sends a new task to the engine.
-type taskSender interface {
+// TaskSender sends a new task to the engine.
+type TaskSender interface {
 	Send(*v1.ProcessTasksResponse) error
 }
 
 type engine struct {
 	id string
 
-	taskSender taskSender
+	taskSender TaskSender
 
 	modelIDs           []string
 	inProgressModelIDs []string
@@ -461,7 +461,7 @@ func (p *P) canRetry(t *task, err error) bool {
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
 func (p *P) AddOrUpdateEngineStatus(
-	taskSender taskSender,
+	taskSender TaskSender,
 	engineStatus *v1.EngineStatus,
 	tenantID string,
 	isLocal bool,

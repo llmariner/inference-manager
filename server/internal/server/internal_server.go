@@ -43,16 +43,21 @@ type IS struct {
 func (is *IS) Run(ctx context.Context, port int) error {
 	is.logger.Info("Starting IS server...", "port", port)
 
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return fmt.Errorf("listen: %s", err)
+	}
+	return is.RunWithListener(ctx, l)
+}
+
+// RunWithListener runs the server with a given listener.
+func (is *IS) RunWithListener(ctx context.Context, l net.Listener) error {
 	srv := grpc.NewServer()
 	v1.RegisterInferenceInternalServiceServer(srv, is)
 	reflection.Register(srv)
 
 	is.srv = srv
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return fmt.Errorf("listen: %s", err)
-	}
 	if err := srv.Serve(l); err != nil {
 		return fmt.Errorf("serve: %s", err)
 	}

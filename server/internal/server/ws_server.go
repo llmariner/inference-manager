@@ -51,6 +51,16 @@ type WS struct {
 func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, tlsConfig *config.TLS) error {
 	ws.logger.Info("Starting WS server...", "port", port)
 
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+
+	return ws.RunWithListener(ctx, authConfig, tlsConfig, l)
+}
+
+// RunWithListener runs the server with a given listener.
+func (ws *WS) RunWithListener(ctx context.Context, authConfig config.AuthConfig, tlsConfig *config.TLS, l net.Listener) error {
 	var opts []grpc.ServerOption
 	if authConfig.Enable {
 		ai, err := auth.NewWorkerInterceptor(ctx, auth.WorkerConfig{
@@ -85,10 +95,6 @@ func (ws *WS) Run(ctx context.Context, port int, authConfig config.AuthConfig, t
 
 	ws.srv = srv
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return fmt.Errorf("listen: %w", err)
-	}
 	if err := srv.Serve(l); err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}

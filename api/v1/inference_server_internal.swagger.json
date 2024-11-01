@@ -17,6 +17,23 @@
   ],
   "paths": {},
   "definitions": {
+    "CreateChatCompletionRequestMessageContent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/v1ContentType"
+        },
+        "text": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "$ref": "#/definitions/MessageImageUrl"
+        },
+        "inputAudio": {
+          "$ref": "#/definitions/MessageInputAudio"
+        }
+      }
+    },
     "CreateChatCompletionRequestMessageToolCall": {
       "type": "object",
       "properties": {
@@ -119,6 +136,29 @@
         }
       }
     },
+    "MessageImageUrl": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "title": "Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages"
+    },
+    "MessageInputAudio": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        }
+      }
+    },
     "ServerStatusEngineStatusWithTenantID": {
       "type": "object",
       "properties": {
@@ -156,6 +196,16 @@
           }
         }
       }
+    },
+    "v1ContentType": {
+      "type": "string",
+      "enum": [
+        "CONTENT_TYPE_UNSPECIFIED",
+        "CONTENT_TYPE_TEXT",
+        "CONTENT_TYPE_IMAGE_URL",
+        "CONTENT_TYPE_INPUT_AUDIO"
+      ],
+      "default": "CONTENT_TYPE_UNSPECIFIED"
     },
     "v1CreateChatCompletionRequest": {
       "type": "object",
@@ -245,9 +295,16 @@
     "v1CreateChatCompletionRequestMessage": {
       "type": "object",
       "properties": {
+        "contents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateChatCompletionRequestMessageContent"
+          },
+          "description": "Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges."
+        },
         "content": {
           "type": "string",
-          "description": "The type of content varies. For eample, it is string or array for UserMesasge."
+          "description": "Deprecated: use contents instead."
         },
         "role": {
           "type": "string"

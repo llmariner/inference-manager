@@ -18,7 +18,6 @@ data:
     monitoringPort: {{ .Values.monitoringPort }}
     adminPort: {{ .Values.adminPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
-    kubernetesManagerMetricsPort: {{ .Values.kubernetesManagerMetricsPort }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}
     auth:
@@ -28,7 +27,7 @@ data:
       {{- toYaml .Values.global.usageSender | nindent 6 }}
     kubernetesManager:
       enableLeaderElection: {{ .Values.kubernetesManager.enableLeaderElection }}
-      leaderElectionID: {{ include "job-manager-dispatcher.fullname" . }}
+      leaderElectionID: {{ include "inference-manager-server.fullname" . }}
       metricsBindAddress: {{ .Values.kubernetesManager.metricsBindAddress }}
       healthBindAddress: {{ .Values.kubernetesManager.healthBindAddress }}
       pprofBindAddress: {{ .Values.kubernetesManager.pprofBindAddress }}

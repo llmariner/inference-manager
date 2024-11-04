@@ -61,3 +61,32 @@ Create the name of the service account to use
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+metrics port
+*/}}
+{{- define "inference-manager-server.metricsPort" -}}
+{{- if .Values.kubernetesManager.metricsBindAddress -}}
+{{ mustRegexSplit ":" .Values.kubernetesManager.metricsBindAddress -1 | last }}
+{{- else -}}
+8080
+{{- end -}}
+{{- end -}}
+
+{{/*
+health port
+*/}}
+{{- define "inference-manager-server.healthPort" -}}
+{{- if .Values.kubernetesManager.healthBindAddress -}}
+{{ mustRegexSplit ":" .Values.kubernetesManager.healthBindAddress -1 | last }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+pprof port
+*/}}
+{{- define "inference-manager-server.pprofPort" -}}
+{{- if .Values.kubernetesManager.pprofBindAddress -}}
+{{ mustRegexSplit ":" .Values.kubernetesManager.pprofBindAddress -1 | last }}
+{{- end -}}
+{{- end -}}

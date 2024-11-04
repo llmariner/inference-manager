@@ -18,8 +18,12 @@ jobs:
       run: go install github.com/kisielk/errcheck@latest
     - name: Install golint
       run: go install golang.org/x/lint/golint@latest
+    - name: Install helm-tool
+      run: go install github.com/cert-manager/helm-tool@latest
     - name: Run tests
       run: make test
+    - name: Set up Helm
+      uses: Azure/setup-helm@v4
     - name: Run lint checks
       run: make lint
 

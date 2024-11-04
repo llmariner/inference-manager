@@ -55,8 +55,18 @@ spec:
           containerPort: {{ .Values.adminPort }}
           protocol: TCP
         - name: km-metrics
-          containerPort: {{ .Values.kubernetesManagerMetricsPort }}
+          containerPort: {{ include "inference-manager-server.metricsPort" . }}
           protocol: TCP
+        {{- with ( include "inference-manager-server.healthPort" . ) }}
+        - name: km-health
+          containerPort: {{ . }}
+          protocol: TCP
+        {{- end }}
+        {{- with ( include "inference-manager-server.pprofPort" . ) }}
+        - name: km-pprof
+          containerPort: {{ . }}
+          protocol: TCP
+        {{- end }}
         volumeMounts:
         - name: config
           mountPath: /etc/config
@@ -65,6 +75,9 @@ spec:
         - name: tls
           mountPath: /var/run/tls
           readOnly: true
+        {{- end }}
+        {{- with .Values.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         env:
         - name: POD_NAME
@@ -75,8 +88,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
-          {{- toYaml .Values.livenessProbe | nindent 10 }}
+          httpGet:
+            path: /healthz
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
       {{- with .Values.nodeSelector }}
@@ -99,4 +122,7 @@ spec:
       - name: tls
         secret:
           secretName: {{ .Values.workerServiceTls.secretName }}
+      {{- end }}
+      {{- with .Values.volumes }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}

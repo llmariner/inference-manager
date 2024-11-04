@@ -1,88 +1,280 @@
+# Default values for inference-manager-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# +docs:section=Global
+
+# Global settings are used to share the values among LLMariner components.
+# inference-manager-server is a dependency of LLMariner, so global values
+# are propagated at its installation.
+# Please see https://github.com/llmariner/llmariner/blob/main/deployments/llmariner.
 global:
   ingress:
-    ingressClassName:
-    annotations:
-    tls:
-      hosts:
-      secretName:
+    # The Ingress class name.
+    ingressClassName: kong
 
-  auth:
-    enable:
-    rbacInternalServerAddr:
+    # Optional additional annotations to add to the Ingress.
+    # +docs:property
+    # annotations: {}
+
+    # If specified, the API accessed via Ingress will be enabled for TLS.
+    # For more information, see [Enable TLS](https://llmariner.ai/docs/setup/install/single_cluster_production/#optional-enable-tls).
+    #
+    # For example:
+    # tls:
+    #   hosts:
+    #   - api.llm.mydomain.com
+    #   secretName: api-tls
+    #
+    # +docs:property
+    # tls:
+    #   hosts: []
+    #   secretName: ""
 
   workerServiceGrpcService:
-    annotations:
+    # Optional additional annotations to add to Service of the
+    # inference-manager-server worker service.
+    annotations: {}
+
+  # Manages the authentication and RBAC settings for the endpoints of
+  # the public and worker service APIs.
+  auth:
+    # The flag to enable auth.
+    enable: true
+    # The address for the rbac-server to use API auth.
+    rbacInternalServerAddr: rbac-server-internal-grpc:8082
 
   usageSender:
-    apiUsageInternalServerAddr:
+    # The address for the api-usage-server to send API usage data.
+    apiUsageInternalServerAddr: api-usage-server-internal-grpc:8082
 
+# +docs:section=Server
+
+# The HTTP port number for the public service.
+# +docs:type=number
 httpPort: 8080
+# The GRPC port number for the public service.
+# +docs:type=number
 grpcPort: 8081
+# The GRPC port number for the worker service.
+# +docs:type=number
 workerServiceGrpcPort: 8082
+# The GRPC port number for the internal service.
+# +docs:type=number
 internalGrpcPort: 8083
+# The HTTP port number for the inference metrics serving.
+# +docs:type=number
 monitoringPort: 8084
+# The HTTP port number for the admin service.
+# +docs:type=number
 adminPort: 8085
-kubernetesManagerMetricsPort: 8086
 
-database:
-  database: inference_manager
-
-workerServiceGrpcService:
-  type: ClusterIP
-  port: 8082
-  nodePort:
-  annotations:
-  loadBalancerSourceRanges:
-
-workerServiceTls:
-  enable: false
-  secretName:
-
-certificate:
-  create: false
-  name:
-  dnsNames:
-  issuerRef:
-    kind: ClusterIssuer
-    name:
-
-# The following default values work if model manager server runs in the same namespace.
+# The address of the model-manager-server to call public model APIs.
 modelManagerServerAddr: model-manager-server-grpc:8081
-
+# The address of the vector-store-manager-server to call public vector-store APIs.
 vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
+# The address of the vector-store-manager-server to call internal vector-store APIs.
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
+# Specify the Service resource settings for the inference public service and monitoring.
+# For more information, see [Service](srfi https://kubernetes.io/docs/concepts/services-networking/service),
+# and [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).
+service:
+  # Optional annotations to add to the worker Service.
+  annotations: {}
+
+# Specify the Service resource settings for the GRPC worker service.
+# For more information, see [Service](srfi https://kubernetes.io/docs/concepts/services-networking/service),
+# and [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).
+workerServiceGrpcService:
+  # The Service type.
+  type: ClusterIP
+  # The number of GRPC incoming port.
+  # +docs:type=number
+  port: 8082
+
+  # Optional node port number. If not specified, Kubernetes will
+  # allocate a port from a range. (default: 30000-32767)
+  # NOTE: This value is only available only when the Service type is `NodePort`.
+  # +docs:type=number
+  # +docs:property
+  # nodePort:
+
+  # Optional annotations to add to the worker Service.
+  # +docs:property
+  # annotations: {}
+
+  # Specify the policy to control how traffic from external sources
+  # is routed.
+  # +docs:enum=Cluster,Local
+  # +docs:property
+  # externalTrafficPolicy: ""
+
+  # Optional firewall rules to only allow certain source ranges.
+  # NOTE: This field will be ignored if the cloud-provider does not
+  # support the feature.
+  # +docs:property
+  # loadBalancerSourceRanges: []
+
+# Specify the TLS Secret used for communication with the worker.
+# For more information, see [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).
+workerServiceTls:
+  # If enabled, communicate with workers over TLS.
+  enable: false
+  # The secret name that is mounted to the pod.
+  secretName: session-tls
+
+# Specify the cert-manager Certificate resource settings.
+# To use this feature, you need to install cert-manager in advance.
+# For more information, see [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/),
+# and [Certificate resource](https://cert-manager.io/docs/usage/certificate/).
+certificate:
+  # If enabled, the Certificate resource is created.
+  create: false
+  # The Certificate name.
+  name: session-tls
+
+  # At least one of commonName (possibly through literalSubject),
+  # dnsNames, uris, emailAddresses, ipAddresses or otherNames is required.
+  # +docs:property
+  # dnsNames: ["my.dns.name"]
+
+  issuerRef:
+    # The identifier of the issuer.
+    # +docs:property
+    # name: "my-issuer-name"
+
+    # We can reference ClusterIssuers by changing the kind here.
+    # The default value is Issuer (i.e. a locally namespaced Issuer)
+    kind: ClusterIssuer
+
 kubernetesManager:
+  # Specify whether to enable the leader election.
   enableLeaderElection: false
+
+  # The bind address for the metrics serving.
   metricsBindAddress: :8086
+
   # TODO(kenji): Enable the health check
-  healthBindAddress:
-  pprofBindAddress:
 
-gracefulShutdownTimeout:
-podTerminationGracePeriodSeconds:
+  # The bind address for the health probe serving.
+  # +docs:property
+  # +docs:default=""
+  # healthBindAddress: ":8087"
 
-replicaCount: 1
-image:
-  repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-server
-  pullPolicy: IfNotPresent
+  # The bind address for the pprof serving.
+  # +docs:property
+  # +docs:default=""
+  # pprofBindAddress: ":8088"
 
-podAnnotations:
-nodeSelector:
-affinity:
-tolerations:
+# The duration given to runnable to stop before the manager actually
+# returns on stop. If not specified, manager timeouts in 30 seconds.
+# +docs:property
+# gracefulShutdownTimeout: ""
 
-version:
+# Optional duration in seconds the pod needs to terminate gracefully. 
+# The value zero indicates stop immediately via the kill signal (no 
+# opportunity to shut down). If not specified, the default grace 
+# period (30 seconds) will be used instead.
+# +docs:property
+# podTerminationGracePeriodSeconds: ""
 
+# Override the "inference-manager-server.fullname" value. This value
+# is used as part of most of the names of the resources created by
+# this Helm chart.
+# +docs:property
+# fullnameOverride: "my-inference-manager-server"
+
+# Override the "inference-manager-server.name" value, which is used
+# to annotate some of the resources that are created by this Chart
+# (using "app.kubernetes.io/name").
+# +docs:property
+# nameOverride: "my-inference-manager-server"
+
+# If enabled, a `ServiceMonitor` resource is created, which is used to
+# define a scrape target for the Prometheus.
+# NOTE: To use this feature, prometheus-operator must be installed in advance.
 enableServiceMonitor: false
+
+# If enabled, a `ServiceMonitor` resource is created, which is used to
+# define a alert rule for the Prometheus.
+# NOTE: To use this feature, prometheus-operator must be installed in advance.
 enablePrometheusRule: false
 
-service:
-  annotations:
-
 serviceAccount:
+  # Specifies whether a service account should be created.
   create: true
 
+  # The name of the service account to use. If not set and create is
+  # true, a name is generated using the fullname template.
+  # +docs:property
+  # name: ""
+
+# The number of replicas for the inference-manager-server Deployment.
+# +docs:type=number
+replicaCount: 1
+
+# The container image of inference-manager-server.
+image:
+  # The container image name.
+  repository: public.ecr.aws/cloudnatix/llmariner/inference-manager-server
+  # Kubernetes imagePullPolicy on Deployment.
+  pullPolicy: IfNotPresent
+
+# Override the container image tag to deploy by setting this variable.
+# If no value is set, the chart's appVersion will be used.
+# +docs:property
+# version: vX.Y.Z
+
+# Optional additional annotations to add to the Deployment Pods.
+# +docs:property
+# podAnnotations: {}
+
+# The nodeSelector on Pods tells Kubernetes to schedule Pods on the
+# nodes with matching labels.
+# For more information, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/).
+# +docs:property
+# nodeSelector: {}
+
+# A Kubernetes Affinity, if required.
+# For more information, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node).
+#
+# For example:
+#   affinity:
+#     nodeAffinity:
+#      requiredDuringSchedulingIgnoredDuringExecution:
+#        nodeSelectorTerms:
+#        - matchExpressions:
+#          - key: foo.bar.com/role
+#            operator: In
+#            values:
+#            - master
+#
+# +docs:property
+# affinity: {}
+
+# A list of Kubernetes Tolerations, if required.
+# For more information, see [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/).
+#
+# For example:
+#   tolerations:
+#   - key: foo.bar.com/role
+#     operator: Equal
+#     value: master
+#     effect: NoSchedule
+#
+# +docs:property
+# tolerations: []
+
+# Resources to provide to the inference-manager-server pod.
+# For more information, see [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-Containers/).
+#
+# For example:
+#  requests:
+#    cpu: 10m
+#    memory: 32Mi
+#
+# +docs:property
 resources:
   requests:
     cpu: "250m"
@@ -90,17 +282,40 @@ resources:
   limits:
     cpu: "1000m"
 
+# LivenessProbe settings for the inference-manager-server pod.
+# For more information, see [Liveness, Readiness, and Startup Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
 livenessProbe:
-  httpGet:
-    path: /healthz
-    port: http
-    scheme: HTTP
+  # Specify whether to enable the liveness probe.
+  enabled: true
+  # Number of seconds after the container has started before startup,
+  # liveness or readiness probes are initiated.
+  # +docs:type=number
   initialDelaySeconds: 3
-  failureThreshold: 5
+  # How often (in seconds) to perform the probe. Default to 10 seconds.
+  # +docs:type=number
+  periodSeconds: 10
+  # Number of seconds after which the probe times out.
+  # +docs:type=number
   timeoutSeconds: 3
+  # Minimum consecutive successes for the probe to be considered
+  # successful after having failed.
+  # +docs:type=number
+  successThreshold: 1
+  # After a probe fails `failureThreshold` times in a row, Kubernetes
+  # considers that the overall check has failed: the container is not
+  # ready/healthy/live.
+  # +docs:type=number
+  failureThreshold: 5
 
+# Security Context for the inference-manager-server pod.
+# For more information, see [Configure a Security Context for a Pod or Container](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/).
+# +docs:property
 podSecurityContext:
   fsGroup: 2000
+
+# Security Context for the inference-manager-server container.
+# For more information, see [Configure a Security Context for a Pod or Container](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/).
+# +docs:property
 securityContext:
   readOnlyRootFilesystem: true
   capabilities:
@@ -108,3 +323,13 @@ securityContext:
     - ALL
   runAsNonRoot: true
   runAsUser: 1000
+
+# Additional volumes to add to the inference-manager-server pod.
+# For more information, see [Volumes](https://kubernetes.io/docs/concepts/storage/volumes/).
+# +docs:property
+# volumes: []
+
+# Additional volume mounts to add to the inference-manager-server container.
+# For more information, see [Volumes](https://kubernetes.io/docs/concepts/storage/volumes/).
+# +docs:property
+# volumeMounts: []

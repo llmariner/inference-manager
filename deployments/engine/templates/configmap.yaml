@@ -43,7 +43,7 @@ data:
       {{- end }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
-      numParallel: {{ .Values.maxConcurrentRequests }}
+      numParallel: {{ .Values.ollama.maxConcurrentRequests }}
       forceSpreading: {{ .Values.ollama.forceSpreading }}
       debug: {{ .Values.ollama.debug }}
       runnersDir: {{ .Values.ollama.runnersDir }}
@@ -58,8 +58,6 @@ data:
         vllmExtraFlags: {{ .Values.model.default.vllmExtraFlags }}
       overrides:
         {{- toYaml .Values.model.overrides | nindent 8 }}
-    llmEngine: {{ .Values.llmEngine }}
-    llmPort: {{ .Values.llmPort }}
     healthPort: {{ .Values.healthPort }}
     gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
     leaderElection:

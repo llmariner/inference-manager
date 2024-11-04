@@ -39,6 +39,9 @@ metadata:
     {{- end }}
 spec:
   type: {{ .Values.workerServiceGrpcService.type }}
+  {{- if .Values.workerServiceGrpcService.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.workerServiceGrpcService.externalTrafficPolicy }}
+  {{- end }}
   ports:
   - name: ws-grpc
     port: {{ .Values.workerServiceGrpcService.port }}

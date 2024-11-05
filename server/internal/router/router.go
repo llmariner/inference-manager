@@ -12,14 +12,17 @@ type model struct {
 
 // R manages the routing table of models to engines.
 type R struct {
+	enableDynamicModelLoading bool
+
 	mapsByTenantID map[string]*routeMap
 	mu             sync.Mutex
 }
 
 // New creates a new router.
-func New() *R {
+func New(enableDynamicModelLoading bool) *R {
 	return &R{
-		mapsByTenantID: make(map[string]*routeMap),
+		enableDynamicModelLoading: enableDynamicModelLoading,
+		mapsByTenantID:            make(map[string]*routeMap),
 	}
 }
 
@@ -35,6 +38,13 @@ func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([
 	routes := m.getRoute(model{id: modelID})
 	if len(routes) != 0 {
 		return routes, nil
+	}
+
+	// There is no route to the model right now.
+
+	// If dynamic model loading is disabled, return an error.
+	if !r.enableDynamicModelLoading {
+		return nil, fmt.Errorf("no route found")
 	}
 
 	engine, err := m.findLeastLoadedEngine()

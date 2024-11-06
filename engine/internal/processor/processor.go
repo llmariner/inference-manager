@@ -479,7 +479,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
-		reqBody, err = json.Marshal(r)
+		// reqBody, err = json.Marshal(r)
+		reqBody, err = convertCompletionRequest(r)
 		if err != nil {
 			return nil, err
 		}
@@ -510,6 +511,18 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		}
 	}
 	return req, nil
+}
+
+func convertCompletionRequest(req *v1.CreateChatCompletionRequest) ([]byte, error) {
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	reqBodyStr := string(reqBody[:])
+	reqBodyStr = strings.Replace(reqBodyStr, "contents", "content", -1)
+	reqBody = []byte(reqBodyStr)
+	fmt.Printf("reqBody: %s\n", reqBody)
+	return reqBody, nil
 }
 
 func (p *P) sendEngineStatus(stream sender, ready bool) error {

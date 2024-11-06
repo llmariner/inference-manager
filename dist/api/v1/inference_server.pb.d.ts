@@ -2,7 +2,8 @@ export declare enum ContentType {
     CONTENT_TYPE_UNSPECIFIED = "CONTENT_TYPE_UNSPECIFIED",
     CONTENT_TYPE_TEXT = "CONTENT_TYPE_TEXT",
     CONTENT_TYPE_IMAGE_URL = "CONTENT_TYPE_IMAGE_URL",
-    CONTENT_TYPE_INPUT_AUDIO = "CONTENT_TYPE_INPUT_AUDIO"
+    CONTENT_TYPE_INPUT_AUDIO = "CONTENT_TYPE_INPUT_AUDIO",
+    CONTENT_TYPE_AUDIO_URL = "CONTENT_TYPE_AUDIO_URL"
 }
 export type CreateChatCompletionRequestMessageToolCallFunction = {
     name?: string;
@@ -21,15 +22,18 @@ export type CreateChatCompletionRequestMessageInputAudio = {
     data?: string;
     format?: string;
 };
+export type CreateChatCompletionRequestMessageAudioUrl = {
+    url?: string;
+};
 export type CreateChatCompletionRequestMessageContent = {
-    type?: ContentType;
+    type?: string;
     text?: string;
     imageUrl?: CreateChatCompletionRequestMessageImageUrl;
     inputAudio?: CreateChatCompletionRequestMessageInputAudio;
+    audioUrl?: CreateChatCompletionRequestMessageAudioUrl;
 };
 export type CreateChatCompletionRequestMessage = {
-    contents?: CreateChatCompletionRequestMessageContent[];
-    content?: string;
+    content?: CreateChatCompletionRequestMessageContent[];
     role?: string;
     name?: string;
     toolCalls?: CreateChatCompletionRequestMessageToolCall[];

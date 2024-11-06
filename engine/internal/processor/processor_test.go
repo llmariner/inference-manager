@@ -100,6 +100,47 @@ func TestEmbedding(t *testing.T) {
 	assert.Equal(t, "ok", string(resp.Body))
 }
 
+func TestConvertCompletionRequest(t *testing.T) {
+	tcs := []struct {
+		name string
+		req  *v1.CreateChatCompletionRequest
+		want []byte
+	}{
+		{
+			name: "text",
+			req: &v1.CreateChatCompletionRequest{
+				Model: "m0",
+				User:  "u0",
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Contents: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "hello",
+							},
+							{
+								Type: "audio_url",
+								AudioUrl: &v1.CreateChatCompletionRequest_Message_AudioUrl{
+									Url: "https://example.com/audio.mp3",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []byte(`{"messages":[{"content":[{"type":"text","text":"hello"},{"type":"audio_url","audio_url":{"url":"https://example.com/audio.mp3"}}],"role":"user"}],"model":"m0","user":"u0"}`),
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := convertCompletionRequest(tc.req)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func newFakeOllamaServer() (*fakeOllamaServer, error) {
 	m := http.NewServeMux()
 

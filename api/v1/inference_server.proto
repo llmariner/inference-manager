@@ -13,6 +13,7 @@ enum ContentType {
   CONTENT_TYPE_TEXT = 1;
   CONTENT_TYPE_IMAGE_URL = 2;
   CONTENT_TYPE_INPUT_AUDIO = 3;
+  CONTENT_TYPE_AUDIO_URL = 4;
 }
 
 message CreateChatCompletionRequest {
@@ -37,16 +38,20 @@ message CreateChatCompletionRequest {
       string data = 1;
       string format = 2;
     }
+    message AudioUrl  {
+      string url = 1;
+    }
     message Content {
-      ContentType type = 1;
+      string type = 1;
       string text = 2;
       ImageUrl image_url = 3;
       InputAudio input_audio = 4;
+      AudioUrl audio_url = 5;
     }
     // Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges.
-    repeated Content contents = 5;
+    repeated Content content = 5;
     // Deprecated: use contents instead.
-    string content = 1;
+    // string content = 1;
     string role = 2;
     string name = 3;
     repeated ToolCall tool_calls = 4;

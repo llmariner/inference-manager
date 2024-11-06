@@ -21,7 +21,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "$ref": "#/definitions/v1ContentType"
+          "type": "string"
         },
         "text": {
           "type": "string"
@@ -31,6 +31,9 @@
         },
         "inputAudio": {
           "$ref": "#/definitions/MessageInputAudio"
+        },
+        "audioUrl": {
+          "$ref": "#/definitions/MessageAudioUrl"
         }
       }
     },
@@ -136,6 +139,14 @@
         }
       }
     },
+    "MessageAudioUrl": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      }
+    },
     "MessageImageUrl": {
       "type": "object",
       "properties": {
@@ -185,16 +196,6 @@
           }
         }
       }
-    },
-    "v1ContentType": {
-      "type": "string",
-      "enum": [
-        "CONTENT_TYPE_UNSPECIFIED",
-        "CONTENT_TYPE_TEXT",
-        "CONTENT_TYPE_IMAGE_URL",
-        "CONTENT_TYPE_INPUT_AUDIO"
-      ],
-      "default": "CONTENT_TYPE_UNSPECIFIED"
     },
     "v1CreateChatCompletionRequest": {
       "type": "object",
@@ -284,19 +285,16 @@
     "v1CreateChatCompletionRequestMessage": {
       "type": "object",
       "properties": {
-        "contents": {
+        "content": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/CreateChatCompletionRequestMessageContent"
           },
           "description": "Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges."
         },
-        "content": {
-          "type": "string",
-          "description": "Deprecated: use contents instead."
-        },
         "role": {
-          "type": "string"
+          "type": "string",
+          "title": "Deprecated: use contents instead.\nstring content = 1;"
         },
         "name": {
           "type": "string"

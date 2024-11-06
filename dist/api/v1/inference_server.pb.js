@@ -9,6 +9,7 @@ export var ContentType;
     ContentType["CONTENT_TYPE_TEXT"] = "CONTENT_TYPE_TEXT";
     ContentType["CONTENT_TYPE_IMAGE_URL"] = "CONTENT_TYPE_IMAGE_URL";
     ContentType["CONTENT_TYPE_INPUT_AUDIO"] = "CONTENT_TYPE_INPUT_AUDIO";
+    ContentType["CONTENT_TYPE_AUDIO_URL"] = "CONTENT_TYPE_AUDIO_URL";
 })(ContentType || (ContentType = {}));
 export class ChatService {
 }

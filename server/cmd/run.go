@@ -162,7 +162,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		rwt = rag.NewR(c.AuthConfig.Enable, vsInternalClient, logger)
 	}
 
-	infProcessor := infprocessor.NewP(router.New(), logger)
+	infProcessor := infprocessor.NewP(router.New(c.RequestRouting.EnableDynamicModelLoading), logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
 	}()

@@ -18,7 +18,7 @@ import (
 
 func TestE_Reconcile(t *testing.T) {
 	iprocessor := infprocessor.NewP(
-		router.New(),
+		router.New(true),
 		testutil.NewTestLogger(t),
 	)
 
@@ -80,7 +80,7 @@ func TestE_Reconcile(t *testing.T) {
 
 func TestE_AddUpdateRemoveServer(t *testing.T) {
 	iprocessor := infprocessor.NewP(
-		router.New(),
+		router.New(true),
 		testutil.NewTestLogger(t),
 	)
 

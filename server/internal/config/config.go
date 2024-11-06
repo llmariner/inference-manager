@@ -28,6 +28,8 @@ type Config struct {
 
 	UsageSender sender.Config `yaml:"usageSender"`
 
+	RequestRouting RequestRoutingConfig `yaml:"requestRouting"`
+
 	KubernetesManager KubernetesManagerConfig `yaml:"kubernetesManager"`
 
 	// GracefulShutdownTimeout is the duration given to runnable to stop
@@ -74,6 +76,12 @@ func (c *TLS) validate() error {
 		return fmt.Errorf("cert must be set")
 	}
 	return nil
+}
+
+// RequestRoutingConfig is the request routing configuration.
+type RequestRoutingConfig struct {
+	// EnableDynamicModelLoading specifies whether dynamic on-demand model loading is enabled.
+	EnableDynamicModelLoading bool `yaml:"enableDynamicModelLoading"`
 }
 
 // KubernetesManagerConfig is the Kubernetes manager configuration.

@@ -218,7 +218,7 @@ func createServer(
 	otherPod *corev1.Pod,
 	logger logr.Logger,
 ) (*serverInst, error) {
-	ip := infprocessor.NewP(router.New(), logger)
+	ip := infprocessor.NewP(router.New(true), logger)
 
 	te := taskexchanger.NewE(
 		ip,

@@ -24,7 +24,7 @@ data:
       enable: {{ .Values.global.auth.enable }}
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}
     requestRouting:
-      enableDynamicModelLoading: {{ .Value.requestRouting.enableDynamicModelLoading }}
+      enableDynamicModelLoading: {{ .Values.requestRouting.enableDynamicModelLoading }}
     usageSender:
       {{- toYaml .Values.global.usageSender | nindent 6 }}
     kubernetesManager:

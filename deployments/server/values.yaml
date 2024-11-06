@@ -150,6 +150,8 @@ certificate:
 
 requestRouting:
   # Specify whether dynamic on-demand model loading is enabled.
+  # If set to false, the request will fail immediately if the specified
+  # model has not yet been loaded on any cluster.
   enableDynamicModelLoading: true
 
 kubernetesManager:

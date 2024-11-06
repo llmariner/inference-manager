@@ -93,11 +93,16 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
 		"--served-model-name", oModelID,
-		// We only set the chat template and do not set the tokenizer as the model files provide necessary information
-		// such as stop tokens.
-		"--chat-template", template,
 	}
-
+	// Ultravox models is a model to handle audio input, which require a specific tokenizer.
+	if strings.Contains(modelID, "ultravox") {
+		args = append(args, "--tokenizer", "fixie-ai/ultravox-v0_3")
+	}
+	// We only set the chat template and do not set the tokenizer as the model files provide necessary information
+	// such as stop tokens.
+	if template != "" {
+		args = append(args, "--chat-template", template)
+	}
 	if isBaseModel(model) {
 		mPath, err := v.baseModelFilePath(ctx, modelID)
 		if err != nil {
@@ -280,6 +285,8 @@ func chatTemplate(modelID string) (string, error) {
 {{message['content']}}
 {% endfor %}
 `, nil
+	case strings.Contains(modelID, "ultravox"):
+		return "", nil
 	default:
 		return "", fmt.Errorf("unsupported model: %q", modelID)
 	}

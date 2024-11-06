@@ -40,6 +40,10 @@ build-docker-engine:
 build-docker-triton-proxy:
 	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-triton-proxy:latest -f build/triton-proxy/Dockerfile .
 
+.PHONY: build-docker-vllm
+build-docker-vllm:
+	docker build --build-arg TARGETARCH=amd64 -t llmariner/vllm-openai:0.6.2 -f build/vllm/Dockerfile .
+
 .PHONY: check-helm-tool
 check-helm-tool:
 	@command -v helm-tool >/dev/null 2>&1 || $(MAKE) install-helm-tool

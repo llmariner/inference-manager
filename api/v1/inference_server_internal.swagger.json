@@ -17,6 +17,15 @@
   ],
   "paths": {},
   "definitions": {
+    "ContentAudioUrl": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      },
+      "description": "AudioUrl is non-openai compatible. It is used by vLLM to handle audio input."
+    },
     "ContentImageUrl": {
       "type": "object",
       "properties": {
@@ -54,6 +63,9 @@
         },
         "inputAudio": {
           "$ref": "#/definitions/ContentInputAudio"
+        },
+        "audioUrl": {
+          "$ref": "#/definitions/ContentAudioUrl"
         }
       }
     },

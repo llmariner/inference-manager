@@ -202,7 +202,7 @@ kubernetesManager:
 # NOTE: To use this feature, prometheus-operator must be installed in advance.
 enableServiceMonitor: false
 
-# If enabled, a `ServiceMonitor` resource is created, which is used to
+# If enabled, a `PrometheusRule` resource is created, which is used to
 # define a alert rule for the Prometheus.
 # NOTE: To use this feature, prometheus-operator must be installed in advance.
 enablePrometheusRule: false

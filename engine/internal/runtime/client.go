@@ -201,6 +201,7 @@ func (c *commonClient) deployRuntime(
 	volumeMounts = append(volumeMounts, params.volumeMounts...)
 
 	initEnvs := append(params.initEnvs,
+		// The pod index label is supported in k8s 1.28 or later.
 		corev1apply.EnvVar().WithName("INDEX").
 			WithValueFrom(corev1apply.EnvVarSource().
 				WithFieldRef(corev1apply.ObjectFieldSelector().
@@ -348,11 +349,17 @@ func (c *commonClient) deployRuntime(
 		stsSpecConf = stsSpecConf.WithVolumeClaimTemplates(volClaim)
 	}
 
+	annos := map[string]string{
+		runtimeAnnotationKey: mci.RuntimeName,
+		modelAnnotationKey:   params.modelID,
+	}
+	for k, v := range c.rconfig.PodAnnotations {
+		annos[k] = v
+	}
+
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
-		WithAnnotations(map[string]string{
-			runtimeAnnotationKey: mci.RuntimeName,
-			modelAnnotationKey:   params.modelID}).
+		WithAnnotations(annos).
 		WithFinalizers(finalizerKey).
 		WithSpec(stsSpecConf)
 

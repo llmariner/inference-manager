@@ -82,6 +82,8 @@ type RuntimeConfig struct {
 
 	ServiceAccountName string `yaml:"serviceAccountName"`
 
+	PodAnnotations map[string]string `yaml:"podAnnotations"`
+
 	NodeSelector         map[string]string  `yaml:"nodeSelector"`
 	Tolerations          []TolerationConfig `yaml:"tolerations"`
 	UnstructuredAffinity any                `yaml:"affinity"`

@@ -1,0 +1,57 @@
+{{- if .Values.runtime.scheduledShutdown.enable }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}-scale-down
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  schedule: {{ required "scale-down schedule is required" .Values.runtime.scheduledShutdown.schedule.scaleDown | quote }}
+  {{- with .Values.runtime.scheduledShutdown.schedule.timeZone }}
+  timeZone: {{ . }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          containers:
+          - name: scaler
+            image: {{ .Values.runtime.scheduledShutdown.image.name }}
+            imagePullPolicy: {{ .Values.runtime.scheduledShutdown.image.pullPolicy }}
+            args:
+            - "scale"
+            - "--namespace={{ .Release.Namespace }}"
+            - "statefulset"
+            - "--selector=app.kubernetes.io/name=runtime"
+            - "--replicas=0"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}-scale-up
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  schedule: {{ required "scale-up schedule is required" .Values.runtime.scheduledShutdown.schedule.scaleUp | quote }}
+  {{- with .Values.runtime.scheduledShutdown.schedule.timeZone }}
+  timeZone: {{ . }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          containers:
+          - name: scaler
+            image: {{ .Values.runtime.scheduledShutdown.image.name }}
+            imagePullPolicy: {{ .Values.runtime.scheduledShutdown.image.pullPolicy }}
+            args:
+            - "scale"
+            - "--namespace={{ .Release.Namespace }}"
+            - "statefulset"
+            - "--selector=app.kubernetes.io/name=runtime"
+            - "--replicas={{ .Values.model.default.replicas }}"
+{{- end }}

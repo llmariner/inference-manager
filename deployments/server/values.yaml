@@ -77,14 +77,14 @@ vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
 # Specify the Service resource settings for the inference public service and monitoring.
-# For more information, see [Service](srfi https://kubernetes.io/docs/concepts/services-networking/service),
+# For more information, see [Service](https://kubernetes.io/docs/concepts/services-networking/service),
 # and [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).
 service:
   # Optional annotations to add to the worker Service.
   annotations: {}
 
 # Specify the Service resource settings for the GRPC worker service.
-# For more information, see [Service](srfi https://kubernetes.io/docs/concepts/services-networking/service),
+# For more information, see [Service](https://kubernetes.io/docs/concepts/services-networking/service),
 # and [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).
 workerServiceGrpcService:
   # The Service type.

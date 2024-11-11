@@ -1,0 +1,30 @@
+global:
+  auth:
+    enable: false
+prepare:
+  workerRegistration:
+    createSecret: true
+    secret:
+      key: default-cluster-registration-key-secret
+
+inference-manager-server:
+  version: latest
+  image:
+    repository: llmariner/inference-manager-server
+    pullPolicy: Never
+
+inference-manager-engine:
+  version: latest
+  image:
+    repository: llmariner/inference-manager-engine
+    pullPolicy: Never
+  replicaCount: 1
+  model:
+    overrides:
+      google/gemma-2b-it-q4_0:
+        preloaded: false
+
+model-manager-loader:
+  runOnce: true
+  baseModels:
+  - google/gemma-2b-it-q4_0

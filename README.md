@@ -1,92 +1,42 @@
 # inference-manager
 
-## Running with Docker Compose
+The inference-manager manages inference runtimes (e.g., vLLM and Ollama) in containers, load models, and process requests.
+
+## Set up Inference Server/Engine for development
+
+Requirements:
+
+- [Docker](https://docs.docker.com/engine/install/)
+- [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- [Helmfile](https://helmfile.readthedocs.io/en/latest/#installation)
 
 Run the following command:
 
-```bash
-docker-compose build
-docker-compose up
+```console
+make setup-llmariner setup-cluster helm-apply-inference
 ```
 
-You then need to exec into the `engine` container and pull a model by running the following command:
+> [!TIP]
+> - Run just only `make helm-apply-inference`, it will rebuild inference-manager container images and deploy them using the local helm chart.
+> - You can configure parameters in [.values.yaml](hack/values.yaml).
 
-```bash
-export OLLAMA_HOST=0.0.0.0:8080
-ollama pull gemma:2b
-```
+### Try out inference APIs
 
-Then you can hit `inference-manager-server` at port 8080.
+with curl:
 
-```bash
+```console
 curl --request POST http://localhost:8080/v1/chat/completions -d '{
-  "model": "gemma:2b",
+  "model": "google-gemma-2b-it-q4_0",
   "messages": [{"role": "user", "content": "hello"}]
 }'
 ```
 
-## Running Engine Locally
+with llma:
 
-Run the following command:
-
-```bash
-make build-docker-engine
-docker run \
-  -v ./configs/engine:/config \
-  -p 8080:8080 \
-  -p 8081:8081 \
-  llmariner/inference-manager-engine \
-  run \
-  --config /config/config.yaml
-```
-
-Then hit the HTTP point and verify that Ollama responds.
-
-```bash
-curl http://localhost:8080/api/generate -d '{
-  "model": "gemma:2b",
-  "prompt":"Why is the sky blue?"
-}'
-```
-
-
-If you want to load modelds from your local filesystem, you can add mount the volume.
-
-```bash
-docker run \
-  -v ./configs/engine:/config \
-  -p 8080:8080 \
-  -p 8081:8081 \
-  -v ./models:/models \
-  llmariner/inference-manager-engine \
-  run \
-  --config /config/config.yaml
-```
-
-Then import the models to Ollama.
-
-```bash
-docker exec -it <contaiener ID> bash
-
-export OLLAMA_HOST=0.0.0.0:8080
-ollama create <model-name> -f <modelfile>
-```
-
-Here are example modelfiles:
-
-```
-FROM /models/gemma-2b-it.gguf
-TEMPLATE """<start_of_turn>user
-{{ if .System }}{{ .System }} {{ end }}{{ .Prompt }}<end_of_turn>
-<start_of_turn>model
-{{ .Response }}<end_of_turn>
-"""
-PARAMETER repeat_penalty 1
-PARAMETER stop "<start_of_turn>"
-PARAMETER stop "<end_of_turn>"
-```
-
-```
-FROM gemma-2b-it
-ADAPTER /models/ggml-adapter-model.bin
+```console
+export LLMARINER_API_KEY=dummy
+llma chat completions create \
+    --model google-gemma-2b-it-q4_0 \
+    --role system \
+    --completion 'hi'
 ```

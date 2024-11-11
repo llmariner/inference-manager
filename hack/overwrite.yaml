@@ -1,0 +1,5 @@
+# Helm merges dict values as default. To overwrite the dict values in
+# `llmariner_values.yaml`, specify a nil value explicitly.
+inference-manager-engine:
+  model:
+    overrides: nil

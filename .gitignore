@@ -27,3 +27,6 @@ bin/
 node_modules/
 package-lock.json
 yarn.lock
+
+# workspace
+work

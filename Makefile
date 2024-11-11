@@ -1,3 +1,7 @@
+SERVER_IMAGE ?= llmariner/inference-manager-server
+ENGINE_IMAGE ?= llmariner/inference-manager-engine
+TAG ?= latest
+
 .PHONY: default
 default: test
 
@@ -26,11 +30,11 @@ build-triton-proxy:
 
 .PHONY: build-docker-server
 build-docker-server:
-	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-server:latest -f build/server/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t $(SERVER_IMAGE):$(TAG) -f build/server/Dockerfile .
 
 .PHONY: build-docker-engine
 build-docker-engine:
-	docker build --build-arg TARGETARCH=amd64 -t llmariner/inference-manager-engine:latest -f build/engine/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t $(ENGINE_IMAGE):$(TAG) -f build/engine/Dockerfile .
 
 .PHONY: build-docker-triton-proxy
 build-docker-triton-proxy:
@@ -67,3 +71,57 @@ helm-lint-server: generate-chart-schema-server
 helm-lint-engine: generate-chart-schema-engine
 	cd ./deployments/engine && helm-tool lint
 	helm lint ./deployments/engine
+
+KIND_CLUSTER ?= kind
+LLMA_REPO ?= https://github.com/llmariner/llmariner.git
+CLONE_PATH ?= work
+
+.PHONY: setup-all
+setup-all: setup-llmariner setup-cluster helm-apply-inference
+
+.PHONY: setup-llmariner
+setup-llmariner: update-llmariner configure-llma-chart
+
+.PHONY: update-llmariner
+update-llmariner:
+	@if [ -d $(CLONE_PATH) ]; then \
+		cd $(CLONE_PATH) && \
+		git checkout -- deployments/llmariner/Chart.yaml && \
+		git pull; \
+	else \
+		git clone $(LLMA_REPO) $(CLONE_PATH); \
+	fi
+
+.PHONY: configure-llma-chart
+configure-llma-chart:
+	hack/overwrite-llma-chart-for-test.sh $(CLONE_PATH)
+
+.PHONY: setup-cluster
+setup-cluster: create-kind-cluster helm-apply-deps
+
+.PHONY: create-kind-cluster
+create-kind-cluster:
+	@if ! kind get clusters | grep -q $(KIND_CLUSTER); then \
+		kind create cluster --name $(KIND_CLUSTER) --config hack/kind-config.yaml; \
+	else \
+		echo "Cluster '$(KIND_CLUSTER)' already exists"; \
+	fi
+
+.PHONY: load-docker-image-all
+load-docker-image-all: load-docker-image-server load-docker-image-engine
+
+.PHONY: load-docker-image-server
+load-docker-image-server: build-docker-server
+	kind load docker-image $(SERVER_IMAGE):$(TAG) --name $(KIND_CLUSTER)
+
+.PHONY: load-docker-images-engine
+load-docker-image-engine: build-docker-engine
+	kind load docker-image $(ENGINE_IMAGE):$(TAG) --name $(KIND_CLUSTER)
+
+.PHONY: helm-apply-deps
+helm-apply-deps:
+	hack/helm-apply-deps.sh $(CLONE_PATH)
+
+.PHONY: helm-apply-inference
+helm-apply-inference: load-docker-image-all
+	hack/helm-apply-inference.sh $(CLONE_PATH)

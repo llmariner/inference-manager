@@ -50,8 +50,8 @@ message CreateChatCompletionRequest {
     }
     // Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges.
     repeated Content content = 5;
-    // Deprecated: use contents instead.
-    // string content = 1;
+    // Deprecated: use content instead.
+    string contents = 1;
     string role = 2;
     string name = 3;
     repeated ToolCall tool_calls = 4;

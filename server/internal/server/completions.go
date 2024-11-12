@@ -81,7 +81,7 @@ func (s *S) CreateChatCompletion(
 	details.ModelId = createReq.Model
 
 	// Include the usage by default. This is a temporary solution as continue.ev does not provide a way to the stream options.
-	if createReq.StreamOptions == nil {
+	if createReq.Stream && createReq.StreamOptions == nil {
 		createReq.StreamOptions = &v1.CreateChatCompletionRequest_StreamOptions{
 			IncludeUsage: true,
 		}

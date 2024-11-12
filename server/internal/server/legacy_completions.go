@@ -211,6 +211,14 @@ func (s *S) CreateCompletion(
 }
 
 func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateChatCompletionRequest {
+	var streamOptions *v1.CreateChatCompletionRequest_StreamOptions
+	if req.Stream {
+		// Always include the usage in the streaming repsonse.
+		streamOptions = &v1.CreateChatCompletionRequest_StreamOptions{
+			IncludeUsage: true,
+		}
+	}
+
 	return &v1.CreateChatCompletionRequest{
 		Messages: []*v1.CreateChatCompletionRequest_Message{
 			{
@@ -229,13 +237,10 @@ func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateCh
 		N:               req.N,
 		PresencePenalty: req.PresencePenalty,
 		// No ResponseFormat in the legacy request.
-		Seed:   req.Seed,
-		Stop:   req.Stop,
-		Stream: req.Stream,
-		// Always include the usage in the streaming repsonse.
-		StreamOptions: &v1.CreateChatCompletionRequest_StreamOptions{
-			IncludeUsage: true,
-		},
+		Seed:          req.Seed,
+		Stop:          req.Stop,
+		Stream:        req.Stream,
+		StreamOptions: streamOptions,
 		// No Suffix in the non-legacy request.
 		Temperature: req.Temperature,
 		TopP:        req.TopP,

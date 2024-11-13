@@ -56,25 +56,25 @@ func TestAddRuntime(t *testing.T) {
 func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newPendingRuntime(),
-			"model-1": newReadyRuntime("test"),
+			"model-0": newPendingRuntime("rt-model-0"),
+			"model-1": newReadyRuntime("rt-model-1", "test"),
 		},
 	}
-	mgr.deleteRuntime("model-0")
-	mgr.deleteRuntime("model-1")
+	mgr.deleteRuntime("rt-model-0")
+	mgr.deleteRuntime("rt-model-1")
 	assert.Empty(t, mgr.runtimes)
 }
 
 func TestMarkRuntimeReady(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newPendingRuntime(),
+			"model-0": newPendingRuntime("rt-model-0"),
 		},
 	}
-	mgr.markRuntimeReady("model-0", "test")
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test")
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-	mgr.markRuntimeReady("model-0", "test")
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test")
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
 }
@@ -82,20 +82,20 @@ func TestMarkRuntimeReady(t *testing.T) {
 func TestMarkRuntimeIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("test"),
+			"model-0": newReadyRuntime("rt-model-0", "test"),
 		},
 	}
-	mgr.markRuntimeIsPending("model-0")
+	mgr.markRuntimeIsPending("rt-model-0", "model-0")
 	assert.False(t, mgr.runtimes["model-0"].ready)
-	mgr.markRuntimeIsPending("model-0")
+	mgr.markRuntimeIsPending("rt-model-0", "model-0")
 	assert.False(t, mgr.runtimes["model-0"].ready)
 }
 
 func TestIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newPendingRuntime(),
-			"model-1": newReadyRuntime("test"),
+			"model-0": newPendingRuntime("rt-model-0"),
+			"model-1": newReadyRuntime("rt-model-1", "test"),
 		},
 	}
 	ready, ok := mgr.isReady("model-0")
@@ -111,8 +111,8 @@ func TestIsPending(t *testing.T) {
 func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("test"),
-			"model-1": newPendingRuntime(),
+			"model-0": newReadyRuntime("rt-model-0", "test"),
+			"model-1": newPendingRuntime("rt-model-1"),
 		},
 	}
 	addr, err := mgr.GetLLMAddress("model-0")
@@ -125,9 +125,9 @@ func TestGetLLMAddress(t *testing.T) {
 func TestListSyncedModelIDs(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("test"),
-			"model-1": newPendingRuntime(),
-			"model-2": newReadyRuntime("test2"),
+			"model-0": newReadyRuntime("rt-model-0", "test"),
+			"model-1": newPendingRuntime("rt-model-1"),
+			"model-2": newReadyRuntime("rt-model-2", "test2"),
 		},
 	}
 	models := mgr.ListSyncedModelIDs()
@@ -139,9 +139,9 @@ func TestListSyncedModelIDs(t *testing.T) {
 func TestListProgressModelIDs(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newPendingRuntime(),
-			"model-1": newReadyRuntime("test"),
-			"model-2": newPendingRuntime(),
+			"model-0": newPendingRuntime("rt-model-0"),
+			"model-1": newReadyRuntime("rt-model-1", "test"),
+			"model-2": newPendingRuntime("rt-model-2"),
 		},
 	}
 	models := mgr.ListInProgressModels()
@@ -160,11 +160,11 @@ func TestPullModel(t *testing.T) {
 	}{
 		{
 			name: "already ready",
-			rt:   ptr.To(newReadyRuntime("test")),
+			rt:   ptr.To(newReadyRuntime("rt-model-0", "test")),
 		},
 		{
 			name: "already pending",
-			rt:   ptr.To(newPendingRuntime()),
+			rt:   ptr.To(newPendingRuntime("rt-model-1")),
 		},
 		{
 			name:     "new model",
@@ -202,7 +202,7 @@ func TestPullModel(t *testing.T) {
 					return
 				case <-time.After(300 * time.Millisecond):
 					t.Log("marking runtime ready")
-					mgr.markRuntimeReady(testModelID, "test")
+					mgr.markRuntimeReady("rt-model-0", testModelID, "test")
 				}
 			}()
 			err := mgr.PullModel(ctx, testModelID)
@@ -247,7 +247,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime()),
+			rt: ptr.To(newPendingRuntime(name)),
 		},
 		{
 			name: "unreachable",
@@ -255,7 +255,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime()),
+			rt: ptr.To(newPendingRuntime(name)),
 			preFn: func(ctx context.Context, m *Manager) {
 				http.DefaultClient = &http.Client{
 					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
@@ -271,7 +271,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime()),
+			rt: ptr.To(newPendingRuntime(name)),
 			preFn: func(ctx context.Context, m *Manager) {
 				http.DefaultClient = &http.Client{
 					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
@@ -305,7 +305,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
-			rt: ptr.To(newReadyRuntime("test")),
+			rt: ptr.To(newReadyRuntime(name, "test")),
 		},
 		{
 			name: "not-registered (pending)",
@@ -326,36 +326,18 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "not found",
-			// no error
-		},
-		{
-			name: "deleting (pending)",
-			sts:  createSts(func(sts *appsv1.StatefulSet) {}),
-			rt:   ptr.To(newPendingRuntime()),
-			preFn: func(ctx context.Context, m *Manager) {
-				var sts appsv1.StatefulSet
-				err := m.k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &sts)
-				assert.NoError(t, err)
-				err = m.k8sClient.Delete(ctx, &sts)
-				assert.NoError(t, err)
-			},
+			name: "not found (pending)",
+			sts:  nil,
+			rt:   ptr.To(newPendingRuntime(name)),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
 			},
 		},
 		{
-			name: "deleting (ready)",
-			sts:  createSts(func(sts *appsv1.StatefulSet) {}),
-			rt:   ptr.To(newReadyRuntime("test")),
-			preFn: func(ctx context.Context, m *Manager) {
-				var sts appsv1.StatefulSet
-				err := m.k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &sts)
-				assert.NoError(t, err)
-				err = m.k8sClient.Delete(ctx, &sts)
-				assert.NoError(t, err)
-			},
+			name: "not found (ready)",
+			sts:  nil,
+			rt:   ptr.To(newReadyRuntime(name, "test")),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -425,6 +407,10 @@ type fakeClient struct {
 	readyReplicas int32
 }
 
+func (m *fakeClient) GetName(modelID string) string {
+	return fmt.Sprintf("rt-%s", modelID)
+}
+
 func (m *fakeClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:1234", name)
 }
@@ -433,7 +419,7 @@ func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update b
 	m.deployed[modelID] = true
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
+			Name:      m.GetName(modelID),
 			Namespace: "default",
 		},
 		Status: appsv1.StatefulSetStatus{

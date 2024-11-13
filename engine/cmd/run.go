@@ -136,7 +136,7 @@ func run(c *config.Config, ns string, lv int) error {
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
-	if err := rtManager.SetupWithManager(mgr); err != nil {
+	if err := rtManager.SetupWithManager(mgr, c.Autoscaler.Enable); err != nil {
 		return err
 	}
 

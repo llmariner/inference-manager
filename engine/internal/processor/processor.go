@@ -155,6 +155,7 @@ type P struct {
 // SetupWithManager sets up the processor with the manager.
 func (p *P) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 	p.logger = mgr.GetLogger().WithName("processor")
+	p.leaderElection = leaderElection
 	return mgr.Add(p)
 }
 

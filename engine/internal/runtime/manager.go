@@ -9,10 +9,13 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -48,15 +51,16 @@ type Manager struct {
 	mu       sync.RWMutex
 }
 
-func newPendingRuntime() runtime {
-	return runtime{ready: false, waitCh: make(chan struct{})}
+func newPendingRuntime(name string) runtime {
+	return runtime{name: name, ready: false, waitCh: make(chan struct{})}
 }
 
-func newReadyRuntime(address string) runtime {
-	return runtime{ready: true, address: address}
+func newReadyRuntime(name string, address string) runtime {
+	return runtime{name: name, ready: true, address: address}
 }
 
 type runtime struct {
+	name  string
 	ready bool
 	// address is empty when the runtime is not ready.
 	address string
@@ -75,14 +79,25 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, erro
 		if err != nil {
 			return false, err
 		}
-		m.runtimes[modelID] = newReadyRuntime(c.GetAddress(sts.Name))
+		m.runtimes[modelID] = newReadyRuntime(sts.Name, c.GetAddress(sts.Name))
 	} else {
-		m.runtimes[modelID] = newPendingRuntime()
+		m.runtimes[modelID] = newPendingRuntime(sts.Name)
 	}
 	return true, nil
 }
 
-func (m *Manager) deleteRuntime(modelID string) {
+func (m *Manager) deleteRuntime(name string) {
+	var modelID string
+	for id, r := range m.runtimes {
+		if r.name == name {
+			modelID = id
+			break
+		}
+	}
+	if modelID == "" {
+		return
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok {
@@ -93,22 +108,22 @@ func (m *Manager) deleteRuntime(modelID string) {
 	}
 }
 
-func (m *Manager) markRuntimeReady(modelID, address string) {
+func (m *Manager) markRuntimeReady(name, modelID, address string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
 		if r.waitCh != nil {
 			close(r.waitCh)
 		}
-		m.runtimes[modelID] = newReadyRuntime(address)
+		m.runtimes[modelID] = newReadyRuntime(name, address)
 	}
 }
 
-func (m *Manager) markRuntimeIsPending(modelID string) {
+func (m *Manager) markRuntimeIsPending(name, modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && r.ready {
-		m.runtimes[modelID] = newPendingRuntime()
+		m.runtimes[modelID] = newPendingRuntime(name)
 	}
 }
 
@@ -164,7 +179,13 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			return nil
 		}
 	} else {
-		r = newPendingRuntime()
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return err
+		}
+		name := client.GetName(modelID)
+
+		r = newPendingRuntime(name)
 		m.runtimes[modelID] = r
 		m.mu.Unlock()
 
@@ -177,11 +198,6 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			m.mu.Unlock()
 		}
 
-		client, err := m.rtClientFactory.New(modelID)
-		if err != nil {
-			cleanup()
-			return err
-		}
 		sts, err := client.DeployRuntime(ctx, modelID, false)
 		if err != nil {
 			cleanup()
@@ -194,7 +210,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// registered in the manager's managed runtime map. If the runtime's
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(modelID, client.GetAddress(sts.Name))
+			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name))
 		}
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
@@ -212,18 +228,20 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 
 	var sts appsv1.StatefulSet
 	if err := m.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
+		if apierrors.IsNotFound(err) {
+			m.deleteRuntime(req.Name)
+			m.autoscaler.Unregister(req.NamespacedName)
+			log.Info("Runtime is deleted")
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	modelID := sts.GetAnnotations()[modelAnnotationKey]
 
-	if !sts.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&sts, finalizerKey) {
-			return ctrl.Result{}, nil
-		}
-		m.deleteRuntime(modelID)
-		m.autoscaler.Unregister(req.NamespacedName)
-
+	// TODO(aya): remove this block after a few releases.
+	// This is for the backward compatibility. The controller no longer
+	// adds the finalizer to the statefulset.
+	if controllerutil.ContainsFinalizer(&sts, finalizerKey) {
 		patch := client.MergeFrom(&sts)
 		newSts := sts.DeepCopy()
 		controllerutil.RemoveFinalizer(newSts, finalizerKey)
@@ -231,7 +249,6 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Failed to remove finalizer")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
 	}
 
 	ready, ok := m.isReady(modelID)
@@ -250,7 +267,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		return ctrl.Result{}, nil
 	} else if ready {
 		if sts.Status.Replicas == 0 {
-			m.markRuntimeIsPending(modelID)
+			m.markRuntimeIsPending(sts.Name, modelID)
 			log.Info("Runtime is pending")
 		}
 	} else if sts.Status.ReadyReplicas > 0 {
@@ -269,7 +286,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Failed to reach the runtime")
 			return ctrl.Result{}, err
 		}
-		m.markRuntimeReady(modelID, addr)
+		m.markRuntimeReady(sts.Name, modelID, addr)
 		log.Info("Runtime is ready")
 	}
 
@@ -277,7 +294,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.
-func (m *Manager) SetupWithManager(mgr ctrl.Manager) error {
+func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 	filterByAnno := (predicate.NewPredicateFuncs(func(object client.Object) bool {
 		_, ok := object.GetAnnotations()[runtimeAnnotationKey]
 		return ok
@@ -291,5 +308,8 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByAnno)).
 		WithLogConstructor(constructer).
+		// To share the runtime deletion event, disable the leader election
+		// for this controller if the processor disables the leader election.
+		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).
 		Complete(m)
 }

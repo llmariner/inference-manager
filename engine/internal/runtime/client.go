@@ -40,6 +40,7 @@ func ModelDir() string {
 
 // Client is the interface for managing runtimes.
 type Client interface {
+	GetName(modelID string) string
 	GetAddress(name string) string
 	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
 }
@@ -75,6 +76,12 @@ func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client
 		return nil, fmt.Errorf("failed to apply object: %s", err)
 	}
 	return obj, nil
+}
+
+// GetName returns a resource name of the runtime.
+func (c *commonClient) GetName(modelID string) string {
+	mci := c.mconfig.ModelConfigItem(modelID)
+	return resourceName(mci.RuntimeName, modelID)
 }
 
 // GetAddress returns the address of the runtime.
@@ -360,7 +367,6 @@ func (c *commonClient) deployRuntime(
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(annos).
-		WithFinalizers(finalizerKey).
 		WithSpec(stsSpecConf)
 
 	var curSts appsv1.StatefulSet

@@ -195,6 +195,12 @@ func (c *ModelConfigItem) validate() error {
 	if c.ContextLength < 0 {
 		return fmt.Errorf("contextLength must be non-negative")
 	}
+
+	if c.Resources.Volume != nil {
+		if err := c.Resources.Volume.validate(); err != nil {
+			return fmt.Errorf("volume: %s", err)
+		}
+	}
 	return nil
 }
 

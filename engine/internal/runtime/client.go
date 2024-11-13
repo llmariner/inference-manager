@@ -54,6 +54,7 @@ type commonClient struct {
 	k8sClient client.Client
 
 	namespace string
+	owner     *metav1apply.OwnerReferenceApplyConfiguration
 
 	servingPort int
 
@@ -367,6 +368,7 @@ func (c *commonClient) deployRuntime(
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(annos).
+		WithOwnerReferences(c.owner).
 		WithSpec(stsSpecConf)
 
 	var curSts appsv1.StatefulSet

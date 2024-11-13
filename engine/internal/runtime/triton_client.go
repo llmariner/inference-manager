@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -23,6 +24,7 @@ const (
 func NewTritonClient(
 	k8sClient client.Client,
 	namespace string,
+	owner *metav1apply.OwnerReferenceApplyConfiguration,
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
 ) Client {
@@ -30,6 +32,7 @@ func NewTritonClient(
 		commonClient: &commonClient{
 			k8sClient: k8sClient,
 			namespace: namespace,
+			owner:     owner,
 			// Set the servingPort to the proxy port so that requests first hit the proxy (and then the proxy forwards to Triton).
 			servingPort: proxyHTTPPort,
 			rconfig:     rconfig,

@@ -17,7 +17,7 @@ make setup-llmariner setup-cluster helm-apply-inference
 ```
 
 > [!TIP]
-> - Run just only `make helm-apply-inference`, it will rebuild inference-manager container images and deploy them using the local helm chart.
+> - Run just only `make helm-reapply-inference-server` or `make helm-reapply-inference-engine`, it will rebuild inference-manager container images, deploy them using the local helm chart, and restart containers.
 > - You can configure parameters in [.values.yaml](hack/values.yaml).
 
 ### Try out inference APIs

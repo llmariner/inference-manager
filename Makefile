@@ -125,3 +125,13 @@ helm-apply-deps:
 .PHONY: helm-apply-inference
 helm-apply-inference: load-docker-image-all
 	hack/helm-apply-inference.sh $(CLONE_PATH)
+
+.PHONY: helm-reapply-inference-server
+helm-reapply-inference-server: load-docker-image-server
+	hack/helm-apply-inference.sh $(CLONE_PATH)
+	kubectl rollout restart deployment -n llmariner inference-manager-server
+
+.PHONY: helm-reapply-inference-engine
+helm-reapply-inference-engine: load-docker-image-engine
+	hack/helm-apply-inference.sh $(CLONE_PATH)
+	kubectl rollout restart deployment -n llmariner inference-manager-engine

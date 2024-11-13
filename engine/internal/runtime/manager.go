@@ -94,6 +94,9 @@ func (m *Manager) deleteRuntime(name string) {
 			break
 		}
 	}
+	if modelID == "" {
+		return
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -306,7 +309,7 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByAnno)).
 		WithLogConstructor(constructer).
 		// To share the runtime deletion event, disable the leader election
-		// for this controller if the processor disables it.
+		// for this controller if the processor disables the leader election.
 		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).
 		Complete(m)
 }

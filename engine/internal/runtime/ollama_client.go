@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,6 +29,7 @@ type modelGetter interface {
 func NewOllamaClient(
 	k8sClient client.Client,
 	namespace string,
+	owner *metav1apply.OwnerReferenceApplyConfiguration,
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
 	oconfig config.OllamaConfig,
@@ -37,6 +39,7 @@ func NewOllamaClient(
 		commonClient: &commonClient{
 			k8sClient:   k8sClient,
 			namespace:   namespace,
+			owner:       owner,
 			servingPort: ollamaHTTPPort,
 			rconfig:     rconfig,
 			mconfig:     mconfig,
@@ -112,8 +115,8 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	for _, id := range modelIDs {
 		createCmds = append(createCmds, fmt.Sprintf(`
 while true; do
-  ollama create %s -f %s && break
-  sleep 1
+	ollama create %s -f %s && break
+	sleep 1
 done
 `, ollama.ModelName(id), ollama.ModelfilePath(modelDir, id)))
 	}

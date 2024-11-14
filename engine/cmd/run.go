@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -19,12 +20,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
@@ -106,6 +110,11 @@ func run(c *config.Config, ns string, lv int) error {
 		return err
 	}
 
+	owner, err := getOwnerReference(context.Background(), mgr.GetAPIReader(), ns)
+	if err != nil {
+		return fmt.Errorf("get owner reference: %s", err)
+	}
+
 	processedConfig := config.NewProcessedModelConfig(c)
 	modelClient := mv1.NewModelsWorkerServiceClient(conn)
 	rtClientFactory := &clientFactory{
@@ -114,6 +123,7 @@ func run(c *config.Config, ns string, lv int) error {
 			config.RuntimeNameOllama: runtime.NewOllamaClient(
 				mgr.GetClient(),
 				ns,
+				owner,
 				&c.Runtime,
 				processedConfig,
 				c.Ollama,
@@ -122,6 +132,7 @@ func run(c *config.Config, ns string, lv int) error {
 			config.RuntimeNameVLLM: runtime.NewVLLMClient(
 				mgr.GetClient(),
 				ns,
+				owner,
 				&c.Runtime,
 				processedConfig,
 				modelClient,
@@ -129,6 +140,7 @@ func run(c *config.Config, ns string, lv int) error {
 			config.RuntimeNameTriton: runtime.NewTritonClient(
 				mgr.GetClient(),
 				ns,
+				owner,
 				&c.Runtime,
 				processedConfig,
 			),
@@ -210,4 +222,23 @@ func grpcOption(c *config.Config) grpc.DialOption {
 		return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
 	}
 	return grpc.WithTransportCredentials(insecure.NewCredentials())
+}
+
+// getOwnerReference returns this inference engine as an OwnerReference.
+func getOwnerReference(ctx context.Context, c client.Reader, ns string) (*metav1apply.OwnerReferenceApplyConfiguration, error) {
+	appName, ok := os.LookupEnv("APP_NAME")
+	if !ok {
+		return nil, fmt.Errorf("missing APP_NAME")
+	}
+	var app appsv1.Deployment
+	if err := c.Get(ctx, types.NamespacedName{Name: appName, Namespace: ns}, &app); err != nil {
+		return nil, err
+	}
+	return metav1apply.OwnerReference().
+		WithAPIVersion("apps/v1").
+		WithKind("Deployment").
+		WithName(app.GetName()).
+		WithUID(app.GetUID()).
+		WithBlockOwnerDeletion(true).
+		WithController(true), nil
 }

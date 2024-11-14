@@ -25,6 +25,12 @@ rules:
   - patch
   - update
 - apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+- apiGroups:
   - ""
   resources:
   - services

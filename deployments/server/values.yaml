@@ -339,3 +339,9 @@ securityContext:
 # For more information, see [Volumes](https://kubernetes.io/docs/concepts/storage/volumes/).
 # +docs:property
 # volumeMounts: []
+
+# This field can be used as a condition when using it as a dependency.
+# This definition is only here as a placeholder such that it is
+# included in the json schema.
+# +docs:hidden
+enable: true

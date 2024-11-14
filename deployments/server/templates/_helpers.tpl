@@ -90,3 +90,8 @@ pprof port
 {{ mustRegexSplit ":" .Values.kubernetesManager.pprofBindAddress -1 | last }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Do nothing, just for validation.
+*/}}
+{{ .Values.enable }}

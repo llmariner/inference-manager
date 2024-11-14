@@ -57,3 +57,8 @@ Create the name of the service account to use
 {{- define "inference-manager-engine.serviceAccountName" -}}
 {{ default (include "inference-manager-engine.fullname" .) .Values.serviceAccount.name }}
 {{- end -}}
+
+{{/*
+Do nothing, just for validation.
+*/}}
+{{ .Values.enable }}

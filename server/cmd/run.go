@@ -174,13 +174,19 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 
 	defer m.UnregisterAllCollectors()
 
-	usage, err := sender.New(ctx, c.UsageSender, options, logger)
-	if err != nil {
-		return err
+	var usageSetter sender.UsageSetter
+	if c.UsageSender.Enable {
+		usage, err := sender.New(ctx, c.UsageSender, options, logger)
+		if err != nil {
+			return err
+		}
+		go func() { usage.Run(ctx) }()
+		usageSetter = usage
+	} else {
+		usageSetter = sender.NoopUsageSetter{}
 	}
-	go func() { usage.Run(ctx) }()
 
-	grpcSrv := server.New(m, usage, mclient, vsClient, rwt, infProcessor, logger)
+	grpcSrv := server.New(m, usageSetter, mclient, vsClient, rwt, infProcessor, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(

@@ -44,7 +44,11 @@ global:
     # The address for the rbac-server to use API auth.
     rbacInternalServerAddr: rbac-server-internal-grpc:8082
 
+  # Settings for sending usage data to the usage API server.
+  # +docs:property
   usageSender:
+    # The flag to enable sender.
+    enable: true
     # The address for the api-usage-server to send API usage data.
     apiUsageInternalServerAddr: api-usage-server-internal-grpc:8082
 

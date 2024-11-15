@@ -351,6 +351,7 @@ func (c *commonClient) deployRuntime(
 		WithSelector(metav1apply.LabelSelector().
 			WithMatchLabels(labels)).
 		WithTemplate(corev1apply.PodTemplateSpec().
+			WithAnnotations(c.rconfig.PodAnnotations).
 			WithLabels(labels).
 			WithSpec(podSpec))
 	if vol := resConf.Volume; vol != nil && !vol.ShareWithReplicas {
@@ -361,10 +362,6 @@ func (c *commonClient) deployRuntime(
 		runtimeAnnotationKey: mci.RuntimeName,
 		modelAnnotationKey:   params.modelID,
 	}
-	for k, v := range c.rconfig.PodAnnotations {
-		annos[k] = v
-	}
-
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(annos).

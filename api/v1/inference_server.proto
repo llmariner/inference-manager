@@ -8,13 +8,6 @@ option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 // The API specification follows OpenAPI API specification (https://platform.openai.com/docs/api-reference/chat).
 
-enum ContentType {
-  CONTENT_TYPE_UNSPECIFIED = 0;
-  CONTENT_TYPE_TEXT = 1;
-  CONTENT_TYPE_IMAGE_URL = 2;
-  CONTENT_TYPE_INPUT_AUDIO = 3;
-}
-
 message CreateChatCompletionRequest {
   // Message has fields for system message, user message, assistant message, and tool message.
   message Message {
@@ -28,25 +21,29 @@ message CreateChatCompletionRequest {
       Function function = 3;
     }
 
-    // Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages
-    message ImageUrl {
-      string url = 1;
-      string detail = 2;
-    }
-    message InputAudio {
-      string data = 1;
-      string format = 2;
-    }
     message Content {
-      ContentType type = 1;
+      // Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages
+      message ImageUrl {
+	string url = 1;
+	string detail = 2;
+      }
+      message InputAudio {
+	string data = 1;
+	string format = 2;
+      }
+
+      string type = 1;
+
       string text = 2;
       ImageUrl image_url = 3;
       InputAudio input_audio = 4;
     }
-    // Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges.
-    repeated Content contents = 5;
-    // Deprecated: use contents instead.
-    string content = 1;
+    // The type of the content is either string or array in the OpenAI API spec, but
+    // we only support the array type here. When a client sends a string, it is converted before
+    // the request is being unmarshalled.
+    repeated Content content = 5;
+    // Deprecated. Only used by old version of engines. The new engine should use the `content` field of ID 5.
+    string legacy_content = 1;
     string role = 2;
     string name = 3;
     repeated ToolCall tool_calls = 4;

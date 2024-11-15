@@ -3,14 +3,6 @@
 /*
 * This file is a generated Typescript file for GRPC Gateway, DO NOT MODIFY
 */
-
-export enum ContentType {
-  CONTENT_TYPE_UNSPECIFIED = "CONTENT_TYPE_UNSPECIFIED",
-  CONTENT_TYPE_TEXT = "CONTENT_TYPE_TEXT",
-  CONTENT_TYPE_IMAGE_URL = "CONTENT_TYPE_IMAGE_URL",
-  CONTENT_TYPE_INPUT_AUDIO = "CONTENT_TYPE_INPUT_AUDIO",
-}
-
 export type CreateChatCompletionRequestMessageToolCallFunction = {
   name?: string
   arguments?: string
@@ -22,26 +14,26 @@ export type CreateChatCompletionRequestMessageToolCall = {
   function?: CreateChatCompletionRequestMessageToolCallFunction
 }
 
-export type CreateChatCompletionRequestMessageImageUrl = {
+export type CreateChatCompletionRequestMessageContentImageUrl = {
   url?: string
   detail?: string
 }
 
-export type CreateChatCompletionRequestMessageInputAudio = {
+export type CreateChatCompletionRequestMessageContentInputAudio = {
   data?: string
   format?: string
 }
 
 export type CreateChatCompletionRequestMessageContent = {
-  type?: ContentType
+  type?: string
   text?: string
-  imageUrl?: CreateChatCompletionRequestMessageImageUrl
-  inputAudio?: CreateChatCompletionRequestMessageInputAudio
+  imageUrl?: CreateChatCompletionRequestMessageContentImageUrl
+  inputAudio?: CreateChatCompletionRequestMessageContentInputAudio
 }
 
 export type CreateChatCompletionRequestMessage = {
-  contents?: CreateChatCompletionRequestMessageContent[]
-  content?: string
+  content?: CreateChatCompletionRequestMessageContent[]
+  legacyContent?: string
   role?: string
   name?: string
   toolCalls?: CreateChatCompletionRequestMessageToolCall[]

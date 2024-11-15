@@ -29,6 +29,8 @@ const (
 	autoToolChoice     toolChoiceType = "auto"
 	requiredToolChoice toolChoiceType = "required"
 	noneToolChoice     toolChoiceType = "none"
+
+	contentTypeText = "text"
 )
 
 // CreateChatCompletion creates a chat completion.
@@ -82,7 +84,7 @@ func (s *S) CreateChatCompletion(
 	// Set the LegacyContent field for the backward compatibility.
 	for _, msg := range createReq.Messages {
 		for _, c := range msg.Content {
-			if c.Type == "text" {
+			if c.Type == contentTypeText {
 				msg.LegacyContent = c.Text
 			}
 		}
@@ -314,7 +316,7 @@ func convertContentStringToArray(body []byte) ([]byte, int, error) {
 		if cs, ok := content.(string); ok {
 			m["content"] = []map[string]interface{}{
 				{
-					"type": "text",
+					"type": contentTypeText,
 					"text": cs,
 				},
 			}

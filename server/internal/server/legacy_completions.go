@@ -223,6 +223,12 @@ func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateCh
 		Messages: []*v1.CreateChatCompletionRequest_Message{
 			{
 				Role: "user",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: req.Prompt,
+					},
+				},
 			},
 		},
 		Model: req.Model,

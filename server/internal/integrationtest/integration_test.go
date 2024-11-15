@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const tenantID = "default-tenant-id"
+
 // TestIntegration tests the integration with two server instances.
 // One server instance reiceves a task and routes it to the other server instance.
 func TestIntegration(t *testing.T) {
@@ -141,7 +143,7 @@ func TestIntegration(t *testing.T) {
 		enginesFound := true
 		for _, s := range servers {
 			status := s.infProcessor.DumpStatus()
-			tenant, ok := status.Tenants["default-tenant-id"]
+			tenant, ok := status.Tenants[tenantID]
 			if !ok || len(tenant.Engines) < 2 {
 				enginesFound = false
 				break
@@ -156,7 +158,7 @@ func TestIntegration(t *testing.T) {
 	eg.Go(func() error {
 		resp, err := servers[0].infProcessor.SendChatCompletionTask(
 			ctx,
-			"default-tenant-id",
+			tenantID,
 			&v1.CreateChatCompletionRequest{
 				Model: "m1",
 			},
@@ -200,6 +202,17 @@ func TestIntegration(t *testing.T) {
 	}
 
 	_ = eg.Wait()
+
+	// Wait until all engines are removed.
+	cond = func() bool {
+		for _, s := range servers {
+			if s.infProcessor.NumEnginesByTenantID()[tenantID] > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	assert.Eventually(t, cond, 10*time.Second, 100*time.Millisecond, "ws service not ready")
 }
 
 type serverInst struct {

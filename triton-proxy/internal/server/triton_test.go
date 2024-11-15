@@ -31,6 +31,6 @@ func TestBuildEnsembleGenerateRequest(t *testing.T) {
 		},
 	}
 	got := buildEnsembleGenerateRequest(req)
-	want := "<|begin_of_text|><|start_header_id|> user <|end_header_id|>\n hello '\n<|eot_id|>\n<|start_header_id|> system <|end_header_id|>\n world '\n<|eot_id|>\n"
+	want := "<|begin_of_text|><|start_header_id|> user <|end_header_id|>\n hello \n<|eot_id|>\n<|start_header_id|> system <|end_header_id|>\n world \n<|eot_id|>\n"
 	assert.Equal(t, want, got.TextInput)
 }

@@ -20,7 +20,7 @@ func buildEnsembleGenerateRequest(req *v1.CreateChatCompletionRequest) *ensemble
 	for _, m := range req.Messages {
 		for _, c := range m.Content {
 			// TODO(kenji): Support other types.
-			input += fmt.Sprintf("<|start_header_id|> %s <|end_header_id|>\n %s '\n<|eot_id|>\n", m.Role, c.Text)
+			input += fmt.Sprintf("<|start_header_id|> %s <|end_header_id|>\n %s \n<|eot_id|>\n", m.Role, c.Text)
 		}
 	}
 	return &ensembleGenerateRequest{

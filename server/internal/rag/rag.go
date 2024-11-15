@@ -44,11 +44,13 @@ func (r *R) ProcessMessages(
 ) ([]*v1.CreateChatCompletionRequest_Message, error) {
 	r.logger.Info("Processing messages", "store", vstore.Name)
 
+	const contentTypeText = "text"
+
 	var msgs []*v1.CreateChatCompletionRequest_Message
 	for _, msg := range messages {
 		var query string
 		for _, c := range msg.Content {
-			if c.Type != "text" {
+			if c.Type != contentTypeText {
 				return nil, fmt.Errorf("unsupported content type: %s", c.Type)
 			}
 			query += c.Text
@@ -66,7 +68,7 @@ func (r *R) ProcessMessages(
 			msgs = append(msgs, &v1.CreateChatCompletionRequest_Message{
 				Content: []*v1.CreateChatCompletionRequest_Message_Content{
 					{
-						Type: "text",
+						Type: contentTypeText,
 						Text: doc,
 					},
 				},
@@ -81,7 +83,7 @@ func (r *R) ProcessMessages(
 				Role: "system",
 				Content: []*v1.CreateChatCompletionRequest_Message_Content{
 					{
-						Type: "text",
+						Type: contentTypeText,
 						Text: prompt,
 					},
 				},

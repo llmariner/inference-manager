@@ -1,6 +1,9 @@
 global:
   auth:
     enable: false
+  usageSender:
+    enable: false
+
 prepare:
   workerRegistration:
     createSecret: true

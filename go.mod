@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/stdr v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
-	github.com/llmariner/api-usage v0.14.0
+	github.com/llmariner/api-usage v1.2.0
 	github.com/llmariner/common v0.9.0
 	github.com/llmariner/model-manager v0.121.0
 	github.com/llmariner/rbac-manager v0.113.0

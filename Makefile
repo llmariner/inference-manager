@@ -95,6 +95,7 @@ update-llmariner:
 .PHONY: configure-llma-chart
 configure-llma-chart:
 	hack/overwrite-llma-chart-for-test.sh $(CLONE_PATH)
+	-rm $(CLONE_PATH)/deployments/llmariner/Chart.lock
 
 .PHONY: setup-cluster
 setup-cluster: create-kind-cluster helm-apply-deps

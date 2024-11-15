@@ -17,20 +17,43 @@
   ],
   "paths": {},
   "definitions": {
+    "ContentImageUrl": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "title": "Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages"
+    },
+    "ContentInputAudio": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        }
+      }
+    },
     "CreateChatCompletionRequestMessageContent": {
       "type": "object",
       "properties": {
         "type": {
-          "$ref": "#/definitions/v1ContentType"
+          "type": "string"
         },
         "text": {
           "type": "string"
         },
         "imageUrl": {
-          "$ref": "#/definitions/MessageImageUrl"
+          "$ref": "#/definitions/ContentImageUrl"
         },
         "inputAudio": {
-          "$ref": "#/definitions/MessageInputAudio"
+          "$ref": "#/definitions/ContentInputAudio"
         }
       }
     },
@@ -136,29 +159,6 @@
         }
       }
     },
-    "MessageImageUrl": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "detail": {
-          "type": "string"
-        }
-      },
-      "title": "Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages"
-    },
-    "MessageInputAudio": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "string"
-        },
-        "format": {
-          "type": "string"
-        }
-      }
-    },
     "ServerStatusEngineStatusWithTenantID": {
       "type": "object",
       "properties": {
@@ -196,16 +196,6 @@
           }
         }
       }
-    },
-    "v1ContentType": {
-      "type": "string",
-      "enum": [
-        "CONTENT_TYPE_UNSPECIFIED",
-        "CONTENT_TYPE_TEXT",
-        "CONTENT_TYPE_IMAGE_URL",
-        "CONTENT_TYPE_INPUT_AUDIO"
-      ],
-      "default": "CONTENT_TYPE_UNSPECIFIED"
     },
     "v1CreateChatCompletionRequest": {
       "type": "object",
@@ -295,16 +285,16 @@
     "v1CreateChatCompletionRequestMessage": {
       "type": "object",
       "properties": {
-        "contents": {
+        "content": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/CreateChatCompletionRequestMessageContent"
           },
-          "description": "Contents is different from openai API. In openAI API, the type of content can be string or array for User mesasges."
+          "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
         },
-        "content": {
+        "legacyContent": {
           "type": "string",
-          "description": "Deprecated: use contents instead."
+          "description": "Deprecated. Only used by old version of engines. The new engine should use the `content` field of ID 5."
         },
         "role": {
           "type": "string"

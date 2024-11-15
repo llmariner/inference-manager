@@ -56,6 +56,17 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "success",
 			req: &v1.CreateChatCompletionRequest{
 				Model: modelID,
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
+					},
+				},
 			},
 			code: http.StatusOK,
 		},
@@ -63,6 +74,36 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "no model",
 			req: &v1.CreateChatCompletionRequest{
 				Model: "m1",
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
+					},
+				},
+			},
+			code: http.StatusBadRequest,
+		},
+		{
+			name: "no message",
+			req: &v1.CreateChatCompletionRequest{
+				Model: "m0",
+			},
+			code: http.StatusBadRequest,
+		},
+		{
+			name: "no content",
+			req: &v1.CreateChatCompletionRequest{
+				Model: "m0",
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+					},
+				},
 			},
 			code: http.StatusBadRequest,
 		},
@@ -79,8 +120,13 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "test",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
 					},
 				},
 			},
@@ -108,8 +154,13 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "test",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
 					},
 				},
 			},
@@ -137,8 +188,13 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "test",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
 					},
 				},
 			},
@@ -163,8 +219,13 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "test",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
 					},
 				},
 			},
@@ -192,8 +253,13 @@ func TestCreateChatCompletion(t *testing.T) {
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "test",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "test",
+							},
+						},
 					},
 				},
 			},
@@ -215,6 +281,154 @@ func TestCreateChatCompletion(t *testing.T) {
 			srv.CreateChatCompletion(w, req, pathParams)
 
 			assert.Equal(t, tc.code, w.Code)
+		})
+	}
+}
+
+func TestConvertContentStringToArray(t *testing.T) {
+	tcs := []struct {
+		name string
+		body string
+		want *v1.CreateChatCompletionRequest
+	}{
+
+		{
+			name: "no conversion",
+			body: `
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+           "type": "text",
+           "text": "Process audio data."
+        },
+        {
+           "type": "input_audio",
+           "input_audio": {
+             "data": "audiodata",
+             "format": "wav"
+           }
+        }
+      ]
+    }
+  ]
+}`,
+			want: &v1.CreateChatCompletionRequest{
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Process audio data.",
+							},
+							{
+								Type: "input_audio",
+								InputAudio: &v1.CreateChatCompletionRequest_Message_Content_InputAudio{
+									Data:   "audiodata",
+									Format: "wav",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "convertion",
+			body: `
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant."
+    }
+  ]
+}`,
+			want: &v1.CreateChatCompletionRequest{
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "system",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "You are a helpful assistant.",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "mix",
+			body: `
+			{
+			  "messages": [
+			    {
+			      "role": "system",
+			      "content": "You are a helpful assistant."
+			    },
+			    {
+			      "role": "user",
+			      "content": [
+				{
+				   "type": "text",
+				   "text": "Process audio data."
+				},
+				{
+				   "type": "input_audio",
+				   "input_audio": {
+				     "data": "audiodata",
+				     "format": "wav"
+				   }
+				}
+			      ]
+			    }
+			  ]
+			}`,
+			want: &v1.CreateChatCompletionRequest{
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "system",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "You are a helpful assistant.",
+							},
+						},
+					},
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Process audio data.",
+							},
+							{
+								Type: "input_audio",
+								InputAudio: &v1.CreateChatCompletionRequest_Message_Content_InputAudio{
+									Data:   "audiodata",
+									Format: "wav",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _, err := convertContentStringToArray([]byte(tc.body))
+			assert.NoError(t, err)
+
+			var req v1.CreateChatCompletionRequest
+			err = json.Unmarshal(body, &req)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, &req)
 		})
 	}
 }

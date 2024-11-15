@@ -67,11 +67,25 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
+	reqBody, code, err := convertContentStringToArray(reqBody)
+	if err != nil {
+		httpError(w, err.Error(), code, &usage)
+		return
+	}
+
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
+	}
+	// Set the LegacyContext field for the backward compatibility.
+	for _, msg := range createReq.Messages {
+		for _, c := range msg.Content {
+			if c.Type == "text" {
+				msg.LegacyContent = c.Text
+			}
+		}
 	}
 
 	if createReq.Model == "" {
@@ -274,6 +288,46 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 		return http.StatusInternalServerError, fmt.Errorf("get model: %s", err)
 	}
 	return http.StatusOK, nil
+}
+
+// convertContentStringToArray converts the content field from a string to an array.
+//
+// This is a workaround to follow the OpenAI API spec, which cannot be handled by the protobuf.
+//
+// This function returns the converted request boy, an HTTP status code, and an error.
+func convertContentStringToArray(body []byte) ([]byte, int, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	msgs, ok := r["messages"]
+	if !ok {
+		return nil, http.StatusBadRequest, fmt.Errorf("messages is required")
+	}
+	for _, msg := range msgs.([]interface{}) {
+		m := msg.(map[string]interface{})
+		content, ok := m["content"]
+		if !ok {
+			return nil, http.StatusBadRequest, fmt.Errorf("content is required")
+		}
+		if cs, ok := content.(string); ok {
+			m["content"] = []map[string]interface{}{
+				{
+					"type": "text",
+					"text": cs,
+				},
+			}
+		}
+	}
+
+	// Marshal again and then unmarshal.
+	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to marshal the request: %s", err)
+	}
+
+	return body, 0, nil
 }
 
 func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageRecord {

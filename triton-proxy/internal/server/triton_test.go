@@ -11,12 +11,22 @@ func TestBuildEnsembleGenerateRequest(t *testing.T) {
 	req := &v1.CreateChatCompletionRequest{
 		Messages: []*v1.CreateChatCompletionRequest_Message{
 			{
-				Content: "hello",
-				Role:    "user",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: "hello",
+					},
+				},
+				Role: "user",
 			},
 			{
-				Content: "world",
-				Role:    "system",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: "world",
+					},
+				},
+				Role: "system",
 			},
 		},
 	}

@@ -9,6 +9,7 @@ import (
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestProcessMessages(t *testing.T) {
@@ -40,27 +41,57 @@ func TestProcessMessages(t *testing.T) {
 			req: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: query,
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: query,
+							},
+						},
+						LegacyContent: query,
 					},
 				},
 			},
 			exp: []*v1.CreateChatCompletionRequest_Message{
 				{
-					Role:    "system",
-					Content: prompt,
+					Role: "system",
+					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						{
+							Type: "text",
+							Text: prompt,
+						},
+					},
+					LegacyContent: prompt,
 				},
 				{
-					Role:    "assistant",
-					Content: "sky is red when the sun is setting",
+					Role: "assistant",
+					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						{
+							Type: "text",
+							Text: "sky is red when the sun is setting",
+						},
+					},
+					LegacyContent: "sky is red when the sun is setting",
 				},
 				{
-					Role:    "assistant",
-					Content: "sky is blue when the sun is shining",
+					Role: "assistant",
+					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						{
+							Type: "text",
+							Text: "sky is blue when the sun is shining",
+						},
+					},
+					LegacyContent: "sky is blue when the sun is shining",
 				},
 				{
-					Role:    "user",
-					Content: query,
+					Role: "user",
+					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						{
+							Type: "text",
+							Text: query,
+						},
+					},
+					LegacyContent: query,
 				},
 			},
 		},
@@ -70,15 +101,27 @@ func TestProcessMessages(t *testing.T) {
 			req: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
-						Role:    "user",
-						Content: "unknown",
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "unknown",
+							},
+						},
+						LegacyContent: "unknown",
 					},
 				},
 			},
 			exp: []*v1.CreateChatCompletionRequest_Message{
 				{
-					Role:    "user",
-					Content: "unknown",
+					Role: "user",
+					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						{
+							Type: "text",
+							Text: "unknown",
+						},
+					},
+					LegacyContent: "unknown",
 				},
 			},
 		},
@@ -87,11 +130,16 @@ func TestProcessMessages(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := r.ProcessMessages(context.Background(), vs, tc.req.Messages)
-			assert.Equal(t, tc.err, err != nil)
-			if err != nil {
+			if tc.err {
+				assert.Error(t, err)
 				return
 			}
-			assert.Equal(t, tc.exp, got)
+			assert.NoError(t, err)
+			assert.Equal(t, len(tc.exp), len(got))
+			for i := range tc.exp {
+				e, g := tc.exp[i], got[i]
+				assert.Truef(t, proto.Equal(e, g), "wanted: %+v, got: %+v", e, g)
+			}
 		})
 	}
 }

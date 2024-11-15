@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
@@ -45,9 +46,17 @@ func (r *R) ProcessMessages(
 
 	var msgs []*v1.CreateChatCompletionRequest_Message
 	for _, msg := range messages {
+		var query string
+		for _, c := range msg.Content {
+			if c.Type != "text" {
+				return nil, fmt.Errorf("unsupported content type: %s", c.Type)
+			}
+			query += c.Text
+		}
+
 		searchResp, err := r.vsInternalClient.SearchVectorStore(ctx, &vsv1.SearchVectorStoreRequest{
 			VectorStoreId: vstore.Id,
-			Query:         msg.Content,
+			Query:         query,
 		})
 		if err != nil {
 			return nil, err
@@ -55,16 +64,28 @@ func (r *R) ProcessMessages(
 		r.logger.Info("Found documents", "count", len(searchResp.Documents), "store", vstore.Name, "query", msg.Content)
 		for _, doc := range searchResp.Documents {
 			msgs = append(msgs, &v1.CreateChatCompletionRequest_Message{
-				Content: doc,
-				Role:    "assistant",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: doc,
+					},
+				},
+				LegacyContent: doc,
+				Role:          "assistant",
 			})
 		}
 	}
 	if len(msgs) > 0 {
 		msgs = append([]*v1.CreateChatCompletionRequest_Message{
 			{
-				Role:    "system",
-				Content: prompt,
+				Role: "system",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: prompt,
+					},
+				},
+				LegacyContent: prompt,
 			}}, msgs...)
 	}
 	return append(msgs, messages...), nil

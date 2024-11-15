@@ -79,7 +79,7 @@ func (s *S) CreateChatCompletion(
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
-	// Set the LegacyContext field for the backward compatibility.
+	// Set the LegacyContent field for the backward compatibility.
 	for _, msg := range createReq.Messages {
 		for _, c := range msg.Content {
 			if c.Type == "text" {

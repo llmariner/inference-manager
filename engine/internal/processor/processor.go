@@ -480,6 +480,11 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
+		for _, msg := range r.Messages {
+			if len(msg.LegacyContent) > 0 {
+				msg.LegacyContent = ""
+			}
+		}
 		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err

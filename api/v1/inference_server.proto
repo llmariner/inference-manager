@@ -13,8 +13,8 @@ message CreateChatCompletionRequest {
   message Message {
     message ToolCall {
       message Function {
-	string name  = 1;
-	string arguments = 2;
+        string name  = 1;
+        string arguments = 2;
       }
       string id = 1;
       string type = 2;
@@ -24,12 +24,16 @@ message CreateChatCompletionRequest {
     message Content {
       // Refer to https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages
       message ImageUrl {
-	string url = 1;
-	string detail = 2;
+        string url = 1;
+        string detail = 2;
       }
       message InputAudio {
-	string data = 1;
-	string format = 2;
+        string data = 1;
+        string format = 2;
+      }
+      // AudioUrl is non-openai compatible. It is used by vLLM to handle audio input.
+      message AudioUrl {
+        string url = 1;
       }
 
       string type = 1;
@@ -37,6 +41,7 @@ message CreateChatCompletionRequest {
       string text = 2;
       ImageUrl image_url = 3;
       InputAudio input_audio = 4;
+      AudioUrl audio_url = 5;
     }
     // The type of the content is either string or array in the OpenAI API spec, but
     // we only support the array type here. When a client sends a string, it is converted before

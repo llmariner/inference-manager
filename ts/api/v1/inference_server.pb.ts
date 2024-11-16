@@ -24,11 +24,16 @@ export type CreateChatCompletionRequestMessageContentInputAudio = {
   format?: string
 }
 
+export type CreateChatCompletionRequestMessageContentAudioUrl = {
+  url?: string
+}
+
 export type CreateChatCompletionRequestMessageContent = {
   type?: string
   text?: string
   imageUrl?: CreateChatCompletionRequestMessageContentImageUrl
   inputAudio?: CreateChatCompletionRequestMessageContentInputAudio
+  audioUrl?: CreateChatCompletionRequestMessageContentAudioUrl
 }
 
 export type CreateChatCompletionRequestMessage = {

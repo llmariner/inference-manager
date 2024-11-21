@@ -13,6 +13,7 @@ import (
 	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
+	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
@@ -62,6 +63,17 @@ func (s *S) CreateChatCompletion(
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
 	}()
+
+	res, err := s.ratelimiter.Take(req.Context(), userInfo.APIKeyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	rate.SetRateLimitHTTPHeaders(w, res)
+	if !res.Allowed {
+		httpError(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests, &usage)
+		return
+	}
 
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {

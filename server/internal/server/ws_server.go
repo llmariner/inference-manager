@@ -25,6 +25,7 @@ const (
 	defaultClusterID = "default"
 	defaultProjectID = "default"
 	defaultTenantID  = "default-tenant-id"
+	defaultAPIKeyID  = "default-key-id"
 )
 
 // NewWorkerServiceServer creates a new worker service server.

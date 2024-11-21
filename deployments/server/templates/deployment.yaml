@@ -35,6 +35,8 @@ spec:
         - run
         - --config
         - /etc/config/config.yaml
+        - --v
+        - "{{ .Values.logLevel }}"
         ports:
         - name: http
           containerPort: {{ .Values.httpPort }}
@@ -88,6 +90,15 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- with .Values.rateLimit }}
+        {{- if and .enable (eq .storeType "redis") }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .redis.secretName }}
+              key: key
+        {{- end }}
+        {{- end }}
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           httpGet:

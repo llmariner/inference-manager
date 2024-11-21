@@ -27,6 +27,10 @@ data:
       enableDynamicModelLoading: {{ .Values.requestRouting.enableDynamicModelLoading }}
     usageSender:
       {{- toYaml .Values.global.usageSender | nindent 6 }}
+    {{- with .Values.rateLimit }}
+    rateLimit:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     kubernetesManager:
       enableLeaderElection: {{ .Values.kubernetesManager.enableLeaderElection }}
       leaderElectionID: {{ include "inference-manager-server.fullname" . }}

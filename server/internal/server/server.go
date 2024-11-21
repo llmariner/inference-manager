@@ -11,6 +11,7 @@ import (
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/config"
+	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
@@ -67,6 +68,7 @@ func (n noopReqIntercepter) InterceptHTTPRequest(req *http.Request) (int, auth.U
 			},
 		},
 		TenantID: defaultTenantID,
+		APIKeyID: defaultAPIKeyID,
 	}, nil
 }
 
@@ -109,6 +111,7 @@ type taskSender interface {
 func New(
 	m metricsMonitoring,
 	usage sender.UsageSetter,
+	rate rate.Limiter,
 	modelClient ModelClient,
 	vsClient VectorStoreClient,
 	r Rewriter,
@@ -118,6 +121,7 @@ func New(
 	return &S{
 		metricsMonitor: m,
 		usageSetter:    usage,
+		ratelimiter:    rate,
 		modelClient:    modelClient,
 		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
@@ -133,6 +137,7 @@ type S struct {
 
 	enableAuth bool
 
+	ratelimiter    rate.Limiter
 	metricsMonitor metricsMonitoring
 	usageSetter    sender.UsageSetter
 

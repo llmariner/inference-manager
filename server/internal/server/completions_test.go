@@ -13,6 +13,7 @@ import (
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -24,9 +25,12 @@ import (
 func TestCreateChatCompletion(t *testing.T) {
 	const modelID = "m0"
 
+	logger := testutil.NewTestLogger(t)
+
 	srv := New(
 		&fakeMetricsMonitor{},
 		&sender.NoopUsageSetter{},
+		rate.NewLimiter(rate.Config{}, logger),
 		&fakeModelClient{
 			models: map[string]*mv1.Model{
 				modelID: {},
@@ -43,7 +47,7 @@ func TestCreateChatCompletion(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte{})),
 			}},
-		testutil.NewTestLogger(t),
+		logger,
 	)
 	srv.enableAuth = true
 
@@ -296,24 +300,24 @@ func TestConvertContentStringToArray(t *testing.T) {
 			name: "no conversion",
 			body: `
 {
-  "messages": [
-    {
-      "role": "user",
-      "content": [
-        {
-           "type": "text",
-           "text": "Process audio data."
-        },
-        {
-           "type": "input_audio",
-           "input_audio": {
-             "data": "audiodata",
-             "format": "wav"
-           }
-        }
-      ]
-    }
-  ]
+	"messages": [
+		{
+			"role": "user",
+			"content": [
+				{
+					 "type": "text",
+					 "text": "Process audio data."
+				},
+				{
+					 "type": "input_audio",
+					 "input_audio": {
+						 "data": "audiodata",
+						 "format": "wav"
+					 }
+				}
+			]
+		}
+	]
 }`,
 			want: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{
@@ -340,12 +344,12 @@ func TestConvertContentStringToArray(t *testing.T) {
 			name: "convertion",
 			body: `
 {
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant."
-    }
-  ]
+	"messages": [
+		{
+			"role": "system",
+			"content": "You are a helpful assistant."
+		}
+	]
 }`,
 			want: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{
@@ -365,28 +369,28 @@ func TestConvertContentStringToArray(t *testing.T) {
 			name: "mix",
 			body: `
 			{
-			  "messages": [
-			    {
-			      "role": "system",
-			      "content": "You are a helpful assistant."
-			    },
-			    {
-			      "role": "user",
-			      "content": [
+				"messages": [
+					{
+						"role": "system",
+						"content": "You are a helpful assistant."
+					},
+					{
+						"role": "user",
+						"content": [
 				{
-				   "type": "text",
-				   "text": "Process audio data."
+					 "type": "text",
+					 "text": "Process audio data."
 				},
 				{
-				   "type": "input_audio",
-				   "input_audio": {
-				     "data": "audiodata",
-				     "format": "wav"
-				   }
+					 "type": "input_audio",
+					 "input_audio": {
+						 "data": "audiodata",
+						 "format": "wav"
+					 }
 				}
-			      ]
-			    }
-			  ]
+						]
+					}
+				]
 			}`,
 			want: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{

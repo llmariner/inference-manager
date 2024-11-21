@@ -12,6 +12,7 @@ local jan_1_2020 = 1577836800
 local rtime = redis.call("TIME")
 local now = (rtime[1] - jan_1_2020) + (rtime[2] / 1000000)
 
+-- Calculate the theoretical arrival time (TAT) of the next token
 local tat = tonumber(redis.call("GET", key)) or now
 local new_tat = math.max(tat, now) + rate*cost
 local allow_at = new_tat - burst_offset

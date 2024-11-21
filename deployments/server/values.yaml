@@ -190,9 +190,9 @@ rateLimit:
     # +docs:property
     # username: ""
 
-    # The secret name that is mounted to the pod.
+    # Optional secret name that is mounted to the pod.
     # +docs:property
-    # secretName: redis
+    secretName: redis
 
     # Optional database number of the Redis server.
     # +docs:property

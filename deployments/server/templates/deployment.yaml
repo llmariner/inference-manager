@@ -91,7 +91,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         {{- with .Values.rateLimit }}
-        {{- if and .enable (eq .storeType "redis") }}
+        {{- if and .enable (eq .storeType "redis") .redis.secretName }}
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:

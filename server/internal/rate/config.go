@@ -27,7 +27,7 @@ type Config struct {
 	Burst int `yaml:"burst"`
 }
 
-// rate returns the token emission intervalSec in seconds.
+// intervalSec returns the token emission intervalSec in seconds.
 func (c *Config) intervalSec() float64 {
 	return c.Period.Seconds() / float64(c.Rate)
 }

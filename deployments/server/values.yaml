@@ -158,7 +158,7 @@ requestRouting:
   # model has not yet been loaded on any cluster.
   enableDynamicModelLoading: true
 
-# Settings for rate-limiting a inference request.
+# Settings for rate-limiting inference requests.
 # This limiter uses GCRA. For more information, see [Generic cell rate algorithm](https://en.wikipedia.org/wiki/Generic_cell_rate_algorithm).
 # +docs:property
 rateLimit:

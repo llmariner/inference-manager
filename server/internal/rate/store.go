@@ -27,9 +27,9 @@ type Result struct {
 	Allowed bool
 	// Limit is the maximum number of tokens.
 	Limit int
-	// Remaining is the number of remaining token.
+	// Remaining is the number of remaining tokens.
 	Remaining int
-	// ResetAfter is the duration until the token is available.
+	// RetryAfter is the duration until the next token becomes available.
 	RetryAfter time.Duration
 	// ResetAfter is the duration until the rate limit completely resets.
 	ResetAfter time.Duration

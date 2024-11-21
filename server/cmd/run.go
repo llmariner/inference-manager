@@ -16,6 +16,7 @@ import (
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/inference-manager/server/internal/monitoring"
 	"github.com/llmariner/inference-manager/server/internal/rag"
+	"github.com/llmariner/inference-manager/server/internal/rate"
 	"github.com/llmariner/inference-manager/server/internal/router"
 	"github.com/llmariner/inference-manager/server/internal/server"
 	"github.com/llmariner/inference-manager/server/internal/taskexchanger"
@@ -186,7 +187,9 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		usageSetter = sender.NoopUsageSetter{}
 	}
 
-	grpcSrv := server.New(m, usageSetter, mclient, vsClient, rwt, infProcessor, logger)
+	ratelimiter := rate.NewLimiter(c.RateLimit, logger)
+
+	grpcSrv := server.New(m, usageSetter, ratelimiter, mclient, vsClient, rwt, infProcessor, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(

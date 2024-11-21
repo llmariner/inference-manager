@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/llmariner/api-usage/pkg/sender"
+	"github.com/llmariner/inference-manager/server/internal/rate"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,6 +28,8 @@ type Config struct {
 	WorkerServiceTLS *TLS `yaml:"workerServiceTls"`
 
 	UsageSender sender.Config `yaml:"usageSender"`
+
+	RateLimit rate.Config `yaml:"rateLimit"`
 
 	RequestRouting RequestRoutingConfig `yaml:"requestRouting"`
 
@@ -137,6 +140,9 @@ func (c *Config) Validate() error {
 		}
 	}
 	if err := c.UsageSender.Validate(); err != nil {
+		return err
+	}
+	if err := c.RateLimit.Validate(); err != nil {
 		return err
 	}
 

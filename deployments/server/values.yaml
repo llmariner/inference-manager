@@ -158,6 +158,47 @@ requestRouting:
   # model has not yet been loaded on any cluster.
   enableDynamicModelLoading: true
 
+# Settings for rate-limiting inference requests.
+# This limiter uses GCRA. For more information, see [Generic cell rate algorithm](https://en.wikipedia.org/wiki/Generic_cell_rate_algorithm).
+# +docs:property
+rateLimit:
+  # Specify whether to enable the rate limit.
+  enable: true
+
+  # The backend store for the rate limit.
+  # NOTE: The memory is for testing purposes. When the pod restarts,
+  # the rate limit resets. It doesn't support multiple replicas.
+  # +docs:enum=memory,redis
+  storeType: memory
+
+  # Allowed request per the period.
+  # +docs:type=number
+  rate: 200
+  # The time period for the rate.
+  period: 10m
+  # The maximum burst requests.
+  # +docs:type=number
+  burst: 30
+
+  # Specify the Redis settings. This field is only used when the
+  # storageType is redis.
+  redis:
+    # The address of the Redis server.
+    address: redis-master.redis:6379
+
+    # Optional username of the Redis server.
+    # +docs:property
+    # username: ""
+
+    # Optional secret name that is mounted to the pod.
+    # +docs:property
+    secretName: redis
+
+    # Optional database number of the Redis server.
+    # +docs:property
+    # +docs:type=number
+    # database: 0
+
 kubernetesManager:
   # Specify whether to enable the leader election.
   enableLeaderElection: false
@@ -176,6 +217,10 @@ kubernetesManager:
   # +docs:property
   # +docs:default=""
   # pprofBindAddress: ":8088"
+
+# The log level of the inference-manager-engine container.
+# +docs:type=number
+logLevel: 0
 
 # The duration given to runnable to stop before the manager actually
 # returns on stop. If not specified, manager timeouts in 30 seconds.

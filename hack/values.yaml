@@ -11,6 +11,10 @@ prepare:
       key: default-cluster-registration-key-secret
 
 inference-manager-server:
+  rateLimit:
+    rate: 1
+    period: 30s
+    burst: 10
   version: latest
   image:
     repository: llmariner/inference-manager-server

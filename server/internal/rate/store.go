@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	// load lua script
 	_ "embed"
 
 	"github.com/go-logr/logr"

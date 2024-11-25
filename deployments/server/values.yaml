@@ -393,4 +393,5 @@ securityContext:
 # This definition is only here as a placeholder such that it is
 # included in the json schema.
 # +docs:hidden
-enable: true
+# +docs:property
+# enable: true

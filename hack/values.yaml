@@ -5,6 +5,8 @@ global:
     enable: false
 
 prepare:
+  redis:
+    createSecret: false
   workerRegistration:
     createSecret: true
     secret:
@@ -12,6 +14,7 @@ prepare:
 
 inference-manager-server:
   rateLimit:
+    storeType: memory
     rate: 1
     period: 30s
     burst: 10

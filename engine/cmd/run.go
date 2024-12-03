@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
+	"github.com/llmariner/cluster-manager/pkg/status"
 	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
@@ -53,7 +55,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("missing NAMESPACE")
 			}
 
-			return run(c, ns, logLevel)
+			return run(cmd.Context(), c, ns, logLevel)
 		},
 	}
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
@@ -62,7 +64,7 @@ func runCmd() *cobra.Command {
 	return cmd
 }
 
-func run(c *config.Config, ns string, lv int) error {
+func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 	bootLog := logger.WithName("boot")
@@ -103,6 +105,17 @@ func run(c *config.Config, ns string, lv int) error {
 		scaler = mas
 	} else {
 		scaler = &noopScaler{}
+	}
+
+	label := fmt.Sprintf("app.kubernetes.io/name=%s", "runtime")
+	pss, err := status.NewPodStatusSender(c.ComponentStatusSender, ns, label, grpcOption(c), logger)
+	if err != nil {
+		return err
+	}
+	if c.ComponentStatusSender.Enable {
+		go func() {
+			pss.Run(logr.NewContext(ctx, logger))
+		}()
 	}
 
 	conn, err := grpc.NewClient(c.ModelManagerServerWorkerServiceAddr, grpcOption(c))

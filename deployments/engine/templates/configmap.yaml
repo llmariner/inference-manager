@@ -59,24 +59,38 @@ data:
         replicas: {{ .Values.model.default.replicas }}
         preloaded: {{ .Values.model.default.preloaded }}
         contextLength: {{ .Values.model.default.contextLength }}
-        vllmExtraFlags: {{ .Values.model.default.vllmExtraFlags }}
+        {{- with .Values.model.default.vllmExtraFlags }}
+        vllmExtraFlags: {{ . }}
+        {{- end }}
+      {{- with .Values.model.overrides }}
       overrides:
-        {{- toYaml .Values.model.overrides | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     healthPort: {{ .Values.healthPort }}
-    gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
+    {{- with .Values.gracefulShutdownTimeout }}
+    gracefulShutdownTimeout: {{ . }}
+    {{- end }}
     leaderElection:
       id: {{ include "inference-manager-engine.fullname" . }}
-      leaseDuration: {{ .Values.leaderElection.leaseDuration }}
-      renewDeadline: {{ .Values.leaderElection.renewDeadline }}
-      retryPeriod: {{ .Values.leaderElection.retryPeriod }}
+      {{- with .Values.leaderElection.leaseDuration }}
+      leaseDuration: {{ . }}
+      {{- end }}
+      {{- with .Values.leaderElection.renewDeadline }}
+      renewDeadline: {{ . }}
+      {{- end }}
+      {{- with .Values.leaderElection.retryPeriod }}
+      retryPeriod: {{ . }}
+      {{- end }}
     autoscaler:
       enable: {{ .Values.autoscaler.enable }}
       initialDelay: {{ .Values.autoscaler.initialDelay }}
       syncPeriod: {{ .Values.autoscaler.syncPeriod }}
       scaleToZeroGracePeriod: {{ .Values.autoscaler.scaleToZeroGracePeriod }}
       metricsWindow: {{ .Values.autoscaler.metricsWindow }}
+      {{- with .Values.autoscaler.runtimeScalers }}
       runtimeScalers:
-        {{- toYaml .Values.autoscaler.runtimeScalers | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       defaultScaler:
         {{- toYaml .Values.autoscaler.defaultScaler | nindent 8 }}
     {{- with .Values.preloadedModelIds }}

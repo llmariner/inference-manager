@@ -103,6 +103,12 @@ data:
     {{- end }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
+    componentStatusSender:
+      enable: {{ .Values.componentStatusSender.enable }}
+      name: {{ .Values.componentStatusSender.name }}
+      initialDelay: {{ .Values.componentStatusSender.initialDelay }}
+      interval: {{ .Values.componentStatusSender.interval }}
+      clusterManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.componentStatusSender.clusterManagerServerWorkerServiceAddr }}
     worker:
       tls:
         enable: {{ .Values.global.worker.tls.enable }}

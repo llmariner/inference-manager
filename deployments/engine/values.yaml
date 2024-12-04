@@ -74,6 +74,18 @@ inferenceManagerServerWorkerServiceAddr: inference-manager-server-worker-service
 # The address of the model-manager-server to call model APIs for workers.
 modelManagerServerWorkerServiceAddr: model-manager-server-worker-service-grpc:8082
 
+componentStatusSender:
+  # The flag to enable sending component status to the cluster-manager-server.
+  enable : true
+  # The name of the component.
+  name: inference-manager-engine
+  # initialDelay is the time to wait before starting the sender.
+  initialDelay: 1m
+  # The interval time to send the component status.
+  interval: 15m
+  # The address of the cluster-manager-server to call worker services.
+  clusterManagerServerWorkerServiceAddr: cluster-manager-server-worker-service-grpc:8082
+
 runtime:
   runtimeImages:
     # The container image of Ollama.

@@ -1,0 +1,13 @@
+inference-manager-engine:
+  runtime:
+    imagePullPolicy: Never
+    runtimeImages:
+      vllm: vllm-cpu-env
+  model:
+    default:
+      runtimeName: vllm
+    overrides: {}
+
+model-manager-loader:
+  baseModels:
+  - TinyLlama/TinyLlama-1.1B-Chat-v1.0

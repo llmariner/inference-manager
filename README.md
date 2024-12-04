@@ -13,12 +13,32 @@ Requirements:
 Run the following command:
 
 ```console
-make setup-llmariner setup-cluster helm-apply-inference
+make setup-all
 ```
 
 > [!TIP]
 > - Run just only `make helm-reapply-inference-server` or `make helm-reapply-inference-engine`, it will rebuild inference-manager container images, deploy them using the local helm chart, and restart containers.
 > - You can configure parameters in [.values.yaml](hack/values.yaml).
+
+### Run vLLM on ARM macOS
+
+To run vLLM on ARM CPU (macOS), you'll need to build an image.
+
+```console
+git clone https://github.com/vllm-project/vllm.git
+cd vllm
+docker build -f Dockerfile.arm -t vllm-cpu-env --shm-size=4g .
+kind load docker-image vllm-cpu-env:latest
+```
+
+Then, run `make` with the `RUNTIME` option.
+
+```console
+make setup-all RUNTIME=vllm
+```
+
+> [!NOTE]
+> See [vLLM - ARM installation](https://docs.vllm.ai/en/latest/getting_started/arm-installation.html) for details.
 
 ### Try out inference APIs
 

@@ -30,9 +30,7 @@ inference-manager-engine:
     pullPolicy: Never
   replicaCount: 1
   model:
-    overrides:
-      google/gemma-2b-it-q4_0:
-        preloaded: false
+    overrides: {}
 
 model-manager-loader:
   runOnce: true

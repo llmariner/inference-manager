@@ -346,22 +346,24 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithTolerations(t)
 	}
 
+	annos := map[string]string{
+		runtimeAnnotationKey: mci.RuntimeName,
+		modelAnnotationKey:   params.modelID,
+	}
+
 	stsSpecConf := appsv1apply.StatefulSetSpec().
 		WithReplicas(int32(mci.Replicas)).
 		WithSelector(metav1apply.LabelSelector().
 			WithMatchLabels(labels)).
 		WithTemplate(corev1apply.PodTemplateSpec().
 			WithAnnotations(c.rconfig.PodAnnotations).
+			WithAnnotations(annos).
 			WithLabels(labels).
 			WithSpec(podSpec))
 	if vol := resConf.Volume; vol != nil && !vol.ShareWithReplicas {
 		stsSpecConf = stsSpecConf.WithVolumeClaimTemplates(volClaim)
 	}
 
-	annos := map[string]string{
-		runtimeAnnotationKey: mci.RuntimeName,
-		modelAnnotationKey:   params.modelID,
-	}
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).
 		WithAnnotations(annos).

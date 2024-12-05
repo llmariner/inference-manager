@@ -80,6 +80,7 @@ KIND_CLUSTER ?= kind
 LLMA_REPO ?= https://github.com/llmariner/llmariner.git
 CLONE_PATH ?= work
 RUNTIME ?= ollama
+EXTRA_DEPS ?=
 
 .PHONY: setup-all
 setup-all: setup-llmariner setup-cluster helm-apply-inference
@@ -126,7 +127,7 @@ load-docker-image-engine: build-docker-engine
 
 .PHONY: helm-apply-deps
 helm-apply-deps:
-	hack/helm-apply-deps.sh $(CLONE_PATH)
+	hack/helm-apply-deps.sh $(CLONE_PATH) $(EXTRA_DEPS)
 
 .PHONY: helm-apply-inference
 helm-apply-inference: load-docker-image-all

@@ -107,12 +107,12 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		scaler = &noopScaler{}
 	}
 
-	label := fmt.Sprintf("app.kubernetes.io/name=%s", "runtime")
-	pss, err := status.NewPodStatusSender(c.ComponentStatusSender, ns, label, grpcOption(c), logger)
-	if err != nil {
-		return err
-	}
 	if c.ComponentStatusSender.Enable {
+		label := fmt.Sprintf("app.kubernetes.io/name=%s", "runtime")
+		pss, err := status.NewPodStatusSender(c.ComponentStatusSender, ns, label, grpcOption(c), logger)
+		if err != nil {
+			return err
+		}
 		go func() {
 			pss.Run(logr.NewContext(ctx, logger))
 		}()

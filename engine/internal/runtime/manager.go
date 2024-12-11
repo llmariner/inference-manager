@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,17 +22,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// ScalerRegisterer is an interface for registering and unregistering scalers.
-type ScalerRegisterer interface {
-	Register(modelID string, target types.NamespacedName)
-	Unregister(target types.NamespacedName)
-}
-
 // NewManager creates a new runtime manager.
 func NewManager(
 	k8sClient client.Client,
 	rtClientFactory ClientFactory,
-	autoscaler ScalerRegisterer,
+	autoscaler autoscaler.Registerer,
 ) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
@@ -45,7 +40,7 @@ func NewManager(
 type Manager struct {
 	k8sClient       client.Client
 	rtClientFactory ClientFactory
-	autoscaler      ScalerRegisterer
+	autoscaler      autoscaler.Registerer
 
 	runtimes map[string]runtime
 	mu       sync.RWMutex

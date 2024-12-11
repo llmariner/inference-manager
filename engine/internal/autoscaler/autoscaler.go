@@ -18,13 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// NewMultiAutoscaler creates a new MultiAutoscaler.
-func NewMultiAutoscaler(
+// NewBuiltinScaler creates a new BuiltinScaler.
+func NewBuiltinScaler(
 	k8sClient client.Client,
 	metricsProvider metrics.Provider,
 	config config.AutoscalerConfig,
-) *MultiAutoscaler {
-	return &MultiAutoscaler{
+) *BuiltinScaler {
+	return &BuiltinScaler{
 		k8sClient: k8sClient,
 		metrics:   metricsProvider,
 		config:    config,
@@ -34,8 +34,8 @@ func NewMultiAutoscaler(
 	}
 }
 
-// MultiAutoscaler is a controller that manages multiple scalers.
-type MultiAutoscaler struct {
+// BuiltinScaler is a controller that manages scalers for all runtimes.
+type BuiltinScaler struct {
 	logger logr.Logger
 
 	k8sClient client.Client
@@ -50,29 +50,29 @@ type MultiAutoscaler struct {
 	stopCh  chan struct{}
 }
 
-// SetupWithManager sets up the multi-autoscaler with the Manager.
-func (m *MultiAutoscaler) SetupWithManager(mgr ctrl.Manager) error {
-	m.logger = mgr.GetLogger().WithName("multiscaler")
+// SetupWithManager sets up the builtin-autoscaler with the Manager.
+func (m *BuiltinScaler) SetupWithManager(mgr ctrl.Manager) error {
+	m.logger = mgr.GetLogger().WithName("builtinscaler")
 	return mgr.Add(m)
 }
 
-// Start starts the multi-autoscaler.
-func (m *MultiAutoscaler) Start(ctx context.Context) error {
-	m.logger.Info("Starting multi-autoscaler")
+// Start starts the builtin-autoscaler.
+func (m *BuiltinScaler) Start(ctx context.Context) error {
+	m.logger.Info("Starting builtin-autoscaler")
 	close(m.startCh)
 	<-ctx.Done()
 	close(m.stopCh)
-	m.logger.Info("Stopped multi-autoscaler")
+	m.logger.Info("Stopped builtin-autoscaler")
 	return nil
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable and always returns true.
-func (m *MultiAutoscaler) NeedLeaderElection() bool {
+func (m *BuiltinScaler) NeedLeaderElection() bool {
 	return true
 }
 
 // Register registers a new scaler for the given runtime.
-func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) {
+func (m *BuiltinScaler) Register(modelID string, target types.NamespacedName) {
 	m.logger.Info("Registering scaler", "modelID", modelID, "target", target)
 	sc := m.config.DefaultScaler
 	if c, ok := m.config.RuntimeScalers[modelID]; ok {
@@ -102,7 +102,7 @@ func (m *MultiAutoscaler) Register(modelID string, target types.NamespacedName) 
 }
 
 // Unregister unregisters the scaler for the given runtime.
-func (m *MultiAutoscaler) Unregister(target types.NamespacedName) {
+func (m *BuiltinScaler) Unregister(target types.NamespacedName) {
 	m.logger.Info("Unregistering scaler", "target", target)
 	m.mu.Lock()
 	defer m.mu.Unlock()

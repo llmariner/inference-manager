@@ -96,7 +96,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	mClient := metrics.NewClient(c.Autoscaler.MetricsWindow)
-	var scaler runtime.ScalerRegisterer
+	var scaler autoscaler.Registerer
 	if c.Autoscaler.Enable {
 		mas := autoscaler.NewBuiltinScaler(mgr.GetClient(), mClient, c.Autoscaler)
 		if err := mas.SetupWithManager(mgr); err != nil {
@@ -104,7 +104,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 		scaler = mas
 	} else {
-		scaler = &noopScaler{}
+		scaler = &autoscaler.NoopRegisterer{}
 	}
 
 	if c.ComponentStatusSender.Enable {
@@ -205,14 +205,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 	return nil
-}
-
-type noopScaler struct{}
-
-func (n *noopScaler) Register(modelID string, target types.NamespacedName) {
-}
-
-func (n *noopScaler) Unregister(target types.NamespacedName) {
 }
 
 type clientFactory struct {

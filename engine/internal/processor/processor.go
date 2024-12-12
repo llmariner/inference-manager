@@ -102,12 +102,6 @@ func (g *FixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
 	return g.addr, nil
 }
 
-// NoopMetricsCollector is a no-op metrics collector.
-type NoopMetricsCollector struct{}
-
-// Add does nothing.
-func (NoopMetricsCollector) Add(modelID string, v float64) {}
-
 // NewP returns a new processor.
 func NewP(
 	engineID string,

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
-	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,7 +169,7 @@ func TestScale(t *testing.T) {
 				target:    nn,
 				k8sClient: fake.NewFakeClient(sts),
 				metrics:   &fakeMetricsProvider{value: test.metrics},
-				config: config.ScalingConfig{
+				config: ScalingConfig{
 					TargetValue:      targetValue,
 					MaxReplicas:      test.maxReplicas,
 					MinReplicas:      test.minReplicas,

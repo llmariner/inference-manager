@@ -254,40 +254,105 @@ ollama:
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.
   enable: false
-  # The initial delay before starting the autoscaler.
-  initialDelay: "12s"
-  # The period for calculating the scaling.
-  syncPeriod: "2s"
-  # The grace period before scaling to zero.
-  scaleToZeroGracePeriod: "5m"
-  # the window size for metrics.
-  # e.g., if it's 5 minutes, we'll use the 5-minute average as the metric.
-  metricsWindow: "60s"
+  # The type of autoscaler.
+  # +docs:enum=builtin,keda
+  type: builtin
 
-  # The default scaling configuration commonly used for runtimes.
-  defaultScaler:
-    # The per-pod metric value that we target to maintain.
-    # Currently, this is the concurrent requests per model runtime.
-    targetValue: 100
-    # the maximum number of replicas.
-    # e.g., if this is 10, the pod can be scaled up to 10.
-    maxReplicas: 10
-    # the minimum number of replicas.
-    # e.g., if this is 0, the pod can be scaled down to 0.
-    minReplicas: 1
-    # The maximum rate of scaling up.
-    # e.g., current replicas is 2 and this rate is 3.0,
-    # the pod can be scaled up to 6. (ceil(2 * 3.0) = 6)
-    maxScaleUpRate: 3.0
-    # The maximum rate of scaling down.
-    # e.g., current replicas is 6 and this rate is 0.5,
-    # the pod can be scaled down to 3. (floor(6 * 0.5) = 3)
-    maxScaleDownRate: 0.5
+  builtin:
+    # The initial delay before starting the autoscaler.
+    initialDelay: "12s"
+    # The period for calculating the scaling.
+    syncPeriod: "2s"
+    # The grace period before scaling to zero.
+    scaleToZeroGracePeriod: "5m"
+    # the window size for metrics.
+    # e.g., if it's 5 minutes, we'll use the 5-minute average as the metric.
+    metricsWindow: "60s"
 
-  # Optional a map of runtime name to scaler settings. It overrides the
-  # default scaling settings for the runtime.
-  # +docs:property
-  runtimeScalers: {}
+    # The default scaling configuration commonly used for runtimes.
+    defaultScaler:
+      # The per-pod metric value that we target to maintain.
+      # Currently, this is the concurrent requests per model runtime.
+      # +docs:type=number
+      targetValue: 100
+      # the maximum number of replicas.
+      # e.g., if this is 10, the pod can be scaled up to 10.
+      # +docs:type=number
+      maxReplicas: 10
+      # the minimum number of replicas.
+      # e.g., if this is 0, the pod can be scaled down to 0.
+      # +docs:type=number
+      minReplicas: 1
+      # The maximum rate of scaling up.
+      # e.g., current replicas is 2 and this rate is 3.0,
+      # the pod can be scaled up to 6. (ceil(2 * 3.0) = 6)
+      # +docs:type=number
+      maxScaleUpRate: 3.0
+      # The maximum rate of scaling down.
+      # e.g., current replicas is 6 and this rate is 0.5,
+      # the pod can be scaled down to 3. (floor(6 * 0.5) = 3)
+      # +docs:type=number
+      maxScaleDownRate: 0.5
+
+    # Optional a map of runtime name to scaler settings. It overrides the
+    # default scaling settings for the runtime.
+    # +docs:property
+    runtimeScalers: {}
+
+
+  # This configuration is used when setting 'keda' to the autoscaler type.
+  # NOTE: To use this feature, prometheus and KEDA must be installed in advance.
+  # Also, the only supported runtime is vLLM in this KEDA integration.
+  keda:
+    # Optional interval to check each trigger on.
+    # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#pollinginterval).
+    # +docs:property
+    # +docs:type=number
+    # pollingInterval: 30
+
+    # Optional period to wait after the last trigger reported active before scaling the resource back to 0.
+    # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#cooldownperiod).
+    # +docs:property
+    # +docs:type=number
+    # cooldownPeriod: 300
+
+    # Optional replica count. If this property is set, KEDA will scale the resource down to this number of replicas
+    # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#idlereplicacount).
+    # +docs:property
+    # +docs:type=number
+    # idleReplicaCount: 0
+
+    # TODO(aya): support minReplicaCount=0. With vllm metrics alone, once scaledObject will be scaled to 0, it cannot be scaled up again.
+    # We plan to solve this by implementing an external push scaler.
+
+    # Optional minimum number of replicas KEDA will scale the resource down to
+    # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#minreplicacount).
+    # +docs:property
+    # +docs:type=number
+    minReplicaCount: 1
+
+    # Optional maximum number of replicas of the target resource.
+    # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#maxreplicacount).
+    # +docs:type=number
+    # +docs:default=100
+    maxReplicaCount: 10
+
+    # Address of Prometheus server.
+    promServerAddress: http://prometheus-server.monitoring
+
+    # Scaling trigger using Prometheus
+    # For more information, see [Prometheus Scaler](https://keda.sh/docs/2.16/scalers/prometheus/#trigger-specification).
+    promTriggers:
+      # Query to run. You can use `{{.}}` as a placeholder for the model name.
+      # e.g., avg(rate(vllm:num_requests_running{model="{{.}}"}[10m])) is converted
+      # to avg(rate(vllm:num_requests_running{model="<MODEL_NAME>"}[10m]))
+    - query: avg(vllm:num_requests_running{model="{{.}}"})
+      # Value to start scaling for.
+      threshold: 30
+      # Optional target value for activating the scaler.
+      # +docs:property
+      # +docs:type=number
+      # activationThreshold: 0
 
 leaderElection:
   # LeaseDuration is the duration that non-leader candidates will

@@ -11,7 +11,6 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -198,7 +197,10 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			cleanup()
 			return err
 		}
-		m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
+		if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
+			log.Error(err, "Failed to register autoscaler")
+			return err
+		}
 		if sts.Status.ReadyReplicas > 0 {
 			// If this is called before the first cache sync of the reconciler
 			// is complete, the existing statefulset(STS) for the runtime is not
@@ -257,7 +259,10 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Failed to add runtime")
 			return ctrl.Result{}, err
 		} else if added {
-			m.autoscaler.Register(modelID, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace})
+			if err := m.autoscaler.Register(ctx, modelID, &sts); err != nil {
+				log.Error(err, "Failed to register autoscaler")
+				return ctrl.Result{}, err
+			}
 		}
 		return ctrl.Result{}, nil
 	} else if ready {

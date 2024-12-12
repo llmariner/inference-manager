@@ -432,8 +432,10 @@ type fakeScalerRegister struct {
 	registered map[types.NamespacedName]bool
 }
 
-func (m *fakeScalerRegister) Register(modelID string, nn types.NamespacedName) {
+func (m *fakeScalerRegister) Register(ctx context.Context, modelID string, target *appsv1.StatefulSet) error {
+	nn := types.NamespacedName{Name: target.Name, Namespace: target.Namespace}
 	m.registered[nn] = true
+	return nil
 }
 
 func (m *fakeScalerRegister) Unregister(nn types.NamespacedName) {

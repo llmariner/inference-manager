@@ -22,7 +22,10 @@ import (
 
 const vllmHTTPPort = 80
 
-const nvidiaGPUResource = "nvidia.com/gpu"
+const (
+	nvidiaGPUResource     = "nvidia.com/gpu"
+	awsNeuroncoreResource = "aws.amazon.com/neuroncore"
+)
 
 type modelClient interface {
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
@@ -202,16 +205,20 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 
 func (v *vllmClient) numGPUs(modelID string) (int, error) {
 	resConf := v.getResouces(modelID)
-	r, ok := resConf.Limits[nvidiaGPUResource]
-	if !ok {
-		return 0, nil
+
+	for _, resName := range []string{nvidiaGPUResource, awsNeuroncoreResource} {
+		r, ok := resConf.Limits[resName]
+		if !ok {
+			continue
+		}
+		val, err := resource.ParseQuantity(r)
+		if err != nil {
+			return 0, fmt.Errorf("invalid resource limit: %s", err)
+		}
+		return int(val.Value()), nil
 	}
 
-	val, err := resource.ParseQuantity(r)
-	if err != nil {
-		return 0, fmt.Errorf("invalid resource limit: %s", err)
-	}
-	return int(val.Value()), nil
+	return 0, nil
 }
 
 func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID string) (mv1.ModelFormat, error) {

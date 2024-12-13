@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -20,28 +19,25 @@ import (
 
 // NewBuiltinScaler creates a new BuiltinScaler.
 func NewBuiltinScaler(
-	k8sClient client.Client,
+	config BuiltinConfig,
 	metricsProvider metrics.Provider,
-	config config.AutoscalerConfig,
-) *BuiltinScaler {
+) Autoscaler {
 	return &BuiltinScaler{
-		k8sClient: k8sClient,
-		metrics:   metricsProvider,
-		config:    config,
-		scalers:   make(map[types.NamespacedName]scaler),
-		startCh:   make(chan struct{}),
-		stopCh:    make(chan struct{}),
+		metrics: metricsProvider,
+		config:  config,
+		scalers: make(map[types.NamespacedName]scaler),
+		startCh: make(chan struct{}),
+		stopCh:  make(chan struct{}),
 	}
 }
 
 // BuiltinScaler is a controller that manages scalers for all runtimes.
 type BuiltinScaler struct {
-	logger logr.Logger
+	metrics metrics.Provider
+	config  BuiltinConfig
 
+	logger    logr.Logger
 	k8sClient client.Client
-	metrics   metrics.Provider
-
-	config config.AutoscalerConfig
 
 	scalers map[types.NamespacedName]scaler
 	mu      sync.Mutex
@@ -52,6 +48,7 @@ type BuiltinScaler struct {
 
 // SetupWithManager sets up the builtin-autoscaler with the Manager.
 func (m *BuiltinScaler) SetupWithManager(mgr ctrl.Manager) error {
+	m.k8sClient = mgr.GetClient()
 	m.logger = mgr.GetLogger().WithName("builtinscaler")
 	return mgr.Add(m)
 }
@@ -72,7 +69,7 @@ func (m *BuiltinScaler) NeedLeaderElection() bool {
 }
 
 // Register registers a new scaler for the given runtime.
-func (m *BuiltinScaler) Register(modelID string, target types.NamespacedName) {
+func (m *BuiltinScaler) Register(ctx context.Context, modelID string, target *appsv1.StatefulSet) error {
 	m.logger.Info("Registering scaler", "modelID", modelID, "target", target)
 	sc := m.config.DefaultScaler
 	if c, ok := m.config.RuntimeScalers[modelID]; ok {
@@ -82,23 +79,25 @@ func (m *BuiltinScaler) Register(modelID string, target types.NamespacedName) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, ok := m.scalers[target]; ok {
+	nn := types.NamespacedName{Name: target.Namespace, Namespace: target.Name}
+	if _, ok := m.scalers[nn]; ok {
 		// already registered
-		return
+		return nil
 	}
 	s := scaler{
 		modelID:                modelID,
-		target:                 target,
+		target:                 nn,
 		k8sClient:              m.k8sClient,
 		metrics:                m.metrics,
 		config:                 sc,
 		scaleToZeroGracePeriod: m.config.ScaleToZeroGracePeriod,
 	}
-	m.scalers[target] = s
+	m.scalers[nn] = s
 	go func() {
 		<-m.startCh
 		s.start(m.logger, m.stopCh, m.config.InitialDelay, m.config.SyncPeriod)
 	}()
+	return nil
 }
 
 // Unregister unregisters the scaler for the given runtime.
@@ -122,7 +121,7 @@ type scaler struct {
 	k8sClient client.Client
 	metrics   metrics.Provider
 
-	config                 config.ScalingConfig
+	config                 ScalingConfig
 	scaleToZeroGracePeriod time.Duration
 
 	lastTransitToZero time.Time

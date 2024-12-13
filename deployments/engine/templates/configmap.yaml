@@ -83,16 +83,41 @@ data:
       {{- end }}
     autoscaler:
       enable: {{ .Values.autoscaler.enable }}
-      initialDelay: {{ .Values.autoscaler.initialDelay }}
-      syncPeriod: {{ .Values.autoscaler.syncPeriod }}
-      scaleToZeroGracePeriod: {{ .Values.autoscaler.scaleToZeroGracePeriod }}
-      metricsWindow: {{ .Values.autoscaler.metricsWindow }}
-      {{- with .Values.autoscaler.runtimeScalers }}
-      runtimeScalers:
-        {{- toYaml . | nindent 8 }}
+      type: {{ .Values.autoscaler.type }}
+      {{- with .Values.autoscaler.builtin }}
+      builtin:
+        initialDelay: {{ .initialDelay }}
+        syncPeriod: {{ .syncPeriod }}
+        scaleToZeroGracePeriod: {{ .scaleToZeroGracePeriod }}
+        metricsWindow: {{ .metricsWindow }}
+        {{- with .runtimeScalers }}
+        runtimeScalers:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        defaultScaler:
+          {{- toYaml .defaultScaler | nindent 10 }}
       {{- end }}
-      defaultScaler:
-        {{- toYaml .Values.autoscaler.defaultScaler | nindent 8 }}
+      {{- with .Values.autoscaler.keda }}
+      keda:
+        {{- with .pollingInterval }}
+        pollingInterval: {{ . }}
+        {{- end }}
+        {{- with .cooldownPeriod }}
+        cooldownPeriod: {{ . }}
+        {{- end }}
+        {{- with .idleReplicaCount }}
+        idleReplicaCount: {{ . }}
+        {{- end }}
+        {{- with .minReplicaCount }}
+        minReplicaCount: {{ . }}
+        {{- end }}
+        {{- with .maxReplicaCount }}
+        maxReplicaCount: {{ . }}
+        {{- end }}
+        promServerAddress: {{ .promServerAddress }}
+        promTriggers:
+          {{- toYaml .promTriggers | nindent 10 }}
+      {{- end }}
     {{- with .Values.preloadedModelIds }}
     preloadedModelIds:
       {{- toYaml . | nindent 6 }}

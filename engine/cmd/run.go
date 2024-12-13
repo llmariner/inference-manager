@@ -95,15 +95,27 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	mClient := metrics.NewClient(c.Autoscaler.MetricsWindow)
+	var collector metrics.Collector
 	var scaler autoscaler.Registerer
 	if c.Autoscaler.Enable {
-		mas := autoscaler.NewBuiltinScaler(mgr.GetClient(), mClient, c.Autoscaler)
-		if err := mas.SetupWithManager(mgr); err != nil {
+		var as autoscaler.Autoscaler
+		switch c.Autoscaler.Type {
+		case autoscaler.TypeBuiltin:
+			mClient := metrics.NewClient(c.Autoscaler.Builtin.MetricsWindow)
+			collector = mClient
+			as = autoscaler.NewBuiltinScaler(c.Autoscaler.Builtin, mClient)
+		case autoscaler.TypeKeda:
+			collector = &metrics.NoopCollector{}
+			as = autoscaler.NewKedaScaler(c.Autoscaler.Keda)
+		default:
+			return fmt.Errorf("unknown autoscaler type: %q", c.Autoscaler.Type)
+		}
+		if err := as.SetupWithManager(mgr); err != nil {
 			return err
 		}
-		scaler = mas
+		scaler = as
 	} else {
+		collector = &metrics.NoopCollector{}
 		scaler = &autoscaler.NoopRegisterer{}
 	}
 
@@ -182,7 +194,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		rtManager,
 		rtManager,
 		logger,
-		mClient,
+		collector,
 		c.GracefulShutdownTimeout,
 	)
 	if err := p.SetupWithManager(mgr, c.Autoscaler.Enable); err != nil {

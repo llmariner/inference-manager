@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/stretchr/testify/assert"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -35,7 +36,7 @@ func TestP(t *testing.T) {
 		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		&fakeModelSyncer{},
 		logger,
-		&NoopMetricsCollector{},
+		&metrics.NoopCollector{},
 		time.Second,
 	)
 
@@ -77,7 +78,7 @@ func TestEmbedding(t *testing.T) {
 		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		&fakeModelSyncer{},
 		logger,
-		&NoopMetricsCollector{},
+		&metrics.NoopCollector{},
 		time.Second,
 	)
 

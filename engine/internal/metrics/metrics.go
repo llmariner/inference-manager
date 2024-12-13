@@ -15,6 +15,12 @@ type Provider interface {
 	Get(modelID string) float64
 }
 
+// NoopCollector is a no-op implementation of Collector.
+type NoopCollector struct{}
+
+// Add is a no-op.
+func (c *NoopCollector) Add(modelID string, v float64) {}
+
 // NewClient creates a new collection of metrics.
 func NewClient(window time.Duration) *Client {
 	// TODO(aya): revisit the window size. (e.g., use two different windows for stable & burst)

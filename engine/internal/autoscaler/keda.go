@@ -55,7 +55,7 @@ func (s *KedaScaler) Start(ctx context.Context) error {
 
 // NeedLeaderElection implements LeaderElectionRunnable and always returns true.
 func (s *KedaScaler) NeedLeaderElection() bool {
-	return true
+	return false
 }
 
 // Register registers a new scaler for the given runtime.
@@ -69,7 +69,7 @@ func (s *KedaScaler) Register(ctx context.Context, modelID string, target *appsv
 
 // Unregister unregisters the scaler for the given runtime.
 func (s *KedaScaler) Unregister(target types.NamespacedName) {
-	// do nothing. ScaledObject has a owner reference so it will be deleted by GC.
+	// do nothing. ScaledObject has an owner reference so it will be deleted by GC.
 }
 
 func (s *KedaScaler) deployScaledObject(ctx context.Context, modelID string, target *appsv1.StatefulSet) error {

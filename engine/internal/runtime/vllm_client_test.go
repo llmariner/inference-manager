@@ -179,6 +179,14 @@ func TestNumGPUs(t *testing.T) {
 								},
 							},
 						},
+						"model2": {
+							Resources: config.Resources{
+								Limits: map[string]string{
+									awsNeuroncoreResource: "1",
+									"cpu":                 "3",
+								},
+							},
+						},
 					},
 				},
 			}),
@@ -199,6 +207,11 @@ func TestNumGPUs(t *testing.T) {
 			name:    "model1",
 			modelID: "model1",
 			want:    0,
+		},
+		{
+			name:    "model2",
+			modelID: "model2",
+			want:    1,
 		},
 	}
 

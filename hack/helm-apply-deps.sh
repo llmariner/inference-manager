@@ -15,5 +15,5 @@ fi
 cd ${LLMA_PATH}/provision/dev
 helmfile apply \
          --skip-diff-on-install \
-         -f keda-helmfile.yaml \
+         -f *helmfile.yaml \
          -l app=postgres -l app=minio -l app=kong ${extra_flags[@]}

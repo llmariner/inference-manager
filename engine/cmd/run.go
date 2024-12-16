@@ -95,12 +95,14 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
+	var leaderElection bool
 	var collector metrics.Collector
 	var scaler autoscaler.Registerer
 	if c.Autoscaler.Enable {
 		var as autoscaler.Autoscaler
 		switch c.Autoscaler.Type {
 		case autoscaler.TypeBuiltin:
+			leaderElection = true
 			mClient := metrics.NewClient(c.Autoscaler.Builtin.MetricsWindow)
 			collector = mClient
 			as = autoscaler.NewBuiltinScaler(c.Autoscaler.Builtin, mClient)
@@ -173,7 +175,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
-	if err := rtManager.SetupWithManager(mgr, c.Autoscaler.Enable); err != nil {
+	if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
 		return err
 	}
 
@@ -197,7 +199,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		collector,
 		c.GracefulShutdownTimeout,
 	)
-	if err := p.SetupWithManager(mgr, c.Autoscaler.Enable); err != nil {
+	if err := p.SetupWithManager(mgr, leaderElection); err != nil {
 		return err
 	}
 

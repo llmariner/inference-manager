@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference-manager-engine.fullname" . }}-http
+  labels:
+    {{- include "inference-manager-engine.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "inference-manager-engine.selectorLabels" . | nindent 4 }}

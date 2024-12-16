@@ -325,7 +325,8 @@ type Config struct {
 	Ollama  OllamaConfig  `yaml:"ollama"`
 	Model   ModelConfig   `yaml:"model"`
 
-	HealthPort int `yaml:"healthPort"`
+	HealthPort  int `yaml:"healthPort"`
+	MetricsPort int `yaml:"metricsPort"`
 
 	// GracefulShutdownTimeout is the duration given to runnable to stop
 	// before the manager actually returns on stop. Default is 30 seconds.

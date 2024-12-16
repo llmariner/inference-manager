@@ -67,6 +67,7 @@ data:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     healthPort: {{ .Values.healthPort }}
+    metricsPort: {{ .Values.metricsPort }}
     {{- with .Values.gracefulShutdownTimeout }}
     gracefulShutdownTimeout: {{ . }}
     {{- end }}

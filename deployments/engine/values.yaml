@@ -68,6 +68,9 @@ global:
 # The HTTP port number for the health check.
 # +docs:type=number
 healthPort: 8081
+# The HTTP port number for the metrics check.
+# +docs:type=number
+metricsPort: 8084
 
 # The address of the inference-manager-server to call inference APIs for workers.
 inferenceManagerServerWorkerServiceAddr: inference-manager-server-worker-service-grpc:8082
@@ -302,7 +305,6 @@ autoscaler:
 
   # This configuration is used when setting 'keda' to the autoscaler type.
   # NOTE: To use this feature, prometheus and KEDA must be installed in advance.
-  # Also, the only supported runtime is vLLM in this KEDA integration.
   keda:
     # Optional interval to check each trigger on.
     # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#pollinginterval).
@@ -322,14 +324,11 @@ autoscaler:
     # +docs:type=number
     # idleReplicaCount: 0
 
-    # TODO(aya): support minReplicaCount=0. With vllm metrics alone, once scaledObject will be scaled to 0, it cannot be scaled up again.
-    # We plan to solve this by implementing an external push scaler.
-
     # Optional minimum number of replicas KEDA will scale the resource down to
     # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#minreplicacount).
     # +docs:property
     # +docs:type=number
-    minReplicaCount: 1
+    # minReplicaCount: 0
 
     # Optional maximum number of replicas of the target resource.
     # For more information, see [ScalingObject Spec](https://keda.sh/docs/2.16/reference/scaledobject-spec/#maxreplicacount).
@@ -344,9 +343,11 @@ autoscaler:
     # For more information, see [Prometheus Scaler](https://keda.sh/docs/2.16/scalers/prometheus/#trigger-specification).
     promTriggers:
       # Query to run. You can use `{{.}}` as a placeholder for the model name.
-      # e.g., avg(rate(vllm:num_requests_running{model="{{.}}"}[10m])) is converted
-      # to avg(rate(vllm:num_requests_running{model="<MODEL_NAME>"}[10m]))
-    - query: avg(vllm:num_requests_running{model="{{.}}"})
+      # e.g., avg(llmariner_active_inference_request_count{model="{{.}}"}) is converted
+      # to avg(llmariner_active_inference_request_count{model="<MODEL_NAME>"})
+      # NOTE: With vllm metrics alone, once scaledObject will be scaled to 0, it cannot
+      # be scaled up again. Please combine with other metrics like below.
+    - query: avg(llmariner_active_inference_request_count{model="{{.}}"})
       # Value to start scaling for.
       threshold: 30
       # Optional target value for activating the scaler.

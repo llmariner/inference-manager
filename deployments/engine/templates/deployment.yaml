@@ -41,6 +41,9 @@ spec:
         - name: health
           containerPort: {{ .Values.healthPort }}
           protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.metricsPort }}
+          protocol: TCP
         env:
         - name: NAMESPACE
           valueFrom:

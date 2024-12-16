@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 func runCmd() *cobra.Command {
@@ -76,6 +77,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Logger:                 logger,
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),
+		Metrics:                metricsserver.Options{BindAddress: fmt.Sprintf(":%d", c.MetricsPort)},
 		ReadinessEndpointName:  "/ready",
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{ns: {}},
@@ -105,7 +107,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			collector = mClient
 			as = autoscaler.NewBuiltinScaler(c.Autoscaler.Builtin, mClient)
 		case autoscaler.TypeKeda:
-			collector = &metrics.NoopCollector{}
+			collector = &metrics.PromMetricsCollector{}
 			as = autoscaler.NewKedaScaler(c.Autoscaler.Keda)
 		default:
 			return fmt.Errorf("unknown autoscaler type: %q", c.Autoscaler.Type)

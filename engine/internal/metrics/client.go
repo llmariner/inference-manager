@@ -21,12 +21,21 @@ type NoopCollector struct{}
 // Add is a no-op.
 func (c *NoopCollector) Add(modelID string, v float64) {}
 
+// PromMetricsCollector collects metrics for Prometheus.
+type PromMetricsCollector struct{}
+
+// Add adds a value to the metric.
+func (c *PromMetricsCollector) Add(modelID string, v float64) {
+	requestCountVec.WithLabelValues(modelID).Add(v)
+}
+
 // NewClient creates a new collection of metrics.
 func NewClient(window time.Duration) *Client {
 	// TODO(aya): revisit the window size. (e.g., use two different windows for stable & burst)
 	return &Client{
 		window:  window,
 		metrics: make(map[string]*windowBucket),
+		prom:    PromMetricsCollector{},
 	}
 }
 
@@ -36,10 +45,13 @@ type Client struct {
 
 	metrics map[string]*windowBucket
 	mu      sync.RWMutex
+
+	prom PromMetricsCollector
 }
 
 // Add adds a value to a given metric.
 func (c *Client) Add(modelID string, v float64) {
+	c.prom.Add(modelID, v)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	wb, ok := c.metrics[modelID]

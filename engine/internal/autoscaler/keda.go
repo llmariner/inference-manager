@@ -84,7 +84,7 @@ func (s *KedaScaler) Start(ctx context.Context) error {
 			return fmt.Errorf("failed to update ScaledObject spec: %s", err)
 		}
 		if reflect.DeepEqual(so.Spec, newSo.Spec) {
-			s.logger.Info("ScaledObject is up-to-date", "name", so.Name)
+			s.logger.V(1).Info("ScaledObject is up-to-date", "name", so.Name)
 			skipped++
 			continue
 		}

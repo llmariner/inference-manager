@@ -110,7 +110,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			as = autoscaler.NewBuiltinScaler(c.Autoscaler.Builtin, mClient)
 		case autoscaler.TypeKeda:
 			collector = &metrics.PromMetricsCollector{}
-			as = autoscaler.NewKedaScaler(c.Autoscaler.Keda)
+			as = autoscaler.NewKedaScaler(c.Autoscaler.Keda, ns)
 		default:
 			return fmt.Errorf("unknown autoscaler type: %q", c.Autoscaler.Type)
 		}

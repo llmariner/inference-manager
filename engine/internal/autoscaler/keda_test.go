@@ -38,7 +38,7 @@ func TestDeployScaledObject(t *testing.T) {
 		logger:   testutil.NewTestLogger(t),
 	}
 
-	err = s.deployScaledObject(context.Background(), model, &appsv1.StatefulSet{
+	err = s.createScaledObject(context.Background(), model, &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      model,
 			Namespace: ns,

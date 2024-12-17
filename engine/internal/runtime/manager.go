@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
@@ -283,8 +284,9 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			URL:    &url.URL{Scheme: "http", Host: addr},
 		}
 		if _, err := http.DefaultClient.Do(req); err != nil {
-			log.Error(err, "Failed to reach the runtime")
-			return ctrl.Result{}, err
+			retryAfter := 500 * time.Millisecond
+			log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
+			return ctrl.Result{RequeueAfter: retryAfter}, err
 		}
 		m.markRuntimeReady(sts.Name, modelID, addr)
 		log.Info("Runtime is ready")

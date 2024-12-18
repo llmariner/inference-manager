@@ -31,6 +31,8 @@ inference-manager-engine:
   replicaCount: 1
   model:
     overrides: {}
+  componentStatusSender:
+    enable: false
 
 model-manager-loader:
   runOnce: true

@@ -346,6 +346,10 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithTolerations(t)
 	}
 
+	if sn := mci.SchedulerName; sn != "" {
+		podSpec = podSpec.WithSchedulerName(sn)
+	}
+
 	annos := map[string]string{
 		runtimeAnnotationKey: mci.RuntimeName,
 		modelAnnotationKey:   params.modelID,

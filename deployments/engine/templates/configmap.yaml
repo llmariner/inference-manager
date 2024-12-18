@@ -62,6 +62,7 @@ data:
         {{- with .Values.model.default.vllmExtraFlags }}
         vllmExtraFlags: {{ . }}
         {{- end }}
+        schedulerName: {{ .Values.model.default.schedulerName }}
       {{- with .Values.model.overrides }}
       overrides:
         {{- toYaml . | nindent 8 }}

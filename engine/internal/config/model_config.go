@@ -78,6 +78,9 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 		if fs := override.VLLMExtraFlags; len(fs) > 0 {
 			item.VLLMExtraFlags = fs
 		}
+		if sn := override.SchedulerName; sn != "" {
+			item.SchedulerName = sn
+		}
 	}
 
 	for _, id := range c.preloadedModelIDs {

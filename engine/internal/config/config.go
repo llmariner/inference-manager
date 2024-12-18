@@ -184,6 +184,12 @@ type ModelConfigItem struct {
 
 	// VLLMExtraFlags is the extra flags for VLLM.
 	VLLMExtraFlags []string `yaml:"vllmExtraFlags"`
+
+	// SchedulerName is the name of the scheduler to use.
+	// This is set when a vLLM runs on Inferentia instances and
+	// requires Neuron scheduling extension.
+	// See https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/tutorials/k8s-setup.html.
+	SchedulerName string `yaml:"schedulerName"`
 }
 
 func (c *ModelConfigItem) validate() error {

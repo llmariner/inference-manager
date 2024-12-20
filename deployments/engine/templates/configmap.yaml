@@ -63,6 +63,7 @@ data:
         vllmExtraFlags: {{ . }}
         {{- end }}
         schedulerName: {{ .Values.model.default.schedulerName }}
+        containerRuntimeClassName: {{ .Values.model.default.containerRuntimeClassName }}
       {{- with .Values.model.overrides }}
       overrides:
         {{- toYaml . | nindent 8 }}

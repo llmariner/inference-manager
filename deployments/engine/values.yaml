@@ -196,6 +196,11 @@ model:
     # The name of a K8s scheduler used by model runtime.
     schedulerName: ""
 
+    # The name of a K8s Runtime Class (https://kubernetes.io/docs/concepts/containers/runtime-class/)
+    # used by model runtime. This is set the Runtime Class of Nvidia container runtime if it is not
+    # a cluster default.
+    containerRuntimeClassName: ""
+
   # Optional a map of model ID to model settings. It overrides the
   # default settings for the model.
   #

@@ -72,8 +72,7 @@ func (r *R) ProcessMessages(
 						Text: doc,
 					},
 				},
-				LegacyContent: doc,
-				Role:          "assistant",
+				Role: "assistant",
 			})
 		}
 	}
@@ -87,7 +86,6 @@ func (r *R) ProcessMessages(
 						Text: prompt,
 					},
 				},
-				LegacyContent: prompt,
 			}}, msgs...)
 	}
 	return append(msgs, messages...), nil

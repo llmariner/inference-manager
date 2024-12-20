@@ -27,7 +27,6 @@ export type CreateChatCompletionRequestMessageContent = {
 };
 export type CreateChatCompletionRequestMessage = {
     content?: CreateChatCompletionRequestMessageContent[];
-    legacyContent?: string;
     role?: string;
     name?: string;
     toolCalls?: CreateChatCompletionRequestMessageToolCall[];

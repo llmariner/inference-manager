@@ -47,8 +47,6 @@ message CreateChatCompletionRequest {
     // we only support the array type here. When a client sends a string, it is converted before
     // the request is being unmarshalled.
     repeated Content content = 5;
-    // Deprecated. Only used by old version of engines. The new engine should use the `content` field of ID 5.
-    string legacy_content = 1;
     string role = 2;
     string name = 3;
     repeated ToolCall tool_calls = 4;

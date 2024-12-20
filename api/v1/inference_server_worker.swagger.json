@@ -293,10 +293,6 @@
           },
           "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
         },
-        "legacyContent": {
-          "type": "string",
-          "description": "Deprecated. Only used by old version of engines. The new engine should use the `content` field of ID 5."
-        },
         "role": {
           "type": "string"
         },

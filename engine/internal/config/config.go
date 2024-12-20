@@ -190,6 +190,11 @@ type ModelConfigItem struct {
 	// requires Neuron scheduling extension.
 	// See https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/tutorials/k8s-setup.html.
 	SchedulerName string `yaml:"schedulerName"`
+
+	// ContainerRuntimeClassName is the name of a K8s Runtime Class
+	// (https://kubernetes.io/docs/concepts/containers/runtime-class/) used by model runtime.
+	// This is set the Runtime Class of Nvidia container runtime if it is not a cluster default.
+	ContainerRuntimeClassName string `yaml:"containerRuntimeClassName"`
 }
 
 func (c *ModelConfigItem) validate() error {

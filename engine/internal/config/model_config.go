@@ -81,6 +81,9 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 		if sn := override.SchedulerName; sn != "" {
 			item.SchedulerName = sn
 		}
+		if rc := override.ContainerRuntimeClassName; rc != "" {
+			item.ContainerRuntimeClassName = rc
+		}
 	}
 
 	for _, id := range c.preloadedModelIDs {

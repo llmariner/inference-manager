@@ -349,6 +349,9 @@ func (c *commonClient) deployRuntime(
 	if sn := mci.SchedulerName; sn != "" {
 		podSpec = podSpec.WithSchedulerName(sn)
 	}
+	if rc := mci.ContainerRuntimeClassName; rc != "" {
+		podSpec = podSpec.WithRuntimeClassName(rc)
+	}
 
 	annos := map[string]string{
 		runtimeAnnotationKey: mci.RuntimeName,

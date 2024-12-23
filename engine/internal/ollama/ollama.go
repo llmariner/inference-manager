@@ -202,6 +202,33 @@ PARAMETER stop <|eot_id|>
 TEMPLATE {{ .Prompt }}
 PARAMETER stop <｜end▁of▁sentence｜>
 `, nil
+	case strings.HasPrefix(modelID, "deepseek-ai-DeepSeek-Coder-V2-Lite-Instruct"):
+		return `
+TEMPLATE """{{- if .Suffix }}<｜fim▁begin｜>{{ .Prompt }}<｜fim▁hole｜>{{ .Suffix }}<｜fim▁end｜>
+{{- else if .Messages }}<｜begin▁of▁sentence｜>
+{{- $system := "" }}
+{{- range $i, $_ := .Messages }}
+{{- if eq .Role "system" }}
+{{- $system = printf "%s %s" $system .Content }}
+{{- else if eq .Role "user" }}
+{{- if $system }}{{ $system }}
+{{ $system = "" }}
+{{ end }}User: {{ .Content }}
+
+{{ if eq (len (slice $.Messages $i)) 1 }}Assistant:
+{{- end }}
+{{- else if eq .Role "assistant" }}Assistant: {{ .Content }}<｜end▁of▁sentence｜>
+{{- end }}
+{{- end }}
+{{- else }}
+{{- if .System }}{{ .System }}
+{{- end }}
+{{- if .Prompt }}User: {{ .Prompt }}
+{{- end }}Assistant:{{ .Response }}
+{{- end }}"""
+PARAMETER stop User:
+PARAMETER stop Assistant:
+`, nil
 	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		// This model is for embedding.
 		return `

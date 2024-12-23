@@ -78,6 +78,9 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 		return 65536, true, nil
 	case strings.HasPrefix(modelID, "deepseek-ai-deepseek-coder-6.7b-base"):
 		return 16384, true, nil
+	case strings.HasPrefix(modelID, "deepseek-ai-DeepSeek-Coder-V2-Lite-"):
+		// TODO(kenji): Revisit.
+		return 16384, true, nil
 	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		return 256, true, nil
 	default:

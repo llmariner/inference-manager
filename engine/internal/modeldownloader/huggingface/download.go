@@ -75,7 +75,7 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.
 	files := []file{
 		{name: "config.json", isOptional: false},
 		{name: "generation_config.json", isOptional: true},
-		{name: "special_tokens_map.json", isOptional: false},
+		{name: "special_tokens_map.json", isOptional: true},
 		{name: "tokenizer.json", isOptional: false},
 		{name: "tokenizer_config.json", isOptional: false},
 	}

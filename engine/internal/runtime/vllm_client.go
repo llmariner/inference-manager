@@ -82,11 +82,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		return deployRuntimeParams{}, fmt.Errorf("get model: %s", err)
 	}
 
-	template, err := chatTemplate(modelID)
-	if err != nil {
-		return deployRuntimeParams{}, fmt.Errorf("get chat template: %s", err)
-	}
-
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
 	// need to do this because the processor does the same converesion when
 	// processing requests (for Ollama)
@@ -103,8 +98,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	}
 	// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 	// such as stop tokens.
-	if template != "" {
-		args = append(args, "--chat-template", template)
+	if t := chatTemplate(modelID); t != "" {
+		// TODO(kenji): Return an error if the model file doesn't include a template config and it must be
+		// explicitly specified.
+		args = append(args, "--chat-template", t)
 	}
 	if isBaseModel(model) {
 		mPath, err := v.baseModelFilePath(ctx, modelID)
@@ -262,7 +259,7 @@ func vllmQuantization(modelID string) (string, bool) {
 }
 
 // chatTemplate returns the chat template for the given model.
-func chatTemplate(modelID string) (string, error) {
+func chatTemplate(modelID string) string {
 	switch {
 	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.1-"),
 		strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3.3-"),
@@ -276,7 +273,7 @@ func chatTemplate(modelID string) (string, error) {
 {% for message in messages %}
 {{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\n' + message['content'] + '\n<|eot_id|>\n'}}
 {% endfor %}
-`, nil
+`
 	case strings.HasPrefix(modelID, "deepseek-ai-deepseek-coder-6.7b-base"),
 		strings.HasPrefix(modelID, "deepseek-ai-DeepSeek-Coder-V2-Lite-Base"):
 		// This is a simplified template that works for auto code completion.
@@ -285,17 +282,17 @@ func chatTemplate(modelID string) (string, error) {
 {% for message in messages %}
 {{message['content']}}
 {% endfor %}
-`, nil
+`
 	case modelID == "intfloat-e5-mistral-7b-instruct":
 		// This model is for embedding.
 		return `
 {% for message in messages %}
 {{message['content']}}
 {% endfor %}
-`, nil
+`
 	case strings.Contains(modelID, "ultravox"):
-		return "", nil
+		return ""
 	default:
-		return "", fmt.Errorf("unsupported model: %q", modelID)
+		return ""
 	}
 }

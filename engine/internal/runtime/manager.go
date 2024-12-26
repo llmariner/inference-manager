@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -18,9 +20,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+// ErrRequestCanceled is returned when the request is canceled.
+var ErrRequestCanceled = errors.New("request is canceled")
 
 // NewManager creates a new runtime manager.
 func NewManager(
@@ -122,6 +128,17 @@ func (m *Manager) markRuntimeIsPending(name, modelID string) {
 	}
 }
 
+func (m *Manager) cancelWaitingRequests(modelID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
+		// cancel the current waiting channel, but recreate a wait channel
+		// because the runtime has a chance to be ready later on.
+		close(r.waitCh)
+		r.waitCh = make(chan struct{})
+	}
+}
+
 func (m *Manager) isReady(modelID string) (bool, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -214,10 +231,15 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
 	case <-r.waitCh:
+		ready, _ := m.isReady(modelID)
+		if !ready {
+			// This will happen when the `cancelWaitingRequests` is called.
+			return ErrRequestCanceled
+		}
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	return nil
 }
 
 // Reconcile reconciles the runtime.
@@ -269,7 +291,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 	} else if ready {
 		if sts.Status.Replicas == 0 {
 			m.markRuntimeIsPending(sts.Name, modelID)
-			log.Info("Runtime is pending")
+			log.Info("Runtime is scale down to zero")
 		}
 	} else if sts.Status.ReadyReplicas > 0 {
 		client, err := m.rtClientFactory.New(modelID)
@@ -290,16 +312,38 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 		m.markRuntimeReady(sts.Name, modelID, addr)
 		log.Info("Runtime is ready")
+	} else {
+		var podList corev1.PodList
+		if err := m.k8sClient.List(ctx, &podList,
+			client.InNamespace(sts.Namespace),
+			client.MatchingLabels{"app.kubernetes.io/instance": sts.Name},
+		); err != nil {
+			log.Error(err, "Failed to list pods")
+			return ctrl.Result{}, err
+		}
+		for _, pod := range podList.Items {
+			if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
+				continue
+			}
+			for _, cond := range pod.Status.Conditions {
+				if cond.Type == corev1.PodScheduled {
+					if cond.Status == corev1.ConditionFalse &&
+						cond.Reason == corev1.PodReasonUnschedulable {
+						m.cancelWaitingRequests(modelID)
+						log.Info("Pod is unschedulable", "message", cond.Message)
+					}
+					break
+				}
+			}
+		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.
 func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
-	filterByAnno := (predicate.NewPredicateFuncs(func(object client.Object) bool {
-		_, ok := object.GetAnnotations()[runtimeAnnotationKey]
-		return ok
+	filterByLabel := (predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetLabels()["app.kubernetes.io/created-by"] == managerName
 	}))
 	constructer := func(r *reconcile.Request) logr.Logger {
 		if r != nil {
@@ -308,7 +352,10 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 		return mgr.GetLogger()
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByAnno)).
+		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByLabel)).
+		Watches(&corev1.Pod{},
+			handler.TypedEnqueueRequestForOwner[client.Object](mgr.GetScheme(), mgr.GetRESTMapper(), &appsv1.StatefulSet{}, handler.OnlyControllerOwner()),
+			builder.WithPredicates(filterByLabel)).
 		WithLogConstructor(constructer).
 		// To share the runtime deletion event, disable the leader election
 		// for this controller if the processor disables the leader election.

@@ -324,8 +324,25 @@ func (p *P) processTask(
 ) error {
 	log := ctrl.LoggerFrom(ctx)
 
+	sendErrResponse := func(code int, body string) {
+		if e := p.sendHTTPResponse(stream, t, &v1.HttpResponse{
+			StatusCode: int32(code),
+			Status:     http.StatusText(code),
+			Body:       []byte(body),
+		}); e != nil {
+			log.Error(e, "Failed to send error response")
+		}
+	}
+
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, taskModel(t)); err != nil {
+		code := http.StatusInternalServerError
+		if errors.Is(err, context.Canceled) {
+			// TODO(aya): after the server can handle the unschedulable error,
+			// return unavailable code for the ErrRequestCanceled as well.
+			code = http.StatusServiceUnavailable
+		}
+		sendErrResponse(code, err.Error())
 		return fmt.Errorf("pull model: %s", err)
 	}
 
@@ -347,7 +364,15 @@ func (p *P) processTask(
 
 	req, err := p.buildRequest(taskCtx, t)
 	if err != nil {
-		return fmt.Errorf("build request: %s", err)
+		err := fmt.Errorf("build request: %s", err)
+		if e := p.sendHTTPResponse(stream, t, &v1.HttpResponse{
+			StatusCode: http.StatusInternalServerError,
+			Status:     http.StatusText(http.StatusInternalServerError),
+			Body:       []byte(err.Error()),
+		}); e != nil {
+			log.Error(e, "Failed to parse the request type")
+		}
+		return err
 	}
 
 	log.Info("Sending request to the LLM server", "url", req.URL)
@@ -357,7 +382,9 @@ func (p *P) processTask(
 	case *v1.TaskRequest_Embedding:
 		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetEmbedding()))
 	default:
-		return fmt.Errorf("unknown request type: %T", req.Request)
+		err := fmt.Errorf("unknown request type: %T", req.Request)
+		sendErrResponse(http.StatusInternalServerError, err.Error())
+		return err
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -365,18 +392,13 @@ func (p *P) processTask(
 		if stream.Context().Err() != nil {
 			return stream.Context().Err()
 		}
-		var code int32
-		if errors.Is(err, context.Canceled) {
-			code = http.StatusServiceUnavailable
-		} else {
+		code := http.StatusServiceUnavailable
+		if !errors.Is(err, context.Canceled) {
 			log.Error(err, "Failed to send request to the LLM server")
 			code = http.StatusInternalServerError
 		}
-		return p.sendHTTPResponse(stream, t, &v1.HttpResponse{
-			StatusCode: code,
-			Status:     http.StatusText(int(code)),
-			Body:       []byte(fmt.Sprintf("Failed to send request to the LLM server: %s", err)),
-		})
+		sendErrResponse(code, fmt.Sprintf("Failed to send request to the LLM server: %s", err))
+		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	done.Store(true)

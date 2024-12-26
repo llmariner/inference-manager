@@ -70,6 +70,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 {{- if and .Values.autoscaler.enable (eq .Values.autoscaler.type "keda") }}
 - apiGroups:
   - keda.sh

@@ -708,7 +708,11 @@ func writeTaskResultToHTTPRespCh(
 		resp := msg.HttpResponse
 
 		if resp.StatusCode == http.StatusServiceUnavailable {
+			// TODO(aya): handle the unscheduled runtime error
 			return retriableError{error: fmt.Errorf("engine is unavailable")}
+		}
+		if resp.StatusCode == http.StatusInternalServerError {
+			return fmt.Errorf("%s: %s", resp.Status, resp.Body)
 		}
 
 		header := http.Header{}

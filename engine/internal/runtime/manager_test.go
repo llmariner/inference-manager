@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -157,6 +159,7 @@ func TestPullModel(t *testing.T) {
 		rt            *runtime
 		deployed      bool
 		readyReplicas int32
+		canceled      bool
 	}{
 		{
 			name: "already ready",
@@ -175,6 +178,11 @@ func TestPullModel(t *testing.T) {
 			deployed:      true,
 			readyReplicas: 1,
 		},
+		{
+			name:     "request is canceled",
+			deployed: true,
+			canceled: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -188,13 +196,8 @@ func TestPullModel(t *testing.T) {
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = *test.rt
 			}
-			ctx, cancel := context.WithCancel(testutil.ContextWithLogger(t))
+			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
 			defer cancel()
-			go func() {
-				time.Sleep(2 * time.Second) // timeout
-				t.Log("canceling context")
-				cancel()
-			}()
 			go func() {
 				// emulate runtime to be ready
 				select {
@@ -202,11 +205,19 @@ func TestPullModel(t *testing.T) {
 					return
 				case <-time.After(300 * time.Millisecond):
 					t.Log("marking runtime ready")
-					mgr.markRuntimeReady("rt-model-0", testModelID, "test")
+					if test.canceled {
+						mgr.cancelWaitingRequests(testModelID)
+					} else {
+						mgr.markRuntimeReady("rt-model-0", testModelID, "test")
+					}
 				}
 			}()
 			err := mgr.PullModel(ctx, testModelID)
-			assert.NoError(t, err)
+			if test.canceled {
+				assert.ErrorIs(t, err, ErrRequestCanceled)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, test.deployed, rtClient.deployed[testModelID])
 			assert.Equal(t, test.deployed, len(scaler.registered) == 1)
 		})
@@ -236,11 +247,13 @@ func TestReconcile(t *testing.T) {
 
 		preFn func(ctx context.Context, m *Manager)
 		sts   *appsv1.StatefulSet
+		pod   *corev1.Pod
 		rt    *runtime
 
-		wantError bool
-		wantReady bool
-		wantExtra func(m *Manager, fs *fakeScalerRegister)
+		wantError   bool
+		wantReady   bool
+		wantChClose bool
+		wantExtra   func(m *Manager, fs *fakeScalerRegister)
 	}{
 		{
 			name: "still pending",
@@ -279,7 +292,8 @@ func TestReconcile(t *testing.T) {
 					}},
 				}
 			},
-			wantReady: true,
+			wantReady:   true,
+			wantChClose: true,
 		},
 		{
 			name: "not-registered (ready)",
@@ -343,12 +357,39 @@ func TestReconcile(t *testing.T) {
 				assert.Empty(t, m.runtimes, "runtime")
 			},
 		},
+		{
+			name: "unschedulable",
+			sts: createSts(func(sts *appsv1.StatefulSet) {
+				sts.Status.Replicas = 1
+			}),
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-0",
+					Namespace: namespace,
+					Labels:    map[string]string{"app.kubernetes.io/instance": name},
+				},
+				Status: corev1.PodStatus{
+					Conditions: []corev1.PodCondition{
+						{
+							Type:   corev1.PodScheduled,
+							Status: corev1.ConditionFalse,
+							Reason: corev1.PodReasonUnschedulable,
+						},
+					},
+				},
+			},
+			rt:          ptr.To(newPendingRuntime(name)),
+			wantChClose: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var objs []apiruntime.Object
 			if test.sts != nil {
 				objs = append(objs, test.sts)
+			}
+			if test.pod != nil {
+				objs = append(objs, test.pod)
 			}
 			k8sClient := fake.NewFakeClient(objs...)
 			rtClient := &fakeClient{deployed: map[string]bool{}}
@@ -367,9 +408,23 @@ func TestReconcile(t *testing.T) {
 			if test.preFn != nil {
 				test.preFn(ctx, mgr)
 			}
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			var chClosed atomic.Bool
+			if test.wantChClose {
+				go func() {
+					select {
+					case <-ctx.Done():
+					case <-test.rt.waitCh:
+						chClosed.Store(true)
+					}
+				}()
+			}
 
 			nn := types.NamespacedName{Name: name, Namespace: namespace}
 			_, err := mgr.Reconcile(ctx, ctrl.Request{NamespacedName: nn})
+
 			if test.wantError {
 				assert.Error(t, err)
 			} else {
@@ -381,6 +436,11 @@ func TestReconcile(t *testing.T) {
 			}
 			if test.wantExtra != nil {
 				test.wantExtra(mgr, scaler)
+			}
+			if test.wantChClose {
+				assert.Eventually(t, func() bool {
+					return chClosed.Load()
+				}, time.Second, 100*time.Millisecond)
 			}
 		})
 	}

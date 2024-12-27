@@ -27,7 +27,7 @@ func New(enableDynamicModelLoading bool) *R {
 }
 
 // GetEnginesForModel returns the engine IDs for the given model.
-func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error) {
+func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string, ignores map[string]bool) ([]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	m, ok := r.mapsByTenantID[tenantID]
@@ -47,11 +47,10 @@ func (r *R) GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([
 		return nil, fmt.Errorf("no route found")
 	}
 
-	engine, err := m.findLeastLoadedEngine()
+	engine, err := m.findLeastLoadedEngine(ignores)
 	if err != nil {
 		return nil, err
 	}
-	m.addRoute(model{id: modelID}, engine)
 	return []string{engine}, nil
 }
 

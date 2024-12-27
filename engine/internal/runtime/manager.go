@@ -61,30 +61,32 @@ func newReadyRuntime(name string, address string) runtime {
 }
 
 type runtime struct {
-	name  string
-	ready bool
+	name      string
+	ready     bool
+	errReason string
 	// address is empty when the runtime is not ready.
 	address string
 	// waitCh is used when the runtime is not ready.
 	waitCh chan struct{}
 }
 
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, error) {
+func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.runtimes[modelID]; ok {
-		return false, nil
+		return false, false, nil
 	}
-	if sts.Status.ReadyReplicas > 0 {
+	ready := sts.Status.ReadyReplicas > 0
+	if ready {
 		c, err := m.rtClientFactory.New(modelID)
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 		m.runtimes[modelID] = newReadyRuntime(sts.Name, c.GetAddress(sts.Name))
 	} else {
 		m.runtimes[modelID] = newPendingRuntime(sts.Name)
 	}
-	return true, nil
+	return ready, true, nil
 }
 
 func (m *Manager) deleteRuntime(name string) {
@@ -128,14 +130,15 @@ func (m *Manager) markRuntimeIsPending(name, modelID string) {
 	}
 }
 
-func (m *Manager) cancelWaitingRequests(modelID string) {
+func (m *Manager) cancelWaitingRequests(modelID, reason string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
-		// cancel the current waiting channel, but recreate a wait channel
-		// because the runtime has a chance to be ready later on.
+		// cancel the current waiting channel, but recreate to avoid panic.
 		close(r.waitCh)
 		r.waitCh = make(chan struct{})
+		r.errReason = reason
+		m.runtimes[modelID] = r
 	}
 }
 
@@ -144,6 +147,16 @@ func (m *Manager) isReady(modelID string) (bool, bool) {
 	defer m.mu.RUnlock()
 	r, ok := m.runtimes[modelID]
 	return r.ready, ok
+}
+
+func (m *Manager) errReason(modelID string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	r, ok := m.runtimes[modelID]
+	if ok {
+		return r.errReason
+	}
+	return ""
 }
 
 // GetLLMAddress returns the address of the LLM.
@@ -228,11 +241,14 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name))
 		}
 	}
+	if m.errReason(modelID) != "" {
+		// The runtime is already in an error state.
+		return ErrRequestCanceled
+	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
 	case <-r.waitCh:
-		ready, _ := m.isReady(modelID)
-		if !ready {
+		if m.errReason(modelID) != "" {
 			// This will happen when the `cancelWaitingRequests` is called.
 			return ErrRequestCanceled
 		}
@@ -278,13 +294,22 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		// This would call when the manager synchronizes the cache
 		// for the first time or when another engine creates a runtime.
 		log.V(4).Info("Registering runtime", "model", modelID)
-		if added, err := m.addRuntime(modelID, sts); err != nil {
+		if ready, added, err := m.addRuntime(modelID, sts); err != nil {
 			log.Error(err, "Failed to add runtime")
 			return ctrl.Result{}, err
 		} else if added {
 			if err := m.autoscaler.Register(ctx, modelID, &sts); err != nil {
 				log.Error(err, "Failed to register autoscaler")
 				return ctrl.Result{}, err
+			}
+			if !ready {
+				if yes, err := hasUnschedulableChildren(ctx, m.k8sClient, sts); err != nil {
+					log.V(2).Error(err, "Failed to check unschedulable children")
+					return ctrl.Result{}, err
+				} else if yes {
+					m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
+					log.V(1).Info("Pod is unschedulable")
+				}
 			}
 		}
 		return ctrl.Result{}, nil
@@ -313,28 +338,12 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		m.markRuntimeReady(sts.Name, modelID, addr)
 		log.Info("Runtime is ready")
 	} else {
-		var podList corev1.PodList
-		if err := m.k8sClient.List(ctx, &podList,
-			client.InNamespace(sts.Namespace),
-			client.MatchingLabels{"app.kubernetes.io/instance": sts.Name},
-		); err != nil {
-			log.Error(err, "Failed to list pods")
+		if yes, err := hasUnschedulableChildren(ctx, m.k8sClient, sts); err != nil {
+			log.V(2).Error(err, "Failed to check unschedulable children")
 			return ctrl.Result{}, err
-		}
-		for _, pod := range podList.Items {
-			if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
-				continue
-			}
-			for _, cond := range pod.Status.Conditions {
-				if cond.Type == corev1.PodScheduled {
-					if cond.Status == corev1.ConditionFalse &&
-						cond.Reason == corev1.PodReasonUnschedulable {
-						m.cancelWaitingRequests(modelID)
-						log.Info("Pod is unschedulable", "message", cond.Message)
-					}
-					break
-				}
-			}
+		} else if yes {
+			m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
+			log.V(1).Info("Pod is unschedulable")
 		}
 	}
 	return ctrl.Result{}, nil
@@ -361,4 +370,34 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 		// for this controller if the processor disables the leader election.
 		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).
 		Complete(m)
+}
+
+func hasUnschedulableChildren(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {
+	var podList corev1.PodList
+	if err := k8sClient.List(ctx, &podList,
+		client.InNamespace(sts.Namespace),
+		client.MatchingLabels{"app.kubernetes.io/instance": sts.Name},
+	); err != nil {
+		return false, err
+	}
+	for _, pod := range podList.Items {
+		if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
+			continue
+		}
+		if yes, _ := isPodUnschedulable(pod); yes {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isPodUnschedulable(pod corev1.Pod) (bool, string) {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodScheduled {
+			return cond.Status == corev1.ConditionFalse &&
+					cond.Reason == corev1.PodReasonUnschedulable,
+				cond.Message
+		}
+	}
+	return false, ""
 }

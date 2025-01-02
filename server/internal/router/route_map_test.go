@@ -39,8 +39,13 @@ func TestFindLeastLoadedEngine(t *testing.T) {
 	t.Logf("- engines: %+v\n", r.engines)
 	t.Logf("- route: %+v\n", r.m)
 
-	got, err := r.findLeastLoadedEngine()
+	got, err := r.findLeastLoadedEngine(map[string]bool{})
 	assert.NoError(t, err)
 	want := "engine2"
+	assert.Equal(t, want, got)
+
+	got, err = r.findLeastLoadedEngine(map[string]bool{"engine2": true})
+	assert.NoError(t, err)
+	want = "engine1"
 	assert.Equal(t, want, got)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -337,9 +338,8 @@ func (p *P) processTask(
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, taskModel(t)); err != nil {
 		code := http.StatusInternalServerError
-		if errors.Is(err, context.Canceled) {
-			// TODO(aya): after the server can handle the unschedulable error,
-			// return unavailable code for the ErrRequestCanceled as well.
+		if errors.Is(err, context.Canceled) ||
+			errors.Is(err, runtime.ErrRequestCanceled) {
 			code = http.StatusServiceUnavailable
 		}
 		sendErrResponse(code, err.Error())

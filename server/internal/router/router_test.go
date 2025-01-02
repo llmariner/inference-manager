@@ -38,11 +38,11 @@ func TestGetEngineForModel(t *testing.T) {
 	r := New(true)
 	r.AddOrUpdateEngine("engine0", tenantID, []string{"model1"})
 
-	engineIDs, err := r.GetEnginesForModel(context.Background(), "model1", tenantID)
+	engineIDs, err := r.GetEnginesForModel(context.Background(), "model1", tenantID, map[string]bool{})
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"engine0"}, engineIDs)
 
-	_, err = r.GetEnginesForModel(context.Background(), "model2", tenantID)
+	_, err = r.GetEnginesForModel(context.Background(), "model2", tenantID, map[string]bool{})
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"engine0"}, engineIDs)
 }
@@ -55,10 +55,10 @@ func TestGetEngineForModel_NoDynamicModelLoading(t *testing.T) {
 	r := New(false)
 	r.AddOrUpdateEngine("engine0", tenantID, []string{"model1"})
 
-	engineIDs, err := r.GetEnginesForModel(context.Background(), "model1", tenantID)
+	engineIDs, err := r.GetEnginesForModel(context.Background(), "model1", tenantID, map[string]bool{})
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"engine0"}, engineIDs)
 
-	_, err = r.GetEnginesForModel(context.Background(), "model2", tenantID)
+	_, err = r.GetEnginesForModel(context.Background(), "model2", tenantID, map[string]bool{})
 	assert.Error(t, err)
 }

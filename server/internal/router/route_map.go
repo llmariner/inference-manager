@@ -114,7 +114,7 @@ func (r *routeMap) findLeastLoadedEngine() (string, error) {
 		}
 	}
 
-	// Find the engine that does not have the least number of models pulled.
+	// Find the engine that has the least number of models pulled.
 	min := 0
 	id := ""
 	for k, v := range modelsByID {

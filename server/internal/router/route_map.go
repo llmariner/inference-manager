@@ -112,7 +112,9 @@ func (r *routeMap) findLeastLoadedEngine(ignores map[string]bool) (string, error
 
 	for model, engines := range r.m {
 		for id := range engines {
-			modelsByID[id] = append(modelsByID[id], model)
+			if !ignores[id] {
+				modelsByID[id] = append(modelsByID[id], model)
+			}
 		}
 	}
 

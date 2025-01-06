@@ -70,13 +70,13 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (bool, bool, error) {
+func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (ready bool, added bool, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.runtimes[modelID]; ok {
 		return false, false, nil
 	}
-	ready := sts.Status.ReadyReplicas > 0
+	ready = sts.Status.ReadyReplicas > 0
 	if ready {
 		c, err := m.rtClientFactory.New(modelID)
 		if err != nil {
@@ -149,14 +149,14 @@ func (m *Manager) isReady(modelID string) (bool, bool) {
 	return r.ready, ok
 }
 
-func (m *Manager) errReason(modelID string) string {
+func (m *Manager) errReason(modelID string) (string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	r, ok := m.runtimes[modelID]
 	if ok {
-		return r.errReason
+		return r.errReason, r.errReason != ""
 	}
-	return ""
+	return "", false
 }
 
 // GetLLMAddress returns the address of the LLM.
@@ -241,14 +241,14 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name))
 		}
 	}
-	if m.errReason(modelID) != "" {
+	if _, ok := m.errReason(modelID); ok {
 		// The runtime is already in an error state.
 		return ErrRequestCanceled
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)
 	select {
 	case <-r.waitCh:
-		if m.errReason(modelID) != "" {
+		if _, ok := m.errReason(modelID); ok {
 			// This will happen when the `cancelWaitingRequests` is called.
 			return ErrRequestCanceled
 		}

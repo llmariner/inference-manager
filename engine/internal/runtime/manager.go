@@ -303,7 +303,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 				return ctrl.Result{}, err
 			}
 			if !ready {
-				if yes, err := hasUnschedulableChildren(ctx, m.k8sClient, sts); err != nil {
+				if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
 					log.V(2).Error(err, "Failed to check unschedulable children")
 					return ctrl.Result{}, err
 				} else if yes {
@@ -338,7 +338,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		m.markRuntimeReady(sts.Name, modelID, addr)
 		log.Info("Runtime is ready")
 	} else {
-		if yes, err := hasUnschedulableChildren(ctx, m.k8sClient, sts); err != nil {
+		if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
 			log.V(2).Error(err, "Failed to check unschedulable children")
 			return ctrl.Result{}, err
 		} else if yes {
@@ -372,7 +372,7 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 		Complete(m)
 }
 
-func hasUnschedulableChildren(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {
+func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {
 	var podList corev1.PodList
 	if err := k8sClient.List(ctx, &podList,
 		client.InNamespace(sts.Namespace),
@@ -380,15 +380,17 @@ func hasUnschedulableChildren(ctx context.Context, k8sClient client.Client, sts 
 	); err != nil {
 		return false, err
 	}
+	var cnt, unschedulable int
 	for _, pod := range podList.Items {
 		if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
 			continue
 		}
+		cnt++
 		if yes, _ := isPodUnschedulable(pod); yes {
-			return true, nil
+			unschedulable++
 		}
 	}
-	return false, nil
+	return unschedulable > 0 && cnt == unschedulable, nil
 }
 
 func isPodUnschedulable(pod corev1.Pod) (bool, string) {

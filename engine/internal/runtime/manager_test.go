@@ -474,6 +474,97 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestAllChildrenUnschedulable(t *testing.T) {
+	ctx := testutil.ContextWithLogger(t)
+	createPod := func(name, revision string, unschedulable bool) corev1.Pod {
+		cond := corev1.ConditionTrue
+		if unschedulable {
+			cond = corev1.ConditionFalse
+		}
+		return corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/instance": "test-sts",
+					"controller-revision-hash":   revision,
+				},
+			},
+			Status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{
+						Type:   corev1.PodScheduled,
+						Status: cond,
+						Reason: corev1.PodReasonUnschedulable,
+					},
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name string
+		pods []corev1.Pod
+		want bool
+	}{
+		{
+			name: "all pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", true),
+				createPod("pod-1", "revision-1", true),
+				createPod("pod-2", "revision-1", true),
+			},
+			want: true,
+		},
+		{
+			name: "some pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", true),
+				createPod("pod-1", "revision-1", false),
+				createPod("pod-2", "revision-1", true),
+			},
+			want: false,
+		},
+		{
+			name: "no pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", false),
+				createPod("pod-1", "revision-2", true),
+			},
+			want: false,
+		},
+		{
+			name: "no matching pods",
+			pods: nil,
+			want: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []apiruntime.Object
+			for _, pod := range tc.pods {
+				objs = append(objs, &pod)
+			}
+			k8sClient := fake.NewFakeClient(objs...)
+
+			sts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "default",
+				},
+				Status: appsv1.StatefulSetStatus{
+					CurrentRevision: "revision-1",
+				},
+			}
+
+			unschedulable, err := allChildrenUnschedulable(ctx, k8sClient, sts)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, unschedulable)
+		})
+	}
+}
+
 type fakeRoundTripper struct {
 	resp func() (*http.Response, error)
 }

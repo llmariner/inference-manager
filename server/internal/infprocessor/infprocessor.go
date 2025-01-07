@@ -17,6 +17,8 @@ import (
 
 const (
 	taskQueueSize = 100
+
+	maxRetryCount = 3
 )
 
 type resultOrError struct {
@@ -40,6 +42,12 @@ type task struct {
 	engineID string
 
 	createdAt time.Time
+
+	// preferedIgnoredEngines is a list of engine IDs that should be ignored
+	// when scheduling the task only if the requested model is not loaded.
+	preferredIgnoredEngines map[string]bool
+
+	retryCount int
 }
 
 func (t *task) model() string {
@@ -105,7 +113,7 @@ func (q *taskQueue) Dequeue(ctx context.Context) (*task, error) {
 type engineRouter interface {
 	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
 	DeleteEngine(engineID, tenantID string)
-	GetEnginesForModel(ctx context.Context, modelID, tenantID string) ([]string, error)
+	GetEnginesForModel(ctx context.Context, modelID, tenantID string, ignores map[string]bool) ([]string, error)
 }
 
 // NewP creates a new processor.
@@ -170,7 +178,10 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
-	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID)
+	// TODO (aya): Rethink the routing logic. The engines in the same
+	// cluster currently share the same model set. It would be better
+	// to choose the cluster first and then randomly select an engine.
+	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID, t.preferredIgnoredEngines)
 	if err != nil {
 		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
@@ -430,7 +441,16 @@ func (p *P) enqueueAndProcessTask(
 				if !p.canRetry(task, err) {
 					return err
 				}
+				task.retryCount++
 
+				// add the engine to the preferred ignored engines list to avoid
+				// scheduling the task to the same engine again.
+				if e := task.engineID; e != "" {
+					if task.preferredIgnoredEngines == nil {
+						task.preferredIgnoredEngines = map[string]bool{}
+					}
+					task.preferredIgnoredEngines[e] = true
+				}
 				p.unassignTaskFromEngine(task)
 
 				_ = time.AfterFunc(p.retryDelay, func() { p.queue.Enqueue(task) })
@@ -456,7 +476,7 @@ func (p *P) canRetry(t *task, err error) bool {
 		return false
 	}
 
-	return p.taskTimeout > 0 && time.Since(t.createdAt.Add(p.retryDelay)) < p.taskTimeout
+	return t.retryCount < maxRetryCount && p.taskTimeout > 0 && time.Since(t.createdAt.Add(p.retryDelay)) < p.taskTimeout
 }
 
 // AddOrUpdateEngineStatus adds or updates the engine status.
@@ -708,7 +728,6 @@ func writeTaskResultToHTTPRespCh(
 		resp := msg.HttpResponse
 
 		if resp.StatusCode == http.StatusServiceUnavailable {
-			// TODO(aya): handle the unscheduled runtime error
 			return retriableError{error: fmt.Errorf("engine is unavailable")}
 		}
 		if resp.StatusCode == http.StatusInternalServerError {

@@ -40,16 +40,19 @@ func TestAddRuntime(t *testing.T) {
 		runtimes:        map[string]runtime{},
 	}
 
-	added, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
+	ready, added, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
 	assert.NoError(t, err)
+	assert.True(t, ready)
 	assert.True(t, added)
 	assert.True(t, mgr.runtimes["model-0"].ready)
-	added, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
+	ready, added, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
 	assert.NoError(t, err)
+	assert.False(t, ready)
 	assert.False(t, added)
 
-	added, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
+	ready, added, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
 	assert.NoError(t, err)
+	assert.False(t, ready)
 	assert.True(t, added)
 	assert.False(t, mgr.runtimes["model-1"].ready)
 	assert.Len(t, mgr.runtimes, 2)
@@ -204,10 +207,11 @@ func TestPullModel(t *testing.T) {
 				case <-ctx.Done():
 					return
 				case <-time.After(300 * time.Millisecond):
-					t.Log("marking runtime ready")
 					if test.canceled {
-						mgr.cancelWaitingRequests(testModelID)
+						t.Log("request is canceled")
+						mgr.cancelWaitingRequests(testModelID, "error")
 					} else {
+						t.Log("marking runtime ready")
 						mgr.markRuntimeReady("rt-model-0", testModelID, "test")
 					}
 				}
@@ -326,17 +330,38 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 1
 			}),
-			preFn: func(ctx context.Context, m *Manager) {
-				http.DefaultClient = &http.Client{
-					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
-						return &http.Response{StatusCode: http.StatusOK}, nil
-					}},
-				}
+			wantReady: false,
+			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+				assert.Len(t, fs.registered, 1, "scaler")
+				assert.Len(t, m.runtimes, 1, "runtime")
+			},
+		},
+		{
+			name: "not-registered (pending,unschedulable)",
+			sts: createSts(func(sts *appsv1.StatefulSet) {
+				sts.Status.Replicas = 1
+			}),
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-0",
+					Namespace: namespace,
+					Labels:    map[string]string{"app.kubernetes.io/instance": name},
+				},
+				Status: corev1.PodStatus{
+					Conditions: []corev1.PodCondition{
+						{
+							Type:   corev1.PodScheduled,
+							Status: corev1.ConditionFalse,
+							Reason: corev1.PodReasonUnschedulable,
+						},
+					},
+				},
 			},
 			wantReady: false,
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
 				assert.Len(t, m.runtimes, 1, "runtime")
+				assert.Equal(t, corev1.PodReasonUnschedulable, m.runtimes[modelID].errReason)
 			},
 		},
 		{
@@ -380,6 +405,9 @@ func TestReconcile(t *testing.T) {
 			},
 			rt:          ptr.To(newPendingRuntime(name)),
 			wantChClose: true,
+			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+				assert.Equal(t, corev1.PodReasonUnschedulable, m.runtimes[modelID].errReason)
+			},
 		},
 	}
 	for _, test := range tests {
@@ -442,6 +470,97 @@ func TestReconcile(t *testing.T) {
 					return chClosed.Load()
 				}, time.Second, 100*time.Millisecond)
 			}
+		})
+	}
+}
+
+func TestAllChildrenUnschedulable(t *testing.T) {
+	ctx := testutil.ContextWithLogger(t)
+	createPod := func(name, revision string, unschedulable bool) corev1.Pod {
+		cond := corev1.ConditionTrue
+		if unschedulable {
+			cond = corev1.ConditionFalse
+		}
+		return corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/instance": "test-sts",
+					"controller-revision-hash":   revision,
+				},
+			},
+			Status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{
+						Type:   corev1.PodScheduled,
+						Status: cond,
+						Reason: corev1.PodReasonUnschedulable,
+					},
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name string
+		pods []corev1.Pod
+		want bool
+	}{
+		{
+			name: "all pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", true),
+				createPod("pod-1", "revision-1", true),
+				createPod("pod-2", "revision-1", true),
+			},
+			want: true,
+		},
+		{
+			name: "some pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", true),
+				createPod("pod-1", "revision-1", false),
+				createPod("pod-2", "revision-1", true),
+			},
+			want: false,
+		},
+		{
+			name: "no pods unschedulable",
+			pods: []corev1.Pod{
+				createPod("pod-0", "revision-1", false),
+				createPod("pod-1", "revision-2", true),
+			},
+			want: false,
+		},
+		{
+			name: "no matching pods",
+			pods: nil,
+			want: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []apiruntime.Object
+			for _, pod := range tc.pods {
+				objs = append(objs, &pod)
+			}
+			k8sClient := fake.NewFakeClient(objs...)
+
+			sts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "default",
+				},
+				Status: appsv1.StatefulSetStatus{
+					CurrentRevision: "revision-1",
+				},
+			}
+
+			unschedulable, err := allChildrenUnschedulable(ctx, k8sClient, sts)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, unschedulable)
 		})
 	}
 }

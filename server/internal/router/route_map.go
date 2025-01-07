@@ -94,23 +94,27 @@ func (r *routeMap) deleteEngine(engineID string) {
 }
 
 // findLeastLoadedEngine finds the engine with the least number of loaded models.
-func (r *routeMap) findLeastLoadedEngine() (string, error) {
+func (r *routeMap) findLeastLoadedEngine(ignores map[string]bool) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	if len(r.engines) == 0 {
-		return "", fmt.Errorf("no engine available")
-	}
 
 	// modelsByID is a list of models keyed by engine IDs. This includes engines that don't have any models
 	modelsByID := make(map[string][]model)
 	for id := range r.engines {
-		modelsByID[id] = []model{}
+		if !ignores[id] {
+			modelsByID[id] = []model{}
+		}
+	}
+
+	if len(modelsByID) == 0 {
+		return "", fmt.Errorf("no engine available")
 	}
 
 	for model, engines := range r.m {
 		for id := range engines {
-			modelsByID[id] = append(modelsByID[id], model)
+			if !ignores[id] {
+				modelsByID[id] = append(modelsByID[id], model)
+			}
 		}
 	}
 

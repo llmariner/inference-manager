@@ -290,6 +290,13 @@ func chatTemplate(modelID string) string {
 {{message['content']}}
 {% endfor %}
 `
+	case strings.Contains(modelID, "phi-4"):
+		// Follow https://huggingface.co/microsoft/phi-4.
+		return `
+{% for message in messages %}
+{{'<|im_start|>' + message['role'] + '<|im_sep|>\n' + message['content'] + '\n<|im_end|>\n'}}
+{% endfor %}
+`
 	case strings.Contains(modelID, "ultravox"):
 		return ""
 	default:

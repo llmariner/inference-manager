@@ -94,8 +94,7 @@ runtime:
     # The container image of Ollama.
     ollama: mirror.gcr.io/ollama/ollama:0.3.6
     # The container image of vLLM.
-    # Use 0.6.2 instead of 0.6.3 as we might hit https://github.com/vllm-project/vllm/issues/9670.
-    vllm: mirror.gcr.io/vllm/vllm-openai:v0.6.2
+    vllm: mirror.gcr.io/vllm/vllm-openai:v0.6.6.post1
     # The container image of NVIDIA Triton Server.
     # Release 2.50.0 (https://github.com/triton-inference-server/server/releases/tag/v2.50.0).
     # We might need to recompile models when we upgrade the version of Triton Inference Server

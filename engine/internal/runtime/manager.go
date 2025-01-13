@@ -241,8 +241,9 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name))
 		}
 	}
-	if _, ok := m.errReason(modelID); ok {
+	if reason, ok := m.errReason(modelID); ok {
 		// The runtime is already in an error state.
+		log.V(4).Info("Runtime is in an error state", "reason", reason)
 		return ErrRequestCanceled
 	}
 	log.Info("Waiting for runtime to be ready", "model", modelID)

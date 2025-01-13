@@ -252,16 +252,21 @@ func TestSendAndProcessTask(t *testing.T) {
 	}
 
 	resultCh := make(chan *v1.TaskResult)
+	done := make(chan struct{})
 	go func() {
 		f := func(r *v1.TaskResult) error {
 			resultCh <- r
 			return nil
 		}
 		_ = iprocessor.SendAndProcessTask(ctx, task, "tenant0", f)
+		close(done)
 	}()
 
 	resp := <-resultCh
 	assert.Equal(t, http.StatusOK, int(resp.GetHttpResponse().StatusCode))
+
+	// Wait for the task completion.
+	<-done
 }
 
 func TestFindMostPreferredtEngine(t *testing.T) {

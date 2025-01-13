@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -93,7 +94,14 @@ func (p *Preloader) pullModel(ctx context.Context, id string) error {
 		}
 	}
 
-	return p.rtManager.PullModel(ctx, id)
+	if err := p.rtManager.PullModel(ctx, id); !errors.Is(err, ErrRequestCanceled) {
+		// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
+		// an error from here will make the preloading fails, but an unschedulable pod is
+		// expected when a cluster is being autoscaled.
+		return err
+	}
+
+	return nil
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable and always returns true.

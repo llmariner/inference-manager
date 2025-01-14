@@ -83,6 +83,8 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 		return 16384, true, nil
 	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		return 256, true, nil
+	case strings.Contains(modelID, "phi-4"):
+		return 0, false, nil
 	default:
 		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", modelID)
 	}
@@ -231,6 +233,21 @@ TEMPLATE """{{- if .Suffix }}<｜fim▁begin｜>{{ .Prompt }}<｜fim▁hole｜>{
 {{- end }}"""
 PARAMETER stop User:
 PARAMETER stop Assistant:
+`, nil
+	case strings.Contains(modelID, "phi-4"):
+		return `
+TEMPLATE """{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 -}}
+<|im_start|>{{ .Role }}<|im_sep|>
+{{ .Content }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- if and (ne .Role "assistant") $last }}<|im_end|>
+<|im_start|>assistant<|im_sep|>
+{{ end }}
+{{- end }}"""
+PARAMETER stop <|im_start|>
+PARAMETER stop <|im_end|>
+PARAMETER stop <|im_sep|>
 `, nil
 	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		// This model is for embedding.

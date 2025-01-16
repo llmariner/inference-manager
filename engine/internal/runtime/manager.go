@@ -70,7 +70,7 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (ready bool, added bool, err error) {
+func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool, ready bool, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.runtimes[modelID]; ok {
@@ -86,7 +86,7 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (ready bool
 	} else {
 		m.runtimes[modelID] = newPendingRuntime(sts.Name)
 	}
-	return ready, true, nil
+	return true, ready, nil
 }
 
 func (m *Manager) deleteRuntime(name string) {
@@ -295,7 +295,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		// This would call when the manager synchronizes the cache
 		// for the first time or when another engine creates a runtime.
 		log.V(4).Info("Registering runtime", "model", modelID)
-		if ready, added, err := m.addRuntime(modelID, sts); err != nil {
+		if added, ready, err := m.addRuntime(modelID, sts); err != nil {
 			log.Error(err, "Failed to add runtime")
 			return ctrl.Result{}, err
 		} else if added {

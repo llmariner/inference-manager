@@ -95,7 +95,7 @@ func (s *S) CreateCompletion(
 		return
 	}
 
-	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), req.Header)
+	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return

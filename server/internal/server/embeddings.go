@@ -82,7 +82,7 @@ func (s *S) CreateEmbedding(
 		return
 	}
 
-	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, req.Header)
+	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return

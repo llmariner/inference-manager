@@ -126,7 +126,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, &createReq, req.Header)
+	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
@@ -352,4 +352,17 @@ func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageReco
 func httpError(w http.ResponseWriter, error string, code int, usage *auv1.UsageRecord) {
 	usage.StatusCode = int32(code)
 	http.Error(w, error, code)
+}
+
+// drop unnecessary headers that we don't want to pass to engine.
+func dropUnnecessaryHeaders(headers http.Header) http.Header {
+	// TODO(kenji): Add more.
+	ks := []string{
+		"Authorization",
+		"Origin",
+	}
+	for _, k := range ks {
+		headers.Del(k)
+	}
+	return headers
 }

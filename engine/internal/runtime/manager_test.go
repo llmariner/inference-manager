@@ -40,20 +40,20 @@ func TestAddRuntime(t *testing.T) {
 		runtimes:        map[string]runtime{},
 	}
 
-	ready, added, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
+	added, ready, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
 	assert.NoError(t, err)
+	assert.True(t, added)
 	assert.True(t, ready)
-	assert.True(t, added)
 	assert.True(t, mgr.runtimes["model-0"].ready)
-	ready, added, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
+	added, ready, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
 	assert.NoError(t, err)
-	assert.False(t, ready)
 	assert.False(t, added)
-
-	ready, added, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
-	assert.NoError(t, err)
 	assert.False(t, ready)
+
+	added, ready, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
+	assert.NoError(t, err)
 	assert.True(t, added)
+	assert.False(t, ready)
 	assert.False(t, mgr.runtimes["model-1"].ready)
 	assert.Len(t, mgr.runtimes, 2)
 }

@@ -153,9 +153,9 @@
         "name": {
           "type": "string"
         },
-        "parameters": {
+        "encodedParameters": {
           "type": "string",
-          "description": "TODO(kenji): Revisit this. This specifies parameters the functions accepts,\ndescribed as a JSON Schema object."
+          "description": "OpenAI API has the \"parameters\" field that stores a JSON Schema object.\nAs we cannot have a JSON Schema object in the proto, we encode the JSON Schema object\nwith base64 and store it before unmarshalling it in the server.\n\nThe field is converted to the \"parameters\" field when the request is being\nsent to an inference runtime."
         }
       }
     },

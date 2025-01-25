@@ -3,6 +3,7 @@ package processor
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -99,6 +100,52 @@ func TestEmbedding(t *testing.T) {
 	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))
 	assert.Equal(t, "ok", string(resp.Body))
+}
+
+func TestConvertEncodedFunctionParameters(t *testing.T) {
+	reqBody := `
+{
+"tools": [{
+  "type": "function",
+  "function": {
+     "name": "get_weather",
+     "description": "Get current temperature for a given location.",
+     "encoded_parameters": "eyJwcm9wZXJ0aWVzIjp7ImxvY2F0aW9uIjp7ImRlc2NyaXB0aW9uIjoiQ2l0eSBhbmQgY291bnRyeSIsInR5cGUiOiJzdHJpbmcifX0sInJlcXVpcmVkIjpbImxvY2F0aW9uIl0sInR5cGUiOiJvYmplY3QifQ==",
+      "strict": true
+    }
+}]}`
+	got, err := convertEncodedFunctionParameters([]byte(reqBody))
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal(got, &r)
+	assert.NoError(t, err)
+	tools, ok := r["tools"]
+	assert.True(t, ok)
+	assert.Len(t, tools.([]interface{}), 1)
+	tool := tools.([]interface{})[0].(map[string]interface{})
+	f, ok := tool["function"]
+	assert.True(t, ok)
+	fn := f.(map[string]interface{})
+
+	_, ok = fn["encoded_parameters"]
+	assert.False(t, ok)
+
+	p, ok := fn["parameters"]
+	assert.True(t, ok)
+
+	gotR := p.(map[string]interface{})
+	wantR := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"location": map[string]interface{}{
+				"type":        "string",
+				"description": "City and country",
+			},
+		},
+		"required": []interface{}{"location"},
+	}
+	assert.Equal(t, wantR, gotR)
 }
 
 func newFakeOllamaServer() (*fakeOllamaServer, error) {

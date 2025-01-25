@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,6 +85,12 @@ func (s *S) CreateChatCompletion(
 	reqBody, code, err := convertContentStringToArray(reqBody)
 	if err != nil {
 		httpError(w, err.Error(), code, &usage)
+		return
+	}
+
+	reqBody, err = convertFunctionParameters(reqBody)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
 
@@ -251,7 +258,12 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 		switch tool.Function.Name {
 		case ragToolName:
 			var ragFunction v1.RagFunction
-			if err := json.Unmarshal([]byte(tool.Function.Parameters), &ragFunction); err != nil {
+
+			b, err := base64.URLEncoding.DecodeString(tool.Function.EncodedParameters)
+			if err != nil {
+				return http.StatusBadRequest, fmt.Errorf("failed to decode parameters: %s", err)
+			}
+			if err := json.Unmarshal(b, &ragFunction); err != nil {
 				return http.StatusBadRequest, err
 			}
 			if ragFunction.VectorStoreName == "" {
@@ -296,6 +308,53 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 	return http.StatusOK, nil
 }
 
+// convertFunctionParameters marshals the "parameters" field of the function to
+// and sets the result to the "marshalled_parameters" field of the function.
+// The original "parameters" field is removed.
+//
+// This is to follow the OpenAI API spec, which cannot be handled by the protobuf.
+func convertFunctionParameters(body []byte) ([]byte, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, err
+	}
+
+	tools, ok := r["tools"]
+	if !ok {
+		return body, nil
+	}
+	for _, tool := range tools.([]interface{}) {
+		t := tool.(map[string]interface{})
+		f, ok := t["function"]
+		if !ok {
+			continue
+		}
+
+		fn := f.(map[string]interface{})
+
+		p, ok := fn["parameters"]
+		if !ok {
+			continue
+		}
+
+		pp, err := json.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
+
+		fn["encoded_parameters"] = base64.URLEncoding.EncodeToString(pp)
+		delete(fn, "parameters")
+	}
+
+	// Marshal again and then unmarshal.
+	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshal the request: %s", err)
+	}
+
+	return body, nil
+}
+
 // convertContentStringToArray converts the content field from a string to an array.
 //
 // This is a workaround to follow the OpenAI API spec, which cannot be handled by the protobuf.
@@ -327,7 +386,7 @@ func convertContentStringToArray(body []byte) ([]byte, int, error) {
 		}
 	}
 
-	// Marshal again and then unmarshal.
+	// Marshal again.
 	body, err := json.Marshal(r)
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to marshal the request: %s", err)

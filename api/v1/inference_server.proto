@@ -62,9 +62,13 @@ message CreateChatCompletionRequest {
     message Function {
       string description = 1;
       string name = 2;
-      // TODO(kenji): Revisit this. This specifies parameters the functions accepts,
-      // described as a JSON Schema object.
-      string parameters = 3;
+      // OpenAI API has the "parameters" field that stores a JSON Schema object.
+      // As we cannot have a JSON Schema object in the proto, we encode the JSON Schema object
+      // with base64 and store it before unmarshalling it in the server.
+      //
+      // The field is converted to the "parameters" field when the request is being
+      // sent to an inference runtime.
+      string encoded_parameters = 3;
     }
     string type = 1;
     Function function = 2;

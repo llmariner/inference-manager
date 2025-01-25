@@ -37,7 +37,7 @@ export type CreateChatCompletionRequestResponseFormat = {
 export type CreateChatCompletionRequestToolFunction = {
     description?: string;
     name?: string;
-    parameters?: string;
+    encodedParameters?: string;
 };
 export type CreateChatCompletionRequestTool = {
     type?: string;

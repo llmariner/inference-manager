@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -151,8 +152,8 @@ func TestCreateChatCompletion(t *testing.T) {
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:       ragToolName,
-							Parameters: `{"vector_store_name":"test"}`,
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
 						},
 					},
 				},
@@ -185,8 +186,8 @@ func TestCreateChatCompletion(t *testing.T) {
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:       ragToolName,
-							Parameters: `{"vector_store_name":"invalid_name"}`,
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"invalid_name"}`)),
 						},
 					},
 				},
@@ -216,8 +217,8 @@ func TestCreateChatCompletion(t *testing.T) {
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:       ragToolName,
-							Parameters: `{"vector_store_name":"test"}`,
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
 						},
 					},
 				},
@@ -250,8 +251,8 @@ func TestCreateChatCompletion(t *testing.T) {
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:       ragToolName,
-							Parameters: `{"vector_store":"test"}`,
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store":"test"}`)),
 						},
 					},
 				},
@@ -287,6 +288,70 @@ func TestCreateChatCompletion(t *testing.T) {
 			assert.Equal(t, tc.code, w.Code)
 		})
 	}
+}
+
+func TestConvertFunctionParameters(t *testing.T) {
+	reqBody := `
+{
+"tools": [{
+  "type": "function",
+  "function": {
+     "name": "get_weather",
+     "description": "Get current temperature for a given location.",
+     "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City and country"
+          }
+        }
+      },
+      "strict": true
+    }
+}]}`
+	got, err := convertFunctionParameters([]byte(reqBody))
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal(got, &r)
+	assert.NoError(t, err)
+	tools, ok := r["tools"]
+	assert.True(t, ok)
+	assert.Len(t, tools.([]interface{}), 1)
+	tool := tools.([]interface{})[0].(map[string]interface{})
+	f, ok := tool["function"]
+	assert.True(t, ok)
+	fn := f.(map[string]interface{})
+
+	_, ok = fn["parameters"]
+	assert.False(t, ok)
+
+	p, ok := fn["encoded_parameters"]
+	assert.True(t, ok)
+
+	b, ok := p.(string)
+	assert.True(t, ok)
+	bb, err := base64.URLEncoding.DecodeString(b)
+	assert.NoError(t, err)
+
+	gotR := map[string]interface{}{}
+	err = json.Unmarshal(bb, &gotR)
+	assert.NoError(t, err)
+	wantR := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"location": map[string]interface{}{
+				"type":        "string",
+				"description": "City and country",
+			},
+		},
+	}
+	assert.Equal(t, wantR, gotR)
+
+	var createReq v1.CreateChatCompletionRequest
+	err = json.Unmarshal(got, &createReq)
+	assert.NoError(t, err)
 }
 
 func TestConvertContentStringToArray(t *testing.T) {

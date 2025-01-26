@@ -324,7 +324,10 @@
       "properties": {
         "input": {
           "type": "string",
-          "description": "This can be a string or an array of strings, but we use string assuming that it is more common."
+          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a stryg, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
+        },
+        "encodedInput": {
+          "type": "string"
         },
         "model": {
           "type": "string"

@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"testing"
 
+	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,6 +41,11 @@ func TestConvertInputIfNotString(t *testing.T) {
 			got, err := convertInputIfNotString([]byte(tc.body))
 			assert.NoError(t, err)
 			assert.Equal(t, tc.want, string(got))
+
+			var req v1.CreateEmbeddingRequest
+			err = json.Unmarshal(got, &req)
+			assert.NoError(t, err)
+			assert.True(t, req.Input != "" || req.EncodedInput != "")
 		})
 	}
 }

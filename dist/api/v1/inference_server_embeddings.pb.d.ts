@@ -1,5 +1,6 @@
 export type CreateEmbeddingRequest = {
     input?: string;
+    encodedInput?: string;
     model?: string;
     encodingFormat?: string;
     dimensions?: number;

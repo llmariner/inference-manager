@@ -7,8 +7,11 @@ import "google/api/annotations.proto";
 option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 message CreateEmbeddingRequest {
-   // This can be a string or an array of strings, but we use string assuming that it is more common.
+  // The "input" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.
+  // As that is not supported by proto, if the input is not a stryg, we move the value of the "input" field to "encoded_input"
+  // and remove the field before unmarshalling.
   string input = 1;
+  string encoded_input = 6;
   string model = 2;
 
   string encoding_format = 3;

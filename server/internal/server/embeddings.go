@@ -67,7 +67,7 @@ func (s *S) CreateEmbedding(
 		return
 	}
 
-	if createReq.Input == "" {
+	if createReq.Input == "" && createReq.EncodedInput == "" {
 		httpError(w, "Input is required", http.StatusBadRequest, &usage)
 		return
 	}

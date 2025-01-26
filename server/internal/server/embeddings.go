@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,6 +49,12 @@ func (s *S) CreateEmbedding(
 	}
 
 	reqBody, err := io.ReadAll(req.Body)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+		return
+	}
+
+	reqBody, err = convertInputIfNotString(reqBody)
 	if err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
@@ -113,4 +120,43 @@ func (s *S) CreateEmbedding(
 		return
 	}
 	s.logger.Info("Embedding creation completed", "model", createReq.Model, "duration", time.Since(st))
+}
+
+// convertInputIfNotString checks if the value of the "input" is string, and
+// takes the following convertion if it is not a strong.
+// 1. Eencoded the value and store it in the "encoded_input" field.
+// 2. Remove the "input" field.
+//
+// This is to follow the OpenAI API spec, which cannot be handled by the protobuf.
+func convertInputIfNotString(body []byte) ([]byte, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, err
+	}
+
+	input, ok := r["input"]
+	if !ok {
+		return body, nil
+	}
+
+	if _, ok := input.(string); ok {
+		// Do nothing.
+		return body, nil
+	}
+
+	mi, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+
+	r["encoded_input"] = base64.URLEncoding.EncodeToString(mi)
+	delete(r, "input")
+
+	// Marshal again.
+	body, err = json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshal the request: %s", err)
+	}
+
+	return body, nil
 }

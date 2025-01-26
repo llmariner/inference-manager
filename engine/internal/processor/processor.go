@@ -513,7 +513,15 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 
 	case *v1.TaskRequest_Embedding:
 		r := req.GetEmbedding()
+
 		reqBody, err = json.Marshal(r)
+		if err != nil {
+			return nil, err
+		}
+
+		// Convert the "encoded_input" to "input". This to revert the change
+		// made by the server in convertInputIfNotString.
+		reqBody, err = convertEncodedInput(reqBody)
 		if err != nil {
 			return nil, err
 		}
@@ -682,6 +690,39 @@ func convertEncodedFunctionParameters(body []byte) ([]byte, error) {
 
 	// Marshal again.
 	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshal the request: %s", err)
+	}
+
+	return body, nil
+}
+
+func convertEncodedInput(body []byte) ([]byte, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, err
+	}
+
+	input, ok := r["encoded_input"]
+	if !ok {
+		return body, nil
+	}
+
+	b, err := base64.URLEncoding.DecodeString(input.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	i := []interface{}{}
+	if err := json.Unmarshal(b, &i); err != nil {
+		return nil, err
+	}
+
+	r["input"] = i
+	delete(r, "encoded_input")
+
+	// Marshal again.
+	body, err = json.Marshal(r)
 	if err != nil {
 		return nil, fmt.Errorf("marshal the request: %s", err)
 	}

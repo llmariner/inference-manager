@@ -148,6 +148,43 @@ func TestConvertEncodedFunctionParameters(t *testing.T) {
 	assert.Equal(t, wantR, gotR)
 }
 
+func TestConvertEncodedInput(t *testing.T) {
+	tcs := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "string input",
+			body: `{"input": "The food was delicious."}`,
+			want: `{"input": "The food was delicious."}`,
+		},
+		{
+			name: "string input",
+			body: `{"encoded_input": "WyJhIiwiYiJd"}`,
+			want: `{"input":["a","b"]}`,
+		},
+		{
+			name: "string input",
+			body: `{"encoded_input": "WzEsMl0="}`,
+			want: `{"input":[1,2]}`,
+		},
+		{
+			name: "string input",
+			body: `{"encoded_input": "W1sxXSxbMl1d"}`,
+			want: `{"input":[[1],[2]]}`,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := convertEncodedInput([]byte(tc.body))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
 func newFakeOllamaServer() (*fakeOllamaServer, error) {
 	m := http.NewServeMux()
 

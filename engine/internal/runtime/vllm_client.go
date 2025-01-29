@@ -99,9 +99,19 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 	// such as stop tokens.
 	if t := chatTemplate(modelID); t != "" {
-		// TODO(kenji): Return an error if the model file doesn't include a template config and it must be
-		// explicitly specified.
-		args = append(args, "--chat-template", t)
+		// Set --chat-template only if it is not explicitly set in the extra flags.
+		var found = false
+		for _, f := range v.mconfig.ModelConfigItem(modelID).VLLMExtraFlags {
+			if f == "--chat-template" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// TODO(kenji): Return an error if the model file doesn't include a template config and it must be
+			// explicitly specified.
+			args = append(args, "--chat-template", t)
+		}
 	}
 	if isBaseModel(model) {
 		mPath, err := v.baseModelFilePath(ctx, modelID)

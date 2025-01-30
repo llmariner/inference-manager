@@ -3,7 +3,6 @@ package processor
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
+	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
@@ -502,14 +502,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 			return nil, err
 		}
 
-		reqBody, err = convertToolChoiceObject(reqBody)
-		if err != nil {
-			return nil, err
-		}
-
-		// Convert the "encoded_parameters" of functions back to "parameters". This to revert the change
-		// made by the server in convertFunctionParameters.
-		reqBody, err = convertEncodedFunctionParameters(reqBody)
+		reqBody, err = api.ConvertCreateChatCompletionRequestToOpenAI(reqBody)
 		if err != nil {
 			return nil, err
 		}
@@ -524,9 +517,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 			return nil, err
 		}
 
-		// Convert the "encoded_input" to "input". This to revert the change
-		// made by the server in convertInputIfNotString.
-		reqBody, err = convertEncodedInput(reqBody)
+		reqBody, err = api.ConvertCreateEmbeddingRequestToOpenAI(reqBody)
 		if err != nil {
 			return nil, err
 		}
@@ -653,107 +644,4 @@ func isConnClosedErr(err error) bool {
 	return err == io.EOF ||
 		// connection error type is defined in the gRPC internal transpot package.
 		strings.Contains(err.Error(), "error reading from server: EOF")
-}
-
-// convertToolChoiceObject converts "tool_choice_object" to "tool_choice".
-func convertToolChoiceObject(body []byte) ([]byte, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, err
-	}
-
-	v, ok := r["tool_choice_object"]
-	if !ok {
-		// Do nothing.
-		return body, nil
-	}
-	r["tool_choice"] = v
-	delete(r, "tool_choice_object")
-
-	// Marshal again.
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshal the request: %s", err)
-	}
-	return body, nil
-}
-
-func convertEncodedFunctionParameters(body []byte) ([]byte, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, err
-	}
-
-	tools, ok := r["tools"]
-	if !ok {
-		return body, nil
-	}
-	for _, tool := range tools.([]interface{}) {
-		t := tool.(map[string]interface{})
-		f, ok := t["function"]
-		if !ok {
-			continue
-		}
-
-		fn := f.(map[string]interface{})
-
-		p, ok := fn["encoded_parameters"]
-		if !ok {
-			continue
-		}
-
-		b, err := base64.URLEncoding.DecodeString(p.(string))
-		if err != nil {
-			return nil, err
-		}
-
-		pp := map[string]interface{}{}
-		if err := json.Unmarshal(b, &pp); err != nil {
-			return nil, err
-		}
-
-		fn["parameters"] = pp
-		delete(fn, "encoded_parameters")
-	}
-
-	// Marshal again.
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshal the request: %s", err)
-	}
-
-	return body, nil
-}
-
-func convertEncodedInput(body []byte) ([]byte, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, err
-	}
-
-	input, ok := r["encoded_input"]
-	if !ok {
-		return body, nil
-	}
-
-	b, err := base64.URLEncoding.DecodeString(input.(string))
-	if err != nil {
-		return nil, err
-	}
-
-	i := []interface{}{}
-	if err := json.Unmarshal(b, &i); err != nil {
-		return nil, err
-	}
-
-	r["input"] = i
-	delete(r, "encoded_input")
-
-	// Marshal again.
-	body, err = json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshal the request: %s", err)
-	}
-
-	return body, nil
 }

@@ -248,10 +248,7 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 		return http.StatusBadRequest, fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
 	}
 
-	var (
-		messages []*v1.CreateChatCompletionRequest_Message
-		tools    []*v1.CreateChatCompletionRequest_Tool
-	)
+	var tools []*v1.CreateChatCompletionRequest_Tool
 	for _, tool := range req.Tools {
 		if tool.Type != functionObjectType {
 			tools = append(tools, tool)
@@ -292,13 +289,12 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
-		messages = append(messages, msgs...)
+		req.Messages = msgs
 	}
-	req.Messages = messages
-	if len(tools) == 0 {
+	req.Tools = tools
+	if len(req.Tools) == 0 {
 		// Clear the tool related fields as we don't want to pass this to Ollama.
 		req.ToolChoice = nil
-		req.Tools = nil
 	}
 	return http.StatusOK, nil
 }

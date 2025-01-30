@@ -13,6 +13,7 @@ import (
 
 	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
+	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -31,8 +32,6 @@ const (
 	autoToolChoice     toolChoiceType = "auto"
 	requiredToolChoice toolChoiceType = "required"
 	noneToolChoice     toolChoiceType = "none"
-
-	contentTypeText = "text"
 )
 
 // CreateChatCompletion creates a chat completion.
@@ -82,21 +81,9 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	reqBody, code, err := convertContentStringToArray(reqBody)
+	reqBody, err = api.ConvertCreateChatCompletionRequestToProto(reqBody)
 	if err != nil {
-		httpError(w, err.Error(), code, &usage)
-		return
-	}
-
-	reqBody, err = convertToolChoice(reqBody)
-	if err != nil {
-		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
-		return
-	}
-
-	reqBody, err = convertFunctionParameters(reqBody)
-	if err != nil {
-		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+		httpError(w, err.Error(), http.StatusBadRequest, &usage)
 		return
 	}
 
@@ -337,125 +324,6 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 		return http.StatusInternalServerError, fmt.Errorf("get model: %s", err)
 	}
 	return http.StatusOK, nil
-}
-
-// convertToolChoice marshals the "tool_choice" field of the request to
-// and sets the result to the "encoded_tool_choice" field of the request.
-// The original "tool_choice" field is removed.
-//
-// This is to follow the OpenAI API spec, which cannot be handled by the protobuf.
-func convertToolChoice(body []byte) ([]byte, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, err
-	}
-
-	v, ok := r["tool_choice"]
-	if !ok {
-		return body, nil
-	}
-
-	if _, ok := v.(string); ok {
-		return body, nil
-	}
-
-	r["tool_choice_object"] = v
-	delete(r, "tool_choice")
-
-	// Marshal again and then unmarshal.
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshal the request: %s", err)
-	}
-
-	return body, nil
-}
-
-// convertFunctionParameters marshals the "parameters" field of the function to
-// and sets the result to the "encoded_parameters" field of the function.
-// The original "parameters" field is removed.
-//
-// This is to follow the OpenAI API spec, which cannot be handled by the protobuf.
-func convertFunctionParameters(body []byte) ([]byte, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, err
-	}
-
-	tools, ok := r["tools"]
-	if !ok {
-		return body, nil
-	}
-	for _, tool := range tools.([]interface{}) {
-		t := tool.(map[string]interface{})
-		f, ok := t["function"]
-		if !ok {
-			continue
-		}
-
-		fn := f.(map[string]interface{})
-
-		p, ok := fn["parameters"]
-		if !ok {
-			continue
-		}
-
-		pp, err := json.Marshal(p)
-		if err != nil {
-			return nil, err
-		}
-
-		fn["encoded_parameters"] = base64.URLEncoding.EncodeToString(pp)
-		delete(fn, "parameters")
-	}
-
-	// Marshal again and then unmarshal.
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshal the request: %s", err)
-	}
-
-	return body, nil
-}
-
-// convertContentStringToArray converts the content field from a string to an array.
-//
-// This is a workaround to follow the OpenAI API spec, which cannot be handled by the protobuf.
-//
-// This function returns the converted request boy, an HTTP status code, and an error.
-func convertContentStringToArray(body []byte) ([]byte, int, error) {
-	r := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-
-	msgs, ok := r["messages"]
-	if !ok {
-		return nil, http.StatusBadRequest, fmt.Errorf("messages is required")
-	}
-	for _, msg := range msgs.([]interface{}) {
-		m := msg.(map[string]interface{})
-		content, ok := m["content"]
-		if !ok {
-			return nil, http.StatusBadRequest, fmt.Errorf("content is required")
-		}
-		if cs, ok := content.(string); ok {
-			m["content"] = []map[string]interface{}{
-				{
-					"type": contentTypeText,
-					"text": cs,
-				},
-			}
-		}
-	}
-
-	// Marshal again.
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to marshal the request: %s", err)
-	}
-
-	return body, 0, nil
 }
 
 func newUsageRecord(ui auth.UserInfo, t time.Time, method string) auv1.UsageRecord {

@@ -119,9 +119,8 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "valid tools",
 			req: &v1.CreateChatCompletionRequest{
 				Model: modelID,
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
 						Name: "test",
 					},
@@ -144,9 +143,8 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "valid rag",
 			req: &v1.CreateChatCompletionRequest{
 				Model: modelID,
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
 						Name: ragToolName,
 					},
@@ -178,9 +176,8 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "invalid vector store name",
 			req: &v1.CreateChatCompletionRequest{
 				Model: modelID,
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
 						Name: ragToolName,
 					},
@@ -211,11 +208,8 @@ func TestCreateChatCompletion(t *testing.T) {
 		{
 			name: "skip rag",
 			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(noneToolChoice),
-					Type:   functionObjectType,
-				},
+				Model:      modelID,
+				ToolChoice: string(noneToolChoice),
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
 						Type: functionObjectType,
@@ -243,9 +237,8 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "invalid rag parameter",
 			req: &v1.CreateChatCompletionRequest{
 				Model: modelID,
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
 						Name: ragToolName,
 					},
@@ -289,6 +282,33 @@ func TestCreateChatCompletion(t *testing.T) {
 			srv.CreateChatCompletion(w, req, pathParams)
 
 			assert.Equal(t, tc.code, w.Code)
+		})
+	}
+}
+
+func TestConvertToolChoice(t *testing.T) {
+	tcs := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "string tool choice",
+			body: `{"tool_choice": "auto"}`,
+			want: `{"tool_choice": "auto"}`,
+		},
+		{
+			name: "object tool choice",
+			body: `{"tool_choice": {"type": "function", "function": {"name": "test"}}}`,
+			want: `{"tool_choice_object":{"function":{"name":"test"},"type":"function"}}`,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := convertToolChoice([]byte(tc.body))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, string(got))
 		})
 	}
 }
@@ -534,9 +554,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 		{
 			name: "rag",
 			req: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -585,9 +604,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 		{
 			name: "rag - invalid vector store name",
 			req: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -615,9 +633,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 		{
 			name: "other tool",
 			req: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -640,9 +657,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -668,9 +684,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 		{
 			name: "rag and other tools",
 			req: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -700,9 +715,8 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(autoToolChoice),
-					Type:   functionObjectType,
+				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+					Type: functionObjectType,
 				},
 				Tools: []*v1.CreateChatCompletionRequest_Tool{
 					{
@@ -735,10 +749,17 @@ func TestHandleToolsForRAG(t *testing.T) {
 			},
 		},
 		{
-			name: "no tools",
+			name: "rag with none tool choice",
 			req: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(noneToolChoice),
+				ToolChoice: string(noneToolChoice),
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
+						},
+					},
 				},
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
@@ -753,9 +774,35 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
-					Choice: string(noneToolChoice),
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
 				},
+			},
+		},
+		{
+			name: "no tools",
+			req: &v1.CreateChatCompletionRequest{
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			want: &v1.CreateChatCompletionRequest{
 				Messages: []*v1.CreateChatCompletionRequest_Message{
 					{
 						Role: "user",

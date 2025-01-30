@@ -124,10 +124,6 @@
     "CreateChatCompletionRequestToolChoice": {
       "type": "object",
       "properties": {
-        "choice": {
-          "type": "string",
-          "description": "TODO(guangrui): revisit on how to assign string value of ToolChoice."
-        },
         "type": {
           "type": "string"
         },
@@ -276,6 +272,10 @@
           }
         },
         "toolChoice": {
+          "type": "string",
+          "description": "The type of the \"tool_choice\" field is a string or an object.\nAs we cannot have a string or an object in the proto, we use the \"tool_choice_obj\"\nif a request sets the \"tool_choice\" field as an object.\n\nThe \"tool_choice_object\" field is converted to the \"tool_choice\" field when the request is being\nsent to an inference runtime."
+        },
+        "toolChoiceObject": {
           "$ref": "#/definitions/CreateChatCompletionRequestToolChoice"
         },
         "user": {

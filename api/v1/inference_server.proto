@@ -54,6 +54,14 @@ message CreateChatCompletionRequest {
     // Next ID: 6
   }
 
+  message ToolChoice {
+    string type = 2;
+    message Function {
+      string name = 1;
+    }
+    Function function = 3;
+  }
+
   message ResponseFormat {
     string type = 1;
   }
@@ -72,16 +80,6 @@ message CreateChatCompletionRequest {
     }
     string type = 1;
     Function function = 2;
-  }
-
-  message ToolChoice {
-    // TODO(guangrui): revisit on how to assign string value of ToolChoice.
-    string choice = 1;
-    string type = 2;
-    message Function {
-      string name = 1;
-    }
-    Function function = 3;
   }
 
   message StreamOptions {
@@ -107,10 +105,17 @@ message CreateChatCompletionRequest {
   double temperature = 14;
   double top_p = 15;
   repeated Tool tools = 16;
-  ToolChoice tool_choice = 17;
+  // The type of the "tool_choice" field is a string or an object.
+  // As we cannot have a string or an object in the proto, we use the "tool_choice_obj"
+  // if a request sets the "tool_choice" field as an object.
+  //
+  // The "tool_choice_object" field is converted to the "tool_choice" field when the request is being
+  // sent to an inference runtime.
+  string tool_choice = 17;
+  ToolChoice tool_choice_object = 20;
   string user = 18;
 
-  // Next ID: 20
+  // Next ID: 21
 }
 
 message ToolCall {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -21,6 +22,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestCreateChatCompletion(t *testing.T) {
@@ -502,6 +505,286 @@ func TestConvertContentStringToArray(t *testing.T) {
 	}
 }
 
+func TestHandleToolsForRAG(t *testing.T) {
+	srv := &S{
+		vsClient: &fakeVectorStoreClient{
+			vs: &vsv1.VectorStore{
+				Name: "test",
+			},
+		},
+		rewriter: &fakeRewriter{
+			msg: &v1.CreateChatCompletionRequest_Message{
+				Role: "user",
+				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					{
+						Type: "text",
+						Text: "RAG info",
+					},
+				},
+			},
+		},
+	}
+
+	tcs := []struct {
+		name    string
+		req     *v1.CreateChatCompletionRequest
+		want    *v1.CreateChatCompletionRequest
+		wantErr bool
+	}{
+		{
+			name: "rag",
+			req: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			want: &v1.CreateChatCompletionRequest{
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "RAG info",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rag - invalid vector store name",
+			req: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"invalid"}`)),
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "other tool",
+			req: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name: "get_weacher",
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			want: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name: "get_weacher",
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rag and other tools",
+			req: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name:              ragToolName,
+							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
+						},
+					},
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name: "get_weacher",
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			want: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(autoToolChoice),
+					Type:   functionObjectType,
+				},
+				Tools: []*v1.CreateChatCompletionRequest_Tool{
+					{
+						Type: functionObjectType,
+						Function: &v1.CreateChatCompletionRequest_Tool_Function{
+							Name: "get_weacher",
+						},
+					},
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "RAG info",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "no tools",
+			req: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(noneToolChoice),
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+			want: &v1.CreateChatCompletionRequest{
+				ToolChoice: &v1.CreateChatCompletionRequest_ToolChoice{
+					Choice: string(noneToolChoice),
+				},
+				Messages: []*v1.CreateChatCompletionRequest_Message{
+					{
+						Role: "user",
+						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+							{
+								Type: "text",
+								Text: "Hello",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := srv.handleToolsForRAG(context.Background(), tc.req)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Truef(t, proto.Equal(tc.want, tc.req), cmp.Diff(tc.want, tc.req, protocmp.Transform()))
+		})
+	}
+
+}
+
 type fakeModelClient struct {
 	models map[string]*mv1.Model
 }
@@ -515,6 +798,7 @@ func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest,
 }
 
 type fakeRewriter struct {
+	msg *v1.CreateChatCompletionRequest_Message
 }
 
 func (c *fakeRewriter) ProcessMessages(
@@ -522,7 +806,7 @@ func (c *fakeRewriter) ProcessMessages(
 	vstore *vsv1.VectorStore,
 	messages []*v1.CreateChatCompletionRequest_Message,
 ) ([]*v1.CreateChatCompletionRequest_Message, error) {
-	return messages, nil
+	return append(messages, c.msg), nil
 }
 
 type fakeMetricsMonitor struct {

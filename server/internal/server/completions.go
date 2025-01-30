@@ -128,7 +128,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	if code, err := s.handleTools(ctx, &createReq); err != nil {
+	if code, err := s.handleToolsForRAG(ctx, &createReq); err != nil {
 		httpError(w, err.Error(), code, &usage)
 		return
 	}
@@ -235,11 +235,12 @@ func (s *S) CreateChatCompletion(
 	}
 }
 
-// handleTools uses tools to process and modify the request messages.
+// handleToolsForRAG inspects the tool and handles specially if there is a RAG tool funciton.
+//
 // Refer to https://platform.openai.com/docs/guides/function-calling for the details of the tools and the tool choice.
 //
 // The function returns an HTTP status code and an error.
-func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest) (int, error) {
+func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionRequest) (int, error) {
 	if req.ToolChoice == nil || req.ToolChoice.Choice == string(noneToolChoice) {
 		return http.StatusOK, nil
 	}
@@ -247,52 +248,58 @@ func (s *S) handleTools(ctx context.Context, req *v1.CreateChatCompletionRequest
 		return http.StatusBadRequest, fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
 	}
 
-	var messages []*v1.CreateChatCompletionRequest_Message
+	var (
+		messages []*v1.CreateChatCompletionRequest_Message
+		tools    []*v1.CreateChatCompletionRequest_Tool
+	)
 	for _, tool := range req.Tools {
 		if tool.Type != functionObjectType {
-			return http.StatusBadRequest, fmt.Errorf("unsupported tool type: %s", tool.Type)
+			tools = append(tools, tool)
+			continue
 		}
 		if tool.Function == nil {
 			return http.StatusBadRequest, fmt.Errorf("function is required")
 		}
-		switch tool.Function.Name {
-		case ragToolName:
-			var ragFunction v1.RagFunction
-
-			b, err := base64.URLEncoding.DecodeString(tool.Function.EncodedParameters)
-			if err != nil {
-				return http.StatusBadRequest, fmt.Errorf("failed to decode parameters: %s", err)
-			}
-			if err := json.Unmarshal(b, &ragFunction); err != nil {
-				return http.StatusBadRequest, err
-			}
-			if ragFunction.VectorStoreName == "" {
-				return http.StatusBadRequest, fmt.Errorf("vector store name is required")
-			}
-			// TODO(kenji): Check if the request is allowed to access the specified vector store.
-			vstore, err := s.vsClient.GetVectorStoreByName(ctx, &vsv1.GetVectorStoreByNameRequest{
-				Name: ragFunction.VectorStoreName,
-			})
-			if err != nil {
-				if status.Code(err) == codes.NotFound {
-					return http.StatusBadRequest, fmt.Errorf("vector store not found: %s", ragFunction.VectorStoreName)
-				}
-				return http.StatusInternalServerError, fmt.Errorf("failed to get vector store: %s", err)
-			}
-
-			msgs, err := s.rewriter.ProcessMessages(ctx, vstore, req.Messages)
-			if err != nil {
-				return http.StatusInternalServerError, err
-			}
-			messages = append(messages, msgs...)
-		default:
-			return http.StatusBadRequest, fmt.Errorf("unsupported function name: %s", tool.Function.Name)
+		if tool.Function.Name != ragToolName {
+			tools = append(tools, tool)
+			continue
 		}
+
+		var ragFunction v1.RagFunction
+
+		b, err := base64.URLEncoding.DecodeString(tool.Function.EncodedParameters)
+		if err != nil {
+			return http.StatusBadRequest, fmt.Errorf("failed to decode parameters: %s", err)
+		}
+		if err := json.Unmarshal(b, &ragFunction); err != nil {
+			return http.StatusBadRequest, err
+		}
+		if ragFunction.VectorStoreName == "" {
+			return http.StatusBadRequest, fmt.Errorf("vector store name is required")
+		}
+		// TODO(kenji): Check if the request is allowed to access the specified vector store.
+		vstore, err := s.vsClient.GetVectorStoreByName(ctx, &vsv1.GetVectorStoreByNameRequest{
+			Name: ragFunction.VectorStoreName,
+		})
+		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				return http.StatusBadRequest, fmt.Errorf("vector store not found: %s", ragFunction.VectorStoreName)
+			}
+			return http.StatusInternalServerError, fmt.Errorf("failed to get vector store: %s", err)
+		}
+
+		msgs, err := s.rewriter.ProcessMessages(ctx, vstore, req.Messages)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+		messages = append(messages, msgs...)
 	}
 	req.Messages = messages
-	// Clear the tool related fields as we don't want to pass this to Ollama.
-	req.ToolChoice = nil
-	req.Tools = nil
+	if len(tools) == 0 {
+		// Clear the tool related fields as we don't want to pass this to Ollama.
+		req.ToolChoice = nil
+		req.Tools = nil
+	}
 	return http.StatusOK, nil
 }
 

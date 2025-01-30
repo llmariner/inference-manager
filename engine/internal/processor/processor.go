@@ -502,6 +502,11 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 			return nil, err
 		}
 
+		reqBody, err = convertToolChoiceObject(reqBody)
+		if err != nil {
+			return nil, err
+		}
+
 		// Convert the "encoded_parameters" of functions back to "parameters". This to revert the change
 		// made by the server in convertFunctionParameters.
 		reqBody, err = convertEncodedFunctionParameters(reqBody)
@@ -648,6 +653,29 @@ func isConnClosedErr(err error) bool {
 	return err == io.EOF ||
 		// connection error type is defined in the gRPC internal transpot package.
 		strings.Contains(err.Error(), "error reading from server: EOF")
+}
+
+// convertToolChoiceObject converts "tool_choice_object" to "tool_choice".
+func convertToolChoiceObject(body []byte) ([]byte, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, err
+	}
+
+	v, ok := r["tool_choice_object"]
+	if !ok {
+		// Do nothing.
+		return body, nil
+	}
+	r["tool_choice"] = v
+	delete(r, "tool_choice_object")
+
+	// Marshal again.
+	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshal the request: %s", err)
+	}
+	return body, nil
 }
 
 func convertEncodedFunctionParameters(body []byte) ([]byte, error) {

@@ -43,6 +43,15 @@ export type CreateChatCompletionRequestMessage = {
   toolCalls?: CreateChatCompletionRequestMessageToolCall[]
 }
 
+export type CreateChatCompletionRequestToolChoiceFunction = {
+  name?: string
+}
+
+export type CreateChatCompletionRequestToolChoice = {
+  type?: string
+  function?: CreateChatCompletionRequestToolChoiceFunction
+}
+
 export type CreateChatCompletionRequestResponseFormat = {
   type?: string
 }
@@ -56,16 +65,6 @@ export type CreateChatCompletionRequestToolFunction = {
 export type CreateChatCompletionRequestTool = {
   type?: string
   function?: CreateChatCompletionRequestToolFunction
-}
-
-export type CreateChatCompletionRequestToolChoiceFunction = {
-  name?: string
-}
-
-export type CreateChatCompletionRequestToolChoice = {
-  choice?: string
-  type?: string
-  function?: CreateChatCompletionRequestToolChoiceFunction
 }
 
 export type CreateChatCompletionRequestStreamOptions = {
@@ -90,7 +89,8 @@ export type CreateChatCompletionRequest = {
   temperature?: number
   topP?: number
   tools?: CreateChatCompletionRequestTool[]
-  toolChoice?: CreateChatCompletionRequestToolChoice
+  toolChoice?: string
+  toolChoiceObject?: CreateChatCompletionRequestToolChoice
   user?: string
 }
 

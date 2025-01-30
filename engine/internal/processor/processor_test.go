@@ -102,6 +102,33 @@ func TestEmbedding(t *testing.T) {
 	assert.Equal(t, "ok", string(resp.Body))
 }
 
+func TestConvertToolChoiceObject(t *testing.T) {
+	tcs := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "string tool choice",
+			body: `{"tool_choice": "auto"}`,
+			want: `{"tool_choice": "auto"}`,
+		},
+		{
+			name: "object tool choice",
+			body: `{"tool_choice_object":{"function":{"name":"test"},"type":"function"}}`,
+			want: `{"tool_choice":{"function":{"name":"test"},"type":"function"}}`,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := convertToolChoiceObject([]byte(tc.body))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
 func TestConvertEncodedFunctionParameters(t *testing.T) {
 	reqBody := `
 {

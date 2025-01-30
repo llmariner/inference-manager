@@ -88,6 +88,12 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
+	reqBody, err = convertToolChoice(reqBody)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
+		return
+	}
+
 	reqBody, err = convertFunctionParameters(reqBody)
 	if err != nil {
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
@@ -106,6 +112,27 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 	details.ModelId = createReq.Model
+
+	if c := toolChoiceType(createReq.ToolChoice); c != "" {
+		if c != autoToolChoice && c != requiredToolChoice && c != noneToolChoice {
+			httpError(w, "Invalid tool choice", http.StatusBadRequest, &usage)
+			return
+		}
+	}
+	if c := createReq.ToolChoiceObject; c != nil {
+		if c.Type != functionObjectType {
+			httpError(w, "Invalid tool choice object", http.StatusBadRequest, &usage)
+			return
+		}
+		if c.Function == nil {
+			httpError(w, "Function is required", http.StatusBadRequest, &usage)
+			return
+		}
+		if c.Function.Name == "" {
+			httpError(w, "Function name is required", http.StatusBadRequest, &usage)
+			return
+		}
+	}
 
 	// Include the usage by default. This is a temporary solution as continue.ev does not provide a way to the stream options.
 	if createReq.Stream && createReq.StreamOptions == nil {
@@ -240,14 +267,9 @@ func (s *S) CreateChatCompletion(
 // Refer to https://platform.openai.com/docs/guides/function-calling for the details of the tools and the tool choice.
 //
 // The function returns an HTTP status code and an error.
+//
+// TODO(kenji): Revisit the entire logic for handling RAG.
 func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionRequest) (int, error) {
-	if req.ToolChoice == nil || req.ToolChoice.Choice == string(noneToolChoice) {
-		return http.StatusOK, nil
-	}
-	if req.ToolChoice.Type != functionObjectType {
-		return http.StatusBadRequest, fmt.Errorf("unsupported tool choice type: %s", req.ToolChoice.Type)
-	}
-
 	var tools []*v1.CreateChatCompletionRequest_Tool
 	for _, tool := range req.Tools {
 		if tool.Type != functionObjectType {
@@ -259,6 +281,11 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 		}
 		if tool.Function.Name != ragToolName {
 			tools = append(tools, tool)
+			continue
+		}
+
+		if req.ToolChoice == string(noneToolChoice) {
+			// Do nothing. Just remove the tool.
 			continue
 		}
 
@@ -294,7 +321,8 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 	req.Tools = tools
 	if len(req.Tools) == 0 {
 		// Clear the tool related fields as we don't want to pass this to Ollama.
-		req.ToolChoice = nil
+		req.ToolChoice = ""
+		req.ToolChoiceObject = nil
 	}
 	return http.StatusOK, nil
 }
@@ -311,8 +339,40 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 	return http.StatusOK, nil
 }
 
+// convertToolChoice marshals the "tool_choice" field of the request to
+// and sets the result to the "encoded_tool_choice" field of the request.
+// The original "tool_choice" field is removed.
+//
+// This is to follow the OpenAI API spec, which cannot be handled by the protobuf.
+func convertToolChoice(body []byte) ([]byte, error) {
+	r := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return nil, err
+	}
+
+	v, ok := r["tool_choice"]
+	if !ok {
+		return body, nil
+	}
+
+	if _, ok := v.(string); ok {
+		return body, nil
+	}
+
+	r["tool_choice_object"] = v
+	delete(r, "tool_choice")
+
+	// Marshal again and then unmarshal.
+	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshal the request: %s", err)
+	}
+
+	return body, nil
+}
+
 // convertFunctionParameters marshals the "parameters" field of the function to
-// and sets the result to the "marshalled_parameters" field of the function.
+// and sets the result to the "encoded_parameters" field of the function.
 // The original "parameters" field is removed.
 //
 // This is to follow the OpenAI API spec, which cannot be handled by the protobuf.

@@ -235,16 +235,53 @@ PARAMETER stop User:
 PARAMETER stop Assistant:
 `, nil
 	case strings.Contains(modelID, "phi-4"):
+		// This template follows https://ollama.com/zac/phi4-tools.
 		return `
-TEMPLATE """{{- range $i, $_ := .Messages }}
+TEMPLATE """{{- /* If System or Tools, provide a system message first. */ -}}
+{{- if or .System .Tools }}
+<|im_start|>system<|im_sep|>
+{{- if .System }}
+{{ .System }}
+{{- end }}
+{{- if .Tools }}
+You are a helpful assistant with tool calling capabilities. When you receive tool output, use it to help format your final answer for the user.
+{{- end }}
+<|im_end|>
+{{- end }}
+
+{{- /* Now iterate through .Messages like Phi-4 normally does, but insert logic for Tools. */ -}}
+{{- range $i, $msg := .Messages }}
 {{- $last := eq (len (slice $.Messages $i)) 1 -}}
-<|im_start|>{{ .Role }}<|im_sep|>
-{{ .Content }}{{ if not $last }}<|im_end|>
-{{ end }}
-{{- if and (ne .Role "assistant") $last }}<|im_end|>
+
+<|im_start|>{{ $msg.Role }}<|im_sep|>
+
+{{- /* If it's the final user message and Tools exist, prompt for tool-based JSON output. */ -}}
+{{- if and (eq $msg.Role "user") $.Tools $last }}
+Given the following functions, please respond with a JSON object for a function call. Use this format:
+{"name": "<functionName>", "parameters": { "<arg>": "<value>", ... }}
+{{ $.Tools }}
+{{- end }}
+
+{{ $msg.Content }}
+
+<|im_end|>
+
+{{- /* If it's the final user message, begin assistant reply. */ -}}
+{{- if and (eq $msg.Role "user") $last }}
 <|im_start|>assistant<|im_sep|>
-{{ end }}
-{{- end }}"""
+{{- end }}
+
+{{- /* If role=assistant and there are tool calls, emit them as JSON. */ -}}
+{{- if eq $msg.Role "assistant" }}
+{{- if $msg.ToolCalls }}
+{{- range .ToolCalls }}
+{"name": "{{ .Function.Name }}", "parameters": {{ .Function.Arguments }}}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- end -}}
+"""
 PARAMETER stop <|im_start|>
 PARAMETER stop <|im_end|>
 PARAMETER stop <|im_sep|>

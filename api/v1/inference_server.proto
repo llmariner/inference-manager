@@ -51,7 +51,10 @@ message CreateChatCompletionRequest {
     string name = 3;
     repeated ToolCall tool_calls = 4;
 
-    // Next ID: 6
+    // Used by the "Tool message".
+    string tool_call_id = 6;
+
+    // Next ID: 7
   }
 
   message ToolChoice {

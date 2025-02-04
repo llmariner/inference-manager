@@ -41,6 +41,7 @@ export type CreateChatCompletionRequestMessage = {
   role?: string
   name?: string
   toolCalls?: CreateChatCompletionRequestMessageToolCall[]
+  toolCallId?: string
 }
 
 export type CreateChatCompletionRequestToolChoiceFunction = {

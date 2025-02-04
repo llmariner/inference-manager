@@ -315,6 +315,10 @@
           "items": {
             "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCall"
           }
+        },
+        "toolCallId": {
+          "type": "string",
+          "description": "Used by the \"Tool message\"."
         }
       },
       "description": "Message has fields for system message, user message, assistant message, and tool message."

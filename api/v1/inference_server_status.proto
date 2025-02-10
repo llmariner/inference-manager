@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package llmariner.inference.server.v1;
+
+import "api/v1/inference_server_worker.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+message InferenceStatus {
+  repeated ClusterStatus cluster_statuses = 1;
+  TaskStatus task_status = 2;
+}
+
+message TaskStatus {
+  // in_progress_task_counts tracks the number of in-progress tasks grouped by model id.
+  map<string, int32> in_progress_task_counts = 1;
+}
+
+message ClusterStatus {
+  string id = 1;
+  string name = 2;
+  repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3; 
+}
+
+message ListInferenceStatusRequest {
+}
+
+service InferenceService {
+  rpc ListInferenceStatus(ListInferenceStatusRequest) returns (InferenceStatus) {
+    option (google.api.http) = {
+      get: "/v1/inference/status"
+    };
+  }
+}

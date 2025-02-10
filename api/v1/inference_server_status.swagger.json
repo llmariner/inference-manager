@@ -1,0 +1,172 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api/v1/inference_server_status.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "InferenceService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/inference/status": {
+      "get": {
+        "operationId": "InferenceService_ListInferenceStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1InferenceStatus"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "InferenceService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "EngineStatusModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "isReady": {
+          "type": "boolean"
+        },
+        "inProgressTaskCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "gpuAllocated": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "EngineStatusSyncStatus": {
+      "type": "object",
+      "properties": {
+        "inProgressModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "in_progress_model_ids is a list of model ids that are currently being synced."
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ClusterStatus": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "engineStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1EngineStatus"
+          }
+        }
+      }
+    },
+    "v1EngineStatus": {
+      "type": "object",
+      "properties": {
+        "engineId": {
+          "type": "string"
+        },
+        "modelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "syncStatus": {
+          "$ref": "#/definitions/EngineStatusSyncStatus"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EngineStatusModel"
+          }
+        }
+      }
+    },
+    "v1InferenceStatus": {
+      "type": "object",
+      "properties": {
+        "clusterStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ClusterStatus"
+          }
+        },
+        "taskStatus": {
+          "$ref": "#/definitions/v1TaskStatus"
+        }
+      }
+    },
+    "v1TaskStatus": {
+      "type": "object",
+      "properties": {
+        "inProgressTaskCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "in_progress_task_counts tracks the number of in-progress tasks grouped by model id."
+        }
+      }
+    }
+  }
+}

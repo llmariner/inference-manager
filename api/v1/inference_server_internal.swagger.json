@@ -155,6 +155,25 @@
         }
       }
     },
+    "EngineStatusModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "isReady": {
+          "type": "boolean"
+        },
+        "inProgressTaskCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "gpuAllocated": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "EngineStatusSyncStatus": {
       "type": "object",
       "properties": {
@@ -365,6 +384,12 @@
         },
         "ready": {
           "type": "boolean"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EngineStatusModel"
+          }
         }
       }
     },

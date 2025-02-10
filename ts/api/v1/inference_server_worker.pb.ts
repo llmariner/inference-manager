@@ -19,11 +19,19 @@ export type EngineStatusSyncStatus = {
   inProgressModelIds?: string[]
 }
 
+export type EngineStatusModel = {
+  id?: string
+  isReady?: boolean
+  inProgressTaskCount?: number
+  gpuAllocated?: number
+}
+
 export type EngineStatus = {
   engineId?: string
   modelIds?: string[]
   syncStatus?: EngineStatusSyncStatus
   ready?: boolean
+  models?: EngineStatusModel[]
 }
 
 export type HeaderValue = {

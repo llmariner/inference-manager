@@ -17,6 +17,8 @@ data:
     internalGrpcPort: {{ .Values.internalGrpcPort }}
     monitoringPort: {{ .Values.monitoringPort }}
     adminPort: {{ .Values.adminPort }}
+    statusPort: {{ .Values.statusPort }}
+    statusGrpcPort: {{ .Values.statusGrpcPort }}
     modelManagerServerAddr: {{ .Values.modelManagerServerAddr }}
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}

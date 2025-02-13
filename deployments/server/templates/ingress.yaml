@@ -42,3 +42,10 @@ spec:
             name: {{ include "inference-manager-server.fullname" . }}-http
             port:
               number: {{ .Values.httpPort }}
+      - path: /v1/inference/status
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "inference-manager-server.fullname" . }}-status-http
+            port:
+              number: {{ .Values.statusPort }}

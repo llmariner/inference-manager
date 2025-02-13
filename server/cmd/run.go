@@ -271,5 +271,17 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- mgr.Start(signals.SetupSignalHandler())
 	}()
 
+	iss := server.NewInferenceStatusServer(logger)
+	go func() {
+		log := logger.WithName("inference status server")
+		log.Info("Starting inference status server...", "port", c.StatusPort)
+		mux := http.NewServeMux()
+		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.StatusPort), mux)
+		log.Info("Stopped inference status server")
+	}()
+	go func() {
+		errCh <- iss.Run(ctx, c.StatusGRPCPort)
+	}()
+
 	return <-errCh
 }

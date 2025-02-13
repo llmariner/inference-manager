@@ -271,7 +271,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- mgr.Start(signals.SetupSignalHandler())
 	}()
 
-	iss := server.NewInferenceStatusServer(logger)
+	iss := server.NewInferenceStatusServer(infProcessor, logger)
 	go func() {
 		log := logger.WithName("inference status server")
 		log.Info("Starting inference status server...", "port", c.StatusPort)
@@ -280,7 +280,10 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		log.Info("Stopped inference status server")
 	}()
 	go func() {
-		errCh <- iss.Run(ctx, c.StatusGRPCPort)
+		errCh <- iss.Run(ctx, c.AuthConfig, c.StatusGRPCPort)
+	}()
+	go func() {
+		errCh <- iss.Refresh(ctx, c.StatusRefreshInterval)
 	}()
 
 	return <-errCh

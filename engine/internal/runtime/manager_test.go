@@ -62,7 +62,7 @@ func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test"),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 		},
 	}
 	mgr.deleteRuntime("rt-model-0")
@@ -76,10 +76,10 @@ func TestMarkRuntimeReady(t *testing.T) {
 			"model-0": newPendingRuntime("rt-model-0"),
 		},
 	}
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test")
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1)
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test")
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1)
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
 }
@@ -87,20 +87,21 @@ func TestMarkRuntimeReady(t *testing.T) {
 func TestMarkRuntimeIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test"),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1),
 		},
 	}
 	mgr.markRuntimeIsPending("rt-model-0", "model-0")
 	assert.False(t, mgr.runtimes["model-0"].ready)
 	mgr.markRuntimeIsPending("rt-model-0", "model-0")
 	assert.False(t, mgr.runtimes["model-0"].ready)
+	assert.Zero(t, mgr.runtimes["model-0"].replicas)
 }
 
 func TestIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test"),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 		},
 	}
 	ready, ok := mgr.isReady("model-0")
@@ -109,6 +110,7 @@ func TestIsPending(t *testing.T) {
 	ready, ok = mgr.isReady("model-1")
 	assert.True(t, ok)
 	assert.True(t, ready)
+	assert.Equal(t, int32(1), mgr.runtimes["model-1"].replicas)
 	_, ok = mgr.isReady("model-2")
 	assert.False(t, ok)
 }
@@ -116,7 +118,7 @@ func TestIsPending(t *testing.T) {
 func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test"),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1),
 			"model-1": newPendingRuntime("rt-model-1"),
 		},
 	}
@@ -127,30 +129,36 @@ func TestGetLLMAddress(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestListSyncedModelIDs(t *testing.T) {
+func TestListSyncedModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test"),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1),
 			"model-1": newPendingRuntime("rt-model-1"),
-			"model-2": newReadyRuntime("rt-model-2", "test2"),
+			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
 	}
-	models := mgr.ListSyncedModelIDs()
+	models := mgr.ListSyncedModels()
 	assert.Len(t, models, 2)
-	assert.Contains(t, models, "model-0")
-	assert.Contains(t, models, "model-2")
+	for _, m := range models {
+		contains := m.ID == "model-0" || m.ID == "model-2"
+		assert.True(t, contains)
+	}
 }
 
-func TestListProgressModelIDs(t *testing.T) {
+func TestListInProgressModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test"),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 			"model-2": newPendingRuntime("rt-model-2"),
 		},
 	}
 	models := mgr.ListInProgressModels()
 	assert.Len(t, models, 2)
+	for _, m := range models {
+		contains := m.ID == "model-0" || m.ID == "model-2"
+		assert.True(t, contains)
+	}
 }
 
 func TestPullModel(t *testing.T) {
@@ -166,7 +174,7 @@ func TestPullModel(t *testing.T) {
 	}{
 		{
 			name: "already ready",
-			rt:   ptr.To(newReadyRuntime("rt-model-0", "test")),
+			rt:   ptr.To(newReadyRuntime("rt-model-0", "test", 1)),
 		},
 		{
 			name: "already pending",
@@ -212,7 +220,7 @@ func TestPullModel(t *testing.T) {
 						mgr.cancelWaitingRequests(testModelID, "error")
 					} else {
 						t.Log("marking runtime ready")
-						mgr.markRuntimeReady("rt-model-0", testModelID, "test")
+						mgr.markRuntimeReady("rt-model-0", testModelID, "test", 1)
 					}
 				}
 			}()
@@ -323,7 +331,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
-			rt: ptr.To(newReadyRuntime(name, "test")),
+			rt: ptr.To(newReadyRuntime(name, "test", int32(1))),
 		},
 		{
 			name: "not-registered (pending)",
@@ -376,7 +384,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (ready)",
 			sts:  nil,
-			rt:   ptr.To(newReadyRuntime(name, "test")),
+			rt:   ptr.To(newReadyRuntime(name, "test", 1)),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")

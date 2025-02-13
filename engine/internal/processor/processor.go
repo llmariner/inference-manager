@@ -40,9 +40,9 @@ const (
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
-	ListSyncedModelIDs() []string
+	ListSyncedModels() []runtime.ModelRuntimeInfo
 	PullModel(ctx context.Context, modelID string) error
-	ListInProgressModels() []string
+	ListInProgressModels() []runtime.ModelRuntimeInfo
 }
 
 // NewFakeModelSyncer returns a FakeModelSyncer.
@@ -58,19 +58,23 @@ type FakeModelSyncer struct {
 	mu       sync.Mutex
 }
 
-// ListSyncedModelIDs lists all models that have been synced.
-func (s *FakeModelSyncer) ListSyncedModelIDs(ctx context.Context) []string {
+// ListSyncedModels lists all models that have been synced.
+func (s *FakeModelSyncer) ListSyncedModels(ctx context.Context) []runtime.ModelRuntimeInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var ids []string
+	var ms []runtime.ModelRuntimeInfo
 	for id := range s.modelIDs {
-		ids = append(ids, id)
+		ms = append(ms, runtime.ModelRuntimeInfo{
+			ID:    id,
+			GPU:   1,
+			Ready: true,
+		})
 	}
-	return ids
+	return ms
 }
 
 // ListInProgressModels lists all models that are in progress.
-func (s *FakeModelSyncer) ListInProgressModels() []string {
+func (s *FakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return nil
@@ -542,15 +546,37 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 }
 
 func (p *P) sendEngineStatus(stream sender, ready bool) error {
+	var models []*v1.EngineStatus_Model
+	var syncedModels []string
+	ms := p.modelSyncer.ListSyncedModels()
+	for _, m := range ms {
+		models = append(models, &v1.EngineStatus_Model{
+			Id:           m.ID,
+			IsReady:      m.Ready,
+			GpuAllocated: m.GPU,
+		})
+		syncedModels = append(syncedModels, m.ID)
+	}
+	var inProgressModels []string
+	ms = p.modelSyncer.ListInProgressModels()
+	for _, m := range ms {
+		models = append(models, &v1.EngineStatus_Model{
+			Id:           m.ID,
+			IsReady:      m.Ready,
+			GpuAllocated: m.GPU,
+		})
+		inProgressModels = append(inProgressModels, m.ID)
+	}
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: p.engineID,
-				ModelIds: p.modelSyncer.ListSyncedModelIDs(),
+				ModelIds: syncedModels,
 				SyncStatus: &v1.EngineStatus_SyncStatus{
-					InProgressModelIds: p.modelSyncer.ListInProgressModels(),
+					InProgressModelIds: inProgressModels,
 				},
-				Ready: ready,
+				Models: models,
+				Ready:  ready,
 			},
 		},
 	}

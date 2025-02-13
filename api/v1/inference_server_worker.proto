@@ -25,6 +25,7 @@ message EngineStatus {
   SyncStatus sync_status = 3 [deprecated = true];
   bool ready = 4;
   repeated Model models = 5;
+  string cluster_id = 6;
 }
 
 message HeaderValue {

@@ -48,26 +48,62 @@ type Manager struct {
 	rtClientFactory ClientFactory
 	autoscaler      autoscaler.Registerer
 
+	// runtimes is keyed by model ID.
 	runtimes map[string]runtime
 	mu       sync.RWMutex
 }
 
 func newPendingRuntime(name string) runtime {
-	return runtime{name: name, ready: false, waitCh: make(chan struct{})}
+	return runtime{name: name, ready: false, replicas: int32(0), waitCh: make(chan struct{})}
 }
 
-func newReadyRuntime(name string, address string) runtime {
-	return runtime{name: name, ready: true, address: address}
+func newReadyRuntime(name string, address string, replicas int32) runtime {
+	return runtime{name: name, ready: true, address: address, replicas: replicas}
+}
+
+// ModelRuntimeInfo is the info of a model runtime.
+type ModelRuntimeInfo struct {
+	// ID is model ID.
+	ID string
+	// GPU is the total GPU allocated for the model.
+	GPU   int32
+	Ready bool
 }
 
 type runtime struct {
-	name      string
-	ready     bool
+	name  string
+	ready bool
+	// replicas is the number of ready replicas.
+	replicas int32
+	// gpu is the GPU limit of the runtime.
+	gpu       int32
 	errReason string
 	// address is empty when the runtime is not ready.
 	address string
 	// waitCh is used when the runtime is not ready.
 	waitCh chan struct{}
+}
+
+func getGPU(sts appsv1.StatefulSet) int32 {
+	gpu := int32(0)
+	for _, con := range sts.Spec.Template.Spec.Containers {
+		limit := con.Resources.Limits
+		if limit == nil {
+			continue
+		}
+
+		// TODO(guangrui): Support non-Nvidia GPU.
+		v, ok := limit[nvidiaGPUResource]
+		if !ok {
+			continue
+		}
+		count, ok := v.AsInt64()
+		if !ok {
+			continue
+		}
+		gpu += int32(count)
+	}
+	return gpu
 }
 
 func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool, ready bool, err error) {
@@ -76,16 +112,19 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool
 	if _, ok := m.runtimes[modelID]; ok {
 		return false, false, nil
 	}
+	var rt runtime
 	ready = sts.Status.ReadyReplicas > 0
 	if ready {
 		c, err := m.rtClientFactory.New(modelID)
 		if err != nil {
 			return false, false, err
 		}
-		m.runtimes[modelID] = newReadyRuntime(sts.Name, c.GetAddress(sts.Name))
+		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), sts.Status.ReadyReplicas)
 	} else {
-		m.runtimes[modelID] = newPendingRuntime(sts.Name)
+		rt = newPendingRuntime(sts.Name)
 	}
+	rt.gpu = getGPU(sts)
+	m.runtimes[modelID] = rt
 	return true, ready, nil
 }
 
@@ -111,14 +150,26 @@ func (m *Manager) deleteRuntime(name string) {
 	}
 }
 
-func (m *Manager) markRuntimeReady(name, modelID, address string) {
+func (m *Manager) updateRuntimeReplicas(modelID string, replicas int32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.runtimes[modelID]
+	if !ok {
+		return fmt.Errorf("runtime for model %q is not found", modelID)
+	}
+	r.replicas = replicas
+	m.runtimes[modelID] = r
+	return nil
+}
+
+func (m *Manager) markRuntimeReady(name, modelID, address string, replicas int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
 		if r.waitCh != nil {
 			close(r.waitCh)
 		}
-		m.runtimes[modelID] = newReadyRuntime(name, address)
+		m.runtimes[modelID] = newReadyRuntime(name, address, replicas)
 	}
 }
 
@@ -169,27 +220,31 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 	return "", fmt.Errorf("runtime for model %q is not ready", modelID)
 }
 
-// ListSyncedModelIDs returns the list of models that are synced.
-func (m *Manager) ListSyncedModelIDs() []string {
+// ListSyncedModels returns the list of models that are synced.
+func (m *Manager) ListSyncedModels() []ModelRuntimeInfo {
 	return m.listModels(true)
 }
 
 // ListInProgressModels returns the list of models that are in progress.
-func (m *Manager) ListInProgressModels() []string {
+func (m *Manager) ListInProgressModels() []ModelRuntimeInfo {
 	return m.listModels(false)
 }
 
-func (m *Manager) listModels(ready bool) []string {
+func (m *Manager) listModels(ready bool) []ModelRuntimeInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var modelIDs []string
+	var ms []ModelRuntimeInfo
 	for id, r := range m.runtimes {
 		if r.ready == ready {
-			modelIDs = append(modelIDs, id)
+			ms = append(ms, ModelRuntimeInfo{
+				ID:    id,
+				GPU:   r.gpu * r.replicas,
+				Ready: r.ready,
+			})
 		}
 	}
-	return modelIDs
+	return ms
 }
 
 // PullModel pulls the model from the model manager.
@@ -238,7 +293,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// registered in the manager's managed runtime map. If the runtime's
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name))
+			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), sts.Status.ReadyReplicas)
 		}
 	}
 	if reason, ok := m.errReason(modelID); ok {
@@ -288,6 +343,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 	}
 
+	log.Info("Reconciling runtime...", "model", modelID)
 	ready, ok := m.isReady(modelID)
 	if !ok {
 		// If an statefulset for the unregistered runtime is found,
@@ -318,6 +374,12 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		if sts.Status.Replicas == 0 {
 			m.markRuntimeIsPending(sts.Name, modelID)
 			log.Info("Runtime is scale down to zero")
+		} else {
+			if err := m.updateRuntimeReplicas(modelID, sts.Status.ReadyReplicas); err != nil {
+				log.Error(err, "Failed to update runtime replicas")
+				return ctrl.Result{}, err
+			}
+			log.V(10).Info("Runtime replicas are updated", "modelID", modelID, "replicas", sts.Status.ReadyReplicas)
 		}
 	} else if sts.Status.ReadyReplicas > 0 {
 		client, err := m.rtClientFactory.New(modelID)
@@ -336,7 +398,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
 			return ctrl.Result{RequeueAfter: retryAfter}, err
 		}
-		m.markRuntimeReady(sts.Name, modelID, addr)
+		m.markRuntimeReady(sts.Name, modelID, addr, sts.Status.ReadyReplicas)
 		log.Info("Runtime is ready")
 	} else {
 		if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {

@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const defaultStatusRefreshInterval = 60 * time.Second
+
 // Config is the configuration.
 type Config struct {
 	GRPCPort              int `yaml:"grpcPort"`
@@ -45,6 +47,8 @@ type Config struct {
 	ServerPodLabelKey string `yaml:"serverPodLabelKey"`
 	// ServerPodLabelKey is the value of the label that the server pod has for ServerPodLabelKey.
 	ServerPodLabelValue string `yaml:"serverPodLabelValue"`
+
+	StatusRefreshInterval time.Duration `yaml:"statusRefreshInterval"`
 
 	Debug DebugConfig `yaml:"debug"`
 }
@@ -168,6 +172,12 @@ func (c *Config) Validate() error {
 	}
 	if c.ServerPodLabelValue == "" {
 		return fmt.Errorf("serverPodLabelValue must be set")
+	}
+
+	if c.StatusRefreshInterval == 0 {
+		c.StatusRefreshInterval = defaultStatusRefreshInterval
+	} else if c.StatusRefreshInterval < 0 {
+		return fmt.Errorf("status refresh interval must be greater than 0")
 	}
 
 	return nil

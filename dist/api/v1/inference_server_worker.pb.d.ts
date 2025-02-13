@@ -23,6 +23,7 @@ export type EngineStatus = {
     syncStatus?: EngineStatusSyncStatus;
     ready?: boolean;
     models?: EngineStatusModel[];
+    clusterId?: string;
 };
 export type HeaderValue = {
     values?: string[];

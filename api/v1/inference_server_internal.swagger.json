@@ -390,6 +390,9 @@
           "items": {
             "$ref": "#/definitions/EngineStatusModel"
           }
+        },
+        "clusterId": {
+          "type": "string"
         }
       }
     },

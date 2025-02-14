@@ -74,10 +74,10 @@ monitoringPort: 8084
 adminPort: 8085
 # The HTTP port number for the status service.
 # +docs:type=number
-statusPort: 8086
+statusPort: 8090
 # The GRPC port number for the status service.
 # +docs:type=number
-statusGrpcPort: 8087
+statusGrpcPort: 8091
 
 # The address of the model-manager-server to call public model APIs.
 modelManagerServerAddr: model-manager-server-grpc:8081

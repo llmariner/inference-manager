@@ -18,6 +18,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/processor"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	mv1 "github.com/llmariner/model-manager/api/v1"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -69,6 +70,10 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	stdr.SetVerbosity(lv)
 	logger := stdr.New(log.Default())
 	bootLog := logger.WithName("boot")
+
+	if err := auth.ValidateClusterRegistrationKey(); err != nil {
+		return err
+	}
 
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {

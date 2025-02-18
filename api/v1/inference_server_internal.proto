@@ -31,5 +31,4 @@ message ProcessTasksInternalResponse {
 
 service InferenceInternalService {
   rpc ProcessTasksInternal(stream ProcessTasksInternalRequest) returns (stream ProcessTasksInternalResponse) {}
-
 }

@@ -58,7 +58,7 @@ buf-generate-all: buf-generate-base buf-generate-ts
 
 .PHONY: buf-mod-update
 buf-mod-update:
-	buf mod update
+	buf dep update
 
 .PHONY: buf-generate-base
 buf-generate-base: buf-mod-update

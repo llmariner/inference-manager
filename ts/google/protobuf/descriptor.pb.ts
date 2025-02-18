@@ -4,6 +4,26 @@
 * This file is a generated Typescript file for GRPC Gateway, DO NOT MODIFY
 */
 
+export enum Edition {
+  EDITION_UNKNOWN = "EDITION_UNKNOWN",
+  EDITION_LEGACY = "EDITION_LEGACY",
+  EDITION_PROTO2 = "EDITION_PROTO2",
+  EDITION_PROTO3 = "EDITION_PROTO3",
+  EDITION_2023 = "EDITION_2023",
+  EDITION_2024 = "EDITION_2024",
+  EDITION_1_TEST_ONLY = "EDITION_1_TEST_ONLY",
+  EDITION_2_TEST_ONLY = "EDITION_2_TEST_ONLY",
+  EDITION_99997_TEST_ONLY = "EDITION_99997_TEST_ONLY",
+  EDITION_99998_TEST_ONLY = "EDITION_99998_TEST_ONLY",
+  EDITION_99999_TEST_ONLY = "EDITION_99999_TEST_ONLY",
+  EDITION_MAX = "EDITION_MAX",
+}
+
+export enum ExtensionRangeOptionsVerificationState {
+  DECLARATION = "DECLARATION",
+  UNVERIFIED = "UNVERIFIED",
+}
+
 export enum FieldDescriptorProtoType {
   TYPE_DOUBLE = "TYPE_DOUBLE",
   TYPE_FLOAT = "TYPE_FLOAT",
@@ -27,8 +47,8 @@ export enum FieldDescriptorProtoType {
 
 export enum FieldDescriptorProtoLabel {
   LABEL_OPTIONAL = "LABEL_OPTIONAL",
-  LABEL_REQUIRED = "LABEL_REQUIRED",
   LABEL_REPEATED = "LABEL_REPEATED",
+  LABEL_REQUIRED = "LABEL_REQUIRED",
 }
 
 export enum FileOptionsOptimizeMode {
@@ -49,10 +69,72 @@ export enum FieldOptionsJSType {
   JS_NUMBER = "JS_NUMBER",
 }
 
+export enum FieldOptionsOptionRetention {
+  RETENTION_UNKNOWN = "RETENTION_UNKNOWN",
+  RETENTION_RUNTIME = "RETENTION_RUNTIME",
+  RETENTION_SOURCE = "RETENTION_SOURCE",
+}
+
+export enum FieldOptionsOptionTargetType {
+  TARGET_TYPE_UNKNOWN = "TARGET_TYPE_UNKNOWN",
+  TARGET_TYPE_FILE = "TARGET_TYPE_FILE",
+  TARGET_TYPE_EXTENSION_RANGE = "TARGET_TYPE_EXTENSION_RANGE",
+  TARGET_TYPE_MESSAGE = "TARGET_TYPE_MESSAGE",
+  TARGET_TYPE_FIELD = "TARGET_TYPE_FIELD",
+  TARGET_TYPE_ONEOF = "TARGET_TYPE_ONEOF",
+  TARGET_TYPE_ENUM = "TARGET_TYPE_ENUM",
+  TARGET_TYPE_ENUM_ENTRY = "TARGET_TYPE_ENUM_ENTRY",
+  TARGET_TYPE_SERVICE = "TARGET_TYPE_SERVICE",
+  TARGET_TYPE_METHOD = "TARGET_TYPE_METHOD",
+}
+
 export enum MethodOptionsIdempotencyLevel {
   IDEMPOTENCY_UNKNOWN = "IDEMPOTENCY_UNKNOWN",
   NO_SIDE_EFFECTS = "NO_SIDE_EFFECTS",
   IDEMPOTENT = "IDEMPOTENT",
+}
+
+export enum FeatureSetFieldPresence {
+  FIELD_PRESENCE_UNKNOWN = "FIELD_PRESENCE_UNKNOWN",
+  EXPLICIT = "EXPLICIT",
+  IMPLICIT = "IMPLICIT",
+  LEGACY_REQUIRED = "LEGACY_REQUIRED",
+}
+
+export enum FeatureSetEnumType {
+  ENUM_TYPE_UNKNOWN = "ENUM_TYPE_UNKNOWN",
+  OPEN = "OPEN",
+  CLOSED = "CLOSED",
+}
+
+export enum FeatureSetRepeatedFieldEncoding {
+  REPEATED_FIELD_ENCODING_UNKNOWN = "REPEATED_FIELD_ENCODING_UNKNOWN",
+  PACKED = "PACKED",
+  EXPANDED = "EXPANDED",
+}
+
+export enum FeatureSetUtf8Validation {
+  UTF8_VALIDATION_UNKNOWN = "UTF8_VALIDATION_UNKNOWN",
+  VERIFY = "VERIFY",
+  NONE = "NONE",
+}
+
+export enum FeatureSetMessageEncoding {
+  MESSAGE_ENCODING_UNKNOWN = "MESSAGE_ENCODING_UNKNOWN",
+  LENGTH_PREFIXED = "LENGTH_PREFIXED",
+  DELIMITED = "DELIMITED",
+}
+
+export enum FeatureSetJsonFormat {
+  JSON_FORMAT_UNKNOWN = "JSON_FORMAT_UNKNOWN",
+  ALLOW = "ALLOW",
+  LEGACY_BEST_EFFORT = "LEGACY_BEST_EFFORT",
+}
+
+export enum GeneratedCodeInfoAnnotationSemantic {
+  NONE = "NONE",
+  SET = "SET",
+  ALIAS = "ALIAS",
 }
 
 export type FileDescriptorSet = {
@@ -72,6 +154,7 @@ export type FileDescriptorProto = {
   options?: FileOptions
   sourceCodeInfo?: SourceCodeInfo
   syntax?: string
+  edition?: Edition
 }
 
 export type DescriptorProtoExtensionRange = {
@@ -98,8 +181,19 @@ export type DescriptorProto = {
   reservedName?: string[]
 }
 
+export type ExtensionRangeOptionsDeclaration = {
+  number?: number
+  fullName?: string
+  type?: string
+  reserved?: boolean
+  repeated?: boolean
+}
+
 export type ExtensionRangeOptions = {
   uninterpretedOption?: UninterpretedOption[]
+  declaration?: ExtensionRangeOptionsDeclaration[]
+  features?: FeatureSet
+  verification?: ExtensionRangeOptionsVerificationState
 }
 
 export type FieldDescriptorProto = {
@@ -166,7 +260,6 @@ export type FileOptions = {
   ccGenericServices?: boolean
   javaGenericServices?: boolean
   pyGenericServices?: boolean
-  phpGenericServices?: boolean
   deprecated?: boolean
   ccEnableArenas?: boolean
   objcClassPrefix?: string
@@ -176,6 +269,7 @@ export type FileOptions = {
   phpNamespace?: string
   phpMetadataNamespace?: string
   rubyPackage?: string
+  features?: FeatureSet
   uninterpretedOption?: UninterpretedOption[]
 }
 
@@ -184,7 +278,21 @@ export type MessageOptions = {
   noStandardDescriptorAccessor?: boolean
   deprecated?: boolean
   mapEntry?: boolean
+  deprecatedLegacyJsonFieldConflicts?: boolean
+  features?: FeatureSet
   uninterpretedOption?: UninterpretedOption[]
+}
+
+export type FieldOptionsEditionDefault = {
+  edition?: Edition
+  value?: string
+}
+
+export type FieldOptionsFeatureSupport = {
+  editionIntroduced?: Edition
+  editionDeprecated?: Edition
+  deprecationWarning?: string
+  editionRemoved?: Edition
 }
 
 export type FieldOptions = {
@@ -195,25 +303,38 @@ export type FieldOptions = {
   unverifiedLazy?: boolean
   deprecated?: boolean
   weak?: boolean
+  debugRedact?: boolean
+  retention?: FieldOptionsOptionRetention
+  targets?: FieldOptionsOptionTargetType[]
+  editionDefaults?: FieldOptionsEditionDefault[]
+  features?: FeatureSet
+  featureSupport?: FieldOptionsFeatureSupport
   uninterpretedOption?: UninterpretedOption[]
 }
 
 export type OneofOptions = {
+  features?: FeatureSet
   uninterpretedOption?: UninterpretedOption[]
 }
 
 export type EnumOptions = {
   allowAlias?: boolean
   deprecated?: boolean
+  deprecatedLegacyJsonFieldConflicts?: boolean
+  features?: FeatureSet
   uninterpretedOption?: UninterpretedOption[]
 }
 
 export type EnumValueOptions = {
   deprecated?: boolean
+  features?: FeatureSet
+  debugRedact?: boolean
+  featureSupport?: FieldOptionsFeatureSupport
   uninterpretedOption?: UninterpretedOption[]
 }
 
 export type ServiceOptions = {
+  features?: FeatureSet
   deprecated?: boolean
   uninterpretedOption?: UninterpretedOption[]
 }
@@ -221,6 +342,7 @@ export type ServiceOptions = {
 export type MethodOptions = {
   deprecated?: boolean
   idempotencyLevel?: MethodOptionsIdempotencyLevel
+  features?: FeatureSet
   uninterpretedOption?: UninterpretedOption[]
 }
 
@@ -237,6 +359,27 @@ export type UninterpretedOption = {
   doubleValue?: number
   stringValue?: Uint8Array
   aggregateValue?: string
+}
+
+export type FeatureSet = {
+  fieldPresence?: FeatureSetFieldPresence
+  enumType?: FeatureSetEnumType
+  repeatedFieldEncoding?: FeatureSetRepeatedFieldEncoding
+  utf8Validation?: FeatureSetUtf8Validation
+  messageEncoding?: FeatureSetMessageEncoding
+  jsonFormat?: FeatureSetJsonFormat
+}
+
+export type FeatureSetDefaultsFeatureSetEditionDefault = {
+  edition?: Edition
+  overridableFeatures?: FeatureSet
+  fixedFeatures?: FeatureSet
+}
+
+export type FeatureSetDefaults = {
+  defaults?: FeatureSetDefaultsFeatureSetEditionDefault[]
+  minimumEdition?: Edition
+  maximumEdition?: Edition
 }
 
 export type SourceCodeInfoLocation = {
@@ -256,6 +399,7 @@ export type GeneratedCodeInfoAnnotation = {
   sourceFile?: string
   begin?: number
   end?: number
+  semantic?: GeneratedCodeInfoAnnotationSemantic
 }
 
 export type GeneratedCodeInfo = {

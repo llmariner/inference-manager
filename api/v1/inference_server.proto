@@ -13,7 +13,7 @@ message CreateChatCompletionRequest {
   message Message {
     message ToolCall {
       message Function {
-        string name  = 1;
+        string name = 1;
         string arguments = 2;
       }
       string id = 1;
@@ -96,6 +96,8 @@ message CreateChatCompletionRequest {
   map<string, double> logit_bias = 4;
   bool logprobs = 5;
   int32 top_logprobs = 6;
+  // MaxTokens
+  // Deprecated: This value is now deprecated in favor of MaxCompletionTokens
   int32 max_tokens = 7;
   int32 n = 8;
   double presence_penalty = 9;
@@ -117,13 +119,15 @@ message CreateChatCompletionRequest {
   string tool_choice = 17;
   ToolChoice tool_choice_object = 20;
   string user = 18;
+  // MaxCompletionTokens specifies the maximum limit on the number of tokens that can be generated during a completion.`
+  int32 max_completion_tokens = 21;
 
-  // Next ID: 21
+  // Next ID: 22
 }
 
 message ToolCall {
   message Function {
-    string name  = 1;
+    string name = 1;
     string arguments = 2;
   }
   string id = 1;
@@ -157,7 +161,6 @@ message Usage {
 message ChatCompletion {
   message Choice {
     message Message {
-
       string content = 1;
       repeated ToolCall tool_calls = 2;
       string role = 3;
@@ -182,13 +185,13 @@ message ChatCompletionChunk {
   message Choice {
     message Delta {
       message ToolCall {
-	message Function {
-	  string name  = 1;
-	  string arguments = 2;
-	}
-	string id = 1;
-	string type = 2;
-	Function function = 3;
+        message Function {
+          string name = 1;
+          string arguments = 2;
+        }
+        string id = 1;
+        string type = 2;
+        Function function = 3;
       }
 
       string content = 1;
@@ -220,7 +223,6 @@ service ChatService {
   // CreateChatCompletion is implemented as an HTTP handler without gRPC
   // as gRPC gateway does not support server-sent events.
 }
-
 
 // Define legacy completion
 // (https://platform.openai.com/docs/api-reference/completions/create).

@@ -257,7 +257,8 @@
         },
         "maxTokens": {
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "title": "MaxTokens\nDeprecated: This value is now deprecated in favor of MaxCompletionTokens"
         },
         "n": {
           "type": "integer",
@@ -310,6 +311,11 @@
         },
         "user": {
           "type": "string"
+        },
+        "maxCompletionTokens": {
+          "type": "integer",
+          "format": "int32",
+          "title": "MaxCompletionTokens specifies the maximum limit on the number of tokens that can be generated during a completion.`"
         }
       }
     },

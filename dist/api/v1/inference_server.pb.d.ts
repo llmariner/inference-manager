@@ -77,6 +77,7 @@ export type CreateChatCompletionRequest = {
     toolChoice?: string;
     toolChoiceObject?: CreateChatCompletionRequestToolChoice;
     user?: string;
+    maxCompletionTokens?: number;
 };
 export type ToolCallFunction = {
     name?: string;

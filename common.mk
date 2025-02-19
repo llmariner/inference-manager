@@ -56,16 +56,16 @@ go-lint:
 
 buf-generate-all: buf-generate-base buf-generate-ts
 
-.PHONY: buf-mod-update
-buf-mod-update:
-	buf mod update
+.PHONY: buf-dep-update
+buf-dep-update:
+	buf dep update
 
 .PHONY: buf-generate-base
-buf-generate-base: buf-mod-update
+buf-generate-base: buf-dep-update
 	buf generate
 
 .PHONY: buf-generate-ts
-buf-generate-ts: buf-mod-update
+buf-generate-ts: buf-dep-update
 ifneq (,$(wildcard ./buf.gen.ts.yaml))
 	buf generate --template buf.gen.ts.yaml --include-imports --include-wkt
 endif

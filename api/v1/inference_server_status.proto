@@ -20,16 +20,13 @@ message TaskStatus {
 message ClusterStatus {
   string id = 1;
   string name = 2;
-  repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3; 
+  repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3;
 }
 
-message ListInferenceStatusRequest {
-}
+message ListInferenceStatusRequest {}
 
 service InferenceService {
   rpc ListInferenceStatus(ListInferenceStatusRequest) returns (InferenceStatus) {
-    option (google.api.http) = {
-      get: "/v1/inference/status"
-    };
+    option (google.api.http) = {get: "/v1/inference/status"};
   }
 }

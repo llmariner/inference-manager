@@ -30,7 +30,7 @@ func TestCreateChatCompletion(t *testing.T) {
 	const modelID = "m0"
 
 	logger := testutil.NewTestLogger(t)
-
+	capturingTaskSender := &captureChatRequestTaskSender{}
 	srv := New(
 		&fakeMetricsMonitor{},
 		&sender.NoopUsageSetter{},
@@ -46,143 +46,65 @@ func TestCreateChatCompletion(t *testing.T) {
 			},
 		},
 		&fakeRewriter{},
-		&fakeTaskSender{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte{})),
-			}},
+		capturingTaskSender,
 		logger,
 	)
 	srv.enableAuth = true
 
 	tcs := []struct {
-		name string
-		req  *v1.CreateChatCompletionRequest
-		code int
+		name    string
+		req     *v1.CreateChatCompletionRequest
+		expCode int
+		assert  func(t *testing.T, req *v1.CreateChatCompletionRequest)
 	}{
 		{
-			name: "success",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusOK,
+			name:    "success",
+			req:     CreateChatCompletionRequestFixture(WithModel(modelID)),
+			expCode: http.StatusOK,
 		},
 		{
-			name: "no model",
-			req: &v1.CreateChatCompletionRequest{
-				Model: "m1",
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusBadRequest,
+			name:    "no model",
+			req:     CreateChatCompletionRequestFixture(WithModel("unknown")),
+			expCode: http.StatusBadRequest,
 		},
 		{
 			name: "no message",
 			req: &v1.CreateChatCompletionRequest{
 				Model: "m0",
 			},
-			code: http.StatusBadRequest,
+			expCode: http.StatusBadRequest,
 		},
 		{
 			name: "no content",
 			req: &v1.CreateChatCompletionRequest{
 				Model: "m0",
 				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-					},
+					{Role: "user"},
 				},
 			},
-			code: http.StatusBadRequest,
+			expCode: http.StatusBadRequest,
 		},
 		{
 			name: "valid tools",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
+				c.ToolChoiceObject = &v1.CreateChatCompletionRequest_ToolChoice{
 					Type: functionObjectType,
 					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
 						Name: "test",
 					},
-				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusOK,
+				}
+			}),
+			expCode: http.StatusOK,
 		},
 		{
-			name: "valid rag",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
-					Type: functionObjectType,
-					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
-						Name: ragToolName,
-					},
-				},
-				Tools: []*v1.CreateChatCompletionRequest_Tool{
-					{
-						Type: functionObjectType,
-						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:              ragToolName,
-							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
-						},
-					},
-				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusOK,
+			name:    "valid rag",
+			req:     CreateChatCompletionRequestFixture(WithModel(modelID), WithRAG),
+			expCode: http.StatusOK,
 		},
 		{
 			name: "invalid vector store name",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
-					Type: functionObjectType,
-					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
-						Name: ragToolName,
-					},
-				},
-				Tools: []*v1.CreateChatCompletionRequest_Tool{
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), WithRAG, func(c *v1.CreateChatCompletionRequest) {
+				c.Tools = []*v1.CreateChatCompletionRequest_Tool{
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
@@ -190,60 +112,21 @@ func TestCreateChatCompletion(t *testing.T) {
 							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"invalid_name"}`)),
 						},
 					},
-				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusBadRequest,
+				}
+			}),
+			expCode: http.StatusBadRequest,
 		},
 		{
 			name: "skip rag",
-			req: &v1.CreateChatCompletionRequest{
-				Model:      modelID,
-				ToolChoice: string(noneToolChoice),
-				Tools: []*v1.CreateChatCompletionRequest_Tool{
-					{
-						Type: functionObjectType,
-						Function: &v1.CreateChatCompletionRequest_Tool_Function{
-							Name:              ragToolName,
-							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store_name":"test"}`)),
-						},
-					},
-				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
-			},
-			code: http.StatusOK,
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), WithRAG, func(c *v1.CreateChatCompletionRequest) {
+				c.ToolChoice = string(noneToolChoice)
+			}),
+			expCode: http.StatusOK,
 		},
 		{
 			name: "invalid rag parameter",
-			req: &v1.CreateChatCompletionRequest{
-				Model: modelID,
-				ToolChoiceObject: &v1.CreateChatCompletionRequest_ToolChoice{
-					Type: functionObjectType,
-					Function: &v1.CreateChatCompletionRequest_ToolChoice_Function{
-						Name: ragToolName,
-					},
-				},
-				Tools: []*v1.CreateChatCompletionRequest_Tool{
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), WithRAG, func(c *v1.CreateChatCompletionRequest) {
+				c.Tools = []*v1.CreateChatCompletionRequest_Tool{
 					{
 						Type: functionObjectType,
 						Function: &v1.CreateChatCompletionRequest_Tool_Function{
@@ -251,26 +134,54 @@ func TestCreateChatCompletion(t *testing.T) {
 							EncodedParameters: base64.URLEncoding.EncodeToString([]byte(`{"vector_store":"test"}`)),
 						},
 					},
-				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
-					{
-						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
-							{
-								Type: "text",
-								Text: "test",
-							},
-						},
-					},
-				},
+				}
+			}),
+			expCode: http.StatusBadRequest,
+		},
+		{
+			name: "MaxCompletionTokens not set - use MaxTokens as default",
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
+				c.MaxTokens = 100
+			}),
+			expCode: http.StatusOK,
+			assert: func(t *testing.T, req *v1.CreateChatCompletionRequest) {
+				assert.Equal(t, int32(100), req.MaxCompletionTokens)
 			},
-			code: http.StatusBadRequest,
+		},
+		{
+			name: "MaxCompletionTokens and MaxTokens equal value set",
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
+				c.MaxTokens = 100
+				c.MaxCompletionTokens = 100
+			}),
+			expCode: http.StatusOK,
+			assert: func(t *testing.T, req *v1.CreateChatCompletionRequest) {
+				assert.Equal(t, int32(100), req.MaxCompletionTokens)
+			},
+		},
+		{
+			name: "MaxCompletionTokens and MaxTokens different value set",
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
+				c.MaxTokens = 100
+				c.MaxCompletionTokens = 200
+			}),
+			expCode: http.StatusBadRequest,
+		},
+		{
+			name: "MaxCompletionTokens set, no MaxTokens defined",
+			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
+				c.MaxCompletionTokens = 200
+			}),
+			expCode: http.StatusOK,
+			assert: func(t *testing.T, req *v1.CreateChatCompletionRequest) {
+				assert.Equal(t, int32(200), req.MaxCompletionTokens)
+				assert.Equal(t, int32(200), req.MaxTokens, "legacy support of MaxTokens for Ollama")
+			},
 		},
 	}
-
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-
+			capturingTaskSender.reset()
 			w := &httptest.ResponseRecorder{}
 			reqBody, err := json.Marshal(tc.req)
 			assert.NoError(t, err)
@@ -280,8 +191,12 @@ func TestCreateChatCompletion(t *testing.T) {
 			pathParams := map[string]string{}
 
 			srv.CreateChatCompletion(w, req, pathParams)
+			assert.Equal(t, tc.expCode, w.Code)
 
-			assert.Equal(t, tc.code, w.Code)
+			if tc.assert != nil {
+				tc.assert(t, capturingTaskSender.capturedReq)
+			}
+
 		})
 	}
 }
@@ -647,15 +562,19 @@ func (c *fakeVectorStoreClient) GetVectorStoreByName(
 	return c.vs, nil
 }
 
-type fakeTaskSender struct {
-	resp *http.Response
-	err  error
+type captureChatRequestTaskSender struct {
+	capturedReq *v1.CreateChatCompletionRequest
 }
 
-func (s *fakeTaskSender) SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error) {
-	return s.resp, s.err
+// reset clears internal state
+func (s *captureChatRequestTaskSender) reset() {
+	s.capturedReq = nil
+}
+func (s *captureChatRequestTaskSender) SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error) {
+	s.capturedReq = req
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader([]byte{}))}, nil
 }
 
-func (s *fakeTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
-	return s.resp, s.err
+func (s *captureChatRequestTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
+	panic("not implemented")
 }

@@ -14,15 +14,15 @@ message EngineStatus {
   }
 
   message Model {
-     string id = 1;
-     bool is_ready = 2;
-     int32 in_progress_task_count = 3;
-     int32 gpu_allocated = 4;
+    string id = 1;
+    bool is_ready = 2;
+    int32 in_progress_task_count = 3;
+    int32 gpu_allocated = 4;
   }
 
   string engine_id = 1;
-  repeated string model_ids = 2  [deprecated = true];
-  SyncStatus sync_status = 3  [deprecated = true];
+  repeated string model_ids = 2 [deprecated = true];
+  SyncStatus sync_status = 3 [deprecated = true];
   bool ready = 4;
   repeated Model models = 5;
 }
@@ -81,5 +81,4 @@ message ProcessTasksResponse {
 
 service InferenceWorkerService {
   rpc ProcessTasks(stream ProcessTasksRequest) returns (stream ProcessTasksResponse) {}
-
 }

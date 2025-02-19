@@ -127,7 +127,17 @@ func (s *S) CreateChatCompletion(
 			IncludeUsage: true,
 		}
 	}
-
+	// max_tokens is deprecated and replaced by max_completion_tokens, now
+	if createReq.MaxCompletionTokens == 0 {
+		createReq.MaxCompletionTokens = createReq.MaxTokens
+	} else if createReq.MaxTokens != 0 && createReq.MaxCompletionTokens != createReq.MaxTokens {
+		httpError(w, "MaxCompletionTokens and MaxTokens are mutually exclusive", http.StatusBadRequest, &usage)
+		return
+	}
+	if createReq.MaxTokens == 0 {
+		// MaxCompletionTokens is not supported in Ollama, yet: https://github.com/ollama/ollama/issues/7125
+		createReq.MaxTokens = createReq.MaxCompletionTokens
+	}
 	// Increment the number of requests for the specified model.
 	s.metricsMonitor.UpdateCompletionRequest(createReq.Model, 1)
 	defer func() {

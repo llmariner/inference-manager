@@ -168,13 +168,14 @@ func TestCreateChatCompletion(t *testing.T) {
 			expCode: http.StatusBadRequest,
 		},
 		{
-			name: "MaxCompletionTokens set no MaxTokens",
+			name: "MaxCompletionTokens set, no MaxTokens defined",
 			req: CreateChatCompletionRequestFixture(WithModel(modelID), func(c *v1.CreateChatCompletionRequest) {
 				c.MaxCompletionTokens = 200
 			}),
 			expCode: http.StatusOK,
 			assert: func(t *testing.T, req *v1.CreateChatCompletionRequest) {
 				assert.Equal(t, int32(200), req.MaxCompletionTokens)
+				assert.Equal(t, int32(200), req.MaxTokens, "legacy support of MaxTokens for Ollama")
 			},
 		},
 	}

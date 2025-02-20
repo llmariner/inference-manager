@@ -287,7 +287,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		runtime.WithHealthzEndpoint(grpc_health_v1.NewHealthClient(conn)),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if err := v1.RegisterInferenceServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", c.StatusGRPCPort), opts); err != nil {
+	if err := v1.RegisterInferenceServiceHandlerFromEndpoint(ctx, imux, fmt.Sprintf("localhost:%d", c.StatusGRPCPort), opts); err != nil {
 		return err
 	}
 

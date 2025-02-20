@@ -21,9 +21,103 @@ func TestGetInferenceStatus(t *testing.T) {
 		want           *v1.InferenceStatus
 	}{
 		{
+			name: "in-progress task count",
+			ctx:  fakeAuthInto(context.Background()),
+			tenantStatuses: map[string]map[string][]*v1.EngineStatus{
+				defaultTenantID: {
+					defaultClusterID: {
+						{
+							EngineId: "engine1",
+							Models: []*v1.EngineStatus_Model{
+								{
+									Id:                  "model1",
+									InProgressTaskCount: 1,
+								},
+								{
+									Id:                  "model2",
+									InProgressTaskCount: 2,
+								},
+							},
+						},
+						{
+							EngineId: "engine2",
+							Models: []*v1.EngineStatus_Model{
+								{
+									Id:                  "model1",
+									InProgressTaskCount: 10,
+								},
+								{
+									Id:                  "model3",
+									InProgressTaskCount: 12,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &v1.InferenceStatus{
+				ClusterStatuses: []*v1.ClusterStatus{
+					{
+						Id: defaultClusterID,
+						EngineStatuses: []*v1.EngineStatus{
+							{
+								EngineId: "engine1",
+								Models: []*v1.EngineStatus_Model{
+									{
+										Id:                  "model1",
+										InProgressTaskCount: 1,
+									},
+									{
+										Id:                  "model2",
+										InProgressTaskCount: 2,
+									},
+								},
+							},
+							{
+								EngineId: "engine2",
+								Models: []*v1.EngineStatus_Model{
+									{
+										Id:                  "model1",
+										InProgressTaskCount: 10,
+									},
+									{
+										Id:                  "model3",
+										InProgressTaskCount: 12,
+									},
+								},
+							},
+						},
+					},
+				},
+				TaskStatus: &v1.TaskStatus{
+					InProgressTaskCounts: map[string]int32{
+						"model1": 1 + 10,
+						"model2": 2,
+						"model3": 12,
+					},
+				},
+			},
+		},
+		{
 			name:           "empty tenant statuses",
 			ctx:            fakeAuthInto(context.Background()),
 			tenantStatuses: map[string]map[string][]*v1.EngineStatus{},
+			want: &v1.InferenceStatus{
+				TaskStatus: &v1.TaskStatus{},
+			},
+		},
+		{
+			name: "different tenant",
+			ctx:  fakeAuthInto(context.Background()),
+			tenantStatuses: map[string]map[string][]*v1.EngineStatus{
+				"different tenant": {
+					defaultClusterID: {
+						{
+							EngineId: "engine1",
+						},
+					},
+				},
+			},
 			want: &v1.InferenceStatus{
 				TaskStatus: &v1.TaskStatus{},
 			},

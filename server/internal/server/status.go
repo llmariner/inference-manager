@@ -153,7 +153,7 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user info not found")
 	}
-	var clusterNamesByID = map[string]string{}
+	clusterNamesByID := map[string]string{}
 	// Construct a map to avoid duplicated clusters in the env.
 	for _, env := range userInfo.AssignedKubernetesEnvs {
 		clusterNamesByID[env.ClusterID] = env.ClusterName

@@ -21,11 +21,11 @@ export type ClusterStatus = {
   engineStatuses?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus[]
 }
 
-export type ListInferenceStatusRequest = {
+export type GetInferenceStatusRequest = {
 }
 
 export class InferenceService {
-  static ListInferenceStatus(req: ListInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus> {
-    return fm.fetchReq<ListInferenceStatusRequest, InferenceStatus>(`/v1/inference/status?${fm.renderURLSearchParams(req, [])}`, {...initReq, method: "GET"})
+  static GetInferenceStatus(req: GetInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus> {
+    return fm.fetchReq<GetInferenceStatusRequest, InferenceStatus>(`/v1/inference/status?${fm.renderURLSearchParams(req, [])}`, {...initReq, method: "GET"})
   }
 }

@@ -18,7 +18,7 @@
   "paths": {
     "/v1/inference/status": {
       "get": {
-        "operationId": "InferenceService_ListInferenceStatus",
+        "operationId": "InferenceService_GetInferenceStatus",
         "responses": {
           "200": {
             "description": "A successful response.",

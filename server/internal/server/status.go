@@ -147,8 +147,8 @@ func (s *ISS) refresh() {
 	s.tenantStatuses = tss
 }
 
-// ListInferenceStatus returns the inference status.
-func (s *ISS) ListInferenceStatus(ctx context.Context, req *v1.ListInferenceStatusRequest) (*v1.InferenceStatus, error) {
+// GetInferenceStatus returns the inference status.
+func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatusRequest) (*v1.InferenceStatus, error) {
 	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user info not found")

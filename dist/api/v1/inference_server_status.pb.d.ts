@@ -14,7 +14,7 @@ export type ClusterStatus = {
     name?: string;
     engineStatuses?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus[];
 };
-export type ListInferenceStatusRequest = {};
+export type GetInferenceStatusRequest = {};
 export declare class InferenceService {
-    static ListInferenceStatus(req: ListInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus>;
+    static GetInferenceStatus(req: GetInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus>;
 }

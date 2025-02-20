@@ -153,6 +153,11 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user info not found")
 	}
+	var clusterNamesByID = map[string]string{}
+	// Construct a map to avoid duplicated clusters in the env.
+	for _, env := range userInfo.AssignedKubernetesEnvs {
+		clusterNamesByID[env.ClusterID] = env.ClusterName
+	}
 
 	s.mu.Lock()
 	ts := s.tenantStatuses[userInfo.TenantID]
@@ -160,8 +165,8 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 
 	var css []*v1.ClusterStatus
 	tasks := make(map[string]int32)
-	for _, env := range userInfo.AssignedKubernetesEnvs {
-		es, ok := ts[env.ClusterID]
+	for cid, cname := range clusterNamesByID {
+		es, ok := ts[cid]
 		if !ok {
 			continue
 		}
@@ -171,8 +176,8 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 			}
 		}
 		css = append(css, &v1.ClusterStatus{
-			Id:             env.ClusterID,
-			Name:           env.ClusterName,
+			Id:             cid,
+			Name:           cname,
 			EngineStatuses: es,
 		})
 	}
@@ -189,7 +194,7 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 	}, nil
 }
 
-// fakeAuthInto sets dummy user info and token into the context.
+// fakeAuthIntxo sets dummy user info and token into the context.
 func fakeAuthInto(ctx context.Context) context.Context {
 	// Set dummy user info and token
 	ctx = auth.AppendUserInfoToContext(ctx, auth.UserInfo{

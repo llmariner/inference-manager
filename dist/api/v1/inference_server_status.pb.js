@@ -5,7 +5,7 @@
 */
 import * as fm from "../../fetch.pb";
 export class InferenceService {
-    static ListInferenceStatus(req, initReq) {
+    static GetInferenceStatus(req, initReq) {
         return fm.fetchReq(`/v1/inference/status?${fm.renderURLSearchParams(req, [])}`, Object.assign(Object.assign({}, initReq), { method: "GET" }));
     }
 }

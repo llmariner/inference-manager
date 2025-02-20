@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InferenceServiceClient interface {
-	ListInferenceStatus(ctx context.Context, in *ListInferenceStatusRequest, opts ...grpc.CallOption) (*InferenceStatus, error)
+	GetInferenceStatus(ctx context.Context, in *GetInferenceStatusRequest, opts ...grpc.CallOption) (*InferenceStatus, error)
 }
 
 type inferenceServiceClient struct {
@@ -29,9 +29,9 @@ func NewInferenceServiceClient(cc grpc.ClientConnInterface) InferenceServiceClie
 	return &inferenceServiceClient{cc}
 }
 
-func (c *inferenceServiceClient) ListInferenceStatus(ctx context.Context, in *ListInferenceStatusRequest, opts ...grpc.CallOption) (*InferenceStatus, error) {
+func (c *inferenceServiceClient) GetInferenceStatus(ctx context.Context, in *GetInferenceStatusRequest, opts ...grpc.CallOption) (*InferenceStatus, error) {
 	out := new(InferenceStatus)
-	err := c.cc.Invoke(ctx, "/llmariner.inference.server.v1.InferenceService/ListInferenceStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/llmariner.inference.server.v1.InferenceService/GetInferenceStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (c *inferenceServiceClient) ListInferenceStatus(ctx context.Context, in *Li
 // All implementations must embed UnimplementedInferenceServiceServer
 // for forward compatibility
 type InferenceServiceServer interface {
-	ListInferenceStatus(context.Context, *ListInferenceStatusRequest) (*InferenceStatus, error)
+	GetInferenceStatus(context.Context, *GetInferenceStatusRequest) (*InferenceStatus, error)
 	mustEmbedUnimplementedInferenceServiceServer()
 }
 
@@ -50,8 +50,8 @@ type InferenceServiceServer interface {
 type UnimplementedInferenceServiceServer struct {
 }
 
-func (UnimplementedInferenceServiceServer) ListInferenceStatus(context.Context, *ListInferenceStatusRequest) (*InferenceStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListInferenceStatus not implemented")
+func (UnimplementedInferenceServiceServer) GetInferenceStatus(context.Context, *GetInferenceStatusRequest) (*InferenceStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInferenceStatus not implemented")
 }
 func (UnimplementedInferenceServiceServer) mustEmbedUnimplementedInferenceServiceServer() {}
 
@@ -66,20 +66,20 @@ func RegisterInferenceServiceServer(s grpc.ServiceRegistrar, srv InferenceServic
 	s.RegisterService(&InferenceService_ServiceDesc, srv)
 }
 
-func _InferenceService_ListInferenceStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListInferenceStatusRequest)
+func _InferenceService_GetInferenceStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInferenceStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(InferenceServiceServer).ListInferenceStatus(ctx, in)
+		return srv.(InferenceServiceServer).GetInferenceStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/llmariner.inference.server.v1.InferenceService/ListInferenceStatus",
+		FullMethod: "/llmariner.inference.server.v1.InferenceService/GetInferenceStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InferenceServiceServer).ListInferenceStatus(ctx, req.(*ListInferenceStatusRequest))
+		return srv.(InferenceServiceServer).GetInferenceStatus(ctx, req.(*GetInferenceStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -92,8 +92,8 @@ var InferenceService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*InferenceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListInferenceStatus",
-			Handler:    _InferenceService_ListInferenceStatus_Handler,
+			MethodName: "GetInferenceStatus",
+			Handler:    _InferenceService_GetInferenceStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

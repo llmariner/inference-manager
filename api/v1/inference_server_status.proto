@@ -23,10 +23,10 @@ message ClusterStatus {
   repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3;
 }
 
-message ListInferenceStatusRequest {}
+message GetInferenceStatusRequest {}
 
 service InferenceService {
-  rpc ListInferenceStatus(ListInferenceStatusRequest) returns (InferenceStatus) {
+  rpc GetInferenceStatus(GetInferenceStatusRequest) returns (InferenceStatus) {
     option (google.api.http) = {get: "/v1/inference/status"};
   }
 }

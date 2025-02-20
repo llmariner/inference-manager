@@ -68,7 +68,7 @@ func (s *ISS) RunWithListener(ctx context.Context, authConfig config.AuthConfig,
 		ai, err := auth.NewInterceptor(ctx, auth.Config{
 			RBACServerAddr: authConfig.RBACInternalServerAddr,
 			// TODO(guangrui): Consider to create a resource in rbac manager, e.g. "api.inference.status"
-			AccessResource: "api.models",
+			AccessResource: "api.model",
 		})
 		if err != nil {
 			return err

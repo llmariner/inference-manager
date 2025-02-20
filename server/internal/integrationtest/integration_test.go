@@ -122,6 +122,15 @@ func TestIntegration(t *testing.T) {
 					ModelIds:   []string{fmt.Sprintf("m%d", i)},
 					SyncStatus: &v1.EngineStatus_SyncStatus{},
 					Ready:      true,
+					Models: []*v1.EngineStatus_Model{
+						{
+							Id:                  fmt.Sprintf("m%d", i),
+							IsReady:             true,
+							InProgressTaskCount: 1,
+							GpuAllocated:        1,
+						},
+					},
+					ClusterId: "cluster-id",
 				},
 			},
 		}

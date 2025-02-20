@@ -13,6 +13,7 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
+	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/stretchr/testify/assert"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -166,7 +167,7 @@ func (s *fakeOllamaServer) port() int {
 type fakeModelSyncer struct {
 }
 
-func (f *fakeModelSyncer) ListSyncedModelIDs() []string {
+func (f *fakeModelSyncer) ListSyncedModels() []runtime.ModelRuntimeInfo {
 	return nil
 }
 
@@ -174,7 +175,7 @@ func (f *fakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
-func (f *fakeModelSyncer) ListInProgressModels() []string {
+func (f *fakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 	return nil
 }
 

@@ -139,6 +139,8 @@ type engine struct {
 
 	taskSender TaskSender
 
+	clusterID          string
+	models             []*v1.EngineStatus_Model
 	modelIDs           []string
 	inProgressModelIDs []string
 
@@ -502,11 +504,13 @@ func (p *P) AddOrUpdateEngineStatus(
 			id:         engineStatus.EngineId,
 			taskSender: taskSender,
 			isLocal:    isLocal,
+			clusterID:  engineStatus.ClusterId,
 		}
 		engines[engineStatus.EngineId] = e
 		log.Info("Registered new engine")
 	}
 	e.modelIDs = engineStatus.ModelIds
+	e.models = engineStatus.Models
 	// Check if the sync status is set for backward compatibility.
 	if s := engineStatus.SyncStatus; s != nil {
 		e.inProgressModelIDs = s.InProgressModelIds
@@ -582,6 +586,7 @@ func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 			engines = append(engines, &v1.EngineStatus{
 				EngineId: e.id,
 				ModelIds: e.modelIDs,
+				Models:   e.models,
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: e.inProgressModelIDs,
 				},
@@ -642,6 +647,10 @@ type EngineStatus struct {
 	InProgressModelIDs []string      `json:"inProgressModelIds"`
 	Tasks              []*TaskStatus `json:"tasks"`
 	IsLocal            bool          `json:"isLocal"`
+
+	Models    []*v1.EngineStatus_Model `json:"models"`
+	ClusterID string                   `json:"clusterId"`
+	Ready     bool                     `json:"ready"`
 }
 
 // TenantStatus is the status of a tenant.
@@ -676,11 +685,14 @@ func (p *P) DumpStatus() *Status {
 			t.Engines[id] = &EngineStatus{
 				RegisteredModelIDs: e.modelIDs,
 				InProgressModelIDs: e.inProgressModelIDs,
+				Models:             e.models,
 				IsLocal:            e.isLocal,
+				ClusterID:          e.clusterID,
 			}
 		}
 	}
 
+	tasksByEnginesAndModelIDs := make(map[string]map[string]int32)
 	for _, task := range p.inProgressTasksByID {
 		t, ok := status.Tenants[task.tenantID]
 		if !ok {
@@ -699,13 +711,25 @@ func (p *P) DumpStatus() *Status {
 			ID:      task.id,
 			ModelID: task.model(),
 		})
+		em, ok := tasksByEnginesAndModelIDs[task.engineID]
+		if !ok {
+			em = make(map[string]int32)
+			tasksByEnginesAndModelIDs[task.engineID] = em
+		}
+		em[task.model()]++
 	}
 
 	// Sort the modelIDs and task IDs for deterministic output.
 	for _, engines := range status.Tenants {
-		for _, e := range engines.Engines {
+		for eid, e := range engines.Engines {
 			sort.Strings(e.RegisteredModelIDs)
 			sort.Strings(e.InProgressModelIDs)
+			sort.Slice(e.Models, func(i, j int) bool {
+				return e.Models[i].Id < e.Models[j].Id
+			})
+			for _, m := range e.Models {
+				m.InProgressTaskCount = tasksByEnginesAndModelIDs[eid][m.Id]
+			}
 			sort.Slice(e.Tasks, func(i, j int) bool {
 				return e.Tasks[i].ID < e.Tasks[j].ID
 			})

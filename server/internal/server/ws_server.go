@@ -156,6 +156,7 @@ func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		switch msg := req.Message.(type) {
 		case *v1.ProcessTasksRequest_EngineStatus:
 			ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)
+			msg.EngineStatus.ClusterId = clusterInfo.ClusterID
 			ws.infProcessor.AddOrUpdateEngineStatus(srv, msg.EngineStatus, clusterInfo.TenantID, true /* isLocal */)
 			engineID = msg.EngineStatus.EngineId
 		case *v1.ProcessTasksRequest_TaskResult:

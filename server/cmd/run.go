@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/stdr"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/llmariner/api-usage/pkg/sender"
+	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/admin"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
@@ -271,12 +272,30 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- mgr.Start(signals.SetupSignalHandler())
 	}()
 
+	imux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			// Do not use the camel case for JSON fields to follow OpenAI API.
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:     true,
+				EmitDefaultValues: true,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		}),
+		runtime.WithIncomingHeaderMatcher(auth.HeaderMatcher),
+		runtime.WithHealthzEndpoint(grpc_health_v1.NewHealthClient(conn)),
+	)
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	if err := v1.RegisterInferenceServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", c.StatusGRPCPort), opts); err != nil {
+		return err
+	}
+
 	iss := server.NewInferenceStatusServer(infProcessor, logger)
 	go func() {
 		log := logger.WithName("inference status server")
 		log.Info("Starting inference status server...", "port", c.StatusPort)
-		mux := http.NewServeMux()
-		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.StatusPort), mux)
+		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.StatusPort), imux)
 		log.Info("Stopped inference status server")
 	}()
 	go func() {

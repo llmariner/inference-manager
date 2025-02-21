@@ -127,7 +127,8 @@ func (s *ISS) refresh() {
 				EngineId:  eid,
 				ClusterId: e.ClusterID,
 				Models:    e.Models,
-				Ready:     e.Ready,
+				// Set to true as the engine reported from infProcessor is already ready.
+				Ready: true,
 			})
 			tss[tid][e.ClusterID] = es
 		}

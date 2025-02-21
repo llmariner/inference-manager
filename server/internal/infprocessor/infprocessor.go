@@ -651,7 +651,6 @@ type EngineStatus struct {
 
 	Models    []*v1.EngineStatus_Model `json:"models"`
 	ClusterID string                   `json:"clusterId"`
-	Ready     bool                     `json:"ready"`
 }
 
 // TenantStatus is the status of a tenant.

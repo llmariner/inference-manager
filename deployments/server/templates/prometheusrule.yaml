@@ -10,7 +10,7 @@ spec:
   - name: LLM Operator alerts
     rules:
     - alert: Inference Manager Server in-progress task duration
-      expr: llm_operator_inference_manager_server_max_in_progress_task_duration > 300
+      expr: llmariner_inference_manager_server_max_in_progress_task_duration > 300
       for: 5m
       labels:
         severity: critical

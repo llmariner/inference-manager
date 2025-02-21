@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	metricNamespace = "llm_operator"
+	metricNamespace = "llmariner"
 
 	metricsNameCompletionLatency         = "inference_manager_server_completion_latency"
 	metricsNameCompletionRequest         = "inference_manager_server_completion_num_active_requests"

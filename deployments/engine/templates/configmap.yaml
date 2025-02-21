@@ -55,7 +55,20 @@ data:
       default:
         runtimeName: {{ .Values.model.default.runtimeName }}
         resources:
-          {{- toYaml .Values.model.default.resources | nindent 10 }}
+        {{- with .Values.model.default.resources }}
+          {{- with .requests }}
+          requests:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .limits }}
+          limits:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .volume }}
+          volume:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
         replicas: {{ .Values.model.default.replicas }}
         preloaded: {{ .Values.model.default.preloaded }}
         contextLength: {{ .Values.model.default.contextLength }}

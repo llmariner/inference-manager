@@ -7,7 +7,7 @@ metadata:
     {{- include "inference-manager-server.labels" . | nindent 4 }}
 spec:
   groups:
-  - name: LLM Operator alerts
+  - name: LLMariner Inference Manager Server alerts
     rules:
     - alert: Inference Manager Server in-progress task duration
       expr: llm_operator_inference_manager_server_max_in_progress_task_duration > 300

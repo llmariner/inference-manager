@@ -175,7 +175,7 @@ model:
       #   accessMode: "ReadWriteOnce"
       #
       # +docs:property
-      # volume: {}
+      volume: {}
 
     # The number of replicas for the runtime StatefulSet.
     # +docs:type=number

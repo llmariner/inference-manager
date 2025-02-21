@@ -590,7 +590,8 @@ func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: e.inProgressModelIDs,
 				},
-				Ready: true,
+				Ready:     true,
+				ClusterId: e.clusterID,
 			})
 		}
 		result[tenantID] = engines

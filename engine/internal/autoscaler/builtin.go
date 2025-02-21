@@ -79,7 +79,7 @@ func (m *BuiltinScaler) Register(ctx context.Context, modelID string, target *ap
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	nn := types.NamespacedName{Name: target.Namespace, Namespace: target.Name}
+	nn := types.NamespacedName{Namespace: target.Namespace, Name: target.Name}
 	if _, ok := m.scalers[nn]; ok {
 		// already registered
 		return nil

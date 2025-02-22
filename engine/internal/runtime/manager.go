@@ -370,7 +370,10 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			}
 		}
 		return ctrl.Result{}, nil
-	} else if ready {
+	}
+
+	if ready {
+		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
 			m.markRuntimeIsPending(sts.Name, modelID)
 			log.Info("Runtime is scale down to zero")
@@ -381,7 +384,11 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			}
 			log.V(10).Info("Runtime replicas are updated", "modelID", modelID, "replicas", sts.Status.ReadyReplicas)
 		}
-	} else if sts.Status.ReadyReplicas > 0 {
+		return ctrl.Result{}, nil
+	}
+
+	if sts.Status.ReadyReplicas > 0 {
+		// The runtime has just became ready.
 		client, err := m.rtClientFactory.New(modelID)
 		if err != nil {
 			log.Error(err, "Failed to create runtime client")
@@ -400,15 +407,19 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 		m.markRuntimeReady(sts.Name, modelID, addr, sts.Status.ReadyReplicas)
 		log.Info("Runtime is ready")
-	} else {
-		if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
-			log.V(2).Error(err, "Failed to check unschedulable children")
-			return ctrl.Result{}, err
-		} else if yes {
-			m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
-			log.V(1).Info("Pod is unschedulable")
-		}
+		return ctrl.Result{}, nil
 	}
+
+	// The runtime is still not ready.
+
+	if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
+		log.V(2).Error(err, "Failed to check unschedulable children")
+		return ctrl.Result{}, err
+	} else if yes {
+		m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
+		log.V(1).Info("Pod is unschedulable")
+	}
+
 	return ctrl.Result{}, nil
 }
 

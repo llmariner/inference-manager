@@ -171,15 +171,28 @@ func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 		if !ok {
 			continue
 		}
+		modelsByID := map[string]*v1.EngineStatus_Model{}
 		for _, e := range es {
 			for _, m := range e.Models {
 				tasks[m.Id] += m.InProgressTaskCount
+				// Simply overrride if there is an existing value as every engine in the same cluster
+				// should have the same info.
+				modelsByID[m.Id] = m
 			}
 		}
+		var tc, ga int32
+		for _, m := range modelsByID {
+			tc += m.InProgressTaskCount
+			ga += m.GpuAllocated
+		}
+
 		css = append(css, &v1.ClusterStatus{
-			Id:             cid,
-			Name:           cname,
-			EngineStatuses: es,
+			Id:                  cid,
+			Name:                cname,
+			EngineStatuses:      es,
+			ModelCount:          int32(len(modelsByID)),
+			InProgressTaskCount: tc,
+			GpuAllocated:        ga,
 		})
 	}
 

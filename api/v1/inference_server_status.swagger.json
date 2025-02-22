@@ -111,7 +111,20 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1EngineStatus"
-          }
+          },
+          "description": "TODO(kenji): Revisit. Each engine in the same cluster reports the same information on models.\nIt might be better to just report the model information."
+        },
+        "modelCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inProgressTaskCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "gpuAllocated": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

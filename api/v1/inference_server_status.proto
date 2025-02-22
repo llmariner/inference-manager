@@ -20,7 +20,13 @@ message TaskStatus {
 message ClusterStatus {
   string id = 1;
   string name = 2;
+  // TODO(kenji): Revisit. Each engine in the same cluster reports the same information on models.
+  // It might be better to just report the model information.
   repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3;
+
+  int32 model_count = 4;
+  int32 in_progress_task_count = 5;
+  int32 gpu_allocated = 6;
 }
 
 message GetInferenceStatusRequest {}

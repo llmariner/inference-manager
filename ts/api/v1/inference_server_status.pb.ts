@@ -19,6 +19,9 @@ export type ClusterStatus = {
   id?: string
   name?: string
   engineStatuses?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus[]
+  modelCount?: number
+  inProgressTaskCount?: number
+  gpuAllocated?: number
 }
 
 export type GetInferenceStatusRequest = {

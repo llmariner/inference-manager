@@ -87,6 +87,8 @@ func TestGetInferenceStatus(t *testing.T) {
 								},
 							},
 						},
+						ModelCount:          3,
+						InProgressTaskCount: 24,
 					},
 				},
 				TaskStatus: &v1.TaskStatus{

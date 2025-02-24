@@ -145,14 +145,14 @@ export type FileDescriptorProto = {
   name?: string
   package?: string
   dependency?: string[]
-  publicDependency?: number[]
-  weakDependency?: number[]
-  messageType?: DescriptorProto[]
-  enumType?: EnumDescriptorProto[]
+  public_dependency?: number[]
+  weak_dependency?: number[]
+  message_type?: DescriptorProto[]
+  enum_type?: EnumDescriptorProto[]
   service?: ServiceDescriptorProto[]
   extension?: FieldDescriptorProto[]
   options?: FileOptions
-  sourceCodeInfo?: SourceCodeInfo
+  source_code_info?: SourceCodeInfo
   syntax?: string
   edition?: Edition
 }
@@ -172,25 +172,25 @@ export type DescriptorProto = {
   name?: string
   field?: FieldDescriptorProto[]
   extension?: FieldDescriptorProto[]
-  nestedType?: DescriptorProto[]
-  enumType?: EnumDescriptorProto[]
-  extensionRange?: DescriptorProtoExtensionRange[]
-  oneofDecl?: OneofDescriptorProto[]
+  nested_type?: DescriptorProto[]
+  enum_type?: EnumDescriptorProto[]
+  extension_range?: DescriptorProtoExtensionRange[]
+  oneof_decl?: OneofDescriptorProto[]
   options?: MessageOptions
-  reservedRange?: DescriptorProtoReservedRange[]
-  reservedName?: string[]
+  reserved_range?: DescriptorProtoReservedRange[]
+  reserved_name?: string[]
 }
 
 export type ExtensionRangeOptionsDeclaration = {
   number?: number
-  fullName?: string
+  full_name?: string
   type?: string
   reserved?: boolean
   repeated?: boolean
 }
 
 export type ExtensionRangeOptions = {
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
   declaration?: ExtensionRangeOptionsDeclaration[]
   features?: FeatureSet
   verification?: ExtensionRangeOptionsVerificationState
@@ -201,13 +201,13 @@ export type FieldDescriptorProto = {
   number?: number
   label?: FieldDescriptorProtoLabel
   type?: FieldDescriptorProtoType
-  typeName?: string
+  type_name?: string
   extendee?: string
-  defaultValue?: string
-  oneofIndex?: number
-  jsonName?: string
+  default_value?: string
+  oneof_index?: number
+  json_name?: string
   options?: FieldOptions
-  proto3Optional?: boolean
+  proto3_optional?: boolean
 }
 
 export type OneofDescriptorProto = {
@@ -224,8 +224,8 @@ export type EnumDescriptorProto = {
   name?: string
   value?: EnumValueDescriptorProto[]
   options?: EnumOptions
-  reservedRange?: EnumDescriptorProtoEnumReservedRange[]
-  reservedName?: string[]
+  reserved_range?: EnumDescriptorProtoEnumReservedRange[]
+  reserved_name?: string[]
 }
 
 export type EnumValueDescriptorProto = {
@@ -242,45 +242,45 @@ export type ServiceDescriptorProto = {
 
 export type MethodDescriptorProto = {
   name?: string
-  inputType?: string
-  outputType?: string
+  input_type?: string
+  output_type?: string
   options?: MethodOptions
-  clientStreaming?: boolean
-  serverStreaming?: boolean
+  client_streaming?: boolean
+  server_streaming?: boolean
 }
 
 export type FileOptions = {
-  javaPackage?: string
-  javaOuterClassname?: string
-  javaMultipleFiles?: boolean
-  javaGenerateEqualsAndHash?: boolean
-  javaStringCheckUtf8?: boolean
-  optimizeFor?: FileOptionsOptimizeMode
-  goPackage?: string
-  ccGenericServices?: boolean
-  javaGenericServices?: boolean
-  pyGenericServices?: boolean
+  java_package?: string
+  java_outer_classname?: string
+  java_multiple_files?: boolean
+  java_generate_equals_and_hash?: boolean
+  java_string_check_utf8?: boolean
+  optimize_for?: FileOptionsOptimizeMode
+  go_package?: string
+  cc_generic_services?: boolean
+  java_generic_services?: boolean
+  py_generic_services?: boolean
   deprecated?: boolean
-  ccEnableArenas?: boolean
-  objcClassPrefix?: string
-  csharpNamespace?: string
-  swiftPrefix?: string
-  phpClassPrefix?: string
-  phpNamespace?: string
-  phpMetadataNamespace?: string
-  rubyPackage?: string
+  cc_enable_arenas?: boolean
+  objc_class_prefix?: string
+  csharp_namespace?: string
+  swift_prefix?: string
+  php_class_prefix?: string
+  php_namespace?: string
+  php_metadata_namespace?: string
+  ruby_package?: string
   features?: FeatureSet
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type MessageOptions = {
-  messageSetWireFormat?: boolean
-  noStandardDescriptorAccessor?: boolean
+  message_set_wire_format?: boolean
+  no_standard_descriptor_accessor?: boolean
   deprecated?: boolean
-  mapEntry?: boolean
-  deprecatedLegacyJsonFieldConflicts?: boolean
+  map_entry?: boolean
+  deprecated_legacy_json_field_conflicts?: boolean
   features?: FeatureSet
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type FieldOptionsEditionDefault = {
@@ -289,10 +289,10 @@ export type FieldOptionsEditionDefault = {
 }
 
 export type FieldOptionsFeatureSupport = {
-  editionIntroduced?: Edition
-  editionDeprecated?: Edition
-  deprecationWarning?: string
-  editionRemoved?: Edition
+  edition_introduced?: Edition
+  edition_deprecated?: Edition
+  deprecation_warning?: string
+  edition_removed?: Edition
 }
 
 export type FieldOptions = {
@@ -300,94 +300,94 @@ export type FieldOptions = {
   packed?: boolean
   jstype?: FieldOptionsJSType
   lazy?: boolean
-  unverifiedLazy?: boolean
+  unverified_lazy?: boolean
   deprecated?: boolean
   weak?: boolean
-  debugRedact?: boolean
+  debug_redact?: boolean
   retention?: FieldOptionsOptionRetention
   targets?: FieldOptionsOptionTargetType[]
-  editionDefaults?: FieldOptionsEditionDefault[]
+  edition_defaults?: FieldOptionsEditionDefault[]
   features?: FeatureSet
-  featureSupport?: FieldOptionsFeatureSupport
-  uninterpretedOption?: UninterpretedOption[]
+  feature_support?: FieldOptionsFeatureSupport
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type OneofOptions = {
   features?: FeatureSet
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type EnumOptions = {
-  allowAlias?: boolean
+  allow_alias?: boolean
   deprecated?: boolean
-  deprecatedLegacyJsonFieldConflicts?: boolean
+  deprecated_legacy_json_field_conflicts?: boolean
   features?: FeatureSet
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type EnumValueOptions = {
   deprecated?: boolean
   features?: FeatureSet
-  debugRedact?: boolean
-  featureSupport?: FieldOptionsFeatureSupport
-  uninterpretedOption?: UninterpretedOption[]
+  debug_redact?: boolean
+  feature_support?: FieldOptionsFeatureSupport
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type ServiceOptions = {
   features?: FeatureSet
   deprecated?: boolean
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type MethodOptions = {
   deprecated?: boolean
-  idempotencyLevel?: MethodOptionsIdempotencyLevel
+  idempotency_level?: MethodOptionsIdempotencyLevel
   features?: FeatureSet
-  uninterpretedOption?: UninterpretedOption[]
+  uninterpreted_option?: UninterpretedOption[]
 }
 
 export type UninterpretedOptionNamePart = {
-  namePart?: string
-  isExtension?: boolean
+  name_part?: string
+  is_extension?: boolean
 }
 
 export type UninterpretedOption = {
   name?: UninterpretedOptionNamePart[]
-  identifierValue?: string
-  positiveIntValue?: string
-  negativeIntValue?: string
-  doubleValue?: number
-  stringValue?: Uint8Array
-  aggregateValue?: string
+  identifier_value?: string
+  positive_int_value?: string
+  negative_int_value?: string
+  double_value?: number
+  string_value?: Uint8Array
+  aggregate_value?: string
 }
 
 export type FeatureSet = {
-  fieldPresence?: FeatureSetFieldPresence
-  enumType?: FeatureSetEnumType
-  repeatedFieldEncoding?: FeatureSetRepeatedFieldEncoding
-  utf8Validation?: FeatureSetUtf8Validation
-  messageEncoding?: FeatureSetMessageEncoding
-  jsonFormat?: FeatureSetJsonFormat
+  field_presence?: FeatureSetFieldPresence
+  enum_type?: FeatureSetEnumType
+  repeated_field_encoding?: FeatureSetRepeatedFieldEncoding
+  utf8_validation?: FeatureSetUtf8Validation
+  message_encoding?: FeatureSetMessageEncoding
+  json_format?: FeatureSetJsonFormat
 }
 
 export type FeatureSetDefaultsFeatureSetEditionDefault = {
   edition?: Edition
-  overridableFeatures?: FeatureSet
-  fixedFeatures?: FeatureSet
+  overridable_features?: FeatureSet
+  fixed_features?: FeatureSet
 }
 
 export type FeatureSetDefaults = {
   defaults?: FeatureSetDefaultsFeatureSetEditionDefault[]
-  minimumEdition?: Edition
-  maximumEdition?: Edition
+  minimum_edition?: Edition
+  maximum_edition?: Edition
 }
 
 export type SourceCodeInfoLocation = {
   path?: number[]
   span?: number[]
-  leadingComments?: string
-  trailingComments?: string
-  leadingDetachedComments?: string[]
+  leading_comments?: string
+  trailing_comments?: string
+  leading_detached_comments?: string[]
 }
 
 export type SourceCodeInfo = {
@@ -396,7 +396,7 @@ export type SourceCodeInfo = {
 
 export type GeneratedCodeInfoAnnotation = {
   path?: number[]
-  sourceFile?: string
+  source_file?: string
   begin?: number
   end?: number
   semantic?: GeneratedCodeInfoAnnotationSemantic

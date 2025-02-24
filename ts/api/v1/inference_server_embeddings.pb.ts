@@ -5,9 +5,9 @@
 */
 export type CreateEmbeddingRequest = {
   input?: string
-  encodedInput?: string
+  encoded_input?: string
   model?: string
-  encodingFormat?: string
+  encoding_format?: string
   dimensions?: number
   user?: string
 }
@@ -19,8 +19,8 @@ export type Embedding = {
 }
 
 export type EmbeddingsUsage = {
-  promptTokens?: number
-  totalTokens?: number
+  prompt_tokens?: number
+  total_tokens?: number
 }
 
 export type Embeddings = {

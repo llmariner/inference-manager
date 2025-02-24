@@ -8,21 +8,21 @@ type OneOf<T> = {
     [k in K]: T[K];
 } & Absent<T, K> : never) : never);
 export type ServerStatusEngineStatusWithTenantID = {
-    engineStatus?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus;
-    tenantId?: string;
+    engine_status?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus;
+    tenant_id?: string;
 };
 export type ServerStatus = {
-    podName?: string;
-    engineStatuses?: ServerStatusEngineStatusWithTenantID[];
+    pod_name?: string;
+    engine_statuses?: ServerStatusEngineStatusWithTenantID[];
 };
 type BaseProcessTasksInternalRequest = {};
 export type ProcessTasksInternalRequest = BaseProcessTasksInternalRequest & OneOf<{
-    serverStatus: ServerStatus;
-    taskResult: LlmarinerInferenceServerV1Inference_server_worker.TaskResult;
+    server_status: ServerStatus;
+    task_result: LlmarinerInferenceServerV1Inference_server_worker.TaskResult;
 }>;
 export type ProcessTasksInternalResponse = {
-    newTask?: LlmarinerInferenceServerV1Inference_server_worker.Task;
-    tenantId?: string;
+    new_task?: LlmarinerInferenceServerV1Inference_server_worker.Task;
+    tenant_id?: string;
 };
 export declare class InferenceInternalService {
 }

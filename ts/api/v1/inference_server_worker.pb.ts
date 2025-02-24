@@ -16,23 +16,23 @@ type OneOf<T> =
         : never)
     : never);
 export type EngineStatusSyncStatus = {
-  inProgressModelIds?: string[]
+  in_progress_model_ids?: string[]
 }
 
 export type EngineStatusModel = {
   id?: string
-  isReady?: boolean
-  inProgressTaskCount?: number
-  gpuAllocated?: number
+  is_ready?: boolean
+  in_progress_task_count?: number
+  gpu_allocated?: number
 }
 
 export type EngineStatus = {
-  engineId?: string
-  modelIds?: string[]
-  syncStatus?: EngineStatusSyncStatus
+  engine_id?: string
+  model_ids?: string[]
+  sync_status?: EngineStatusSyncStatus
   ready?: boolean
   models?: EngineStatusModel[]
-  clusterId?: string
+  cluster_id?: string
 }
 
 export type HeaderValue = {
@@ -40,7 +40,7 @@ export type HeaderValue = {
 }
 
 export type HttpResponse = {
-  statusCode?: number
+  status_code?: number
   status?: string
   header?: {[key: string]: HeaderValue}
   body?: Uint8Array
@@ -48,30 +48,30 @@ export type HttpResponse = {
 
 export type ServerSentEvent = {
   data?: Uint8Array
-  isLastEvent?: boolean
+  is_last_event?: boolean
 }
 
 
 type BaseTaskResult = {
-  taskId?: string
+  task_id?: string
 }
 
 export type TaskResult = BaseTaskResult
-  & OneOf<{ httpResponse: HttpResponse; serverSentEvent: ServerSentEvent }>
+  & OneOf<{ http_response: HttpResponse; server_sent_event: ServerSentEvent }>
 
 
 type BaseProcessTasksRequest = {
 }
 
 export type ProcessTasksRequest = BaseProcessTasksRequest
-  & OneOf<{ engineStatus: EngineStatus; taskResult: TaskResult }>
+  & OneOf<{ engine_status: EngineStatus; task_result: TaskResult }>
 
 
 type BaseTaskRequest = {
 }
 
 export type TaskRequest = BaseTaskRequest
-  & OneOf<{ chatCompletion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest }>
+  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest }>
 
 export type Task = {
   id?: string
@@ -80,7 +80,7 @@ export type Task = {
 }
 
 export type ProcessTasksResponse = {
-  newTask?: Task
+  new_task?: Task
 }
 
 export class InferenceWorkerService {

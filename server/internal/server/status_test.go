@@ -32,10 +32,12 @@ func TestGetInferenceStatus(t *testing.T) {
 								{
 									Id:                  "model1",
 									InProgressTaskCount: 1,
+									GpuAllocated:        100,
 								},
 								{
 									Id:                  "model2",
 									InProgressTaskCount: 2,
+									GpuAllocated:        101,
 								},
 							},
 						},
@@ -45,10 +47,12 @@ func TestGetInferenceStatus(t *testing.T) {
 								{
 									Id:                  "model1",
 									InProgressTaskCount: 10,
+									GpuAllocated:        100,
 								},
 								{
 									Id:                  "model3",
 									InProgressTaskCount: 12,
+									GpuAllocated:        102,
 								},
 							},
 						},
@@ -66,10 +70,12 @@ func TestGetInferenceStatus(t *testing.T) {
 									{
 										Id:                  "model1",
 										InProgressTaskCount: 1,
+										GpuAllocated:        100,
 									},
 									{
 										Id:                  "model2",
 										InProgressTaskCount: 2,
+										GpuAllocated:        101,
 									},
 								},
 							},
@@ -79,16 +85,19 @@ func TestGetInferenceStatus(t *testing.T) {
 									{
 										Id:                  "model1",
 										InProgressTaskCount: 10,
+										GpuAllocated:        100,
 									},
 									{
 										Id:                  "model3",
 										InProgressTaskCount: 12,
+										GpuAllocated:        102,
 									},
 								},
 							},
 						},
 						ModelCount:          3,
-						InProgressTaskCount: 24,
+						InProgressTaskCount: 1 + 2 + 10 + 12,
+						GpuAllocated:        100 + 101 + 102,
 					},
 				},
 				TaskStatus: &v1.TaskStatus{

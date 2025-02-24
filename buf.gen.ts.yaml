@@ -2,3 +2,5 @@ version: v1
 plugins:
 - name: grpc-gateway-ts
   out: ./ts
+  opt:
+  - use_proto_names=true

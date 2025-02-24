@@ -31,17 +31,17 @@ export type CreateChatCompletionRequestMessageContentAudioUrl = {
 export type CreateChatCompletionRequestMessageContent = {
   type?: string
   text?: string
-  imageUrl?: CreateChatCompletionRequestMessageContentImageUrl
-  inputAudio?: CreateChatCompletionRequestMessageContentInputAudio
-  audioUrl?: CreateChatCompletionRequestMessageContentAudioUrl
+  image_url?: CreateChatCompletionRequestMessageContentImageUrl
+  input_audio?: CreateChatCompletionRequestMessageContentInputAudio
+  audio_url?: CreateChatCompletionRequestMessageContentAudioUrl
 }
 
 export type CreateChatCompletionRequestMessage = {
   content?: CreateChatCompletionRequestMessageContent[]
   role?: string
   name?: string
-  toolCalls?: CreateChatCompletionRequestMessageToolCall[]
-  toolCallId?: string
+  tool_calls?: CreateChatCompletionRequestMessageToolCall[]
+  tool_call_id?: string
 }
 
 export type CreateChatCompletionRequestToolChoiceFunction = {
@@ -60,7 +60,7 @@ export type CreateChatCompletionRequestResponseFormat = {
 export type CreateChatCompletionRequestToolFunction = {
   description?: string
   name?: string
-  encodedParameters?: string
+  encoded_parameters?: string
 }
 
 export type CreateChatCompletionRequestTool = {
@@ -69,31 +69,31 @@ export type CreateChatCompletionRequestTool = {
 }
 
 export type CreateChatCompletionRequestStreamOptions = {
-  includeUsage?: boolean
+  include_usage?: boolean
 }
 
 export type CreateChatCompletionRequest = {
   messages?: CreateChatCompletionRequestMessage[]
   model?: string
-  frequencyPenalty?: number
-  logitBias?: {[key: string]: number}
+  frequency_penalty?: number
+  logit_bias?: {[key: string]: number}
   logprobs?: boolean
-  topLogprobs?: number
-  maxTokens?: number
+  top_logprobs?: number
+  max_tokens?: number
   n?: number
-  presencePenalty?: number
-  responseFormat?: CreateChatCompletionRequestResponseFormat
+  presence_penalty?: number
+  response_format?: CreateChatCompletionRequestResponseFormat
   seed?: number
   stop?: string[]
   stream?: boolean
-  streamOptions?: CreateChatCompletionRequestStreamOptions
+  stream_options?: CreateChatCompletionRequestStreamOptions
   temperature?: number
-  topP?: number
+  top_p?: number
   tools?: CreateChatCompletionRequestTool[]
-  toolChoice?: string
-  toolChoiceObject?: CreateChatCompletionRequestToolChoice
+  tool_choice?: string
+  tool_choice_object?: CreateChatCompletionRequestToolChoice
   user?: string
-  maxCompletionTokens?: number
+  max_completion_tokens?: number
 }
 
 export type ToolCallFunction = {
@@ -117,7 +117,7 @@ export type LogprobsContent = {
   token?: string
   logprob?: number
   bytes?: Uint8Array
-  topLogprobs?: LogprobsContentTopLogprobs
+  top_logprobs?: LogprobsContentTopLogprobs
 }
 
 export type Logprobs = {
@@ -125,19 +125,19 @@ export type Logprobs = {
 }
 
 export type Usage = {
-  completionTokens?: number
-  promptTokens?: number
-  totalTokens?: number
+  completion_tokens?: number
+  prompt_tokens?: number
+  total_tokens?: number
 }
 
 export type ChatCompletionChoiceMessage = {
   content?: string
-  toolCalls?: ToolCall[]
+  tool_calls?: ToolCall[]
   role?: string
 }
 
 export type ChatCompletionChoice = {
-  finishReason?: string
+  finish_reason?: string
   index?: number
   message?: ChatCompletionChoiceMessage
   logprobs?: Logprobs
@@ -148,7 +148,7 @@ export type ChatCompletion = {
   choices?: ChatCompletionChoice[]
   created?: number
   model?: string
-  systemFingerprint?: string
+  system_fingerprint?: string
   object?: string
   usage?: Usage
 }
@@ -166,13 +166,13 @@ export type ChatCompletionChunkChoiceDeltaToolCall = {
 
 export type ChatCompletionChunkChoiceDelta = {
   content?: string
-  toolCalls?: ChatCompletionChunkChoiceDeltaToolCall[]
+  tool_calls?: ChatCompletionChunkChoiceDeltaToolCall[]
   role?: string
 }
 
 export type ChatCompletionChunkChoice = {
   delta?: ChatCompletionChunkChoiceDelta
-  finishReason?: string
+  finish_reason?: string
   index?: number
   logprobs?: Logprobs
 }
@@ -182,49 +182,49 @@ export type ChatCompletionChunk = {
   choices?: ChatCompletionChunkChoice[]
   created?: number
   model?: string
-  systemFingerprint?: string
+  system_fingerprint?: string
   object?: string
   usage?: Usage
 }
 
 export type RagFunction = {
-  vectorStoreName?: string
+  vector_store_name?: string
 }
 
 export type CreateCompletionRequestStreamOption = {
-  includeUsage?: boolean
+  include_usage?: boolean
 }
 
 export type CreateCompletionRequest = {
   model?: string
   prompt?: string
-  bestOf?: number
+  best_of?: number
   echo?: boolean
-  frequencyPenalty?: number
-  logitBias?: {[key: string]: number}
+  frequency_penalty?: number
+  logit_bias?: {[key: string]: number}
   logprobs?: number
-  maxTokens?: number
+  max_tokens?: number
   n?: number
-  presencePenalty?: number
+  presence_penalty?: number
   seed?: number
   stop?: string[]
   stream?: boolean
-  streamOption?: CreateCompletionRequestStreamOption
+  stream_option?: CreateCompletionRequestStreamOption
   suffix?: string
   temperature?: number
-  topP?: number
+  top_p?: number
   user?: string
 }
 
 export type CompletionChoiceLogprobs = {
-  textOffset?: number
-  tokenLogprobs?: number
+  text_offset?: number
+  token_logprobs?: number
   tokens?: string
-  topLogprobs?: number
+  top_logprobs?: number
 }
 
 export type CompletionChoice = {
-  finishReason?: string
+  finish_reason?: string
   index?: number
   logprobs?: CompletionChoiceLogprobs
   text?: string
@@ -235,7 +235,7 @@ export type Completion = {
   choices?: CompletionChoice[]
   created?: number
   model?: string
-  systemFingerprint?: string
+  system_fingerprint?: string
   object?: string
   usage?: Usage
 }

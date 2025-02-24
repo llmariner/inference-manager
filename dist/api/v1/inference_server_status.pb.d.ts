@@ -1,21 +1,21 @@
 import * as fm from "../../fetch.pb";
 import * as LlmarinerInferenceServerV1Inference_server_worker from "./inference_server_worker.pb";
 export type InferenceStatus = {
-    clusterStatuses?: ClusterStatus[];
-    taskStatus?: TaskStatus;
+    cluster_statuses?: ClusterStatus[];
+    task_status?: TaskStatus;
 };
 export type TaskStatus = {
-    inProgressTaskCounts?: {
+    in_progress_task_counts?: {
         [key: string]: number;
     };
 };
 export type ClusterStatus = {
     id?: string;
     name?: string;
-    engineStatuses?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus[];
-    modelCount?: number;
-    inProgressTaskCount?: number;
-    gpuAllocated?: number;
+    engine_statuses?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus[];
+    model_count?: number;
+    in_progress_task_count?: number;
+    gpu_allocated?: number;
 };
 export type GetInferenceStatusRequest = {};
 export declare class InferenceService {

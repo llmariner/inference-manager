@@ -14,15 +14,15 @@ type OneOf<T> =
     : never);
 export type Http = {
   rules?: HttpRule[]
-  fullyDecodeReservedExpansion?: boolean
+  fully_decode_reserved_expansion?: boolean
 }
 
 
 type BaseHttpRule = {
   selector?: string
   body?: string
-  responseBody?: string
-  additionalBindings?: HttpRule[]
+  response_body?: string
+  additional_bindings?: HttpRule[]
 }
 
 export type HttpRule = BaseHttpRule

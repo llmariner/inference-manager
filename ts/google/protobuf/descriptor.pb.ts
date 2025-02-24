@@ -329,6 +329,7 @@ export type EnumValueOptions = {
   deprecated?: boolean
   features?: FeatureSet
   debugRedact?: boolean
+  featureSupport?: FieldOptionsFeatureSupport
   uninterpretedOption?: UninterpretedOption[]
 }
 

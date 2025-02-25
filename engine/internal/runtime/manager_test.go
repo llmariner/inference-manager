@@ -63,7 +63,7 @@ func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", 1),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1, 1),
 		},
 	}
 	mgr.deleteRuntime("rt-model-0")
@@ -77,10 +77,10 @@ func TestMarkRuntimeReady(t *testing.T) {
 			"model-0": newPendingRuntime("rt-model-0"),
 		},
 	}
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1)
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1, 1)
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1)
+	mgr.markRuntimeReady("rt-model-0", "model-0", "test", 1, 1)
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
 }
@@ -88,7 +88,7 @@ func TestMarkRuntimeReady(t *testing.T) {
 func TestMarkRuntimeIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", 1),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1, 1),
 		},
 	}
 	mgr.markRuntimeIsPending("rt-model-0", "model-0")
@@ -102,7 +102,7 @@ func TestIsPending(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", 1),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1, 1),
 		},
 	}
 	ready, ok := mgr.isReady("model-0")
@@ -119,7 +119,7 @@ func TestIsPending(t *testing.T) {
 func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", 1),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1, 1),
 			"model-1": newPendingRuntime("rt-model-1"),
 		},
 	}
@@ -133,9 +133,9 @@ func TestGetLLMAddress(t *testing.T) {
 func TestListSyncedModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", 1),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1, 1),
 			"model-1": newPendingRuntime("rt-model-1"),
-			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
+			"model-2": newReadyRuntime("rt-model-2", "test2", 1, 2),
 		},
 	}
 	models := mgr.ListSyncedModels()
@@ -150,7 +150,7 @@ func TestListInProgressModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", 1),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1, 1),
 			"model-2": newPendingRuntime("rt-model-2"),
 		},
 	}
@@ -175,7 +175,7 @@ func TestPullModel(t *testing.T) {
 	}{
 		{
 			name: "already ready",
-			rt:   ptr.To(newReadyRuntime("rt-model-0", "test", 1)),
+			rt:   ptr.To(newReadyRuntime("rt-model-0", "test", 1, 1)),
 		},
 		{
 			name: "already pending",
@@ -221,7 +221,7 @@ func TestPullModel(t *testing.T) {
 						mgr.cancelWaitingRequests(testModelID, "error")
 					} else {
 						t.Log("marking runtime ready")
-						mgr.markRuntimeReady("rt-model-0", testModelID, "test", 1)
+						mgr.markRuntimeReady("rt-model-0", testModelID, "test", 1, 1)
 					}
 				}
 			}()
@@ -332,7 +332,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
-			rt: ptr.To(newReadyRuntime(name, "test", int32(1))),
+			rt: ptr.To(newReadyRuntime(name, "test", 1, 1)),
 		},
 		{
 			name: "not-registered (pending)",
@@ -385,7 +385,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (ready)",
 			sts:  nil,
-			rt:   ptr.To(newReadyRuntime(name, "test", 1)),
+			rt:   ptr.To(newReadyRuntime(name, "test", 1, 1)),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -654,7 +654,7 @@ func TestGetGPU(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got := getGPU(tc.sts)
+			got := getGPU(&tc.sts)
 			assert.Equal(t, tc.want, got)
 		})
 	}

@@ -57,8 +57,8 @@ func newPendingRuntime(name string) runtime {
 	return runtime{name: name, ready: false, replicas: int32(0), waitCh: make(chan struct{})}
 }
 
-func newReadyRuntime(name string, address string, replicas int32) runtime {
-	return runtime{name: name, ready: true, address: address, replicas: replicas}
+func newReadyRuntime(name string, address string, gpu, replicas int32) runtime {
+	return runtime{name: name, ready: true, address: address, gpu: gpu, replicas: replicas}
 }
 
 // ModelRuntimeInfo is the info of a model runtime.
@@ -84,7 +84,7 @@ type runtime struct {
 	waitCh chan struct{}
 }
 
-func getGPU(sts appsv1.StatefulSet) int32 {
+func getGPU(sts *appsv1.StatefulSet) int32 {
 	gpu := int32(0)
 	for _, con := range sts.Spec.Template.Spec.Containers {
 		limit := con.Resources.Limits
@@ -119,11 +119,10 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool
 		if err != nil {
 			return false, false, err
 		}
-		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), sts.Status.ReadyReplicas)
+		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), getGPU(&sts), sts.Status.ReadyReplicas)
 	} else {
 		rt = newPendingRuntime(sts.Name)
 	}
-	rt.gpu = getGPU(sts)
 	m.runtimes[modelID] = rt
 	return true, ready, nil
 }
@@ -162,14 +161,14 @@ func (m *Manager) updateRuntimeReplicas(modelID string, replicas int32) error {
 	return nil
 }
 
-func (m *Manager) markRuntimeReady(name, modelID, address string, replicas int32) {
+func (m *Manager) markRuntimeReady(name, modelID, address string, gpu, replicas int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
 		if r.waitCh != nil {
 			close(r.waitCh)
 		}
-		m.runtimes[modelID] = newReadyRuntime(name, address, replicas)
+		m.runtimes[modelID] = newReadyRuntime(name, address, gpu, replicas)
 	}
 }
 
@@ -293,7 +292,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// registered in the manager's managed runtime map. If the runtime's
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), sts.Status.ReadyReplicas)
+			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), getGPU(sts), sts.Status.ReadyReplicas)
 		}
 	}
 	if reason, ok := m.errReason(modelID); ok {
@@ -405,7 +404,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
 			return ctrl.Result{RequeueAfter: retryAfter}, err
 		}
-		m.markRuntimeReady(sts.Name, modelID, addr, sts.Status.ReadyReplicas)
+		m.markRuntimeReady(sts.Name, modelID, addr, getGPU(&sts), sts.Status.ReadyReplicas)
 		log.Info("Runtime is ready")
 		return ctrl.Result{}, nil
 	}

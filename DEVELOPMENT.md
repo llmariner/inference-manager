@@ -14,7 +14,7 @@ This document describes the inference-manager specific development guide. Please
 
 ### Minimal configuration of the inference-manager
 
-By running the `make setup-all` command, then create a kind cluster, configure the helm chart for the code under development locally, build docker images, and deploy them to the cluster.
+By running the `make setup-all` command, you will create a kind cluster, configure the helm chart for the code under development locally, build docker images, and deploy them to the cluster.
 
 ```console
 make setup-all
@@ -69,7 +69,7 @@ llma chat completions create \
 
 ### Re-deploy Changes
 
-When you have already set up the cluster and want to deploy the changes,
+When you have already set up the cluster and want to deploy your changes,
 simply run `make helm-reapply-inference-server` or `make helm-reapply-inference-engine`. This will rebuild inference-manager container images, deploy them using the local helm chart, and restart containers.
 
 > [!TIP]

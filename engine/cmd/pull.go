@@ -114,12 +114,12 @@ func pullBaseModel(
 
 	var srcPath string
 	switch format {
-	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE:
+	case mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
+		mv1.ModelFormat_MODEL_FORMAT_OLLAMA,
+		mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
 		srcPath = resp.Path
 	case mv1.ModelFormat_MODEL_FORMAT_GGUF:
 		srcPath = resp.GgufModelPath
-	case mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
-		srcPath = resp.Path
 	default:
 		return fmt.Errorf("unsupported format: %v", format)
 	}
@@ -128,7 +128,7 @@ func pullBaseModel(
 		return err
 	}
 
-	if o.runtime != config.RuntimeNameOllama {
+	if !(o.runtime == config.RuntimeNameOllama && format == mv1.ModelFormat_MODEL_FORMAT_GGUF) {
 		return nil
 	}
 

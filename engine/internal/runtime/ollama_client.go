@@ -114,11 +114,17 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	var createCmds []string
 	for _, id := range modelIDs {
 		createCmds = append(createCmds, fmt.Sprintf(`
-while true; do
-	ollama create %s -f %s && break
-	sleep 1
-done
-`, ollama.ModelName(id), ollama.ModelfilePath(modelDir, id)))
+if [ -f %s ]; then
+	while true; do
+		ollama create %s -f %s && break
+		sleep 1
+	done
+else
+	echo "skip %s"
+fi
+`, ollama.ModelfilePath(modelDir, id),
+			ollama.ModelName(id), ollama.ModelfilePath(modelDir, id),
+			ollama.ModelName(id)))
 	}
 
 	// Start an Ollama server process in background and create a modelfile.

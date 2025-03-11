@@ -126,8 +126,8 @@ github.com/llmariner/cluster-manager v1.5.1 h1:dy1/FLdQ0iSsUo1w2dGUaUlqA3vgilt0O
 github.com/llmariner/cluster-manager v1.5.1/go.mod h1:A6DRmn8lVZ36Et4sGtX9mmLvFaLkJOU9cc8eqWZA2QE=
 github.com/llmariner/common v0.15.0 h1:KkDDKXcFPMlCNOZG1vK1nKd05FYagf7CRmPtRO42htg=
 github.com/llmariner/common v0.15.0/go.mod h1:nt793i6mCLc3tpIA223EvxHLuHa/8Ft+oa4h8m5EWKE=
-github.com/llmariner/model-manager v0.121.0 h1:sbZ2a0tRHF40LudYBvomwSYxgbMpxhUnxoTY277O1bc=
-github.com/llmariner/model-manager v0.121.0/go.mod h1:i65jjZ5u8KqVAYvdyhHBxPQ3V80GowxrYVLUiODD9Jo=
+github.com/llmariner/model-manager v1.6.1 h1:9oNXHvP28jd1ZL/+Hgcp8hG/VeSiAUkKuJ++0oPB5sU=
+github.com/llmariner/model-manager v1.6.1/go.mod h1:vHuroXuV0B+kiwXgC+Odi9t0jU9co0/coQlFmtovJpg=
 github.com/llmariner/rbac-manager v1.9.1 h1:VnLkSXCEDcGV8U+JeUDzGbCTlrV669jfxMzaeUGaG0Q=
 github.com/llmariner/rbac-manager v1.9.1/go.mod h1:R9FgmUy9c1HAhDWz8V676w3hrSO/8osAEXm2gK6UcoU=
 github.com/llmariner/vector-store-manager v0.50.0 h1:0OVspFjaC6p8pCRWFy9AfZkt2IcHkELPDFncuZ1vn3M=

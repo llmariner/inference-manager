@@ -16,11 +16,13 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 
 	switch runtime {
 	case config.RuntimeNameOllama:
-		// Only support GGUF.
-		if !isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_GGUF) {
-			return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("GGUF format is not included in the supported formats while Ollama supports only GGUF")
+		if isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_OLLAMA) {
+			return mv1.ModelFormat_MODEL_FORMAT_OLLAMA, nil
 		}
-		return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
+		if isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_GGUF) {
+			return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
+		}
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("Ollama or GGUF format is not included in the supported formats")
 	case config.RuntimeNameVLLM:
 		var preferredFormat mv1.ModelFormat
 		for _, f := range supportedFormats {

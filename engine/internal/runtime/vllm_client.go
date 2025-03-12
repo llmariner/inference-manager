@@ -90,7 +90,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
-		"--served-model-name", oModelID,
 	}
 	// Ultravox models is a model to handle audio input, which require a specific tokenizer.
 	if strings.Contains(modelID, "ultravox") {
@@ -118,7 +117,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
 		}
-		args = append(args, "--model", mPath)
+		args = append(args,
+			"--served-model-name", oModelID,
+			"--model", mPath,
+		)
 	} else {
 		attr, err := v.modelClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
 			Id: modelID,
@@ -144,13 +146,22 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			if err != nil {
 				return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
 			}
+
+			// When LoRA is used, set --served-model-name to the base model name ID, not to the fine-tuned model ID.
+			// vLLM serves both the base model and the fined-tune model, and --served-model-name is used to specify
+			// the base model name. See https://docs.vllm.ai/en/v0.5.5/models/lora.html#serving-lora-adapters.
 			args = append(args,
+				"--served-model-name", attr.BaseModel,
 				"--model", bmPath,
 				"--enable-lora",
 				"--lora-modules", fmt.Sprintf("%s=%s", oModelID, mPath),
 			)
 		} else {
-			args = append(args, "--model", mPath)
+			// TODO(kenji): Verify this code path.
+			args = append(args,
+				"--served-model-name", oModelID,
+				"--model", mPath,
+			)
 		}
 	}
 

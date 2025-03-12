@@ -131,7 +131,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 			wantArgs: []string{
 				"--port", "80",
 				"--model", "/models/base-model0",
-				"--served-model-name", "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				"--served-model-name", "base-model0",
 				"--chat-template", "\n<|begin_of_text|>\n{% for message in messages %}\n{{'<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n' + message['content'] + '\\n<|eot_id|>\\n'}}\n{% endfor %}\n",
 				"--tensor-parallel-size", "2",
 				"--enable-lora",

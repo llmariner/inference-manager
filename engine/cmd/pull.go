@@ -30,7 +30,7 @@ func pullCmd() *cobra.Command {
 	var o opts
 	var path string
 	var forcePull bool
-	var runOnce bool
+	var daemonMode bool
 	var socketPath string
 	cmd := &cobra.Command{
 		Use:   "pull",
@@ -41,16 +41,16 @@ func pullCmd() *cobra.Command {
 				return nil
 			}
 
-			if runOnce {
-				if o.modelID == "" {
-					return fmt.Errorf("model ID must be set on the run-once mode")
-				}
-			} else {
+			if daemonMode {
 				if socketPath == "" {
 					return fmt.Errorf("socket path must be set on the daemon mode")
 				}
 				if o.runtime != config.RuntimeNameOllama {
 					return fmt.Errorf("daemon mode is only available for the ollama")
+				}
+			} else {
+				if o.modelID == "" {
+					return fmt.Errorf("model ID must be set on non daemon mode")
 				}
 			}
 
@@ -61,7 +61,7 @@ func pullCmd() *cobra.Command {
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
 			defer cancel()
-			if runOnce {
+			if !daemonMode {
 				return pull(ctx, o, c)
 			}
 			return runServer(ctx, c, socketPath)
@@ -72,7 +72,7 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.modelID, "model-id", "", "Model ID to be registered")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	cmd.Flags().BoolVar(&forcePull, "force-pull", false, "Pull the model even if its index is not 0")
-	cmd.Flags().BoolVar(&runOnce, "run-once", true, "Run the command only once (daemon mode is only available for the ollama model)")
+	cmd.Flags().BoolVar(&daemonMode, "daemon-mode", false, "Run the server in the daemon mode (only available for the ollama model)")
 	cmd.Flags().StringVar(&socketPath, "socket-path", "", "Path to the unix-domain-socket file")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")

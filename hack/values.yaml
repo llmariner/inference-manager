@@ -30,7 +30,6 @@ inference-manager-engine:
     pullPolicy: Never
   replicaCount: 1
   model:
-  model:
     default:
       runtimeName: ollama
       resources:

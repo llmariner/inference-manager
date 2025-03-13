@@ -2,8 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
@@ -24,6 +30,8 @@ func pullCmd() *cobra.Command {
 	var o opts
 	var path string
 	var forcePull bool
+	var daemonMode bool
+	var socketPath string
 	cmd := &cobra.Command{
 		Use:   "pull",
 		Short: "pull",
@@ -33,12 +41,30 @@ func pullCmd() *cobra.Command {
 				return nil
 			}
 
+			if daemonMode {
+				if socketPath == "" {
+					return fmt.Errorf("socket path must be set on the daemon mode")
+				}
+				if o.runtime != config.RuntimeNameOllama {
+					return fmt.Errorf("daemon mode is only available for the ollama")
+				}
+			} else {
+				if o.modelID == "" {
+					return fmt.Errorf("model ID must be set on non daemon mode")
+				}
+			}
+
 			c, err := config.Parse(path)
 			if err != nil {
 				return err
 			}
 
-			return pull(cmd.Context(), o, c)
+			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
+			defer cancel()
+			if !daemonMode {
+				return pull(ctx, o, c)
+			}
+			return runServer(ctx, c, socketPath)
 		},
 	}
 	cmd.Flags().IntVar(&o.index, "index", 0, "Index of the pod")
@@ -46,11 +72,88 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.modelID, "model-id", "", "Model ID to be registered")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	cmd.Flags().BoolVar(&forcePull, "force-pull", false, "Pull the model even if its index is not 0")
+	cmd.Flags().BoolVar(&daemonMode, "daemon-mode", false, "Run the server in the daemon mode (only available for the ollama model)")
+	cmd.Flags().StringVar(&socketPath, "socket-path", "", "Path to the unix-domain-socket file")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")
-	_ = cmd.MarkFlagRequired("model-id")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
+}
+
+type pullModelRequest struct {
+	ModelID string `json:"modelID"`
+}
+
+func runServer(ctx context.Context, c *config.Config, socketPath string) error {
+	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove socket file: %s", err)
+	}
+
+	const queueLengths = 5
+	pullCh := make(chan string, queueLengths)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case modelID := <-pullCh:
+				if err := pull(ctx, opts{
+					modelID: modelID,
+					runtime: config.RuntimeNameOllama,
+				}, c); err != nil {
+					log.Printf("Failed to pull the model: %v\n", err)
+				}
+			}
+		}
+	}()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/pull", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+			return
+		}
+		var req pullModelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("Failed to decode the request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		select {
+		case pullCh <- req.ModelID:
+			w.WriteHeader(http.StatusAccepted)
+		default:
+			w.WriteHeader(http.StatusTooManyRequests)
+		}
+	})
+
+	srv := http.Server{Handler: mux}
+	l, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return fmt.Errorf("listen: %s", err)
+	}
+	defer func() {
+		if err := l.Close(); err != nil {
+			log.Printf("close: %v\n", err)
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		defer cancel()
+		log.Printf("Starting HTTP server at %q\n", socketPath)
+		if err := srv.Serve(l); err != http.ErrServerClosed {
+			log.Printf("serve: %v\n", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Printf("Shutting down HTTP server...\n")
+	if err := srv.Shutdown(ctx); err != nil {
+		return fmt.Errorf("http server shutdown: %s", err)
+	}
+	log.Printf("Shutdown has finished\n")
+	return nil
 }
 
 type opts struct {

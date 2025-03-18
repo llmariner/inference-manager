@@ -260,6 +260,11 @@ ollama:
   # The maximun number of ollama requests procssed in parallel.
   # +docs:type=number
   maxConcurrentRequests: 0
+  # If set, the model is loaded dynamically and the puller is run in the daemon mode.
+  dynamicModelLoading: false
+  # The port number of the puller server for the daemon mode.
+  # +docs:type=number
+  pullerPort: 8080
 
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.

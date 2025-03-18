@@ -51,6 +51,8 @@ data:
       forceSpreading: {{ .Values.ollama.forceSpreading }}
       debug: {{ .Values.ollama.debug }}
       runnersDir: {{ .Values.ollama.runnersDir }}
+      dynamicModelLoading: {{ .Values.ollama.dynamicModelLoading }}
+      pullerPort: {{ .Values.ollama.pullerPort }}
     model:
       default:
         runtimeName: {{ .Values.model.default.runtimeName }}

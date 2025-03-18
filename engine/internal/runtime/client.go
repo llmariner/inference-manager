@@ -115,6 +115,10 @@ type deployRuntimeParams struct {
 
 	// runtimePort is set to a non-zero value when the runtime serve requests on a port different from the serving port.
 	runtimePort int
+
+	pullerDaemonMode bool
+	// pullerPort is the port number of the puller daemon.
+	pullerPort int
 }
 
 // deployRuntime deploys the runtime for the given model.
@@ -124,7 +128,12 @@ func (c *commonClient) deployRuntime(
 	update bool,
 ) (*appsv1.StatefulSet, error) {
 	mci := c.mconfig.ModelConfigItem(params.modelID)
-	name := resourceName(mci.RuntimeName, params.modelID)
+	var name string
+	if params.pullerDaemonMode {
+		name = resourceName(mci.RuntimeName, "dynamic")
+	} else {
+		name = resourceName(mci.RuntimeName, params.modelID)
+	}
 
 	log := ctrl.LoggerFrom(ctx).WithValues("name", name)
 	log.Info("Deploying runtime", "model", params.modelID, "update", update)
@@ -268,20 +277,31 @@ func (c *commonClient) deployRuntime(
 		"--config=/etc/config/config.yaml",
 		"--force-pull=" + fmt.Sprintf("%t", forcePull),
 	}
+	if params.pullerDaemonMode {
+		pullerArgs = append(pullerArgs, "--daemon-mode")
+	}
 
 	image, ok := c.rconfig.RuntimeImages[mci.RuntimeName]
 	if !ok {
 		return nil, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
 	}
 
-	podSpec := corev1apply.PodSpec().
-		WithInitContainers(corev1apply.Container().
+	pullerSpec := corev1apply.Container().
+		WithName("puller").
+		WithImage(c.rconfig.PullerImage).
+		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.PullerImagePullPolicy)).
+		WithArgs(pullerArgs...).
+		WithEnv(initEnvs...).
+		WithVolumeMounts(initVolumeMounts...)
+	if params.pullerDaemonMode {
+		pullerSpec = pullerSpec.WithPorts(corev1apply.ContainerPort().
 			WithName("puller").
-			WithImage(c.rconfig.PullerImage).
-			WithImagePullPolicy(corev1.PullPolicy(c.rconfig.PullerImagePullPolicy)).
-			WithArgs(pullerArgs...).
-			WithEnv(initEnvs...).
-			WithVolumeMounts(initVolumeMounts...))
+			WithContainerPort(int32(params.pullerPort)).
+			WithProtocol(corev1.ProtocolTCP)).
+			WithRestartPolicy(corev1.ContainerRestartPolicyAlways)
+	}
+	podSpec := corev1apply.PodSpec().
+		WithInitContainers(pullerSpec)
 	if ic := params.initContainerSpec; ic != nil {
 		podSpec = podSpec.WithInitContainers(corev1apply.Container().
 			WithName(ic.name).
@@ -355,7 +375,9 @@ func (c *commonClient) deployRuntime(
 
 	annos := map[string]string{
 		runtimeAnnotationKey: mci.RuntimeName,
-		modelAnnotationKey:   params.modelID,
+	}
+	if !params.pullerDaemonMode {
+		annos[modelAnnotationKey] = params.modelID
 	}
 
 	stsSpecConf := appsv1apply.StatefulSetSpec().
@@ -403,15 +425,21 @@ func (c *commonClient) deployRuntime(
 		WithBlockOwnerDeletion(true).
 		WithController(true)
 
+	svcSpec := corev1apply.ServiceSpec().
+		WithSelector(labels).
+		WithPorts(corev1apply.ServicePort().
+			WithName("runtime").
+			WithPort(int32(c.servingPort)))
+	if params.pullerDaemonMode {
+		svcSpec.WithPorts(corev1apply.ServicePort().
+			WithName("puller").
+			WithPort(int32(params.pullerPort)))
+	}
 	objs := []any{
 		corev1apply.Service(name, c.namespace).
 			WithLabels(labels).
 			WithOwnerReferences(ownerRef).
-			WithSpec(corev1apply.ServiceSpec().
-				WithSelector(labels).
-				WithPorts(corev1apply.ServicePort().
-					WithName("runtime").
-					WithPort(int32(c.servingPort)))),
+			WithSpec(svcSpec),
 	}
 
 	if vol := resConf.Volume; vol != nil && vol.ShareWithReplicas {

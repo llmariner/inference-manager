@@ -56,6 +56,14 @@ type ollamaClient struct {
 	modelClient modelGetter
 }
 
+// GetName returns a resource name of the runtime.
+func (c *ollamaClient) GetName(modelID string) string {
+	if c.config.DynamicModelLoading {
+		return fmt.Sprintf("%s-dynamic", config.RuntimeNameOllama)
+	}
+	return resourceName(config.RuntimeNameOllama, modelID)
+}
+
 // DeployRuntime deploys the runtime for the given model.
 func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
@@ -91,6 +99,20 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	image, ok := o.rconfig.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
 		return nil, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
+	}
+
+	if o.config.DynamicModelLoading {
+		return o.deployRuntime(ctx, deployRuntimeParams{
+			modelID:  modelID,
+			initEnvs: initEnvs,
+			envs:     envs,
+			readinessProbe: corev1apply.Probe().
+				WithHTTPGet(corev1apply.HTTPGetAction().
+					WithPort(intstr.FromInt(ollamaHTTPPort))),
+			args:             args,
+			pullerDaemonMode: true,
+			pullerPort:       o.config.PullerPort,
+		}, update)
 	}
 
 	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)

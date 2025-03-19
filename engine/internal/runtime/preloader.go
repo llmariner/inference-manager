@@ -15,10 +15,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// ModelPuller pulls a model.
+type ModelPuller interface {
+	PullModel(ctx context.Context, modelID string) error
+}
+
 // NewPreloader creates a new Preloader.
-func NewPreloader(rtManager *Manager, ids []string, modelClient modelGetter) *Preloader {
+func NewPreloader(puller ModelPuller, ids []string, modelClient modelGetter) *Preloader {
 	return &Preloader{
-		rtManager:             rtManager,
+		puller:                puller,
 		ids:                   ids,
 		initialDelay:          3 * time.Second,
 		preloadingParallelism: 3,
@@ -28,8 +33,8 @@ func NewPreloader(rtManager *Manager, ids []string, modelClient modelGetter) *Pr
 
 // Preloader preloads models.
 type Preloader struct {
-	rtManager *Manager
-	ids       []string
+	puller ModelPuller
+	ids    []string
 
 	initialDelay          time.Duration
 	preloadingParallelism int
@@ -94,7 +99,7 @@ func (p *Preloader) pullModel(ctx context.Context, id string) error {
 		}
 	}
 
-	if err := p.rtManager.PullModel(ctx, id); !errors.Is(err, ErrRequestCanceled) {
+	if err := p.puller.PullModel(ctx, id); !errors.Is(err, ErrRequestCanceled) {
 		// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
 		// an error from here will make the preloading fails, but an unschedulable pod is
 		// expected when a cluster is being autoscaled.

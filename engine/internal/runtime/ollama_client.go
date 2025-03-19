@@ -61,6 +61,7 @@ type ollamaClient struct {
 }
 
 // GetName returns a resource name of the runtime.
+// model ID is not used in daemon mode.
 func (o *ollamaClient) GetName(modelID string) string {
 	if o.config.DynamicModelLoading {
 		return fmt.Sprintf("%s-%s", config.RuntimeNameOllama, daemonModeSuffix)

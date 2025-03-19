@@ -427,6 +427,10 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 	filterByLabel := (predicate.NewPredicateFuncs(func(object client.Object) bool {
 		return object.GetLabels()["app.kubernetes.io/created-by"] == managerName
 	}))
+	return setupWithManager(mgr, leaderElection, m, filterByLabel)
+}
+
+func setupWithManager(mgr ctrl.Manager, leaderElection bool, r reconcile.Reconciler, predicates predicate.Predicate) error {
 	constructer := func(r *reconcile.Request) logr.Logger {
 		if r != nil {
 			return mgr.GetLogger().WithValues("runtime", r.NamespacedName)
@@ -434,15 +438,15 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 		return mgr.GetLogger()
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByLabel)).
+		For(&appsv1.StatefulSet{}, builder.WithPredicates(predicates)).
 		Watches(&corev1.Pod{},
 			handler.TypedEnqueueRequestForOwner[client.Object](mgr.GetScheme(), mgr.GetRESTMapper(), &appsv1.StatefulSet{}, handler.OnlyControllerOwner()),
-			builder.WithPredicates(filterByLabel)).
+			builder.WithPredicates(predicates)).
 		WithLogConstructor(constructer).
 		// To share the runtime deletion event, disable the leader election
 		// for this controller if the processor disables the leader election.
 		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).
-		Complete(m)
+		Complete(r)
 }
 
 func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {

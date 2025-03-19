@@ -151,39 +151,66 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 
 	processedConfig := config.NewProcessedModelConfig(c)
 	modelClient := mv1.NewModelsWorkerServiceClient(conn)
-	rtClientFactory := &clientFactory{
-		config: c,
-		clients: map[string]runtime.Client{
-			config.RuntimeNameOllama: runtime.NewOllamaClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				processedConfig,
-				c.Ollama,
-				modelClient,
-			),
-			config.RuntimeNameVLLM: runtime.NewVLLMClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				processedConfig,
-				modelClient,
-			),
-			config.RuntimeNameTriton: runtime.NewTritonClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				processedConfig,
-			),
-		},
-	}
+	ollamaClient := runtime.NewOllamaClient(
+		mgr.GetClient(),
+		ns,
+		owner,
+		&c.Runtime,
+		processedConfig,
+		c.Ollama,
+		modelClient,
+	)
 
-	rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
-	if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
-		return err
+	var (
+		addrGetter  processor.AddressGetter
+		modelSyncer processor.ModelSyncer
+		modelPuller runtime.ModelPuller
+	)
+	if c.Ollama.DynamicModelLoading {
+		pullerAddr := fmt.Sprintf("%s:%d", ollamaClient.GetName(""), c.Ollama.PullerPort)
+		ollamaManager := runtime.NewOllamaManager(mgr.GetClient(), ollamaClient, scaler, pullerAddr)
+		if err := ollamaManager.SetupWithManager(mgr, leaderElection); err != nil {
+			return err
+		}
+		addrGetter = ollamaManager
+		modelSyncer = ollamaManager
+		modelPuller = ollamaManager
+
+	} else {
+		rtClientFactory := &clientFactory{
+			config: c,
+			clients: map[string]runtime.Client{
+				config.RuntimeNameOllama: ollamaClient,
+				config.RuntimeNameVLLM: runtime.NewVLLMClient(
+					mgr.GetClient(),
+					ns,
+					owner,
+					&c.Runtime,
+					processedConfig,
+					modelClient,
+				),
+				config.RuntimeNameTriton: runtime.NewTritonClient(
+					mgr.GetClient(),
+					ns,
+					owner,
+					&c.Runtime,
+					processedConfig,
+				),
+			},
+		}
+
+		rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
+		if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
+			return err
+		}
+		addrGetter = rtManager
+		modelSyncer = rtManager
+		modelPuller = rtManager
+
+		updater := runtime.NewUpdater(ns, rtClientFactory)
+		if err := updater.SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)
@@ -200,8 +227,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	p := processor.NewP(
 		engineID,
 		wsClient,
-		rtManager,
-		rtManager,
+		addrGetter,
+		modelSyncer,
 		logger,
 		collector,
 		c.GracefulShutdownTimeout,
@@ -210,13 +237,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(rtManager, processedConfig.PreloadedModelIDs(), modelClient)
+	preloader := runtime.NewPreloader(modelPuller, processedConfig.PreloadedModelIDs(), modelClient)
 	if err := preloader.SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	updater := runtime.NewUpdater(ns, rtClientFactory)
-	if err := updater.SetupWithManager(mgr); err != nil {
 		return err
 	}
 

@@ -114,6 +114,10 @@ func runServer(ctx context.Context, c *config.Config, port int, modelID string) 
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if req.ModelID == "" {
+			http.Error(w, "Model ID must be set", http.StatusBadRequest)
+			return
+		}
 		select {
 		case pullCh <- req.ModelID:
 			w.WriteHeader(http.StatusAccepted)

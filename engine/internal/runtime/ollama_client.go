@@ -60,10 +60,6 @@ type ollamaClient struct {
 	modelClient modelGetter
 }
 
-func (o *ollamaClient) getPullerAddress() string {
-	return fmt.Sprintf("%s:%d", o.GetName(""), o.config.PullerPort)
-}
-
 // GetName returns a resource name of the runtime.
 func (o *ollamaClient) GetName(modelID string) string {
 	if o.config.DynamicModelLoading {

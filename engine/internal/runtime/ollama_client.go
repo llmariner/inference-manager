@@ -19,7 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const ollamaHTTPPort = 11434
+const (
+	ollamaHTTPPort = 11434
+
+	daemonModeSuffix = "dynamic"
+)
 
 type modelGetter interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
@@ -54,6 +58,14 @@ type ollamaClient struct {
 
 	config      config.OllamaConfig
 	modelClient modelGetter
+}
+
+// GetName returns a resource name of the runtime.
+func (o *ollamaClient) GetName(modelID string) string {
+	if o.config.DynamicModelLoading {
+		return fmt.Sprintf("%s-%s", config.RuntimeNameOllama, daemonModeSuffix)
+	}
+	return resourceName(config.RuntimeNameOllama, modelID)
 }
 
 // DeployRuntime deploys the runtime for the given model.
@@ -91,6 +103,20 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	image, ok := o.rconfig.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
 		return nil, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
+	}
+
+	if o.config.DynamicModelLoading {
+		return o.deployRuntime(ctx, deployRuntimeParams{
+			modelID:  modelID,
+			initEnvs: initEnvs,
+			envs:     envs,
+			readinessProbe: corev1apply.Probe().
+				WithHTTPGet(corev1apply.HTTPGetAction().
+					WithPort(intstr.FromInt(ollamaHTTPPort))),
+			args:             args,
+			pullerDaemonMode: true,
+			pullerPort:       o.config.PullerPort,
+		}, update)
 	}
 
 	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)

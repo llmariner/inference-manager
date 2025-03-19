@@ -33,6 +33,13 @@ type OllamaConfig struct {
 	Debug bool `yaml:"debug"`
 
 	RunnersDir string `yaml:"runnersDir"`
+
+	// DynamicModelLoading is true if the model is loaded dynamically.
+	// If this is set to true, the puller is run in the daemon mode.
+	DynamicModelLoading bool `yaml:"dynamicModelLoading"`
+	// PullerPort is the port for the puller. This is only used when
+	// DynamicModelLoading is true.
+	PullerPort int `yaml:"pullerPort"`
 }
 
 func (c *OllamaConfig) validate() error {
@@ -44,6 +51,9 @@ func (c *OllamaConfig) validate() error {
 	}
 	if c.RunnersDir == "" {
 		return fmt.Errorf("runnerDir must be set")
+	}
+	if c.DynamicModelLoading && c.PullerPort <= 0 {
+		return fmt.Errorf("pullerPort must be set when dynamicModelLoading is true")
 	}
 	return nil
 }

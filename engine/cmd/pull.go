@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -31,7 +29,6 @@ func pullCmd() *cobra.Command {
 	var path string
 	var forcePull bool
 	var daemonMode bool
-	var socketPath string
 	cmd := &cobra.Command{
 		Use:   "pull",
 		Short: "pull",
@@ -41,22 +38,25 @@ func pullCmd() *cobra.Command {
 				return nil
 			}
 
+			c, err := config.Parse(path)
+			if err != nil {
+				return err
+			}
+
 			if daemonMode {
-				if socketPath == "" {
+				if c.Ollama.PullerPort == 0 {
 					return fmt.Errorf("socket path must be set on the daemon mode")
 				}
 				if o.runtime != config.RuntimeNameOllama {
 					return fmt.Errorf("daemon mode is only available for the ollama")
 				}
 			} else {
+				// Check if the model ID is set on the non daemon mode.
+				// In the daemon mode, the model is optional and pre-pulled
+				// only if the model ID is set.
 				if o.modelID == "" {
 					return fmt.Errorf("model ID must be set on non daemon mode")
 				}
-			}
-
-			c, err := config.Parse(path)
-			if err != nil {
-				return err
 			}
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
@@ -64,7 +64,7 @@ func pullCmd() *cobra.Command {
 			if !daemonMode {
 				return pull(ctx, o, c)
 			}
-			return runServer(ctx, c, socketPath)
+			return runServer(ctx, c, c.Ollama.PullerPort, o.modelID)
 		},
 	}
 	cmd.Flags().IntVar(&o.index, "index", 0, "Index of the pod")
@@ -73,7 +73,6 @@ func pullCmd() *cobra.Command {
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	cmd.Flags().BoolVar(&forcePull, "force-pull", false, "Pull the model even if its index is not 0")
 	cmd.Flags().BoolVar(&daemonMode, "daemon-mode", false, "Run the server in the daemon mode (only available for the ollama model)")
-	cmd.Flags().StringVar(&socketPath, "socket-path", "", "Path to the unix-domain-socket file")
 	_ = cmd.MarkFlagRequired("index")
 	_ = cmd.MarkFlagRequired("runtime")
 	_ = cmd.MarkFlagRequired("config")
@@ -84,11 +83,7 @@ type pullModelRequest struct {
 	ModelID string `json:"modelID"`
 }
 
-func runServer(ctx context.Context, c *config.Config, socketPath string) error {
-	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove socket file: %s", err)
-	}
-
+func runServer(ctx context.Context, c *config.Config, port int, modelID string) error {
 	const queueLengths = 5
 	pullCh := make(chan string, queueLengths)
 	go func() {
@@ -127,25 +122,22 @@ func runServer(ctx context.Context, c *config.Config, socketPath string) error {
 		}
 	})
 
-	srv := http.Server{Handler: mux}
-	l, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return fmt.Errorf("listen: %s", err)
+	srv := http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
 	}
-	defer func() {
-		if err := l.Close(); err != nil {
-			log.Printf("close: %v\n", err)
-		}
-	}()
-
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer cancel()
-		log.Printf("Starting HTTP server at %q\n", socketPath)
-		if err := srv.Serve(l); err != http.ErrServerClosed {
+		log.Printf("Starting HTTP server at %q\n", srv.Addr)
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Printf("serve: %v\n", err)
 		}
 	}()
+
+	if modelID != "" {
+		pullCh <- modelID
+	}
 
 	<-ctx.Done()
 	log.Printf("Shutting down HTTP server...\n")

@@ -125,6 +125,7 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		m.mu.RUnlock()
 		select {
 		case <-ch:
+		// TODO(aya): check error reason
 		case <-ctx.Done():
 			return ctx.Err()
 		}

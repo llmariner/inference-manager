@@ -130,7 +130,7 @@ func (c *commonClient) deployRuntime(
 	mci := c.mconfig.ModelConfigItem(params.modelID)
 	var name string
 	if params.pullerDaemonMode {
-		name = resourceName(mci.RuntimeName, "dynamic")
+		name = resourceName(mci.RuntimeName, daemonModeSuffix)
 	} else {
 		name = resourceName(mci.RuntimeName, params.modelID)
 	}

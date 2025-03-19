@@ -19,7 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const ollamaHTTPPort = 11434
+const (
+	ollamaHTTPPort = 11434
+
+	daemonModeSuffix = "dynamic"
+)
 
 type modelGetter interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
@@ -56,10 +60,14 @@ type ollamaClient struct {
 	modelClient modelGetter
 }
 
+func (o *ollamaClient) getPullerAddress() string {
+	return fmt.Sprintf("%s:%d", o.GetName(""), o.config.PullerPort)
+}
+
 // GetName returns a resource name of the runtime.
-func (c *ollamaClient) GetName(modelID string) string {
-	if c.config.DynamicModelLoading {
-		return fmt.Sprintf("%s-dynamic", config.RuntimeNameOllama)
+func (o *ollamaClient) GetName(modelID string) string {
+	if o.config.DynamicModelLoading {
+		return fmt.Sprintf("%s-%s", config.RuntimeNameOllama, daemonModeSuffix)
 	}
 	return resourceName(config.RuntimeNameOllama, modelID)
 }

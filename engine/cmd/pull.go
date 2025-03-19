@@ -51,6 +51,9 @@ func pullCmd() *cobra.Command {
 					return fmt.Errorf("daemon mode is only available for the ollama")
 				}
 			} else {
+				// Check if the model ID is set on the non daemon mode.
+				// In the daemon mode, the model is optional and pre-pulled
+				// only if the model ID is set.
 				if o.modelID == "" {
 					return fmt.Errorf("model ID must be set on non daemon mode")
 				}

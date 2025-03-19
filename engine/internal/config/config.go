@@ -52,6 +52,9 @@ func (c *OllamaConfig) validate() error {
 	if c.RunnersDir == "" {
 		return fmt.Errorf("runnerDir must be set")
 	}
+	if c.DynamicModelLoading && c.PullerPort <= 0 {
+		return fmt.Errorf("pullerPort must be set when dynamicModelLoading is true")
+	}
 	return nil
 }
 

@@ -21,7 +21,7 @@ require (
 	github.com/llmariner/rbac-manager v1.9.1
 	github.com/llmariner/vector-store-manager v0.50.0
 	github.com/prometheus/client_golang v1.20.5
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sync v0.11.0

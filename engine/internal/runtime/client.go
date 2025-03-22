@@ -298,6 +298,8 @@ func (c *commonClient) deployRuntime(
 			WithName("puller").
 			WithContainerPort(int32(params.pullerPort)).
 			WithProtocol(corev1.ProtocolTCP)).
+			// The init container will start and remain running during the entire life of the pod.
+			// See https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/.
 			WithRestartPolicy(corev1.ContainerRestartPolicyAlways)
 	}
 	podSpec := corev1apply.PodSpec().

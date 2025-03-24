@@ -178,6 +178,8 @@ model:
       volume: {}
 
     # The number of replicas for the runtime StatefulSet.
+    # NOTE: In ollama dynamic-model-loading mode, volume sharing is required
+    # when creating one or more replicas.
     # +docs:type=number
     replicas: 1
 
@@ -268,6 +270,7 @@ ollama:
 
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.
+  # NOTE: In ollama dynamic-model-loading mode, volume sharing is required.
   enable: false
   # The type of autoscaler.
   # +docs:enum=builtin,keda

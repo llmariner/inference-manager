@@ -36,15 +36,21 @@ inference-manager-engine:
         limits:
           cpu: 0
           memory: 0
-          nvidia.com/gpu: 2
         requests:
           cpu: 0
           memory: 0
-    overrides: {}
+    overrides:
+      gemma2:2b:
+        preloaded: true
   componentStatusSender:
     enable: false
 
 model-manager-loader:
-  runOnce: true
+  runOnce: false
+  downloader:
+    kind: ollama
   baseModels:
-  - google/gemma-2b-it-q4_0
+  - gemma2:2b
+  - deepseek-r1:1.5b
+  componentStatusSender:
+    enable: false

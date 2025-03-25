@@ -63,6 +63,8 @@ func CreateModelfile(
 // If it is set to the default value, the function returns false.
 func contextLengthOfModel(modelID string) (int, bool, error) {
 	switch {
+	case strings.HasPrefix(modelID, "google-gemma-3"):
+		return 0, false, nil
 	case strings.HasPrefix(modelID, "google-gemma-"):
 		return 0, false, nil
 	case strings.HasPrefix(modelID, "meta-llama-Meta-Llama-3-8B-Instruct"),
@@ -85,6 +87,8 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 		return 256, true, nil
 	case strings.Contains(modelID, "phi-4"):
 		return 0, false, nil
+	case strings.Contains(modelID, "TinyLlama"):
+		return 0, false, nil
 	default:
 		return 0, false, fmt.Errorf("unsupported base model in Ollama modelfile: %q", modelID)
 	}
@@ -94,6 +98,25 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 // This is based on the output of "ollama show <model> --modelfile".
 func ollamaBaseModelFile(modelID string) (string, error) {
 	switch {
+	case strings.HasPrefix(modelID, "google-gemma-3"):
+		// Output of "ollama show gemma-3:4b --modelfile".
+		return `
+TEMPLATE """{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 }}
+{{- if or (eq .Role "user") (eq .Role "system") }}<start_of_turn>user
+{{ .Content }}<end_of_turn>
+{{ if $last }}<start_of_turn>model
+{{ end }}
+{{- else if eq .Role "assistant" }}<start_of_turn>model
+{{ .Content }}{{ if not $last }}<end_of_turn>
+{{ end }}
+{{- end }}
+{{- end }}"""
+PARAMETER temperature 1
+PARAMETER top_k 64
+PARAMETER top_p 0.95
+PARAMETER stop <end_of_turn>
+`, nil
 	case strings.HasPrefix(modelID, "google-gemma-"):
 		// Output of "ollama show gemma:2b --modelfile".
 		return `
@@ -285,6 +308,20 @@ Given the following functions, please respond with a JSON object for a function 
 PARAMETER stop <|im_start|>
 PARAMETER stop <|im_end|>
 PARAMETER stop <|im_sep|>
+`, nil
+	case strings.Contains(modelID, "TinyLlama"):
+		return `
+TEMPLATE "<|system|>
+{{ .System }}</s>
+<|user|>
+{{ .Prompt }}</s>
+<|assistant|>
+"
+SYSTEM You are a helpful AI assistant.
+PARAMETER stop <|system|>
+PARAMETER stop <|user|>
+PARAMETER stop <|assistant|>
+PARAMETER stop </s>
 `, nil
 	case strings.HasPrefix(modelID, "sentence-transformers-all-MiniLM-L6-v2"):
 		// This model is for embedding.

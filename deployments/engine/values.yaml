@@ -92,7 +92,7 @@ componentStatusSender:
 runtime:
   runtimeImages:
     # The container image of Ollama.
-    ollama: mirror.gcr.io/ollama/ollama:0.3.6
+    ollama: mirror.gcr.io/ollama/ollama:0.6.3-rc0
     # The container image of vLLM.
     vllm: mirror.gcr.io/vllm/vllm-openai:v0.7.3
     # The container image of NVIDIA Triton Server.

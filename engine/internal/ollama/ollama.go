@@ -63,7 +63,7 @@ func CreateModelfile(
 // If it is set to the default value, the function returns false.
 func contextLengthOfModel(modelID string) (int, bool, error) {
 	switch {
-	case strings.HasPrefix(modelID, "google-gemma-3"):
+	case strings.HasPrefix(modelID, "gemma-3"):
 		return 0, false, nil
 	case strings.HasPrefix(modelID, "google-gemma-"):
 		return 0, false, nil
@@ -98,7 +98,7 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 // This is based on the output of "ollama show <model> --modelfile".
 func ollamaBaseModelFile(modelID string) (string, error) {
 	switch {
-	case strings.HasPrefix(modelID, "google-gemma-3"):
+	case strings.HasPrefix(modelID, "gemma-3"):
 		// Output of "ollama show gemma-3:4b --modelfile".
 		return `
 TEMPLATE """{{- range $i, $_ := .Messages }}

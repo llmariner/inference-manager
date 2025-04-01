@@ -103,8 +103,11 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	}
 
 	if o.config.DynamicModelLoading {
+		// Periodically run "ollama create". This process is not required if the model is the Ollama format as the model files are directly
+		// written to the Ollama local model directory. To handle the case, we skip if the modelfile does not exist under /models/<model-id>.
 		// Periodically check if new models are pulled in the model directory and load them.
-		// TODO(kenji): This is a hacky way to implement dynamic model loading with limited error handling. Improve.
+		//
+		// TODO(kenji): Revisit.
 		script := fmt.Sprintf(`
 function run_ollama_create_periodically {
   while true; do
@@ -119,7 +122,7 @@ function run_ollama_create_periodically {
 	continue
       fi
 
-      # Check if the model is already loaded in Ollama by running 'ollma show'
+      # Check if the model is already loaded in Ollama by running 'ollma show'.
       if ollama show $model > /dev/null; then
 	continue
       fi
@@ -168,6 +171,8 @@ ollama serve
 	// TODO(kenji): Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
 	var createCmds []string
 	for _, id := range modelIDs {
+		// Run "ollama create". This process is not required if the model is the Ollama format as the model files are directly
+		// written to the Ollama local model directory. To handle the case, we skip if the modelfile does not exist under /models/<model-id>.
 		createCmds = append(createCmds, fmt.Sprintf(`
 if [ -f %s ]; then
 	while true; do

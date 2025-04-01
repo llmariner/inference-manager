@@ -107,7 +107,8 @@ type deployRuntimeParams struct {
 	volumeMounts   []*corev1apply.VolumeMountApplyConfiguration
 	readinessProbe *corev1apply.ProbeApplyConfiguration
 
-	args []string
+	command []string
+	args    []string
 
 	initContainerSpec *initContainerSpec
 
@@ -324,6 +325,7 @@ func (c *commonClient) deployRuntime(
 			WithName("runtime").
 			WithImage(image).
 			WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
+			WithCommand(params.command...).
 			WithArgs(params.args...).
 			WithPorts(corev1apply.ContainerPort().
 				WithName("http").

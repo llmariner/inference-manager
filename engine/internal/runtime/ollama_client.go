@@ -97,16 +97,43 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 		envs = append(envs, corev1apply.EnvVar().WithName("OLLAMA_DEBUG").WithValue("true"))
 	}
 
-	args := []string{
-		"serve",
-	}
-
 	image, ok := o.rconfig.RuntimeImages[config.RuntimeNameOllama]
 	if !ok {
 		return nil, fmt.Errorf("image not found for runtime %s", config.RuntimeNameOllama)
 	}
 
 	if o.config.DynamicModelLoading {
+		// Periodically check if new models are pulled in the model directory and load them.
+		// TODO(kenji): This is a hacky way to implement dynamic model loading with limited error handling. Improve.
+		script := fmt.Sprintf(`
+function run_ollama_create_periodically {
+  while true; do
+    for model in $(ls %s); do
+      # Skip if $model is "blobs" or "manifests"
+      if [ $model = "blobs" ] || [ $model = "manifests" ]; then
+	continue
+      fi
+
+      # Check if the completed.txt file exists. If it doesn't exist, it means the model is not ready yet.
+      if [ ! -f %s/$model/completed.txt ]; then
+	continue
+      fi
+
+      # Check if the model is already loaded in Ollama by running 'ollma show'
+      if ollama show $model > /dev/null; then
+	continue
+      fi
+
+      ollama create $model -f %s/$model/modelfile
+    done
+    sleep 1
+  done
+}
+
+run_ollama_create_periodically &
+ollama serve
+`, modelDir, modelDir, modelDir)
+
 		return o.deployRuntime(ctx, deployRuntimeParams{
 			modelID:  modelID,
 			initEnvs: initEnvs,
@@ -114,7 +141,8 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 			readinessProbe: corev1apply.Probe().
 				WithHTTPGet(corev1apply.HTTPGetAction().
 					WithPort(intstr.FromInt(ollamaHTTPPort))),
-			args:             args,
+			command:          []string{"/bin/bash"},
+			args:             []string{"-c", script},
 			pullerDaemonMode: true,
 			pullerPort:       o.config.PullerPort,
 		}, update)
@@ -172,7 +200,7 @@ kill ${serve_pid}
 		readinessProbe: corev1apply.Probe().
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(ollamaHTTPPort))),
-		args: args,
+		args: []string{"serve"},
 		initContainerSpec: &initContainerSpec{
 			name:    "ollama-init",
 			image:   image,

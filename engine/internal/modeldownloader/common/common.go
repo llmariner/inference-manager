@@ -60,9 +60,8 @@ func isAccessDenied(err error) bool {
 
 func downloadAllModelFiles(ctx context.Context, s3Client s3Client, keys []string, srcS3Path, destDir string) error {
 	for _, key := range keys {
-		log.Printf("Downloading %q to %q\n", key, destDir)
-
 		destPath := filepath.Join(destDir, strings.TrimPrefix(key, srcS3Path))
+		log.Printf("Downloading %q and saving at %q\n", key, destPath)
 
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			return fmt.Errorf("create directory: %s", err)

@@ -136,8 +136,6 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 		modelIDs = append(modelIDs, baseModelID, modelID)
 	}
 
-	// Create an init container that starts an Ollama server process in background and create a modelfile.
-	// TODO(kenji): Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
 	var createCmds []string
 	for _, id := range modelIDs {
 		createCmds = append(createCmds, fmt.Sprintf(`
@@ -155,7 +153,7 @@ fi
 	}
 
 	// Start an Ollama server process in background and create a modelfile.
-	// Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
+	// TODO(kenji): Revisit once Ollama supports model file creation without server (https://github.com/ollama/ollama/issues/3369)
 	script := fmt.Sprintf(`
 ollama serve &
 serve_pid=$!

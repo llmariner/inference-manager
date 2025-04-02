@@ -123,11 +123,13 @@ function run_ollama_create_periodically {
       fi
 
       # Check if the model is already loaded in Ollama by running 'ollma show'.
-      if ollama show $model > /dev/null; then
+      if ollama show $model > /dev/null 2>&1; then
 	continue
       fi
 
-      ollama create $model -f %s/$model/modelfile
+      # Remove "ft:" from the model name. This is to be consistent with the conversion made by ollama.ModelName().
+      modelName=$(echo $model | sed 's/^ft://')
+      ollama create $modelName -f %s/$model/modelfile
     done
     sleep 1
   done

@@ -156,6 +156,8 @@ func ModelFilePath(modelDir, modelID string, format mv1.ModelFormat) (string, er
 		return filepath.Join(modelDir, modelID), nil
 	case mv1.ModelFormat_MODEL_FORMAT_OLLAMA,
 		mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON:
+		// For Ollama, model files already follow the Ollama registry format. So, we put files directly under the
+		// model dir (/models), which is also the top directory of Ollama registry.
 		return modelDir, nil
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)

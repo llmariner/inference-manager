@@ -49,25 +49,6 @@ func (d *D) Download(
 	return d.download(ctx, modelID, format, adapterType, srcPath, destPath)
 }
 
-// DownloadAdapterOfGGUF downloads the adapter.
-func (d *D) DownloadAdapterOfGGUF(
-	ctx context.Context,
-	modelID string,
-	resp *mv1.GetModelPathResponse,
-) error {
-	destPath, err := AdapterFilePath(d.modelDir, modelID)
-	if err != nil {
-		return err
-	}
-
-	// TODO(kenji): Do not use the hard coded path. This currently works since the fine-tuning job
-	// use the fixed output name for the GGUF file, but we should let Model Manager return the GGUF file path.
-	ggufFilePath := filepath.Join(resp.Path, "ggml-adapter-model.bin")
-
-	// TODO(kenji): Revisit the adapater type. Currently this is no-op as we don't use the HuggingFace downloader.
-	return d.download(ctx, modelID, mv1.ModelFormat_MODEL_FORMAT_GGUF, mv1.AdapterType_ADAPTER_TYPE_QLORA, ggufFilePath, destPath)
-}
-
 func (d *D) download(
 	ctx context.Context,
 	modelID string,
@@ -162,9 +143,4 @@ func ModelFilePath(modelDir, modelID string, format mv1.ModelFormat) (string, er
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)
 	}
-}
-
-// AdapterFilePath returns the file path of the adapter.
-func AdapterFilePath(modelDir, modelID string) (string, error) {
-	return filepath.Join(modelDir, modelID, "adapter.gguf"), nil
 }

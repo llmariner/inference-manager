@@ -180,14 +180,10 @@ func pull(ctx context.Context, o opts, c *config.Config) error {
 		return pullBaseModel(ctx, o, c, mClient, s3Client)
 	}
 
-	switch o.runtime {
-	case config.RuntimeNameOllama:
-		return pullFineTunedModelForOllama(ctx, o, c, mClient, s3Client)
-	case config.RuntimeNameVLLM:
-		return pullFineTunedModelForVLLM(ctx, o, c, mClient, s3Client)
-	default:
-		return fmt.Errorf("unsupported runtime: %s", o.runtime)
+	if err := pullFineTunedModel(ctx, o, c, mClient, s3Client); err != nil {
+		return err
 	}
+	return nil
 }
 
 func pullBaseModel(
@@ -227,7 +223,10 @@ func pullBaseModel(
 		return err
 	}
 
-	if !(o.runtime == config.RuntimeNameOllama && format == mv1.ModelFormat_MODEL_FORMAT_GGUF) {
+	log.Printf("Successfully pulled the model %q\n", o.modelID)
+
+	if o.runtime != config.RuntimeNameOllama || format == mv1.ModelFormat_MODEL_FORMAT_OLLAMA {
+		// No need to create a model file.
 		return nil
 	}
 
@@ -252,56 +251,7 @@ func pullBaseModel(
 	return nil
 }
 
-func pullFineTunedModelForOllama(
-	ctx context.Context,
-	o opts,
-	c *config.Config,
-	mClient mv1.ModelsWorkerServiceClient,
-	s3Client *s3.Client,
-) error {
-	baseModelID, err := models.ExtractBaseModel(o.modelID)
-	if err != nil {
-		return err
-	}
-
-	if err := pullBaseModel(ctx, opts{modelID: baseModelID, runtime: o.runtime}, c, mClient, s3Client); err != nil {
-		return err
-	}
-
-	d := modeldownloader.New(runtime.ModelDir(), s3Client)
-
-	mresp, err := mClient.GetModelPath(ctx, &mv1.GetModelPathRequest{
-		Id: o.modelID,
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := d.DownloadAdapterOfGGUF(ctx, o.modelID, mresp); err != nil {
-		return err
-	}
-
-	filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
-	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
-
-	adapterPath, err := modeldownloader.AdapterFilePath(runtime.ModelDir(), o.modelID)
-	if err != nil {
-		return err
-	}
-	spec := &ollama.ModelSpec{
-		From:        baseModelID,
-		AdapterPath: adapterPath,
-	}
-	mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
-	if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
-		return err
-	}
-	log.Printf("Successfully created the Ollama modelfile\n")
-
-	return nil
-}
-
-func pullFineTunedModelForVLLM(
+func pullFineTunedModel(
 	ctx context.Context,
 	o opts,
 	c *config.Config,
@@ -339,7 +289,29 @@ func pullFineTunedModelForVLLM(
 	if err := d.Download(ctx, o.modelID, attr.Path, format, attr.Adapter); err != nil {
 		return err
 	}
+
 	log.Printf("Successfully pulled the fine-tuning adapter\n")
+
+	if o.runtime != config.RuntimeNameOllama {
+		return nil
+	}
+
+	filePath := ollama.ModelfilePath(runtime.ModelDir(), o.modelID)
+	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
+
+	adapterPath, err := modeldownloader.ModelFilePath(runtime.ModelDir(), o.modelID, format)
+	if err != nil {
+		return err
+	}
+	spec := &ollama.ModelSpec{
+		From:        attr.BaseModel,
+		AdapterPath: adapterPath,
+	}
+	mci := config.NewProcessedModelConfig(c).ModelConfigItem(o.modelID)
+	if err := ollama.CreateModelfile(filePath, o.modelID, spec, mci.ContextLength); err != nil {
+		return err
+	}
+	log.Printf("Successfully created the Ollama modelfile\n")
 
 	return nil
 }

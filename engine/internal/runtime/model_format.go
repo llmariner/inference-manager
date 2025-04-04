@@ -22,7 +22,10 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 		if isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_GGUF) {
 			return mv1.ModelFormat_MODEL_FORMAT_GGUF, nil
 		}
-		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("Ollama or GGUF format is not included in the supported formats")
+		if isSupportedFormat(supportedFormats, mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE) {
+			return mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE, nil
+		}
+		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("unsupported model format for Ollama runtime: %v", supportedFormats)
 	case config.RuntimeNameVLLM:
 		var preferredFormat mv1.ModelFormat
 		for _, f := range supportedFormats {

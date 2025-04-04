@@ -25,10 +25,10 @@ func TestPreferredModelFormat(t *testing.T) {
 			want: mv1.ModelFormat_MODEL_FORMAT_GGUF,
 		},
 		{
-			name:    "ollama, no gguf",
+			name:    "ollama, no gguf or hugging face",
 			runtime: config.RuntimeNameOllama,
 			supportedFormats: []mv1.ModelFormat{
-				mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
+				mv1.ModelFormat_MODEL_FORMAT_NVIDIA_TRITON,
 			},
 			wantErr: true,
 		},

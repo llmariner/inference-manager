@@ -189,7 +189,7 @@ func TestGetInferenceStatus(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			s := &ISS{
+			s := &IMS{
 				tenantStatuses: tc.tenantStatuses,
 			}
 			got, err := s.GetInferenceStatus(tc.ctx, &v1.GetInferenceStatusRequest{})

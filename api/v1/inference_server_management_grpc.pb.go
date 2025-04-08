@@ -97,5 +97,5 @@ var InferenceService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/v1/inference_server_status.proto",
+	Metadata: "api/v1/inference_server_management.proto",
 }

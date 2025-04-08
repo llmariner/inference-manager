@@ -62,7 +62,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "inference-manager-server.fullname" . }}-status-http
+  name: {{ include "inference-manager-server.fullname" . }}-management-http
   annotations:
     {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -72,10 +72,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.statusPort }}
-      targetPort: status-http
+    - port: {{ .Values.managementPort }}
+      targetPort: management-http
       protocol: TCP
-      name: status-http
+      name: management-http
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}
 
@@ -84,7 +84,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "inference-manager-server.fullname" . }}-status-grpc
+  name: {{ include "inference-manager-server.fullname" . }}-management-grpc
   annotations:
     {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -94,9 +94,9 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.statusGrpcPort }}
+    - port: {{ .Values.managementGrpcPort }}
       protocol: TCP
-      targetPort: status-grpc
-      name: status-grpc
+      targetPort: management-grpc
+      name: management-grpc
   selector:
     {{- include "inference-manager-server.selectorLabels" . | nindent 4 }}

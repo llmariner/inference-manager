@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "api/v1/inference_server_status.proto",
+    "title": "api/v1/inference_server_management.proto",
     "version": "version not set"
   },
   "tags": [

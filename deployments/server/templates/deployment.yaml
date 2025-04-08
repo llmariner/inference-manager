@@ -56,11 +56,11 @@ spec:
         - name: admin
           containerPort: {{ .Values.adminPort }}
           protocol: TCP
-        - name: status-http
-          containerPort: {{ .Values.statusPort }}
+        - name: management-http
+          containerPort: {{ .Values.managementPort }}
           protocol: TCP
-        - name: status-grpc
-          containerPort: {{ .Values.statusGrpcPort }}
+        - name: management-grpc
+          containerPort: {{ .Values.managementGrpcPort }}
           protocol: TCP
         - name: km-metrics
           containerPort: {{ include "inference-manager-server.metricsPort" . }}

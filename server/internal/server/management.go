@@ -25,19 +25,19 @@ const (
 	defaultNamespace      = "default"
 )
 
-// NewInferenceStatusServer creates a new inference status server.
-func NewInferenceStatusServer(
+// NewInferenceManagementServer creates a new inference management server.
+func NewInferenceManagementServer(
 	infProcessor *infprocessor.P,
 	logger logr.Logger,
-) *ISS {
-	return &ISS{
+) *IMS {
+	return &IMS{
 		infProcessor: infProcessor,
 		logger:       logger.WithName("inference status server"),
 	}
 }
 
-// ISS is a server for inference status services.
-type ISS struct {
+// IMS is a server for inference management services.
+type IMS struct {
 	v1.UnimplementedInferenceServiceServer
 
 	// keyed by tenant ID and cluster ID.
@@ -51,7 +51,7 @@ type ISS struct {
 }
 
 // Run runs the inference status server.
-func (s *ISS) Run(ctx context.Context, authConfig config.AuthConfig, port int) error {
+func (s *IMS) Run(ctx context.Context, authConfig config.AuthConfig, port int) error {
 	s.logger.Info("Starting infernce server...", "port", port)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -62,7 +62,7 @@ func (s *ISS) Run(ctx context.Context, authConfig config.AuthConfig, port int) e
 }
 
 // RunWithListener runs the server with a given listener.
-func (s *ISS) RunWithListener(ctx context.Context, authConfig config.AuthConfig, l net.Listener) error {
+func (s *IMS) RunWithListener(ctx context.Context, authConfig config.AuthConfig, l net.Listener) error {
 	var opt grpc.ServerOption
 	if authConfig.Enable {
 		ai, err := auth.NewInterceptor(ctx, auth.Config{
@@ -95,12 +95,12 @@ func (s *ISS) RunWithListener(ctx context.Context, authConfig config.AuthConfig,
 }
 
 // Stop stops the inference status server.
-func (s *ISS) Stop() {
+func (s *IMS) Stop() {
 	s.srv.Stop()
 }
 
 // Refresh refreshes the inference status.
-func (s *ISS) Refresh(ctx context.Context, interval time.Duration) error {
+func (s *IMS) Refresh(ctx context.Context, interval time.Duration) error {
 	s.refresh()
 
 	ticker := time.NewTicker(interval)
@@ -114,7 +114,7 @@ func (s *ISS) Refresh(ctx context.Context, interval time.Duration) error {
 	}
 }
 
-func (s *ISS) refresh() {
+func (s *IMS) refresh() {
 	tss := make(map[string]map[string][]*v1.EngineStatus)
 	for tid, ts := range s.infProcessor.DumpStatus().Tenants {
 		tss[tid] = make(map[string][]*v1.EngineStatus)
@@ -149,7 +149,7 @@ func (s *ISS) refresh() {
 }
 
 // GetInferenceStatus returns the inference status.
-func (s *ISS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatusRequest) (*v1.InferenceStatus, error) {
+func (s *IMS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatusRequest) (*v1.InferenceStatus, error) {
 	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user info not found")

@@ -287,19 +287,19 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		runtime.WithHealthzEndpoint(grpc_health_v1.NewHealthClient(conn)),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if err := v1.RegisterInferenceServiceHandlerFromEndpoint(ctx, imux, fmt.Sprintf("localhost:%d", c.StatusGRPCPort), opts); err != nil {
+	if err := v1.RegisterInferenceServiceHandlerFromEndpoint(ctx, imux, fmt.Sprintf("localhost:%d", c.ManagementGRPCPort), opts); err != nil {
 		return err
 	}
 
-	iss := server.NewInferenceStatusServer(infProcessor, logger)
+	iss := server.NewInferenceManagementServer(infProcessor, logger)
 	go func() {
-		log := logger.WithName("inference status server")
-		log.Info("Starting inference status server...", "port", c.StatusPort)
-		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.StatusPort), imux)
-		log.Info("Stopped inference status server")
+		log := logger.WithName("inference management server")
+		log.Info("Starting inference management server...", "port", c.ManagementPort)
+		errCh <- http.ListenAndServe(fmt.Sprintf(":%d", c.ManagementPort), imux)
+		log.Info("Stopped inference management server")
 	}()
 	go func() {
-		errCh <- iss.Run(ctx, c.AuthConfig, c.StatusGRPCPort)
+		errCh <- iss.Run(ctx, c.AuthConfig, c.ManagementGRPCPort)
 	}()
 	go func() {
 		errCh <- iss.Refresh(ctx, c.StatusRefreshInterval)

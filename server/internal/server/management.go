@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -34,6 +34,7 @@ func NewInferenceManagementServer(
 ) *IMS {
 	return &IMS{
 		infProcessor: infProcessor,
+		modelClient:  modelClient,
 		logger:       logger.WithName("inference status server"),
 	}
 }
@@ -223,11 +224,8 @@ func (s *IMS) ActivateModel(ctx context.Context, req *v1.ActivateModelRequest) (
 		return nil, status.Error(codes.InvalidArgument, "id is empty")
 	}
 
-	if code, err := checkModelAvailability(ctx, s.modelClient, req.Id); err != nil {
-		if code == http.StatusBadRequest {
-			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
-		}
-		return nil, status.Errorf(codes.Internal, "%s", err)
+	if code, err := s.checkModelAvailability(ctx, req.Id); err != nil {
+		return nil, status.Errorf(code, "%s", err)
 	}
 
 	if _, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req); err != nil {
@@ -250,11 +248,8 @@ func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelReques
 		return nil, status.Error(codes.InvalidArgument, "id is empty")
 	}
 
-	if code, err := checkModelAvailability(ctx, s.modelClient, req.Id); err != nil {
-		if code == http.StatusBadRequest {
-			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
-		}
-		return nil, status.Errorf(codes.Internal, "%s", err)
+	if code, err := s.checkModelAvailability(ctx, req.Id); err != nil {
+		return nil, status.Errorf(code, "%s", err)
 	}
 
 	if _, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req); err != nil {
@@ -264,6 +259,19 @@ func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelReques
 	// Do not wait for the completion as it can take a long time.
 
 	return &v1.DeactivateModelResponse{}, nil
+}
+
+func (s *IMS) checkModelAvailability(ctx context.Context, modelID string) (codes.Code, error) {
+	ctx = auth.CarryMetadata(ctx)
+	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	}); err != nil {
+		if status.Code(err) == codes.NotFound {
+			return codes.InvalidArgument, fmt.Errorf("model not found: %s", modelID)
+		}
+		return codes.Internal, fmt.Errorf("failed to get model: %s", err)
+	}
+	return codes.OK, nil
 }
 
 // fakeAuthInto sets dummy user info and token into the context.

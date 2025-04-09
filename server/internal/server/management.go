@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ const (
 // NewInferenceManagementServer creates a new inference management server.
 func NewInferenceManagementServer(
 	infProcessor *infprocessor.P,
+	modelClient ModelClient,
 	logger logr.Logger,
 ) *IMS {
 	return &IMS{
@@ -45,6 +47,7 @@ type IMS struct {
 	mu             sync.RWMutex
 
 	infProcessor *infprocessor.P
+	modelClient  ModelClient
 	logger       logr.Logger
 
 	srv *grpc.Server
@@ -216,8 +219,15 @@ func (s *IMS) ActivateModel(ctx context.Context, req *v1.ActivateModelRequest) (
 		return nil, status.Error(codes.Unauthenticated, "user info not found")
 	}
 
-	if req.ModelId == "" {
-		return nil, status.Error(codes.InvalidArgument, "model id is empty")
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "id is empty")
+	}
+
+	if code, err := checkModelAvailability(ctx, s.modelClient, req.Id); err != nil {
+		if code == http.StatusBadRequest {
+			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
+		}
+		return nil, status.Errorf(codes.Internal, "%s", err)
 	}
 
 	if _, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req); err != nil {
@@ -236,8 +246,15 @@ func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelReques
 		return nil, status.Error(codes.Unauthenticated, "user info not found")
 	}
 
-	if req.ModelId == "" {
-		return nil, status.Error(codes.InvalidArgument, "model id is empty")
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "id is empty")
+	}
+
+	if code, err := checkModelAvailability(ctx, s.modelClient, req.Id); err != nil {
+		if code == http.StatusBadRequest {
+			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
+		}
+		return nil, status.Errorf(codes.Internal, "%s", err)
 	}
 
 	if _, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req); err != nil {

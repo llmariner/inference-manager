@@ -216,7 +216,7 @@
     "v1ActivateModelRequest": {
       "type": "object",
       "properties": {
-        "modelId": {
+        "id": {
           "type": "string"
         }
       }
@@ -373,7 +373,7 @@
     "v1DeactivateModelRequest": {
       "type": "object",
       "properties": {
-        "modelId": {
+        "id": {
           "type": "string"
         }
       }

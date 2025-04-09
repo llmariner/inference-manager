@@ -426,24 +426,36 @@ func TestDumpStatus(t *testing.T) {
 				id:       "task0",
 				engineID: "e0",
 				tenantID: "tenant0",
-				chatCompletionReq: &v1.CreateChatCompletionRequest{
-					Model: "m0",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m0",
+						},
+					},
 				},
 			},
 			"task1": {
 				id:       "task1",
 				engineID: "e0",
 				tenantID: "tenant0",
-				chatCompletionReq: &v1.CreateChatCompletionRequest{
-					Model: "m1",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m1",
+						},
+					},
 				},
 			},
 			"task2": {
 				id:       "task2",
 				engineID: "e1",
 				tenantID: "tenant0",
-				chatCompletionReq: &v1.CreateChatCompletionRequest{
-					Model: "m2",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m2",
+						},
+					},
 				},
 			},
 		},

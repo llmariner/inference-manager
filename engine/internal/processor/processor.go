@@ -328,6 +328,23 @@ func (p *P) processTask(
 	stream sender,
 	t *v1.Task,
 ) error {
+	switch req := t.Request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding:
+		return p.sendRequestToRuntime(ctx, stream, t)
+	case *v1.TaskRequest_ModelActivation:
+		return p.activateModel(ctx, stream, t)
+	case *v1.TaskRequest_ModelDeactivation:
+		return fmt.Errorf("model deactivation is not supported")
+	default:
+		return fmt.Errorf("unknown request type: %T", req.Request)
+	}
+}
+
+func (p *P) sendRequestToRuntime(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	sendErrResponse := func(code int, body string) {
@@ -543,6 +560,30 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		}
 	}
 	return req, nil
+}
+
+func (p *P) activateModel(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	req := t.Request.GetModelActivation()
+	log.Info("Activating model", "modelID", req.Id)
+
+	// First return the response to the server so that the server can respond back to the client without
+	// waiting for the model activation to complete.
+	resp := &v1.HttpResponse{
+		StatusCode: int32(http.StatusAccepted),
+	}
+	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
+		return err
+	}
+
+	if err := p.modelSyncer.PullModel(ctx, req.Id); err != nil {
+		return fmt.Errorf("pull model: %s", err)
+	}
+	return nil
 }
 
 func (p *P) sendEngineStatus(stream sender, ready bool) error {

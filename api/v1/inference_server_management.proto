@@ -2,10 +2,30 @@ syntax = "proto3";
 
 package llmariner.inference.server.v1;
 
-import "api/v1/inference_server_worker.proto";
 import "google/api/annotations.proto";
 
 option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+message EngineStatus {
+  message SyncStatus {
+    // in_progress_model_ids is a list of model ids that are currently being synced.
+    repeated string in_progress_model_ids = 1;
+  }
+
+  message Model {
+    string id = 1;
+    bool is_ready = 2;
+    int32 in_progress_task_count = 3;
+    int32 gpu_allocated = 4;
+  }
+
+  string engine_id = 1;
+  repeated string model_ids = 2 [deprecated = true];
+  SyncStatus sync_status = 3 [deprecated = true];
+  bool ready = 4;
+  repeated Model models = 5;
+  string cluster_id = 6;
+}
 
 message InferenceStatus {
   repeated ClusterStatus cluster_statuses = 1;
@@ -22,7 +42,7 @@ message ClusterStatus {
   string name = 2;
   // TODO(kenji): Revisit. Each engine in the same cluster reports the same information on models.
   // It might be better to just report the model information.
-  repeated llmariner.inference.server.v1.EngineStatus engine_statuses = 3;
+  repeated EngineStatus engine_statuses = 3;
 
   int32 model_count = 4;
   int32 in_progress_task_count = 5;

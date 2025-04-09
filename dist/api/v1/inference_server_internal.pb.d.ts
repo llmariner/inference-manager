@@ -1,3 +1,4 @@
+import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb";
 import * as LlmarinerInferenceServerV1Inference_server_worker from "./inference_server_worker.pb";
 type Absent<T, K extends keyof T> = {
     [k in Exclude<keyof T, K>]?: undefined;
@@ -8,7 +9,7 @@ type OneOf<T> = {
     [k in K]: T[K];
 } & Absent<T, K> : never) : never);
 export type ServerStatusEngineStatusWithTenantID = {
-    engine_status?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus;
+    engine_status?: LlmarinerInferenceServerV1Inference_server_management.EngineStatus;
     tenant_id?: string;
 };
 export type ServerStatus = {

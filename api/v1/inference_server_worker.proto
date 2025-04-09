@@ -4,29 +4,9 @@ package llmariner.inference.server.v1;
 
 import "api/v1/inference_server.proto";
 import "api/v1/inference_server_embeddings.proto";
+import "api/v1/inference_server_management.proto";
 
 option go_package = "github.com/llmariner/inference-manager/api/v1";
-
-message EngineStatus {
-  message SyncStatus {
-    // in_progress_model_ids is a list of model ids that are currently being synced.
-    repeated string in_progress_model_ids = 1;
-  }
-
-  message Model {
-    string id = 1;
-    bool is_ready = 2;
-    int32 in_progress_task_count = 3;
-    int32 gpu_allocated = 4;
-  }
-
-  string engine_id = 1;
-  repeated string model_ids = 2 [deprecated = true];
-  SyncStatus sync_status = 3 [deprecated = true];
-  bool ready = 4;
-  repeated Model models = 5;
-  string cluster_id = 6;
-}
 
 message HeaderValue {
   repeated string values = 1;

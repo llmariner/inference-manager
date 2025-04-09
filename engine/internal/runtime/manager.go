@@ -144,6 +144,20 @@ func (m *Manager) deleteRuntime(name string) {
 	}
 }
 
+func (m *Manager) deleteRuntimeByModelID(modelID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, ok := m.runtimes[modelID]
+	if !ok {
+		return
+	}
+	if r.waitCh != nil {
+		close(r.waitCh)
+	}
+	delete(m.runtimes, modelID)
+}
+
 func (m *Manager) updateRuntimeReplicas(modelID string, replicas int32) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -306,6 +320,34 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// DeleteModel deletes the model from the model manager.
+func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Deleting model", "model", modelID)
+
+	m.mu.Lock()
+	_, ok := m.runtimes[modelID]
+	m.mu.Unlock()
+	if !ok {
+		log.V(4).Info("Runtime does not exist", "model", modelID)
+		return nil
+	}
+
+	client, err := m.rtClientFactory.New(modelID)
+	if err != nil {
+		return err
+	}
+
+	if err := client.DeleteRuntime(ctx, modelID); err != nil {
+		return err
+	}
+
+	m.deleteRuntimeByModelID(modelID)
+
+	log.Info("Deleted model", "model", modelID)
+	return nil
 }
 
 // Reconcile reconciles the runtime.

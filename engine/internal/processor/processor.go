@@ -43,6 +43,7 @@ type ModelSyncer interface {
 	ListSyncedModels() []runtime.ModelRuntimeInfo
 	PullModel(ctx context.Context, modelID string) error
 	ListInProgressModels() []runtime.ModelRuntimeInfo
+	DeleteModel(ctx context.Context, modelID string) error
 }
 
 // AddressGetter gets an address of a model.
@@ -276,7 +277,7 @@ func (p *P) processTask(
 	case *v1.TaskRequest_ModelActivation:
 		return p.activateModel(ctx, stream, t)
 	case *v1.TaskRequest_ModelDeactivation:
-		return fmt.Errorf("model deactivation is not supported")
+		return p.deactivateModel(ctx, stream, t)
 	default:
 		return fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -525,6 +526,31 @@ func (p *P) activateModel(
 	if err := p.modelSyncer.PullModel(ctx, req.Id); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
+	return nil
+}
+
+func (p *P) deactivateModel(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	req := t.Request.GetModelDeactivation()
+	log.Info("Deactivating model", "modelID", req.Id)
+
+	// First return the response to the server so that the server can respond back to the client without
+	// waiting for the model deactivation to complete.
+	resp := &v1.HttpResponse{
+		StatusCode: int32(http.StatusAccepted),
+	}
+	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
+		return err
+	}
+
+	if err := p.modelSyncer.DeleteModel(ctx, req.Id); err != nil {
+		return fmt.Errorf("delete model: %s", err)
+	}
+
 	return nil
 }
 

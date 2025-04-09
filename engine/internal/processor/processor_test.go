@@ -179,6 +179,10 @@ func (f *fakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 	return nil
 }
 
+func (f *fakeModelSyncer) DeleteModel(ctx context.Context, modelID string) error {
+	return nil
+}
+
 type fakeProcessTasksClient struct {
 	ctx    context.Context
 	gotReq *v1.ProcessTasksRequest

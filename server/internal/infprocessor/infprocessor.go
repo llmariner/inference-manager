@@ -32,10 +32,9 @@ type task struct {
 	id       string
 	tenantID string
 
-	chatCompletionReq *v1.CreateChatCompletionRequest
-	embeddingReq      *v1.CreateEmbeddingRequest
-
 	header http.Header
+
+	request *v1.TaskRequest
 
 	resultCh chan *resultOrError
 
@@ -51,32 +50,22 @@ type task struct {
 }
 
 func (t *task) model() string {
-	if r := t.chatCompletionReq; r != nil {
-		return r.Model
+	switch req := t.request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		return req.GetChatCompletion().Model
+	case *v1.TaskRequest_Embedding:
+		return req.GetEmbedding().Model
+	default:
+		return ""
 	}
-	return t.embeddingReq.Model
 }
 
 func (t *task) stream() bool {
-	if r := t.chatCompletionReq; r != nil {
-		return r.Stream
-	}
-	return false
-}
-
-func (t *task) request() *v1.TaskRequest {
-	if r := t.chatCompletionReq; r != nil {
-		return &v1.TaskRequest{
-			Request: &v1.TaskRequest_ChatCompletion{
-				ChatCompletion: t.chatCompletionReq,
-			},
-		}
-	}
-
-	return &v1.TaskRequest{
-		Request: &v1.TaskRequest_Embedding{
-			Embedding: t.embeddingReq,
-		},
+	switch req := t.request; req.Request.(type) {
+	case *v1.TaskRequest_ChatCompletion:
+		return req.GetChatCompletion().Stream
+	default:
+		return false
 	}
 }
 
@@ -205,7 +194,7 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
 			Id:      t.id,
-			Request: t.request(),
+			Request: t.request,
 			Header:  header,
 		},
 	}); err != nil {
@@ -303,13 +292,12 @@ func (p *P) SendAndProcessTask(
 	}
 	resultCh := make(chan *resultOrError)
 	task := &task{
-		id:                origTask.Id,
-		tenantID:          tenantID,
-		header:            header,
-		chatCompletionReq: origTask.Request.GetChatCompletion(),
-		embeddingReq:      origTask.Request.GetEmbedding(),
-		createdAt:         time.Now(),
-		resultCh:          resultCh,
+		id:        origTask.Id,
+		tenantID:  tenantID,
+		header:    header,
+		request:   origTask.Request,
+		createdAt: time.Now(),
+		resultCh:  resultCh,
 	}
 
 	return p.enqueueAndProcessTask(ctx, task, processResult, log)
@@ -322,7 +310,12 @@ func (p *P) SendChatCompletionTask(
 	req *v1.CreateChatCompletionRequest,
 	header http.Header,
 ) (*http.Response, error) {
-	return p.sendTask(ctx, tenantID, req, nil, header, p.logger.WithName("chat"))
+	r := &v1.TaskRequest{
+		Request: &v1.TaskRequest_ChatCompletion{
+			ChatCompletion: req,
+		},
+	}
+	return p.sendTask(ctx, tenantID, r, header, p.logger.WithName("chat"))
 }
 
 // SendEmbeddingTask sends an embedding task.
@@ -332,14 +325,18 @@ func (p *P) SendEmbeddingTask(
 	req *v1.CreateEmbeddingRequest,
 	header http.Header,
 ) (*http.Response, error) {
-	return p.sendTask(ctx, tenantID, nil, req, header, p.logger.WithName("embedded"))
+	r := &v1.TaskRequest{
+		Request: &v1.TaskRequest_Embedding{
+			Embedding: req,
+		},
+	}
+	return p.sendTask(ctx, tenantID, r, header, p.logger.WithName("embedded"))
 }
 
 func (p *P) sendTask(
 	ctx context.Context,
 	tenantID string,
-	chatCompletionReq *v1.CreateChatCompletionRequest,
-	embeddingReq *v1.CreateEmbeddingRequest,
+	request *v1.TaskRequest,
 	header http.Header,
 	logger logr.Logger,
 ) (*http.Response, error) {
@@ -351,13 +348,12 @@ func (p *P) sendTask(
 
 	resultCh := make(chan *resultOrError)
 	task := &task{
-		id:                taskID,
-		tenantID:          tenantID,
-		header:            header,
-		chatCompletionReq: chatCompletionReq,
-		embeddingReq:      embeddingReq,
-		createdAt:         time.Now(),
-		resultCh:          resultCh,
+		id:        taskID,
+		tenantID:  tenantID,
+		header:    header,
+		request:   request,
+		createdAt: time.Now(),
+		resultCh:  resultCh,
 	}
 
 	log.V(1).Info("Waiting to receive an initial response to the task")

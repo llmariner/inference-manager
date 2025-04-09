@@ -228,11 +228,11 @@ func (s *IMS) ActivateModel(ctx context.Context, req *v1.ActivateModelRequest) (
 		return nil, status.Errorf(code, "%s", err)
 	}
 
-	if _, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req); err != nil {
+	resp, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model activation task: %s", err))
 	}
-
-	// Do not wait for the completion as it can take a long time.
+	_ = resp.Body.Close()
 
 	return &v1.ActivateModelResponse{}, nil
 }
@@ -252,11 +252,11 @@ func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelReques
 		return nil, status.Errorf(code, "%s", err)
 	}
 
-	if _, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req); err != nil {
+	resp, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model deactivation task: %s", err))
 	}
-
-	// Do not wait for the completion as it can take a long time.
+	_ = resp.Body.Close()
 
 	return &v1.DeactivateModelResponse{}, nil
 }

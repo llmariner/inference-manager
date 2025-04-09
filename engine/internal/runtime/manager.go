@@ -128,24 +128,19 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool
 }
 
 func (m *Manager) deleteRuntime(name string) {
-	var modelID string
-	for id, r := range m.runtimes {
-		if r.name == name {
-			modelID = id
-			break
-		}
-	}
-	if modelID == "" {
-		return
-	}
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.runtimes[modelID]; ok {
+
+	for id, r := range m.runtimes {
+		if r.name != name {
+			continue
+		}
+
 		if r.waitCh != nil {
 			close(r.waitCh)
 		}
-		delete(m.runtimes, modelID)
+		delete(m.runtimes, id)
+		break
 	}
 }
 

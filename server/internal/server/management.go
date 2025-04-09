@@ -209,7 +209,47 @@ func (s *IMS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 	}, nil
 }
 
-// fakeAuthIntxo sets dummy user info and token into the context.
+// ActivateModel activates a model.
+func (s *IMS) ActivateModel(ctx context.Context, req *v1.ActivateModelRequest) (*v1.ActivateModelResponse, error) {
+	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "user info not found")
+	}
+
+	if req.ModelId == "" {
+		return nil, status.Error(codes.InvalidArgument, "model id is empty")
+	}
+
+	if _, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model activation task: %s", err))
+	}
+
+	// Do not wait for the completion as it can take a long time.
+
+	return &v1.ActivateModelResponse{}, nil
+}
+
+// DeactivateModel deactivates a model.
+func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelRequest) (*v1.DeactivateModelResponse, error) {
+	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "user info not found")
+	}
+
+	if req.ModelId == "" {
+		return nil, status.Error(codes.InvalidArgument, "model id is empty")
+	}
+
+	if _, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model deactivation task: %s", err))
+	}
+
+	// Do not wait for the completion as it can take a long time.
+
+	return &v1.DeactivateModelResponse{}, nil
+}
+
+// fakeAuthInto sets dummy user info and token into the context.
 func fakeAuthInto(ctx context.Context) context.Context {
 	// Set dummy user info and token
 	ctx = auth.AppendUserInfoToContext(ctx, auth.UserInfo{

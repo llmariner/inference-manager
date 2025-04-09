@@ -40,6 +40,8 @@ type BaseTaskRequest = {};
 export type TaskRequest = BaseTaskRequest & OneOf<{
     chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest;
     embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest;
+    model_activation: LlmarinerInferenceServerV1Inference_server_management.ActivateModelRequest;
+    model_deactivation: LlmarinerInferenceServerV1Inference_server_management.DeactivateModelRequest;
 }>;
 export type Task = {
     id?: string;

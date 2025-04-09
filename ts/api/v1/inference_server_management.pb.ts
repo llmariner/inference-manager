@@ -46,8 +46,28 @@ export type ClusterStatus = {
 export type GetInferenceStatusRequest = {
 }
 
+export type ActivateModelRequest = {
+  model_id?: string
+}
+
+export type ActivateModelResponse = {
+}
+
+export type DeactivateModelRequest = {
+  model_id?: string
+}
+
+export type DeactivateModelResponse = {
+}
+
 export class InferenceService {
   static GetInferenceStatus(req: GetInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus> {
     return fm.fetchReq<GetInferenceStatusRequest, InferenceStatus>(`/v1/inference/status?${fm.renderURLSearchParams(req, [])}`, {...initReq, method: "GET"})
+  }
+  static ActivateModel(req: ActivateModelRequest, initReq?: fm.InitReq): Promise<ActivateModelResponse> {
+    return fm.fetchReq<ActivateModelRequest, ActivateModelResponse>(`/v1/inference/model:activate`, {...initReq, method: "POST", body: JSON.stringify(req)})
+  }
+  static DeactivateModel(req: DeactivateModelRequest, initReq?: fm.InitReq): Promise<DeactivateModelResponse> {
+    return fm.fetchReq<DeactivateModelRequest, DeactivateModelResponse>(`/v1/inference/model:deactivate`, {...initReq, method: "POST", body: JSON.stringify(req)})
   }
 }

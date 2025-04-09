@@ -55,6 +55,10 @@ func (t *task) model() string {
 		return req.GetChatCompletion().Model
 	case *v1.TaskRequest_Embedding:
 		return req.GetEmbedding().Model
+	case *v1.TaskRequest_ModelActivation:
+		return req.GetModelActivation().ModelId
+	case *v1.TaskRequest_ModelDeactivation:
+		return req.GetModelDeactivation().ModelId
 	default:
 		return ""
 	}
@@ -171,7 +175,10 @@ func (p *P) Run(ctx context.Context) error {
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	// TODO (aya): Rethink the routing logic. The engines in the same
 	// cluster currently share the same model set. It would be better
-	// to choose the cluster first and then randomly select an engine.
+	// to choose the cluster first and then randomly select an engine
+	//
+	// TODO(kenji): Change the routing logic for model deactivation tasks. The deactivation requests
+	// should be sent to all clusters where the model exists. Also the task should
 	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID, t.preferredIgnoredEngines)
 	if err != nil {
 		return fmt.Errorf("find an engine to route the request: %s", err)
@@ -331,6 +338,34 @@ func (p *P) SendEmbeddingTask(
 		},
 	}
 	return p.sendTask(ctx, tenantID, r, header, p.logger.WithName("embedded"))
+}
+
+// SendModelActivationTask sends a model activation task.
+func (p *P) SendModelActivationTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.ActivateModelRequest,
+) (*http.Response, error) {
+	r := &v1.TaskRequest{
+		Request: &v1.TaskRequest_ModelActivation{
+			ModelActivation: req,
+		},
+	}
+	return p.sendTask(ctx, tenantID, r, http.Header{}, p.logger.WithName("modelActivation"))
+}
+
+// SendModelDeactivationTask sends a model deactivation task.
+func (p *P) SendModelDeactivationTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.DeactivateModelRequest,
+) (*http.Response, error) {
+	r := &v1.TaskRequest{
+		Request: &v1.TaskRequest_ModelDeactivation{
+			ModelDeactivation: req,
+		},
+	}
+	return p.sendTask(ctx, tenantID, r, http.Header{}, p.logger.WithName("modelDeactivation"))
 }
 
 func (p *P) sendTask(

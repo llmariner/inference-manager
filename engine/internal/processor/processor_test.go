@@ -34,7 +34,7 @@ func TestP(t *testing.T) {
 	processor := NewP(
 		"engine_id0",
 		nil,
-		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		&fakeModelSyncer{},
 		logger,
 		&metrics.NoopCollector{},
@@ -76,7 +76,7 @@ func TestEmbedding(t *testing.T) {
 	processor := NewP(
 		"engine_id0",
 		nil,
-		NewFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		&fakeModelSyncer{},
 		logger,
 		&metrics.NoopCollector{},
@@ -191,4 +191,19 @@ func (c *fakeProcessTasksClient) Context() context.Context {
 func (c *fakeProcessTasksClient) Send(req *v1.ProcessTasksRequest) error {
 	c.gotReq = req
 	return nil
+}
+
+// newFixedAddressGetter returns a new fixedAddressGetter.
+func newFixedAddressGetter(addr string) *fixedAddressGetter {
+	return &fixedAddressGetter{addr: addr}
+}
+
+// fixedAddressGetter is a fixed address getter.
+type fixedAddressGetter struct {
+	addr string
+}
+
+// GetLLMAddress returns a fixed address.
+func (g *fixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
+	return g.addr, nil
 }

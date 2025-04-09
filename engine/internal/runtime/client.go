@@ -43,6 +43,7 @@ type Client interface {
 	GetName(modelID string) string
 	GetAddress(name string) string
 	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
+	DeleteRuntime(ctx context.Context, modelID string) error
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.
@@ -470,6 +471,35 @@ func (c *commonClient) deployRuntime(
 	}
 	log.V(2).Info("Deployed runtime")
 	return &stsObj, nil
+}
+
+// DeleteRuntime deletes the runtime for the given model.
+func (c *commonClient) DeleteRuntime(ctx context.Context, modelID string) error {
+	// TODO(kenji): Support the dynamic model loading mode. We cannot simply delete the
+	// statefulset because the runtime might be managing other models.
+	name := c.GetName(modelID)
+
+	log := ctrl.LoggerFrom(ctx).WithValues("name", name)
+	log.Info("Deleting runtime", "model", modelID)
+
+	var sts appsv1.StatefulSet
+	nn := types.NamespacedName{Name: name, Namespace: c.namespace}
+	if err := c.k8sClient.Get(ctx, nn, &sts); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(2).Info("StatefulSet not found")
+			return nil
+		}
+	}
+
+	if err := c.k8sClient.Delete(ctx, &sts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	log.Info("Deleted runtime", "model", modelID)
+
+	return nil
 }
 
 func resourceName(runtime, modelID string) string {

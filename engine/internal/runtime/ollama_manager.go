@@ -228,6 +228,11 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+// DeleteModel deletes the model from the model manager.
+func (m *OllamaManager) DeleteModel(ctx context.Context, modelID string) error {
+	return fmt.Errorf("unsupported operation in ollama manager: delete model %s", modelID)
+}
+
 func sendHTTPRequestWithRetry(
 	ctx context.Context,
 	url url.URL, data []byte, retry func(status int, err error) (bool, error),

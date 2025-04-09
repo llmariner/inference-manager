@@ -702,6 +702,11 @@ func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update b
 	}, nil
 }
 
+func (m *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
+	m.deployed[modelID] = false
+	return nil
+}
+
 type fakeScalerRegister struct {
 	registered map[types.NamespacedName]bool
 }

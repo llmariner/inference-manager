@@ -45,67 +45,9 @@ type ModelSyncer interface {
 	ListInProgressModels() []runtime.ModelRuntimeInfo
 }
 
-// NewFakeModelSyncer returns a FakeModelSyncer.
-func NewFakeModelSyncer() *FakeModelSyncer {
-	return &FakeModelSyncer{
-		modelIDs: map[string]struct{}{},
-	}
-}
-
-// FakeModelSyncer is a fake implementation of model syncer.
-type FakeModelSyncer struct {
-	modelIDs map[string]struct{}
-	mu       sync.Mutex
-}
-
-// ListSyncedModels lists all models that have been synced.
-func (s *FakeModelSyncer) ListSyncedModels(ctx context.Context) []runtime.ModelRuntimeInfo {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var ms []runtime.ModelRuntimeInfo
-	for id := range s.modelIDs {
-		ms = append(ms, runtime.ModelRuntimeInfo{
-			ID:    id,
-			GPU:   1,
-			Ready: true,
-		})
-	}
-	return ms
-}
-
-// ListInProgressModels lists all models that are in progress.
-func (s *FakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return nil
-}
-
-// PullModel downloads and registers a model from model manager.
-func (s *FakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.modelIDs[modelID] = struct{}{}
-	return nil
-}
-
 // AddressGetter gets an address of a model.
 type AddressGetter interface {
 	GetLLMAddress(modelID string) (string, error)
-}
-
-// NewFixedAddressGetter returns a new FixedAddressGetter.
-func NewFixedAddressGetter(addr string) *FixedAddressGetter {
-	return &FixedAddressGetter{addr: addr}
-}
-
-// FixedAddressGetter is a fixed address getter.
-type FixedAddressGetter struct {
-	addr string
-}
-
-// GetLLMAddress returns a fixed address.
-func (g *FixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
-	return g.addr, nil
 }
 
 // NewP returns a new processor.

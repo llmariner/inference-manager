@@ -16,6 +16,70 @@
     "application/json"
   ],
   "paths": {
+    "/v1/inference/model:activate": {
+      "post": {
+        "operationId": "InferenceService_ActivateModel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ActivateModelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ActivateModelRequest"
+            }
+          }
+        ],
+        "tags": [
+          "InferenceService"
+        ]
+      }
+    },
+    "/v1/inference/model:deactivate": {
+      "post": {
+        "operationId": "InferenceService_DeactivateModel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeactivateModelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DeactivateModelRequest"
+            }
+          }
+        ],
+        "tags": [
+          "InferenceService"
+        ]
+      }
+    },
     "/v1/inference/status": {
       "get": {
         "operationId": "InferenceService_GetInferenceStatus",
@@ -98,6 +162,17 @@
         }
       }
     },
+    "v1ActivateModelRequest": {
+      "type": "object",
+      "properties": {
+        "modelId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ActivateModelResponse": {
+      "type": "object"
+    },
     "v1ClusterStatus": {
       "type": "object",
       "properties": {
@@ -127,6 +202,17 @@
           "format": "int32"
         }
       }
+    },
+    "v1DeactivateModelRequest": {
+      "type": "object",
+      "properties": {
+        "modelId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DeactivateModelResponse": {
+      "type": "object"
     },
     "v1EngineStatus": {
       "type": "object",

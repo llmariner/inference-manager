@@ -44,6 +44,8 @@ message TaskRequest {
   oneof request {
     llmariner.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
     llmariner.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
+    ActivateModelRequest model_activation = 3;
+    DeactivateModelRequest model_deactivation = 4;
   }
 }
 

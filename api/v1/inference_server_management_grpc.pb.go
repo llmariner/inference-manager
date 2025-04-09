@@ -19,6 +19,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InferenceServiceClient interface {
 	GetInferenceStatus(ctx context.Context, in *GetInferenceStatusRequest, opts ...grpc.CallOption) (*InferenceStatus, error)
+	ActivateModel(ctx context.Context, in *ActivateModelRequest, opts ...grpc.CallOption) (*ActivateModelResponse, error)
+	DeactivateModel(ctx context.Context, in *DeactivateModelRequest, opts ...grpc.CallOption) (*DeactivateModelResponse, error)
 }
 
 type inferenceServiceClient struct {
@@ -38,11 +40,31 @@ func (c *inferenceServiceClient) GetInferenceStatus(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *inferenceServiceClient) ActivateModel(ctx context.Context, in *ActivateModelRequest, opts ...grpc.CallOption) (*ActivateModelResponse, error) {
+	out := new(ActivateModelResponse)
+	err := c.cc.Invoke(ctx, "/llmariner.inference.server.v1.InferenceService/ActivateModel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *inferenceServiceClient) DeactivateModel(ctx context.Context, in *DeactivateModelRequest, opts ...grpc.CallOption) (*DeactivateModelResponse, error) {
+	out := new(DeactivateModelResponse)
+	err := c.cc.Invoke(ctx, "/llmariner.inference.server.v1.InferenceService/DeactivateModel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InferenceServiceServer is the server API for InferenceService service.
 // All implementations must embed UnimplementedInferenceServiceServer
 // for forward compatibility
 type InferenceServiceServer interface {
 	GetInferenceStatus(context.Context, *GetInferenceStatusRequest) (*InferenceStatus, error)
+	ActivateModel(context.Context, *ActivateModelRequest) (*ActivateModelResponse, error)
+	DeactivateModel(context.Context, *DeactivateModelRequest) (*DeactivateModelResponse, error)
 	mustEmbedUnimplementedInferenceServiceServer()
 }
 
@@ -52,6 +74,12 @@ type UnimplementedInferenceServiceServer struct {
 
 func (UnimplementedInferenceServiceServer) GetInferenceStatus(context.Context, *GetInferenceStatusRequest) (*InferenceStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInferenceStatus not implemented")
+}
+func (UnimplementedInferenceServiceServer) ActivateModel(context.Context, *ActivateModelRequest) (*ActivateModelResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ActivateModel not implemented")
+}
+func (UnimplementedInferenceServiceServer) DeactivateModel(context.Context, *DeactivateModelRequest) (*DeactivateModelResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeactivateModel not implemented")
 }
 func (UnimplementedInferenceServiceServer) mustEmbedUnimplementedInferenceServiceServer() {}
 
@@ -84,6 +112,42 @@ func _InferenceService_GetInferenceStatus_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InferenceService_ActivateModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ActivateModelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InferenceServiceServer).ActivateModel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/llmariner.inference.server.v1.InferenceService/ActivateModel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InferenceServiceServer).ActivateModel(ctx, req.(*ActivateModelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InferenceService_DeactivateModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeactivateModelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InferenceServiceServer).DeactivateModel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/llmariner.inference.server.v1.InferenceService/DeactivateModel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InferenceServiceServer).DeactivateModel(ctx, req.(*DeactivateModelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InferenceService_ServiceDesc is the grpc.ServiceDesc for InferenceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -94,6 +158,14 @@ var InferenceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInferenceStatus",
 			Handler:    _InferenceService_GetInferenceStatus_Handler,
+		},
+		{
+			MethodName: "ActivateModel",
+			Handler:    _InferenceService_ActivateModel_Handler,
+		},
+		{
+			MethodName: "DeactivateModel",
+			Handler:    _InferenceService_DeactivateModel_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -213,6 +213,14 @@
         }
       }
     },
+    "v1ActivateModelRequest": {
+      "type": "object",
+      "properties": {
+        "modelId": {
+          "type": "string"
+        }
+      }
+    },
     "v1CreateChatCompletionRequest": {
       "type": "object",
       "properties": {
@@ -362,6 +370,14 @@
         }
       }
     },
+    "v1DeactivateModelRequest": {
+      "type": "object",
+      "properties": {
+        "modelId": {
+          "type": "string"
+        }
+      }
+    },
     "v1EngineStatus": {
       "type": "object",
       "properties": {
@@ -470,6 +486,12 @@
         },
         "embedding": {
           "$ref": "#/definitions/v1CreateEmbeddingRequest"
+        },
+        "modelActivation": {
+          "$ref": "#/definitions/v1ActivateModelRequest"
+        },
+        "modelDeactivation": {
+          "$ref": "#/definitions/v1DeactivateModelRequest"
         }
       }
     },

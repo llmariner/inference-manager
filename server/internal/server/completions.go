@@ -147,7 +147,7 @@ func (s *S) CreateChatCompletion(
 
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
-	if code, err := checkModelAvailability(ctx, s.modelClient, createReq.Model); err != nil {
+	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
 		httpError(w, err.Error(), code, &usage)
 		return
 	}
@@ -324,8 +324,8 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 	return http.StatusOK, nil
 }
 
-func checkModelAvailability(ctx context.Context, modelClient ModelClient, modelID string) (int, error) {
-	if _, err := modelClient.GetModel(ctx, &mv1.GetModelRequest{
+func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, error) {
+	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	}); err != nil {
 		if status.Code(err) == codes.NotFound {

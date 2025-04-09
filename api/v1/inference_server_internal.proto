@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package llmariner.inference.server.v1;
 
-import "api/v1/inference_server.proto";
+import "api/v1/inference_server_management.proto";
 import "api/v1/inference_server_worker.proto";
 
 option go_package = "github.com/llmariner/inference-manager/api/v1";

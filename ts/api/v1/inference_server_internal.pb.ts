@@ -4,6 +4,7 @@
 * This file is a generated Typescript file for GRPC Gateway, DO NOT MODIFY
 */
 
+import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb"
 import * as LlmarinerInferenceServerV1Inference_server_worker from "./inference_server_worker.pb"
 
 type Absent<T, K extends keyof T> = { [k in Exclude<keyof T, K>]?: undefined };
@@ -15,7 +16,7 @@ type OneOf<T> =
         : never)
     : never);
 export type ServerStatusEngineStatusWithTenantID = {
-  engine_status?: LlmarinerInferenceServerV1Inference_server_worker.EngineStatus
+  engine_status?: LlmarinerInferenceServerV1Inference_server_management.EngineStatus
   tenant_id?: string
 }
 

@@ -1,5 +1,6 @@
 import * as LlmarinerChatServerV1Inference_server from "./inference_server.pb";
 import * as LlmarinerEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb";
+import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb";
 type Absent<T, K extends keyof T> = {
     [k in Exclude<keyof T, K>]?: undefined;
 };
@@ -8,23 +9,6 @@ type OneOf<T> = {
 } | (keyof T extends infer K ? (K extends string & keyof T ? {
     [k in K]: T[K];
 } & Absent<T, K> : never) : never);
-export type EngineStatusSyncStatus = {
-    in_progress_model_ids?: string[];
-};
-export type EngineStatusModel = {
-    id?: string;
-    is_ready?: boolean;
-    in_progress_task_count?: number;
-    gpu_allocated?: number;
-};
-export type EngineStatus = {
-    engine_id?: string;
-    model_ids?: string[];
-    sync_status?: EngineStatusSyncStatus;
-    ready?: boolean;
-    models?: EngineStatusModel[];
-    cluster_id?: string;
-};
 export type HeaderValue = {
     values?: string[];
 };
@@ -49,7 +33,7 @@ export type TaskResult = BaseTaskResult & OneOf<{
 }>;
 type BaseProcessTasksRequest = {};
 export type ProcessTasksRequest = BaseProcessTasksRequest & OneOf<{
-    engine_status: EngineStatus;
+    engine_status: LlmarinerInferenceServerV1Inference_server_management.EngineStatus;
     task_result: TaskResult;
 }>;
 type BaseTaskRequest = {};

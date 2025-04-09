@@ -90,7 +90,7 @@ func (s *S) CreateCompletion(
 
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
-	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
+	if code, err := checkModelAvailability(ctx, s.modelClient, createReq.Model); err != nil {
 		httpError(w, err.Error(), code, &usage)
 		return
 	}

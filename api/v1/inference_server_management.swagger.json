@@ -16,7 +16,7 @@
     "application/json"
   ],
   "paths": {
-    "/v1/inference/model:activate": {
+    "/v1/inference/models/{id}:activate": {
       "post": {
         "operationId": "InferenceService_ActivateModel",
         "responses": {
@@ -35,12 +35,10 @@
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
+            "name": "id",
+            "in": "path",
             "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1ActivateModelRequest"
-            }
+            "type": "string"
           }
         ],
         "tags": [
@@ -48,7 +46,7 @@
         ]
       }
     },
-    "/v1/inference/model:deactivate": {
+    "/v1/inference/models/{id}:deactivate": {
       "post": {
         "operationId": "InferenceService_DeactivateModel",
         "responses": {
@@ -67,12 +65,10 @@
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
+            "name": "id",
+            "in": "path",
             "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1DeactivateModelRequest"
-            }
+            "type": "string"
           }
         ],
         "tags": [
@@ -162,14 +158,6 @@
         }
       }
     },
-    "v1ActivateModelRequest": {
-      "type": "object",
-      "properties": {
-        "modelId": {
-          "type": "string"
-        }
-      }
-    },
     "v1ActivateModelResponse": {
       "type": "object"
     },
@@ -200,14 +188,6 @@
         "gpuAllocated": {
           "type": "integer",
           "format": "int32"
-        }
-      }
-    },
-    "v1DeactivateModelRequest": {
-      "type": "object",
-      "properties": {
-        "modelId": {
-          "type": "string"
         }
       }
     },

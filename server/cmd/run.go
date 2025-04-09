@@ -291,7 +291,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		return err
 	}
 
-	iss := server.NewInferenceManagementServer(infProcessor, logger)
+	ims := server.NewInferenceManagementServer(infProcessor, mclient, logger)
 	go func() {
 		log := logger.WithName("inference management server")
 		log.Info("Starting inference management server...", "port", c.ManagementPort)
@@ -299,10 +299,10 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		log.Info("Stopped inference management server")
 	}()
 	go func() {
-		errCh <- iss.Run(ctx, c.AuthConfig, c.ManagementGRPCPort)
+		errCh <- ims.Run(ctx, c.AuthConfig, c.ManagementGRPCPort)
 	}()
 	go func() {
-		errCh <- iss.Refresh(ctx, c.StatusRefreshInterval)
+		errCh <- ims.Refresh(ctx, c.StatusRefreshInterval)
 	}()
 
 	return <-errCh

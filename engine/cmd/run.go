@@ -188,6 +188,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 					&c.Runtime,
 					processedConfig,
 					modelClient,
+					&c.VLLM,
 				),
 				config.RuntimeNameTriton: runtime.NewTritonClient(
 					mgr.GetClient(),

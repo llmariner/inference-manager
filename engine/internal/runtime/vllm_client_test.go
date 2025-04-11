@@ -149,6 +149,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 					attr:  tc.attr,
 					model: tc.model,
 				},
+				vLLMConfig: &config.VLLMConfig{},
 			}
 
 			got, err := v.deployRuntimeParams(context.Background(), tc.modelID)

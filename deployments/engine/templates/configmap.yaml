@@ -53,6 +53,8 @@ data:
       runnersDir: {{ .Values.ollama.runnersDir }}
       dynamicModelLoading: {{ .Values.ollama.dynamicModelLoading }}
       pullerPort: {{ .Values.ollama.pullerPort }}
+    vllm:
+      dynamicLoRALoading: {{ .Values.vllm.dynamicLoRALoading }}
     model:
       default:
         runtimeName: {{ .Values.model.default.runtimeName }}

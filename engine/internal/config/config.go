@@ -61,6 +61,17 @@ func (c *OllamaConfig) validate() error {
 // VLLMConfig is the VLLM configuration.
 type VLLMConfig struct {
 	DynamicLoRALoading bool `yaml:"dynamicLoRALoading"`
+
+	// PullerPort is the port for the puller. This is only used when
+	// DynamicModelLoading is true.
+	PullerPort int `yaml:"pullerPort"`
+}
+
+func (c VLLMConfig) validate() error {
+	if c.DynamicLoRALoading && c.PullerPort <= 0 {
+		return fmt.Errorf("pullerPort must be set when dynamicLoRALoading is true")
+	}
+	return nil
 }
 
 // TolerationConfig is the toleration configuration.
@@ -418,6 +429,10 @@ func (c *Config) Validate() error {
 
 	if err := c.Ollama.validate(); err != nil {
 		return fmt.Errorf("ollama: %s", err)
+	}
+
+	if err := c.VLLM.validate(); err != nil {
+		return fmt.Errorf("vllm: %s", err)
 	}
 
 	if err := c.Model.validate(); err != nil {

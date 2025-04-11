@@ -55,6 +55,7 @@ data:
       pullerPort: {{ .Values.ollama.pullerPort }}
     vllm:
       dynamicLoRALoading: {{ .Values.vllm.dynamicLoRALoading }}
+      pullerPort: {{ .Values.vllm.pullerPort }}
     model:
       default:
         runtimeName: {{ .Values.model.default.runtimeName }}

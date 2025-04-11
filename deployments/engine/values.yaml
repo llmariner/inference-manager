@@ -271,6 +271,9 @@ ollama:
 vllm:
   # If set, dynamic LoRA adapter loading is enabled.
   dynamicLoRALoading: false
+  # The port number of the puller server for the daemon mode.
+  # +docs:type=number
+  pullerPort: 8080
 
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.

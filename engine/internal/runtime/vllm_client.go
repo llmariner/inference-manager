@@ -226,7 +226,9 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(vllmHTTPPort)).
 				WithPath("/health")),
-		args: args,
+		args:             args,
+		pullerDaemonMode: v.vLLMConfig.DynamicLoRALoading,
+		pullerPort:       v.vLLMConfig.PullerPort,
 	}, nil
 }
 

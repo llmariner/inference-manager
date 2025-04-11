@@ -58,6 +58,11 @@ func (c *OllamaConfig) validate() error {
 	return nil
 }
 
+// VLLMConfig is the VLLM configuration.
+type VLLMConfig struct {
+	DynamicLoRALoading bool `yaml:"dynamicLoRALoading"`
+}
+
 // TolerationConfig is the toleration configuration.
 type TolerationConfig struct {
 	Key               string `yaml:"key"`
@@ -344,6 +349,7 @@ func (c *LeaderElectionConfig) validate() error {
 type Config struct {
 	Runtime RuntimeConfig `yaml:"runtime"`
 	Ollama  OllamaConfig  `yaml:"ollama"`
+	VLLM    VLLMConfig    `yaml:"vllm"`
 	Model   ModelConfig   `yaml:"model"`
 
 	HealthPort  int `yaml:"healthPort"`

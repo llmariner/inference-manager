@@ -41,6 +41,7 @@ func NewVLLMClient(
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
 	modelClient modelClient,
+	vLLMConfg *config.VLLMConfig,
 ) Client {
 	return &vllmClient{
 		commonClient: &commonClient{
@@ -52,6 +53,7 @@ func NewVLLMClient(
 			mconfig:     mconfig,
 		},
 		modelClient: modelClient,
+		vLLMConfig:  vLLMConfg,
 	}
 }
 
@@ -59,6 +61,8 @@ type vllmClient struct {
 	*commonClient
 
 	modelClient modelClient
+
+	vLLMConfig *config.VLLMConfig
 }
 
 // DeployRuntime deploys the runtime for the given model.
@@ -191,12 +195,17 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
-		corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"),
 		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue("DEBUG"),
 		// Increase the timeout (default: 10 seconds) as we hit
 		// https://github.com/vllm-project/vllm/discussions/9418 when
 		// running the Nvidia Llama3.1 Nemotron 70B with a larger context size.
 		corev1apply.EnvVar().WithName("VLLM_RPC_TIMEOUT").WithValue("60000"),
+	}
+
+	if v.vLLMConfig.DynamicLoRALoading {
+		// Enable dynamically serving LoRA Adapters.
+		// https://docs.vllm.ai/en/stable/features/lora.html
+		envs = append(envs, corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"))
 	}
 
 	return deployRuntimeParams{

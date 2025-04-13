@@ -335,3 +335,8 @@ func chatTemplate(modelID string) string {
 		return ""
 	}
 }
+
+// RuntimeName returns the runtime name.
+func (v *vllmClient) RuntimeName() string {
+	return config.RuntimeNameVLLM
+}

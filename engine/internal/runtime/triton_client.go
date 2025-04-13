@@ -96,3 +96,8 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 		additionalContainers: []*corev1apply.ContainerApplyConfiguration{proxyContainer},
 	}, nil
 }
+
+// RuntimeName returns the runtime name.
+func (c *tritonClient) RuntimeName() string {
+	return config.RuntimeNameTriton
+}

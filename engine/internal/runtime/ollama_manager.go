@@ -180,26 +180,19 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	}
 	log.Info("Model is being pulled", "modelID", modelID)
 
-	// request to pull the model.
-	const requestTimeout = 3 * time.Second
-	const retryInterval = 2 * time.Second
-	pullURL := url.URL{Scheme: "http", Host: m.pullerAddr, Path: "/pull"}
-	pullData := fmt.Appendf([]byte{}, `{"modelID": "%s"}`, modelID)
-	if err := sendHTTPRequestWithRetry(ctx, pullURL, pullData, func(status int, err error) (bool, error) {
-		if err != nil {
-			log.V(2).Error(err, "Failed to pull model", "url", pullURL, "retry-interval", retryInterval)
-			return true, nil
-		}
-		if status != http.StatusAccepted {
-			return false, fmt.Errorf("unexpected status code: %d", status)
-		}
-		return false, nil
-	}, requestTimeout, retryInterval, 3); err != nil {
-		return fmt.Errorf("failed to pull model: %s", err)
+	pc := &pullerClient{addr: m.pullerAddr}
+	if err := pc.pullModel(ctx, modelID); err != nil {
+		return err
 	}
 
 	// wait until the model is ready.
 	log.Info("Waiting for the model to be ready", "modelID", modelID)
+
+	const (
+		requestTimeout = 3 * time.Second
+		retryInterval  = 2 * time.Second
+	)
+
 	showURL := url.URL{Scheme: "http", Host: runtimeAddr, Path: "/api/show"}
 	data := fmt.Appendf([]byte{}, `{"model": "%s"}`, modelID)
 	if err := sendHTTPRequestWithRetry(ctx, showURL, data, func(status int, err error) (bool, error) {

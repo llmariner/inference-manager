@@ -216,3 +216,8 @@ kill ${serve_pid}
 		},
 	}, update)
 }
+
+// RuntimeName returns the runtime name.
+func (o *ollamaClient) RuntimeName() string {
+	return config.RuntimeNameOllama
+}

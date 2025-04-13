@@ -44,6 +44,8 @@ type Client interface {
 	GetAddress(name string) string
 	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
 	DeleteRuntime(ctx context.Context, modelID string) error
+
+	RuntimeName() string
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.

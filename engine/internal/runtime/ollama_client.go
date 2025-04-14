@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
-	models "github.com/llmariner/inference-manager/engine/internal/models"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
@@ -153,20 +152,18 @@ ollama serve
 		}, update)
 	}
 
-	isBase, err := models.IsBaseModel(ctx, o.modelClient, modelID)
+	modelProto, err := o.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("check base model %q: %s", modelID, err)
+		return nil, fmt.Errorf("get model %q: %s", modelID, err)
 	}
 
 	var modelIDs []string
-	if isBase {
+	if modelProto.IsBaseModel {
 		modelIDs = append(modelIDs, modelID)
 	} else {
-		baseModelID, err := models.ExtractBaseModel(modelID)
-		if err != nil {
-			return nil, fmt.Errorf("extract base model %q: %s", modelID, err)
-		}
-		modelIDs = append(modelIDs, baseModelID, modelID)
+		modelIDs = append(modelIDs, modelProto.BaseModelId, modelID)
 	}
 
 	var createCmds []string

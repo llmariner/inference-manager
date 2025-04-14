@@ -17,7 +17,7 @@ require (
 	github.com/llmariner/api-usage v1.2.0
 	github.com/llmariner/cluster-manager v1.5.1
 	github.com/llmariner/common v0.15.0
-	github.com/llmariner/model-manager v1.6.1
+	github.com/llmariner/model-manager v1.12.0
 	github.com/llmariner/rbac-manager v1.9.1
 	github.com/llmariner/vector-store-manager v0.50.0
 	github.com/prometheus/client_golang v1.20.5

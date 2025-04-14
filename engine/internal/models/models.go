@@ -13,9 +13,6 @@ type modelClient interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
 }
 
-// systemOwner is model owner representing the system (= base-model).
-const systemOwner = "system"
-
 // IsBaseModel checks if the given model is a base model or not.
 func IsBaseModel(ctx context.Context, mClient modelClient, modelID string) (bool, error) {
 	// TODO(kenji): Currently we call this RPC to check if the model is a base model or not.
@@ -27,7 +24,7 @@ func IsBaseModel(ctx context.Context, mClient modelClient, modelID string) (bool
 	if err != nil {
 		return false, err
 	}
-	return model.OwnedBy == systemOwner, nil
+	return model.IsBaseModel, nil
 }
 
 // ExtractBaseModel extracts the base model ID from the given model ID.

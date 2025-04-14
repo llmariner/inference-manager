@@ -11,7 +11,6 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
-	"github.com/llmariner/inference-manager/engine/internal/models"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/llmariner/inference-manager/engine/internal/s3"
@@ -171,12 +170,14 @@ func pull(ctx context.Context, o opts, c *config.Config) error {
 
 	ctx = auth.AppendWorkerAuthorization(ctx)
 
-	isBase, err := models.IsBaseModel(ctx, mClient, o.modelID)
+	model, err := mClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: o.modelID,
+	})
 	if err != nil {
 		return err
 	}
 
-	if isBase {
+	if model.IsBaseModel {
 		return pullBaseModel(ctx, o, c, mClient, s3Client)
 	}
 

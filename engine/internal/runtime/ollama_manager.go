@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,15 +8,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/httputil"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
-	"github.com/llmariner/inference-manager/engine/internal/config"
 )
 
 // NewOllamaManager creates a new ollama runtime manager.
@@ -180,8 +180,8 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	}
 	log.Info("Model is being pulled", "modelID", modelID)
 
-	pc := &pullerClient{addr: m.pullerAddr}
-	if err := pc.pullModel(ctx, modelID); err != nil {
+	pc := puller.NewClient(m.pullerAddr)
+	if err := pc.PullModel(ctx, modelID); err != nil {
 		return err
 	}
 
@@ -195,7 +195,7 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 	showURL := url.URL{Scheme: "http", Host: runtimeAddr, Path: "/api/show"}
 	data := fmt.Appendf([]byte{}, `{"model": "%s"}`, modelID)
-	if err := sendHTTPRequestWithRetry(ctx, showURL, data, func(status int, err error) (bool, error) {
+	if err := httputil.SendHTTPRequestWithRetry(ctx, showURL, data, func(status int, err error) (bool, error) {
 		if err != nil {
 			log.V(2).Error(err, "Failed to check model status", "url", showURL, "retry-interval", retryInterval)
 			return true, nil
@@ -224,39 +224,6 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 // DeleteModel deletes the model from the model manager.
 func (m *OllamaManager) DeleteModel(ctx context.Context, modelID string) error {
 	return fmt.Errorf("unsupported operation in ollama manager: delete model %s", modelID)
-}
-
-func sendHTTPRequestWithRetry(
-	ctx context.Context,
-	url url.URL, data []byte, retry func(status int, err error) (bool, error),
-	reqTimeout, retryInterval time.Duration, retryCount int,
-) error {
-	for attempt := 1; retryCount < 0 || attempt <= retryCount; attempt++ {
-		reqCtx, cancel := context.WithTimeout(ctx, reqTimeout)
-		defer cancel()
-
-		req, err := http.NewRequestWithContext(reqCtx, "POST", url.String(), bytes.NewBuffer(data))
-		if err != nil {
-			return fmt.Errorf("request creation error: %s", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		var status int
-		if err == nil {
-			if err := resp.Body.Close(); err != nil {
-				return fmt.Errorf("failed to close response body: %s", err)
-			}
-			status = resp.StatusCode
-		}
-		if ok, err := retry(status, err); err != nil {
-			return err
-		} else if !ok {
-			return nil
-		}
-		time.Sleep(retryInterval)
-	}
-	return fmt.Errorf("retry count exceeded")
 }
 
 // Reconcile reconciles the runtime.

@@ -14,6 +14,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	"github.com/llmariner/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -414,10 +415,10 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 		return false, fmt.Errorf("pod %q has no IP address", pod.Name)
 	}
 
-	pclient := pullerClient{
-		addr: fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort),
-	}
-	if err := pclient.pullModel(ctx, modelID); err != nil {
+	pclient := puller.NewClient(
+		fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort),
+	)
+	if err := pclient.PullModel(ctx, modelID); err != nil {
 		return false, err
 	}
 

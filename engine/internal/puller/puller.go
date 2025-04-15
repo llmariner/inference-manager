@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
@@ -113,6 +115,28 @@ func (p *P) RunServer(
 		default:
 			w.WriteHeader(http.StatusTooManyRequests)
 		}
+	})
+
+	mux.HandleFunc("/models/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Extract the modelID from the path "/models/{modelID}"
+		modelID := strings.TrimPrefix(r.URL.Path, "/models/")
+		if modelID == "" {
+			http.Error(w, "Model ID must be set", http.StatusBadRequest)
+			return
+		}
+
+		cpath := modeldownloader.CompletionIndicationFilePath(ModelDir(), modelID)
+		// Check if the file exists
+		if _, err := os.Stat(cpath); os.IsNotExist(err) {
+			http.Error(w, "Model not found", http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	})
 
 	srv := http.Server{

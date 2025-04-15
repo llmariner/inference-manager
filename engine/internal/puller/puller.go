@@ -15,13 +15,13 @@ import (
 
 // New creates a new puller.
 func New(
-	c *config.Config,
+	mconfig *config.ProcessedModelConfig,
 	runtimeName string,
 	mClient mv1.ModelsWorkerServiceClient,
 	s3Client *s3.Client,
 ) *P {
 	return &P{
-		c:           c,
+		mconfig:     mconfig,
 		runtimeName: runtimeName,
 		mClient:     mClient,
 		s3Client:    s3Client,
@@ -30,7 +30,7 @@ func New(
 
 // P is a puller.
 type P struct {
-	c           *config.Config
+	mconfig     *config.ProcessedModelConfig
 	runtimeName string
 	mClient     mv1.ModelsWorkerServiceClient
 	s3Client    *s3.Client
@@ -107,7 +107,7 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 		From: modelPath,
 	}
 
-	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(modelID)
+	mci := p.mconfig.ModelConfigItem(modelID)
 	if err := ollama.CreateModelfile(filePath, modelID, spec, mci.ContextLength); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		From:        attr.BaseModel,
 		AdapterPath: adapterPath,
 	}
-	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(modelID)
+	mci := p.mconfig.ModelConfigItem(modelID)
 	if err := ollama.CreateModelfile(filePath, modelID, spec, mci.ContextLength); err != nil {
 		return err
 	}

@@ -16,59 +16,50 @@ import (
 // New creates a new puller.
 func New(
 	c *config.Config,
+	runtimeName string,
 	mClient mv1.ModelsWorkerServiceClient,
 	s3Client *s3.Client,
 ) *P {
 	return &P{
-		c:        c,
-		mClient:  mClient,
-		s3Client: s3Client,
+		c:           c,
+		runtimeName: runtimeName,
+		mClient:     mClient,
+		s3Client:    s3Client,
 	}
 }
 
 // P is a puller.
 type P struct {
-	c        *config.Config
-	mClient  mv1.ModelsWorkerServiceClient
-	s3Client *s3.Client
-}
-
-// PullOpts contains options for pulling a model.
-type PullOpts struct {
-	Runtime string
-	ModelID string
+	c           *config.Config
+	runtimeName string
+	mClient     mv1.ModelsWorkerServiceClient
+	s3Client    *s3.Client
 }
 
 // Pull pulls the model from the Model Manager Server.
-func (p *P) Pull(
-	ctx context.Context,
-	o PullOpts,
-) error {
+func (p *P) Pull(ctx context.Context, modelID string) error {
 	ctx = auth.AppendWorkerAuthorization(ctx)
 
 	model, err := p.mClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: o.ModelID,
+		Id: modelID,
 	})
 	if err != nil {
 		return err
 	}
 
 	if model.IsBaseModel {
-		return p.pullBaseModel(ctx, o)
+		return p.pullBaseModel(ctx, modelID)
 	}
 
-	if err := p.pullFineTunedModel(ctx, o); err != nil {
+	if err := p.pullFineTunedModel(ctx, modelID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *P) pullBaseModel(
-	ctx context.Context,
-	o PullOpts,
-) error {
+func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 	resp, err := p.mClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
-		Id: o.ModelID,
+		Id: modelID,
 	})
 	if err != nil {
 		return err
@@ -76,7 +67,7 @@ func (p *P) pullBaseModel(
 
 	d := modeldownloader.New(ModelDir(), p.s3Client)
 
-	format, err := PreferredModelFormat(o.Runtime, resp.Formats)
+	format, err := PreferredModelFormat(p.runtimeName, resp.Formats)
 	if err != nil {
 		return err
 	}
@@ -93,22 +84,22 @@ func (p *P) pullBaseModel(
 		return fmt.Errorf("unsupported format: %v", format)
 	}
 
-	if err := d.Download(ctx, o.ModelID, srcPath, format, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED); err != nil {
+	if err := d.Download(ctx, modelID, srcPath, format, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED); err != nil {
 		return err
 	}
 
-	log.Printf("Successfully pulled the model %q\n", o.ModelID)
+	log.Printf("Successfully pulled the model %q\n", modelID)
 
-	if o.Runtime != config.RuntimeNameOllama || format == mv1.ModelFormat_MODEL_FORMAT_OLLAMA {
+	if p.runtimeName != config.RuntimeNameOllama || format == mv1.ModelFormat_MODEL_FORMAT_OLLAMA {
 		// No need to create a model file.
 		return nil
 	}
 
 	// Create a modelfile for Ollama.
 
-	filePath := ollama.ModelfilePath(ModelDir(), o.ModelID)
+	filePath := ollama.ModelfilePath(ModelDir(), modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
-	modelPath, err := modeldownloader.ModelFilePath(ModelDir(), o.ModelID, format)
+	modelPath, err := modeldownloader.ModelFilePath(ModelDir(), modelID, format)
 	if err != nil {
 		return err
 	}
@@ -116,8 +107,8 @@ func (p *P) pullBaseModel(
 		From: modelPath,
 	}
 
-	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(o.ModelID)
-	if err := ollama.CreateModelfile(filePath, o.ModelID, spec, mci.ContextLength); err != nil {
+	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(modelID)
+	if err := ollama.CreateModelfile(filePath, modelID, spec, mci.ContextLength); err != nil {
 		return err
 	}
 	log.Printf("Successfully created the Ollama modelfile\n")
@@ -125,21 +116,18 @@ func (p *P) pullBaseModel(
 	return nil
 }
 
-func (p *P) pullFineTunedModel(
-	ctx context.Context,
-	o PullOpts,
-) error {
+func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 	attr, err := p.mClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
-		Id: o.ModelID,
+		Id: modelID,
 	})
 	if err != nil {
 		return err
 	}
 
 	if attr.BaseModel == "" {
-		return fmt.Errorf("base model ID is not set for %q", o.ModelID)
+		return fmt.Errorf("base model ID is not set for %q", modelID)
 	}
-	if err := p.pullBaseModel(ctx, PullOpts{ModelID: attr.BaseModel, Runtime: o.Runtime}); err != nil {
+	if err := p.pullBaseModel(ctx, attr.BaseModel); err != nil {
 		return err
 	}
 
@@ -150,27 +138,27 @@ func (p *P) pullFineTunedModel(
 		return err
 	}
 
-	format, err := PreferredModelFormat(o.Runtime, resp.Formats)
+	format, err := PreferredModelFormat(p.runtimeName, resp.Formats)
 	if err != nil {
 		return err
 	}
 
 	d := modeldownloader.New(ModelDir(), p.s3Client)
 
-	if err := d.Download(ctx, o.ModelID, attr.Path, format, attr.Adapter); err != nil {
+	if err := d.Download(ctx, modelID, attr.Path, format, attr.Adapter); err != nil {
 		return err
 	}
 
 	log.Printf("Successfully pulled the fine-tuning adapter\n")
 
-	if o.Runtime != config.RuntimeNameOllama {
+	if p.runtimeName != config.RuntimeNameOllama {
 		return nil
 	}
 
-	filePath := ollama.ModelfilePath(ModelDir(), o.ModelID)
+	filePath := ollama.ModelfilePath(ModelDir(), modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 
-	adapterPath, err := modeldownloader.ModelFilePath(ModelDir(), o.ModelID, format)
+	adapterPath, err := modeldownloader.ModelFilePath(ModelDir(), modelID, format)
 	if err != nil {
 		return err
 	}
@@ -178,8 +166,8 @@ func (p *P) pullFineTunedModel(
 		From:        attr.BaseModel,
 		AdapterPath: adapterPath,
 	}
-	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(o.ModelID)
-	if err := ollama.CreateModelfile(filePath, o.ModelID, spec, mci.ContextLength); err != nil {
+	mci := config.NewProcessedModelConfig(p.c).ModelConfigItem(modelID)
+	if err := ollama.CreateModelfile(filePath, modelID, spec, mci.ContextLength); err != nil {
 		return err
 	}
 	log.Printf("Successfully created the Ollama modelfile\n")

@@ -13,10 +13,7 @@ import (
 )
 
 // NewServer creates a new server instance.
-func NewServer(
-	p *P,
-	runtimeName string,
-) *Server {
+func NewServer(p *P) *Server {
 	const queueLengths = 5
 	return &Server{
 		p:      p,
@@ -26,9 +23,8 @@ func NewServer(
 
 // Server represents a server that handles pull requests.
 type Server struct {
-	p           *P
-	runtimeName string
-	pullCh      chan string
+	p      *P
+	pullCh chan string
 }
 
 // Start starts an HTTP server that listens for pull requests.
@@ -99,10 +95,7 @@ func (s *Server) ProcessPullRequests(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case modelID := <-s.pullCh:
-			if err := s.p.Pull(ctx, PullOpts{
-				ModelID: modelID,
-				Runtime: s.runtimeName,
-			}); err != nil {
+			if err := s.p.Pull(ctx, modelID); err != nil {
 				return fmt.Errorf("pull the model: %s", err)
 			}
 		}

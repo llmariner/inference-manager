@@ -18,11 +18,14 @@ import (
 // pull command pulls a specified model from the s3 and registers it to the runtime.
 // If the model is already registered, this command does nothing.
 func pullCmd() *cobra.Command {
-	var index int
-	var o puller.PullOpts
-	var path string
-	var forcePull bool
-	var daemonMode bool
+	var (
+		index      int
+		modelID    string
+		runtime    string
+		path       string
+		forcePull  bool
+		daemonMode bool
+	)
 	cmd := &cobra.Command{
 		Use:   "pull",
 		Short: "pull",
@@ -50,33 +53,33 @@ func pullCmd() *cobra.Command {
 			}
 			mClient := mv1.NewModelsWorkerServiceClient(conn)
 
-			p := puller.New(c, mClient, s3Client)
+			p := puller.New(c, runtime, mClient, s3Client)
 
 			if !daemonMode {
 				// Check if the model ID is set on the non daemon mode.
 				// In the daemon mode, the model is optional and pre-pulled
 				// only if the model ID is set.
-				if o.ModelID == "" {
+				if modelID == "" {
 					return fmt.Errorf("model ID must be set on non daemon mode")
 				}
 
-				return p.Pull(ctx, o)
+				return p.Pull(ctx, modelID)
 			}
 
 			var pullerPort int
-			switch o.Runtime {
+			switch runtime {
 			case config.RuntimeNameOllama:
 				pullerPort = c.Ollama.PullerPort
 			case config.RuntimeNameVLLM:
 				pullerPort = c.VLLM.PullerPort
 			default:
-				return fmt.Errorf("daemonmode unsupported runtime: %q", o.Runtime)
+				return fmt.Errorf("daemonmode unsupported runtime: %q", runtime)
 			}
 			if pullerPort <= 0 {
 				return fmt.Errorf("puller port must be set on the daemon mode")
 			}
 
-			srv := puller.NewServer(p, o.Runtime)
+			srv := puller.NewServer(p)
 
 			errCh := make(chan error)
 			go func() {
@@ -87,8 +90,8 @@ func pullCmd() *cobra.Command {
 				errCh <- srv.ProcessPullRequests(ctx)
 			}()
 
-			if o.ModelID != "" {
-				srv.QueuePullRequest(o.ModelID)
+			if modelID != "" {
+				srv.QueuePullRequest(modelID)
 			}
 
 			select {
@@ -100,8 +103,8 @@ func pullCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&index, "index", 0, "Index of the pod")
-	cmd.Flags().StringVar(&o.Runtime, "runtime", "", "Runtime name for the model")
-	cmd.Flags().StringVar(&o.ModelID, "model-id", "", "Model ID to be registered")
+	cmd.Flags().StringVar(&runtime, "runtime", "", "Runtime name for the model")
+	cmd.Flags().StringVar(&modelID, "model-id", "", "Model ID to be registered")
 	cmd.Flags().StringVar(&path, "config", "", "Path to the config file")
 	cmd.Flags().BoolVar(&forcePull, "force-pull", false, "Pull the model even if its index is not 0")
 	cmd.Flags().BoolVar(&daemonMode, "daemon-mode", false, "Run the server in the daemon mode (only available for the ollama model)")

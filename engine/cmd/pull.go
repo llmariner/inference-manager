@@ -12,6 +12,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/llmariner/inference-manager/engine/internal/s3"
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -83,10 +84,6 @@ func pullCmd() *cobra.Command {
 	return cmd
 }
 
-type pullModelRequest struct {
-	ModelID string `json:"modelID"`
-}
-
 func runServer(ctx context.Context, c *config.Config, runtimeName string, port int, modelID string) error {
 	const queueLengths = 5
 	pullCh := make(chan string, queueLengths)
@@ -112,7 +109,7 @@ func runServer(ctx context.Context, c *config.Config, runtimeName string, port i
 			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 			return
 		}
-		var req pullModelRequest
+		var req puller.PullModelRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			log.Printf("Failed to decode the request: %v\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -145,10 +145,11 @@ ollama serve
 			readinessProbe: corev1apply.Probe().
 				WithHTTPGet(corev1apply.HTTPGetAction().
 					WithPort(intstr.FromInt(ollamaHTTPPort))),
-			command:          []string{"/bin/bash"},
-			args:             []string{"-c", script},
-			pullerDaemonMode: true,
-			pullerPort:       o.config.PullerPort,
+			command:             []string{"/bin/bash"},
+			args:                []string{"-c", script},
+			dynamicModelLoading: true,
+			pullerDaemonMode:    true,
+			pullerPort:          o.config.PullerPort,
 		}, update)
 	}
 

@@ -12,6 +12,7 @@ import (
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
@@ -127,6 +128,9 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			"--served-model-name", oModelID,
 			"--model", mPath,
 		)
+		if v.vLLMConfig.DynamicLoRALoading {
+			args = append(args, "--enable-lora")
+		}
 	} else {
 		attr, err := v.modelClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
 			Id: modelID,
@@ -206,7 +210,28 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	if v.vLLMConfig.DynamicLoRALoading {
 		// Enable dynamically serving LoRA Adapters.
 		// https://docs.vllm.ai/en/stable/features/lora.html
-		envs = append(envs, corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"))
+		envs = append(envs, corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("True"))
+	}
+
+	// If the puller daemon mode is enabled, create another init container
+	// so that the VLLM container won't start until the base model is pulled.
+	var initContainerSepc *initContainerSpec
+	if v.vLLMConfig.DynamicLoRALoading {
+		image, ok := v.rconfig.RuntimeImages[config.RuntimeNameVLLM]
+		if !ok {
+			return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
+		}
+
+		cpath := modeldownloader.CompletionIndicationFilePath(modelDir, modelID)
+		initContainerSepc = &initContainerSpec{
+			name: "pull-waiter",
+			// TODO(kenji): Fix. Use a better image.
+			image:           image,
+			imagePullPolicy: corev1.PullIfNotPresent,
+			command:         []string{"/bin/sh", "-c"},
+			// wait for the cpath file to be created
+			args: []string{"while [ ! -f " + cpath + " ]; do sleep 1; done"},
+		}
 	}
 
 	return deployRuntimeParams{
@@ -227,9 +252,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(vllmHTTPPort)).
 				WithPath("/health")),
-		args:             args,
-		pullerDaemonMode: v.vLLMConfig.DynamicLoRALoading,
-		pullerPort:       v.vLLMConfig.PullerPort,
+		args:              args,
+		initContainerSpec: initContainerSepc,
+		pullerDaemonMode:  v.vLLMConfig.DynamicLoRALoading,
+		pullerPort:        v.vLLMConfig.PullerPort,
 	}, nil
 }
 

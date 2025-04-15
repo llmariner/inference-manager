@@ -200,7 +200,13 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			},
 		}
 
-		rtManager := runtime.NewManager(mgr.GetClient(), rtClientFactory, scaler)
+		rtManager := runtime.NewManager(
+			mgr.GetClient(),
+			rtClientFactory,
+			scaler,
+			modelClient,
+			c.VLLM,
+		)
 		if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
 			return err
 		}

@@ -46,6 +46,7 @@ type Client interface {
 	DeleteRuntime(ctx context.Context, modelID string) error
 
 	RuntimeName() string
+	Namespace() string
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.
@@ -63,6 +64,11 @@ type commonClient struct {
 
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
+}
+
+// Namespace returns the namespace of the runtime.
+func (c *commonClient) Namespace() string {
+	return c.namespace
 }
 
 func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {
@@ -116,7 +122,8 @@ type deployRuntimeParams struct {
 	// runtimePort is set to a non-zero value when the runtime serve requests on a port different from the serving port.
 	runtimePort int
 
-	pullerDaemonMode bool
+	dynamicModelLoading bool
+	pullerDaemonMode    bool
 	// pullerPort is the port number of the puller daemon.
 	pullerPort int
 }
@@ -129,7 +136,7 @@ func (c *commonClient) deployRuntime(
 ) (*appsv1.StatefulSet, error) {
 	mci := c.mconfig.ModelConfigItem(params.modelID)
 	var name string
-	if params.pullerDaemonMode {
+	if params.dynamicModelLoading {
 		name = resourceName(mci.RuntimeName, daemonModeSuffix)
 	} else {
 		name = resourceName(mci.RuntimeName, params.modelID)
@@ -379,7 +386,7 @@ func (c *commonClient) deployRuntime(
 	annos := map[string]string{
 		runtimeAnnotationKey: mci.RuntimeName,
 	}
-	if !params.pullerDaemonMode {
+	if !params.dynamicModelLoading {
 		annos[modelAnnotationKey] = params.modelID
 	}
 

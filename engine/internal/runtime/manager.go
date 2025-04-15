@@ -11,6 +11,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
+	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/vllm"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,11 +38,15 @@ func NewManager(
 	k8sClient client.Client,
 	rtClientFactory ClientFactory,
 	autoscaler autoscaler.Registerer,
+	modelClient modelClient,
+	vllmConfig config.VLLMConfig,
 ) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
 		rtClientFactory: rtClientFactory,
 		autoscaler:      autoscaler,
+		modelClient:     modelClient,
+		vllmConfig:      vllmConfig,
 		runtimes:        make(map[string]runtime),
 	}
 }
@@ -47,6 +56,9 @@ type Manager struct {
 	k8sClient       client.Client
 	rtClientFactory ClientFactory
 	autoscaler      autoscaler.Registerer
+
+	modelClient modelClient
+	vllmConfig  config.VLLMConfig
 
 	// runtimes is keyed by model ID.
 	runtimes map[string]runtime
@@ -286,6 +298,18 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			m.mu.Unlock()
 		}
 
+		if client.RuntimeName() == config.RuntimeNameVLLM && m.vllmConfig.DynamicLoRALoading {
+			ok, err := m.deployToExistingRuntimeIfFineTunedModel(ctx, modelID, client)
+			if err != nil {
+				cleanup()
+				return err
+			}
+			if ok {
+				// The runtime is already registered.
+				return nil
+			}
+		}
+
 		sts, err := client.DeployRuntime(ctx, modelID, false)
 		if err != nil {
 			cleanup()
@@ -322,6 +346,131 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	}
 }
 
+func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
+	ctx context.Context,
+	modelID string,
+	rclient Client,
+) (bool, error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Deploying fine-tuned model to existing runtime", "modelID", modelID)
+	model, err := m.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	if model.IsBaseModel {
+		log.Info("Model is a base model, skipping deployment to existing runtime", "modelID", modelID)
+		return false, err
+	}
+
+	// Check if there is already a runtime for the base model.
+	m.mu.Lock()
+	br, ok := m.runtimes[model.BaseModelId]
+	m.mu.Unlock()
+	if !ok {
+		log.Info("No existing runtime for base model", "baseModel", model.BaseModelId)
+		return false, nil
+	}
+
+	log.Info("Found existing runtime for base model", "baseModel", model.BaseModelId)
+
+	if !br.ready {
+		log.Info("Waiting for base model runtime to be ready", "baseModel", model.BaseModelId)
+		if reason, ok := m.errReason(model.BaseModelId); ok {
+			// The runtime is already in an error state.
+			log.V(4).Info("Runtime is in an error state", "reason", reason)
+			return false, ErrRequestCanceled
+		}
+		select {
+		case <-br.waitCh:
+			if _, ok := m.errReason(model.BaseModelId); ok {
+				// This will happen when the `cancelWaitingRequests` is called.
+				return false, ErrRequestCanceled
+			}
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+
+	log.Info("Deploying fine-tuned model to existing runtime", "model", modelID)
+
+	// TODO(kenji): Create a service and endpoint?
+	// TODO(kenji): Be able to register the existing fine-tuned models when the engine starts up.
+	// TODO(kenji): Dynamic rebalancing.
+
+	pods, err := listPods(ctx, m.k8sClient, rclient.Namespace(), br.name)
+	if err != nil {
+		return false, err
+	}
+	if len(pods) == 0 {
+		return false, fmt.Errorf("no pod found for runtime %q", br.name)
+	}
+	// TODO(kenji): Pick up the ready pod.
+	pod := pods[0]
+	podIP := pod.Status.PodIP
+	if podIP == "" {
+		return false, fmt.Errorf("pod %q has no IP address", pod.Name)
+	}
+
+	pclient := pullerClient{
+		addr: fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort),
+	}
+	if err := pclient.pullModel(ctx, modelID); err != nil {
+		return false, err
+	}
+
+	log.Info("Waiting for the model to be ready", "modelID", modelID)
+
+	// TODO(kenji): Check the model is ready.
+
+	const retryInterval = 2 * time.Second
+
+	log.Info("Loading LoRA adapter to existing runtime", "modelID", modelID)
+
+	addr := rclient.GetAddress(podIP)
+	for i := 0; ; i++ {
+		vclient := vllm.NewHTTPClient(addr)
+
+		path, err := modeldownloader.ModelFilePath(
+			modelDir,
+			modelID,
+			// Fine-tuned models always have the Hugging Face format.
+			mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
+		)
+		if err != nil {
+			return false, err
+		}
+
+		// Convert the model name as we do the same conversion in processor.
+		// TODO(kenji): Revisit.
+		mid := ollama.ModelName(modelID)
+		status, err := vclient.LoadLoRAAdapter(ctx, mid, path)
+		if err != nil {
+			return false, err
+		}
+
+		if status == http.StatusOK {
+			break
+		}
+
+		log.Info("Waiting for the model to be ready", "modelID", modelID, "status", status)
+		time.Sleep(retryInterval)
+	}
+
+	log.Info("Model is ready", "modelID", modelID)
+
+	m.markRuntimeReady(
+		rclient.GetName(modelID),
+		modelID,
+		addr,
+		br.gpu,
+		1, /* replicas */
+	)
+	return true, nil
+}
+
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
@@ -334,6 +483,9 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 		log.V(4).Info("Runtime does not exist", "model", modelID)
 		return nil
 	}
+
+	// TODO(kenji): Remove the fine-tuned model from the vLLM if this model
+	// is a fine-tuned model that is dynamically loaded to the vLLM runtime.
 
 	client, err := m.rtClientFactory.New(modelID)
 	if err != nil {
@@ -487,15 +639,12 @@ func setupWithManager(mgr ctrl.Manager, leaderElection bool, r reconcile.Reconci
 }
 
 func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {
-	var podList corev1.PodList
-	if err := k8sClient.List(ctx, &podList,
-		client.InNamespace(sts.Namespace),
-		client.MatchingLabels{"app.kubernetes.io/instance": sts.Name},
-	); err != nil {
+	pods, err := listPods(ctx, k8sClient, sts.Namespace, sts.Name)
+	if err != nil {
 		return false, err
 	}
 	var cnt, unschedulable int
-	for _, pod := range podList.Items {
+	for _, pod := range pods {
 		if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
 			continue
 		}
@@ -505,6 +654,17 @@ func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts 
 		}
 	}
 	return unschedulable > 0 && cnt == unschedulable, nil
+}
+
+func listPods(ctx context.Context, k8sClient client.Client, namespace, name string) ([]corev1.Pod, error) {
+	var podList corev1.PodList
+	if err := k8sClient.List(ctx, &podList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"app.kubernetes.io/instance": name},
+	); err != nil {
+		return nil, err
+	}
+	return podList.Items, nil
 }
 
 func isPodUnschedulable(pod corev1.Pod) (bool, string) {

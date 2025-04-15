@@ -275,8 +275,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	if ok {
 		m.mu.Unlock()
 		if r.ready {
-			//	log.V(4).Info("Runtime is already ready", "model", modelID)
-			log.Info("Runtime is already ready", "model", modelID)
+			log.V(4).Info("Runtime is already ready", "model", modelID)
 			return nil
 		}
 	} else {
@@ -284,7 +283,6 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		if err != nil {
 			return err
 		}
-
 		name := client.GetName(modelID)
 
 		r = newPendingRuntime(name)

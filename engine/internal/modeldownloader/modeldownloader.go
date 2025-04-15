@@ -14,6 +14,10 @@ import (
 	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
+const (
+	completionFileName = "completed.txt"
+)
+
 type s3Client interface {
 	Download(ctx context.Context, f io.WriterAt, path string) error
 	ListObjectsPages(ctx context.Context, prefix string, f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error
@@ -62,7 +66,7 @@ func (d *D) download(
 	if err := os.MkdirAll(completionDir, 0755); err != nil {
 		return err
 	}
-	completionIndicationFile := filepath.Join(completionDir, "completed.txt")
+	completionIndicationFile := CompletionIndicationFilePath(d.modelDir, modelID)
 
 	if _, err := os.Stat(completionIndicationFile); err == nil {
 		log.Printf("The model %s has already been downloaded at %s. Skipping the download.\n", modelID, completionDir)
@@ -143,4 +147,9 @@ func ModelFilePath(modelDir, modelID string, format mv1.ModelFormat) (string, er
 	default:
 		return "", fmt.Errorf("unsupported model format: %s", format)
 	}
+}
+
+// CompletionIndicationFilePath returns the file path of the completion indication file.
+func CompletionIndicationFilePath(modelDir, modelID string) string {
+	return filepath.Join(modelDir, modelID, completionFileName)
 }

@@ -39,6 +39,7 @@ func pullCmd() *cobra.Command {
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
 			defer cancel()
+
 			s3Client, err := s3.NewClient(ctx, c.ObjectStore.S3)
 			if err != nil {
 				return err
@@ -75,7 +76,27 @@ func pullCmd() *cobra.Command {
 				return fmt.Errorf("puller port must be set on the daemon mode")
 			}
 
-			return p.RunServer(ctx, c, o.Runtime, pullerPort, o.ModelID)
+			srv := puller.NewServer(p, o.Runtime)
+
+			errCh := make(chan error)
+			go func() {
+				errCh <- srv.Start(ctx, pullerPort)
+			}()
+
+			go func() {
+				errCh <- srv.ProcessPullRequests(ctx)
+			}()
+
+			if o.ModelID != "" {
+				srv.QueuePullRequest(o.ModelID)
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case err := <-errCh:
+				return err
+			}
 		},
 	}
 	cmd.Flags().IntVar(&index, "index", 0, "Index of the pod")

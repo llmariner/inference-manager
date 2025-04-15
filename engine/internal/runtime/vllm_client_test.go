@@ -52,8 +52,8 @@ func TestDeployRuntimeParams(t *testing.T) {
 				Path:         "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 			},
 			model: &mv1.Model{
-				OwnedBy: "user",
-				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				Id:          "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				IsBaseModel: false,
 			},
 			wantArgs: []string{
 				"--port", "80",
@@ -78,8 +78,8 @@ func TestDeployRuntimeParams(t *testing.T) {
 				Path:         "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0/model.gguf",
 			},
 			model: &mv1.Model{
-				OwnedBy: "user",
-				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				Id:          "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				IsBaseModel: false,
 			},
 			wantArgs: []string{
 				"--port", "80",
@@ -99,8 +99,8 @@ func TestDeployRuntimeParams(t *testing.T) {
 				},
 			},
 			model: &mv1.Model{
-				OwnedBy: "system",
-				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				Id:          "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				IsBaseModel: true,
 			},
 			wantArgs: []string{
 				"--port", "80",
@@ -125,8 +125,8 @@ func TestDeployRuntimeParams(t *testing.T) {
 				Path:      "/models/TinyLlama-TinyLlama-1.1B-Chat-v1.0",
 			},
 			model: &mv1.Model{
-				OwnedBy: "user",
-				Id:      "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				Id:          "TinyLlama-TinyLlama-1.1B-Chat-v1.0",
+				IsBaseModel: false,
 			},
 			wantArgs: []string{
 				"--port", "80",
@@ -160,65 +160,52 @@ func TestDeployRuntimeParams(t *testing.T) {
 }
 
 func TestNumGPUs(t *testing.T) {
-	v := &vllmClient{
-		commonClient: &commonClient{
-			mconfig: config.NewProcessedModelConfig(&config.Config{
-				Model: config.ModelConfig{
-					Overrides: map[string]config.ModelConfigItem{
-						"model0": {
-							Resources: config.Resources{
-								Limits: map[string]string{
-									nvidiaGPUResource: "2",
-									"cpu":             "4",
-								},
-							},
-						},
-						"model1": {
-							Resources: config.Resources{
-								Limits: map[string]string{
-									"cpu": "8",
-								},
-							},
-						},
-						"model2": {
-							Resources: config.Resources{
-								Limits: map[string]string{
-									awsNeuroncoreResource: "1",
-									"cpu":                 "3",
-								},
-							},
-						},
-					},
-				},
-			}),
-		},
-	}
 
 	tcs := []struct {
-		name    string
-		modelID string
-		want    int
+		name string
+		mci  config.ModelConfigItem
+		want int
 	}{
 		{
-			name:    "model0",
-			modelID: "model0",
-			want:    2,
+			name: "model0",
+			mci: config.ModelConfigItem{
+				Resources: config.Resources{
+					Limits: map[string]string{
+						nvidiaGPUResource: "2",
+						"cpu":             "4",
+					},
+				},
+			},
+			want: 2,
 		},
 		{
-			name:    "model1",
-			modelID: "model1",
-			want:    0,
+			name: "model1",
+			mci: config.ModelConfigItem{
+				Resources: config.Resources{
+					Limits: map[string]string{
+						"cpu": "8",
+					},
+				},
+			},
+			want: 0,
 		},
 		{
-			name:    "model2",
-			modelID: "model2",
-			want:    1,
+			name: "model2",
+			mci: config.ModelConfigItem{
+				Resources: config.Resources{
+					Limits: map[string]string{
+						awsNeuroncoreResource: "1",
+						"cpu":                 "3",
+					},
+				},
+			},
+			want: 1,
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := v.numGPUs(tc.modelID)
+			got, err := numGPUs(tc.mci)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

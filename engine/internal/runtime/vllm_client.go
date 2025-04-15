@@ -86,6 +86,8 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		return deployRuntimeParams{}, fmt.Errorf("get model: %s", err)
 	}
 
+	mci := v.mconfig.ModelConfigItem(modelID)
+
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
 	// need to do this because the processor does the same converesion when
 	// processing requests (for Ollama)
@@ -104,7 +106,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	if t := chatTemplate(modelID); t != "" {
 		// Set --chat-template only if it is not explicitly set in the extra flags.
 		var found = false
-		for _, f := range v.mconfig.ModelConfigItem(modelID).VLLMExtraFlags {
+		for _, f := range mci.VLLMExtraFlags {
 			if f == "--chat-template" {
 				found = true
 				break
@@ -116,7 +118,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			args = append(args, "--chat-template", t)
 		}
 	}
-	if isBaseModel(model) {
+	if model.IsBaseModel {
 		mPath, err := v.baseModelFilePath(ctx, modelID)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
@@ -169,7 +171,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		}
 	}
 
-	if gpus, err := v.numGPUs(modelID); err != nil {
+	if gpus, err := numGPUs(mci); err != nil {
 		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
 		args = append(args, "--device", "cpu")
@@ -177,7 +179,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--tensor-parallel-size", strconv.Itoa(gpus))
 	}
 
-	mci := v.mconfig.ModelConfigItem(modelID)
 	if mci.ContextLength > 0 {
 		args = append(args, "--max-model-len", strconv.Itoa(mci.ContextLength))
 	}
@@ -232,24 +233,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	}, nil
 }
 
-func (v *vllmClient) numGPUs(modelID string) (int, error) {
-	resConf := v.getResouces(modelID)
-
-	for _, resName := range []string{nvidiaGPUResource, awsNeuroncoreResource} {
-		r, ok := resConf.Limits[resName]
-		if !ok {
-			continue
-		}
-		val, err := resource.ParseQuantity(r)
-		if err != nil {
-			return 0, fmt.Errorf("invalid resource limit: %s", err)
-		}
-		return int(val.Value()), nil
-	}
-
-	return 0, nil
-}
-
 func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID string) (mv1.ModelFormat, error) {
 	// TODO(kenji): Support non-base model.
 	resp, err := v.modelClient.GetBaseModelPath(ctx, &mv1.GetBaseModelPathRequest{
@@ -269,9 +252,22 @@ func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (str
 	return modeldownloader.ModelFilePath(modelDir, modelID, format)
 }
 
-func isBaseModel(model *mv1.Model) bool {
-	const systemOwner = "system"
-	return model.OwnedBy == systemOwner
+func numGPUs(mci config.ModelConfigItem) (int, error) {
+	resConf := mci.Resources
+
+	for _, resName := range []string{nvidiaGPUResource, awsNeuroncoreResource} {
+		r, ok := resConf.Limits[resName]
+		if !ok {
+			continue
+		}
+		val, err := resource.ParseQuantity(r)
+		if err != nil {
+			return 0, fmt.Errorf("invalid resource limit: %s", err)
+		}
+		return int(val.Value()), nil
+	}
+
+	return 0, nil
 }
 
 // vllmQuantization returns the quantization type of the given model.

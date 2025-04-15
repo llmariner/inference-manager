@@ -70,8 +70,21 @@ func newPendingRuntime(name string) runtime {
 	return runtime{name: name, ready: false, replicas: int32(0), waitCh: make(chan struct{})}
 }
 
-func newReadyRuntime(name string, address string, gpu, replicas int32) runtime {
-	return runtime{name: name, ready: true, address: address, gpu: gpu, replicas: replicas}
+func newReadyRuntime(
+	name string,
+	address string,
+	isDynamicallyLoadedLoRA bool,
+	gpu,
+	replicas int32,
+) runtime {
+	return runtime{
+		name:                    name,
+		ready:                   true,
+		address:                 address,
+		isDynamicallyLoadedLoRA: isDynamicallyLoadedLoRA,
+		gpu:                     gpu,
+		replicas:                replicas,
+	}
 }
 
 // ModelRuntimeInfo is the info of a model runtime.
@@ -93,6 +106,8 @@ type runtime struct {
 	errReason string
 	// address is empty when the runtime is not ready.
 	address string
+	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.
+	isDynamicallyLoadedLoRA bool
 	// waitCh is used when the runtime is not ready.
 	waitCh chan struct{}
 }
@@ -132,7 +147,8 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool
 		if err != nil {
 			return false, false, err
 		}
-		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), getGPU(&sts), sts.Status.ReadyReplicas)
+		// We hit this case when an unregistered statefulset is found. Such a case, the model is not for LoRA.
+		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
 	} else {
 		rt = newPendingRuntime(sts.Name)
 	}
@@ -183,14 +199,20 @@ func (m *Manager) updateRuntimeReplicas(modelID string, replicas int32) error {
 	return nil
 }
 
-func (m *Manager) markRuntimeReady(name, modelID, address string, gpu, replicas int32) {
+func (m *Manager) markRuntimeReady(
+	name,
+	modelID,
+	address string,
+	isDynamicallyLoadedLoRA bool,
+	gpu,
+	replicas int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
 		if r.waitCh != nil {
 			close(r.waitCh)
 		}
-		m.runtimes[modelID] = newReadyRuntime(name, address, gpu, replicas)
+		m.runtimes[modelID] = newReadyRuntime(name, address, isDynamicallyLoadedLoRA, gpu, replicas)
 	}
 }
 
@@ -326,7 +348,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// registered in the manager's managed runtime map. If the runtime's
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), getGPU(sts), sts.Status.ReadyReplicas)
+			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), false, getGPU(sts), sts.Status.ReadyReplicas)
 		}
 	}
 	if reason, ok := m.errReason(modelID); ok {
@@ -459,8 +481,8 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 
 	// Convert the model name as we do the same conversion in processor.
 	// TODO(kenji): Revisit.
-	mid := ollama.ModelName(modelID)
-	status, err := vclient.LoadLoRAAdapter(ctx, mid, path)
+	omid := ollama.ModelName(modelID)
+	status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
 	if err != nil {
 		return false, err
 	}
@@ -474,10 +496,32 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 		rclient.GetName(modelID),
 		modelID,
 		addr,
+		true, /* isDynamicallyLoadedLoRA */
 		br.gpu,
 		1, /* replicas */
 	)
 	return true, nil
+}
+
+func (m *Manager) unloadFineTunedModel(
+	ctx context.Context,
+	r runtime,
+	modelID string,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Unloading the LoRA adapter from the runtime", "model", modelID)
+
+	vclient := vllm.NewHTTPClient(r.address)
+
+	omid := ollama.ModelName(modelID)
+	status, err := vclient.UnloadLoRAAdapter(ctx, omid)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("lbunoad LoRA adapter: %d", status)
+	}
+	return nil
 }
 
 // DeleteModel deletes the model from the model manager.
@@ -486,27 +530,30 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	log.Info("Deleting model", "model", modelID)
 
 	m.mu.Lock()
-	_, ok := m.runtimes[modelID]
+	r, ok := m.runtimes[modelID]
 	m.mu.Unlock()
 	if !ok {
 		log.V(4).Info("Runtime does not exist", "model", modelID)
 		return nil
 	}
 
-	// TODO(kenji): Remove the fine-tuned model from the vLLM if this model
-	// is a fine-tuned model that is dynamically loaded to the vLLM runtime.
+	if r.isDynamicallyLoadedLoRA {
+		if err := m.unloadFineTunedModel(ctx, r, modelID); err != nil {
+			return fmt.Errorf("unload fine-tuned model: %w", err)
+		}
+	} else {
+		// TODO(kenji): Revisit how to handle the deletion of the base-model when
+		// its runtime has a LoRA adapter. Deleting the statefulset will delete
+		// both the base model and the LoRA adapter.
 
-	// TODO(kenji): Revisit how to handle the deletion of the base-model when
-	// its runtime has a LoRA adapter. Deleting the statefulset will delete
-	// both the base model and the LoRA adapter.
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return err
+		}
 
-	client, err := m.rtClientFactory.New(modelID)
-	if err != nil {
-		return err
-	}
-
-	if err := client.DeleteRuntime(ctx, modelID); err != nil {
-		return err
+		if err := client.DeleteRuntime(ctx, modelID); err != nil {
+			return err
+		}
 	}
 
 	m.deleteRuntimeByModelID(modelID)
@@ -606,7 +653,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
 			return ctrl.Result{RequeueAfter: retryAfter}, err
 		}
-		m.markRuntimeReady(sts.Name, modelID, addr, getGPU(&sts), sts.Status.ReadyReplicas)
+		m.markRuntimeReady(sts.Name, modelID, addr, false, getGPU(&sts), sts.Status.ReadyReplicas)
 		log.Info("Runtime is ready")
 		return ctrl.Result{}, nil
 	}

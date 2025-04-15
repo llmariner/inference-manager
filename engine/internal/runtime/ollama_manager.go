@@ -277,7 +277,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if m.runtime.waitCh != nil {
 			close(m.runtime.waitCh)
 		}
-		m.runtime = newReadyRuntime(sts.Name, m.ollamaClient.GetAddress(sts.Name), getGPU(&sts), sts.Status.ReadyReplicas)
+		m.runtime = newReadyRuntime(sts.Name, m.ollamaClient.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
 		m.mu.Unlock()
 
 		log.Info("Runtime is ready")

@@ -168,6 +168,9 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 				"--served-model-name", oModelID,
 				"--model", mPath,
 			)
+			if v.vLLMConfig.DynamicLoRALoading {
+				args = append(args, "--enable-lora")
+			}
 		}
 	}
 
@@ -206,7 +209,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	if v.vLLMConfig.DynamicLoRALoading {
 		// Enable dynamically serving LoRA Adapters.
 		// https://docs.vllm.ai/en/stable/features/lora.html
-		envs = append(envs, corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("true"))
+		envs = append(envs, corev1apply.EnvVar().WithName("VLLM_ALLOW_RUNTIME_LORA_UPDATING").WithValue("True"))
 	}
 
 	return deployRuntimeParams{

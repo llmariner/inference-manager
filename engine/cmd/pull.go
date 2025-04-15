@@ -42,28 +42,33 @@ func pullCmd() *cobra.Command {
 				return err
 			}
 
-			if daemonMode {
-				if c.Ollama.PullerPort == 0 {
-					return fmt.Errorf("socket path must be set on the daemon mode")
-				}
-				if o.runtime != config.RuntimeNameOllama {
-					return fmt.Errorf("daemon mode is only available for the ollama")
-				}
-			} else {
+			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
+			defer cancel()
+			if !daemonMode {
 				// Check if the model ID is set on the non daemon mode.
 				// In the daemon mode, the model is optional and pre-pulled
 				// only if the model ID is set.
 				if o.modelID == "" {
 					return fmt.Errorf("model ID must be set on non daemon mode")
 				}
-			}
 
-			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
-			defer cancel()
-			if !daemonMode {
 				return pull(ctx, o, c)
 			}
-			return runServer(ctx, c, c.Ollama.PullerPort, o.modelID)
+
+			var pullerPort int
+			switch o.runtime {
+			case config.RuntimeNameOllama:
+				pullerPort = c.Ollama.PullerPort
+			case config.RuntimeNameVLLM:
+				pullerPort = c.VLLM.PullerPort
+			default:
+				return fmt.Errorf("daemonmode unsupported runtime: %q", o.runtime)
+			}
+			if pullerPort <= 0 {
+				return fmt.Errorf("puller port must be set on the daemon mode")
+			}
+
+			return runServer(ctx, c, o.runtime, pullerPort, o.modelID)
 		},
 	}
 	cmd.Flags().IntVar(&o.index, "index", 0, "Index of the pod")
@@ -82,7 +87,7 @@ type pullModelRequest struct {
 	ModelID string `json:"modelID"`
 }
 
-func runServer(ctx context.Context, c *config.Config, port int, modelID string) error {
+func runServer(ctx context.Context, c *config.Config, runtimeName string, port int, modelID string) error {
 	const queueLengths = 5
 	pullCh := make(chan string, queueLengths)
 	go func() {
@@ -93,7 +98,7 @@ func runServer(ctx context.Context, c *config.Config, port int, modelID string) 
 			case modelID := <-pullCh:
 				if err := pull(ctx, opts{
 					modelID: modelID,
-					runtime: config.RuntimeNameOllama,
+					runtime: runtimeName,
 				}, c); err != nil {
 					log.Printf("Failed to pull the model: %v\n", err)
 				}

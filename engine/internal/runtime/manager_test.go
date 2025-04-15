@@ -707,6 +707,10 @@ func (m *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
 	return nil
 }
 
+func (m *fakeClient) Namespace() string {
+	return "fake-namespace"
+}
+
 func (m *fakeClient) RuntimeName() string {
 	return "fake"
 }

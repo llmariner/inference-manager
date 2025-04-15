@@ -496,6 +496,10 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	// TODO(kenji): Remove the fine-tuned model from the vLLM if this model
 	// is a fine-tuned model that is dynamically loaded to the vLLM runtime.
 
+	// TODO(kenji): Revisit how to handle the deletion of the base-model when
+	// its runtime has a LoRA adapter. Deleting the statefulset will delete
+	// both the base model and the LoRA adapter.
+
 	client, err := m.rtClientFactory.New(modelID)
 	if err != nil {
 		return err

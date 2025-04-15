@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
 // NewHTTPClient creates a new HTTP client with the given address.
@@ -73,6 +75,24 @@ func (c *HTTPClient) UnloadLoRAAdapter(ctx context.Context, loraName string) (in
 	}
 
 	return resp.StatusCode, nil
+}
+
+// ListModels lists all models.
+func (c *HTTPClient) ListModels(ctx context.Context, tenantID string) (*mv1.ListModelsResponse, error) {
+	resp, err := c.sendHTTPRequest(ctx, "GET", "/v1/models", nil)
+	if err != nil {
+		return nil, fmt.Errorf("send request: %s", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	var mresp mv1.ListModelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&mresp); err != nil {
+		return nil, fmt.Errorf("decode response: %s", err)
+	}
+
+	return &mresp, nil
 }
 
 func (c *HTTPClient) sendHTTPRequest(

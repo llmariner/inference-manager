@@ -432,22 +432,7 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 
 	addr := rclient.GetAddress(podIP)
 	for i := 0; ; i++ {
-		vclient := vllm.NewHTTPClient(addr)
-
-		path, err := modeldownloader.ModelFilePath(
-			puller.ModelDir(),
-			modelID,
-			// Fine-tuned models always have the Hugging Face format.
-			mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
-		)
-		if err != nil {
-			return false, err
-		}
-
-		// Convert the model name as we do the same conversion in processor.
-		// TODO(kenji): Revisit.
-		mid := ollama.ModelName(modelID)
-		status, err := vclient.LoadLoRAAdapter(ctx, mid, path)
+		status, err := pclient.GetModel(ctx, modelID)
 		if err != nil {
 			return false, err
 		}
@@ -458,6 +443,29 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 
 		log.Info("Waiting for the model to be ready", "modelID", modelID, "status", status)
 		time.Sleep(retryInterval)
+	}
+
+	vclient := vllm.NewHTTPClient(addr)
+
+	path, err := modeldownloader.ModelFilePath(
+		puller.ModelDir(),
+		modelID,
+		// Fine-tuned models always have the Hugging Face format.
+		mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
+	)
+	if err != nil {
+		return false, fmt.Errorf("model file path: %s", err)
+	}
+
+	// Convert the model name as we do the same conversion in processor.
+	// TODO(kenji): Revisit.
+	mid := ollama.ModelName(modelID)
+	status, err := vclient.LoadLoRAAdapter(ctx, mid, path)
+	if err != nil {
+		return false, err
+	}
+	if status != http.StatusOK {
+		return false, fmt.Errorf("load LoRA adapter: %d", status)
 	}
 
 	log.Info("Model is ready", "modelID", modelID)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,14 +30,7 @@ const (
 	modelAnnotationKey   = "llmariner/model"
 
 	finalizerKey = "llmariner/runtime-finalizer"
-
-	modelDir = "/models"
 )
-
-// ModelDir returns the directory where models are stored.
-func ModelDir() string {
-	return modelDir
-}
 
 // Client is the interface for managing runtimes.
 type Client interface {
@@ -212,7 +206,7 @@ func (c *commonClient) deployRuntime(
 
 	initVolumeMounts := []*corev1apply.VolumeMountApplyConfiguration{
 		corev1apply.VolumeMount().WithName(volName).
-			WithMountPath(modelDir).WithSubPath(subpathModel),
+			WithMountPath(puller.ModelDir()).WithSubPath(subpathModel),
 		corev1apply.VolumeMount().WithName(volName).
 			WithMountPath(tmpDir).WithSubPath(subpathTmp),
 		corev1apply.VolumeMount().WithName(configVolName).
@@ -220,7 +214,7 @@ func (c *commonClient) deployRuntime(
 	}
 	volumeMounts := []*corev1apply.VolumeMountApplyConfiguration{
 		corev1apply.VolumeMount().WithName(volName).
-			WithMountPath(modelDir).WithSubPath(subpathModel),
+			WithMountPath(puller.ModelDir()).WithSubPath(subpathModel),
 	}
 	volumeMounts = append(volumeMounts, params.volumeMounts...)
 

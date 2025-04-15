@@ -8,6 +8,7 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
@@ -71,7 +72,7 @@ func (o *ollamaClient) GetName(modelID string) string {
 // DeployRuntime deploys the runtime for the given model.
 func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
-		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
+		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(puller.ModelDir()),
 
 		// Ollama creates a payload in a temporary directory by default, and a new temporary directory is created
 		// whenever Ollama restarts. This is a problem when a persistent volume is mounted.
@@ -82,7 +83,7 @@ func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
-		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(modelDir),
+		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(puller.ModelDir()),
 		corev1apply.EnvVar().WithName("OLLAMA_KEEP_ALIVE").WithValue(o.config.KeepAlive.String()),
 		corev1apply.EnvVar().WithName("OLLAMA_RUNNERS_DIR").WithValue(o.config.RunnersDir),
 	}
@@ -136,7 +137,7 @@ function run_ollama_create_periodically {
 
 run_ollama_create_periodically &
 ollama serve
-`, modelDir, modelDir, modelDir)
+`, puller.ModelDir(), puller.ModelDir(), puller.ModelDir())
 
 		return o.deployRuntime(ctx, deployRuntimeParams{
 			modelID:  modelID,
@@ -180,8 +181,8 @@ if [ -f %s ]; then
 else
 	echo "skip %s"
 fi
-`, ollama.ModelfilePath(modelDir, id),
-			ollama.ModelName(id), ollama.ModelfilePath(modelDir, id),
+`, ollama.ModelfilePath(puller.ModelDir(), id),
+			ollama.ModelName(id), ollama.ModelfilePath(puller.ModelDir(), id),
 			ollama.ModelName(id)))
 	}
 

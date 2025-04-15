@@ -435,7 +435,7 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 		vclient := vllm.NewHTTPClient(addr)
 
 		path, err := modeldownloader.ModelFilePath(
-			modelDir,
+			puller.ModelDir(),
 			modelID,
 			// Fine-tuned models always have the Hugging Face format.
 			mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,

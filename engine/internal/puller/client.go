@@ -35,7 +35,7 @@ func (c *Client) PullModel(ctx context.Context, modelID string) error {
 
 	pullURL := url.URL{Scheme: "http", Host: c.addr, Path: "/pull"}
 
-	req := &PullModelRequest{
+	req := &pullModelRequest{
 		ModelID: modelID,
 	}
 	pullData, err := json.Marshal(req)

@@ -9,6 +9,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
+	"github.com/llmariner/inference-manager/engine/internal/puller"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
@@ -146,7 +147,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			return deployRuntimeParams{}, err
 		}
 
-		mPath, err := modeldownloader.ModelFilePath(modelDir, modelID, format)
+		mPath, err := modeldownloader.ModelFilePath(puller.ModelDir(), modelID, format)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
 		}
@@ -222,7 +223,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
 		}
 
-		cpath := modeldownloader.CompletionIndicationFilePath(modelDir, modelID)
+		cpath := modeldownloader.CompletionIndicationFilePath(puller.ModelDir(), modelID)
 		initContainerSepc = &initContainerSpec{
 			name: "pull-waiter",
 			// TODO(kenji): Fix. Use a better image.
@@ -267,7 +268,7 @@ func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID strin
 	if err != nil {
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("get base model path: %s", err)
 	}
-	return PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
+	return puller.PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
 }
 
 func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (string, error) {
@@ -275,7 +276,7 @@ func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (str
 	if err != nil {
 		return "", err
 	}
-	return modeldownloader.ModelFilePath(modelDir, modelID, format)
+	return modeldownloader.ModelFilePath(puller.ModelDir(), modelID, format)
 }
 
 func numGPUs(mci config.ModelConfigItem) (int, error) {

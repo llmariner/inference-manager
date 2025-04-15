@@ -65,10 +65,6 @@ type commonClient struct {
 	mconfig *config.ProcessedModelConfig
 }
 
-func (c *commonClient) getResouces(modelID string) config.Resources {
-	return c.mconfig.ModelConfigItem(modelID).Resources
-}
-
 func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {
 	uobj, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(applyConfig)
 	if err != nil {
@@ -157,7 +153,7 @@ func (c *commonClient) deployRuntime(
 		"app.kubernetes.io/created-by": managerName,
 	}
 
-	resConf := c.getResouces(params.modelID)
+	resConf := mci.Resources
 
 	volumes := []*corev1apply.VolumeApplyConfiguration{
 		corev1apply.Volume().

@@ -65,7 +65,11 @@ func (c *Client) GetModel(ctx context.Context, modelID string) (int, error) {
 	reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
-	getURL := url.URL{Scheme: "http", Host: c.addr, Path: "/pull"}
+	getURL := url.URL{
+		Scheme: "http",
+		Host:   c.addr,
+		Path:   fmt.Sprintf("/models/%s", modelID),
+	}
 	req, err := http.NewRequestWithContext(reqCtx, "GET", getURL.String(), bytes.NewBuffer(nil))
 	if err != nil {
 		return -1, fmt.Errorf("request creation error: %s", err)

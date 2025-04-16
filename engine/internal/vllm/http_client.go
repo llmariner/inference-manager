@@ -78,7 +78,7 @@ func (c *HTTPClient) UnloadLoRAAdapter(ctx context.Context, loraName string) (in
 }
 
 // ListModels lists all models.
-func (c *HTTPClient) ListModels(ctx context.Context, tenantID string) (*mv1.ListModelsResponse, error) {
+func (c *HTTPClient) ListModels(ctx context.Context) (*mv1.ListModelsResponse, error) {
 	resp, err := c.sendHTTPRequest(ctx, "GET", "/v1/models", nil)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %s", err)
@@ -86,6 +86,9 @@ func (c *HTTPClient) ListModels(ctx context.Context, tenantID string) (*mv1.List
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	var mresp mv1.ListModelsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&mresp); err != nil {

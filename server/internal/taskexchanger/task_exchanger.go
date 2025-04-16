@@ -183,6 +183,19 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 			// TODO(kenji): Improve the error handling.
 			log.Error(err, "Failed to run the client")
 		}
+
+		log.Info("Task receiver stopped. Trigger reconciliation")
+		e.deleteTaskReceiver(ctx, pod.Name)
+
+		_, err := e.Reconcile(ctx, ctrl.Request{
+			NamespacedName: k8sclient.ObjectKey{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+		})
+		if err != nil {
+			log.Error(err, "Failed to trigger reconciliation")
+		}
 	}()
 }
 

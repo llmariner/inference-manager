@@ -3,22 +3,14 @@ package puller
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llmariner/inference-manager/engine/internal/config"
-	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 )
-
-type s3Client interface {
-	Download(ctx context.Context, f io.WriterAt, path string) error
-	ListObjectsPages(ctx context.Context, prefix string, f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error
-}
 
 type modelClient interface {
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
@@ -26,20 +18,24 @@ type modelClient interface {
 	GetModelAttributes(ctx context.Context, in *mv1.GetModelAttributesRequest, opts ...grpc.CallOption) (*mv1.ModelAttributes, error)
 }
 
+type modelDownloader interface {
+	ModelDir() string
+	ModelFilePath(modelID string, format mv1.ModelFormat) (string, error)
+	Download(ctx context.Context, modelID string, srcPath string, format mv1.ModelFormat, adapterType mv1.AdapterType) error
+}
+
 // New creates a new puller.
 func New(
 	mconfig *config.ProcessedModelConfig,
 	runtimeName string,
 	mClient modelClient,
-	s3Client s3Client,
-	modelDir string,
+	downloader modelDownloader,
 ) *P {
 	return &P{
 		mconfig:     mconfig,
 		runtimeName: runtimeName,
 		mClient:     mClient,
-		s3Client:    s3Client,
-		modelDir:    modelDir,
+		downloader:  downloader,
 	}
 }
 
@@ -48,12 +44,11 @@ type P struct {
 	mconfig     *config.ProcessedModelConfig
 	runtimeName string
 	mClient     modelClient
-	s3Client    s3Client
-	modelDir    string
+	downloader  modelDownloader
 }
 
-func (p *P) getModelDir() string {
-	return p.modelDir
+func (p *P) modelDir() string {
+	return p.downloader.ModelDir()
 }
 
 // Pull pulls the model from the Model Manager Server.
@@ -85,8 +80,6 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	d := modeldownloader.New(p.modelDir, p.s3Client)
-
 	format, err := PreferredModelFormat(p.runtimeName, resp.Formats)
 	if err != nil {
 		return err
@@ -104,7 +97,7 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 		return fmt.Errorf("unsupported format: %v", format)
 	}
 
-	if err := d.Download(ctx, modelID, srcPath, format, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED); err != nil {
+	if err := p.downloader.Download(ctx, modelID, srcPath, format, mv1.AdapterType_ADAPTER_TYPE_UNSPECIFIED); err != nil {
 		return err
 	}
 
@@ -117,9 +110,9 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 
 	// Create a modelfile for Ollama.
 
-	filePath := ollama.ModelfilePath(p.modelDir, modelID)
+	filePath := ollama.ModelfilePath(p.modelDir(), modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
-	modelPath, err := modeldownloader.ModelFilePath(p.modelDir, modelID, format)
+	modelPath, err := p.downloader.ModelFilePath(modelID, format)
 	if err != nil {
 		return err
 	}
@@ -163,9 +156,7 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	d := modeldownloader.New(p.modelDir, p.s3Client)
-
-	if err := d.Download(ctx, modelID, attr.Path, format, attr.Adapter); err != nil {
+	if err := p.downloader.Download(ctx, modelID, attr.Path, format, attr.Adapter); err != nil {
 		return err
 	}
 
@@ -175,10 +166,10 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	filePath := ollama.ModelfilePath(p.modelDir, modelID)
+	filePath := ollama.ModelfilePath(p.downloader.ModelDir(), modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 
-	adapterPath, err := modeldownloader.ModelFilePath(p.modelDir, modelID, format)
+	adapterPath, err := p.downloader.ModelFilePath(modelID, format)
 	if err != nil {
 		return err
 	}

@@ -14,7 +14,7 @@ import (
 
 type puller interface {
 	Pull(ctx context.Context, modelID string) error
-	getModelDir() string
+	modelDir() string
 }
 
 // NewServer creates a new server instance.
@@ -71,7 +71,7 @@ func (s *Server) Start(port int) error {
 			return
 		}
 
-		cpath := modeldownloader.CompletionIndicationFilePath(s.p.getModelDir(), modelID)
+		cpath := modeldownloader.CompletionIndicationFilePath(s.p.modelDir(), modelID)
 		// Check if the file exists.
 		if _, err := os.Stat(cpath); os.IsNotExist(err) {
 			http.Error(w, "Model not found", http.StatusNotFound)

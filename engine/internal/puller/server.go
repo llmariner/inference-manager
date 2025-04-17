@@ -5,16 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
-	"os"
 	"strings"
-
-	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 )
 
 type puller interface {
 	Pull(ctx context.Context, modelID string) error
-	modelDir() string
+	isDownloaded(modelID string) (bool, error)
 }
 
 // NewServer creates a new server instance.
@@ -23,6 +21,7 @@ func NewServer(p puller) *Server {
 	return &Server{
 		p:      p,
 		pullCh: make(chan string, queueLengths),
+		ready:  make(chan struct{}),
 	}
 }
 
@@ -30,10 +29,21 @@ func NewServer(p puller) *Server {
 type Server struct {
 	p      puller
 	pullCh chan string
+
+	srv   *http.Server
+	ready chan struct{}
 }
 
 // Start starts an HTTP server that listens for pull requests.
 func (s *Server) Start(port int) error {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	return s.start(l)
+}
+
+func (s *Server) start(listener net.Listener) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/pull", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -71,26 +81,36 @@ func (s *Server) Start(port int) error {
 			return
 		}
 
-		cpath := modeldownloader.CompletionIndicationFilePath(s.p.modelDir(), modelID)
-		// Check if the file exists.
-		if _, err := os.Stat(cpath); os.IsNotExist(err) {
+		ok, err := s.p.isDownloaded(modelID)
+		if err != nil {
+			http.Error(w, "Failed to check if the model is downloaded", http.StatusInternalServerError)
+			return
+		}
+		if !ok {
 			http.Error(w, "Model not found", http.StatusNotFound)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 	})
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+	s.srv = &http.Server{
+		Addr:    listener.Addr().String(),
 		Handler: mux,
 	}
+	close(s.ready)
 
-	log.Printf("Starting HTTP server at %q\n", srv.Addr)
-	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+	log.Printf("Starting HTTP server at %q\n", s.srv.Addr)
+	if err := s.srv.Serve(listener); err != http.ErrServerClosed {
 		return err
 	}
 
 	return nil
+}
+
+func (s *Server) shutdown(ctx context.Context) error {
+	<-s.ready
+	return s.srv.Shutdown(ctx)
 }
 
 // ProcessPullRequests processes pull requests.

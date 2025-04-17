@@ -32,12 +32,14 @@ func New(
 	runtimeName string,
 	mClient modelClient,
 	s3Client s3Client,
+	modelDir string,
 ) *P {
 	return &P{
 		mconfig:     mconfig,
 		runtimeName: runtimeName,
 		mClient:     mClient,
 		s3Client:    s3Client,
+		modelDir:    modelDir,
 	}
 }
 
@@ -47,6 +49,7 @@ type P struct {
 	runtimeName string
 	mClient     modelClient
 	s3Client    s3Client
+	modelDir    string
 }
 
 // Pull pulls the model from the Model Manager Server.
@@ -78,7 +81,7 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	d := modeldownloader.New(ModelDir(), p.s3Client)
+	d := modeldownloader.New(p.modelDir, p.s3Client)
 
 	format, err := PreferredModelFormat(p.runtimeName, resp.Formats)
 	if err != nil {
@@ -110,9 +113,9 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 
 	// Create a modelfile for Ollama.
 
-	filePath := ollama.ModelfilePath(ModelDir(), modelID)
+	filePath := ollama.ModelfilePath(p.modelDir, modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
-	modelPath, err := modeldownloader.ModelFilePath(ModelDir(), modelID, format)
+	modelPath, err := modeldownloader.ModelFilePath(p.modelDir, modelID, format)
 	if err != nil {
 		return err
 	}
@@ -156,7 +159,7 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	d := modeldownloader.New(ModelDir(), p.s3Client)
+	d := modeldownloader.New(p.modelDir, p.s3Client)
 
 	if err := d.Download(ctx, modelID, attr.Path, format, attr.Adapter); err != nil {
 		return err
@@ -168,10 +171,10 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	filePath := ollama.ModelfilePath(ModelDir(), modelID)
+	filePath := ollama.ModelfilePath(p.modelDir, modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 
-	adapterPath, err := modeldownloader.ModelFilePath(ModelDir(), modelID, format)
+	adapterPath, err := modeldownloader.ModelFilePath(p.modelDir, modelID, format)
 	if err != nil {
 		return err
 	}

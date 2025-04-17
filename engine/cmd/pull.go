@@ -53,7 +53,7 @@ func pullCmd() *cobra.Command {
 			}
 			mClient := mv1.NewModelsWorkerServiceClient(conn)
 
-			p := puller.New(config.NewProcessedModelConfig(c), runtime, mClient, s3Client)
+			p := puller.New(config.NewProcessedModelConfig(c), runtime, mClient, s3Client, puller.ModelDir())
 
 			if !daemonMode {
 				// Check if the model ID is set on the non daemon mode.

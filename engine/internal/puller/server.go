@@ -66,7 +66,7 @@ func (s *Server) Start(ctx context.Context, port int) error {
 			return
 		}
 
-		cpath := modeldownloader.CompletionIndicationFilePath(ModelDir(), modelID)
+		cpath := modeldownloader.CompletionIndicationFilePath(s.p.modelDir, modelID)
 		// Check if the file exists
 		if _, err := os.Stat(cpath); os.IsNotExist(err) {
 			http.Error(w, "Model not found", http.StatusNotFound)

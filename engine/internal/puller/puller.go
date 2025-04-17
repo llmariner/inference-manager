@@ -3,22 +3,35 @@ package puller
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
-	"github.com/llmariner/inference-manager/engine/internal/s3"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
+	"google.golang.org/grpc"
 )
+
+type s3Client interface {
+	Download(ctx context.Context, f io.WriterAt, path string) error
+	ListObjectsPages(ctx context.Context, prefix string, f func(page *s3.ListObjectsV2Output, lastPage bool) bool) error
+}
+
+type modelClient interface {
+	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+	GetModelAttributes(ctx context.Context, in *mv1.GetModelAttributesRequest, opts ...grpc.CallOption) (*mv1.ModelAttributes, error)
+}
 
 // New creates a new puller.
 func New(
 	mconfig *config.ProcessedModelConfig,
 	runtimeName string,
-	mClient mv1.ModelsWorkerServiceClient,
-	s3Client *s3.Client,
+	mClient modelClient,
+	s3Client s3Client,
 ) *P {
 	return &P{
 		mconfig:     mconfig,
@@ -32,8 +45,8 @@ func New(
 type P struct {
 	mconfig     *config.ProcessedModelConfig
 	runtimeName string
-	mClient     mv1.ModelsWorkerServiceClient
-	s3Client    *s3.Client
+	mClient     modelClient
+	s3Client    s3Client
 }
 
 // Pull pulls the model from the Model Manager Server.

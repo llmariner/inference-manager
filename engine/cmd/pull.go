@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	"github.com/llmariner/inference-manager/engine/internal/s3"
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -53,7 +54,12 @@ func pullCmd() *cobra.Command {
 			}
 			mClient := mv1.NewModelsWorkerServiceClient(conn)
 
-			p := puller.New(config.NewProcessedModelConfig(c), runtime, mClient, s3Client, puller.ModelDir())
+			p := puller.New(
+				config.NewProcessedModelConfig(c),
+				runtime,
+				mClient,
+				modeldownloader.New(puller.ModelDir(), s3Client),
+			)
 
 			if !daemonMode {
 				// Check if the model ID is set on the non daemon mode.

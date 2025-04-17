@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
-	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -49,13 +48,11 @@ func TestPull_BaseModel(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Ckeck if the Ollama model file is created.
-	ollamaModelFilePath := ollama.ModelfilePath(modelDir, modelID)
-	_, err = os.Stat(ollamaModelFilePath)
+	_, err = os.Stat(fakeModelDownloader.OllamaModelfilePath(modelID))
 	assert.NoError(t, err)
 
 	// Check if the model file is created.
-	modelFilePath := filepath.Join(modelDir, modelID, fakeModelFileName)
-	_, err = os.Stat(modelFilePath)
+	_, err = os.Stat(filepath.Join(modelDir, modelID, fakeModelFileName))
 	assert.NoError(t, err)
 }
 
@@ -102,17 +99,14 @@ func TestPull_FineTunedModel(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Ckeck if the Ollama model file is created.
-	ollamaModelFilePath := ollama.ModelfilePath(modelDir, modelID)
-	_, err = os.Stat(ollamaModelFilePath)
+	_, err = os.Stat(fakeModelDownloader.OllamaModelfilePath(modelID))
 	assert.NoError(t, err)
 
 	// Check if the model file is created for both the base model and the fine-tuned model.
-	modelFilePath := filepath.Join(modelDir, modelID, fakeModelFileName)
-	_, err = os.Stat(modelFilePath)
+	_, err = os.Stat(filepath.Join(modelDir, modelID, fakeModelFileName))
 	assert.NoError(t, err)
 
-	modelFilePath = filepath.Join(modelDir, baseModelID, fakeModelFileName)
-	_, err = os.Stat(modelFilePath)
+	_, err = os.Stat(filepath.Join(modelDir, baseModelID, fakeModelFileName))
 	assert.NoError(t, err)
 }
 
@@ -165,6 +159,10 @@ func (d *fakeModelDownloader) Download(ctx context.Context, modelID string, srcP
 	}
 
 	return nil
+}
+
+func (d *fakeModelDownloader) OllamaModelfilePath(modelID string) string {
+	return filepath.Join(d.modelDir, modelID, "modelfile")
 }
 
 func (d *fakeModelDownloader) CompletionIndicationFilePath(modelID string) string {

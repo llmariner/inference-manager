@@ -20,9 +20,10 @@ type modelClient interface {
 }
 
 type modelDownloader interface {
-	ModelDir() string
-	ModelFilePath(modelID string, format mv1.ModelFormat) (string, error)
 	Download(ctx context.Context, modelID string, srcPath string, format mv1.ModelFormat, adapterType mv1.AdapterType) error
+
+	OllamaModelfilePath(modelID string) string
+	ModelFilePath(modelID string, format mv1.ModelFormat) (string, error)
 	CompletionIndicationFilePath(modelID string) string
 }
 
@@ -108,7 +109,7 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 
 	// Create a modelfile for Ollama.
 
-	filePath := ollama.ModelfilePath(p.downloader.ModelDir(), modelID)
+	filePath := p.downloader.OllamaModelfilePath(modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 	modelPath, err := p.downloader.ModelFilePath(modelID, format)
 	if err != nil {
@@ -164,7 +165,7 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 		return nil
 	}
 
-	filePath := ollama.ModelfilePath(p.downloader.ModelDir(), modelID)
+	filePath := p.downloader.OllamaModelfilePath(modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 
 	adapterPath, err := p.downloader.ModelFilePath(modelID, format)

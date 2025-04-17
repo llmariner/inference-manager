@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/common"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/huggingface"
+	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 )
 
@@ -51,6 +52,11 @@ func (d *D) ModelFilePath(modelID string, format mv1.ModelFormat) (string, error
 // CompletionIndicationFilePath returns the completion indication file path.
 func (d *D) CompletionIndicationFilePath(modelID string) string {
 	return CompletionIndicationFilePath(d.modelDir, modelID)
+}
+
+// OllamaModelfilePath returns the Ollama model file path.
+func (d *D) OllamaModelfilePath(modelID string) string {
+	return ollama.ModelfilePath(d.modelDir, modelID)
 }
 
 // Download downloads the model.

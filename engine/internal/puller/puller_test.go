@@ -166,3 +166,7 @@ func (d *fakeModelDownloader) Download(ctx context.Context, modelID string, srcP
 
 	return nil
 }
+
+func (d *fakeModelDownloader) CompletionIndicationFilePath(modelID string) string {
+	return filepath.Join(d.modelDir, modelID, "completion_indication")
+}

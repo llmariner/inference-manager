@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
@@ -22,6 +23,7 @@ type modelDownloader interface {
 	ModelDir() string
 	ModelFilePath(modelID string, format mv1.ModelFormat) (string, error)
 	Download(ctx context.Context, modelID string, srcPath string, format mv1.ModelFormat, adapterType mv1.AdapterType) error
+	CompletionIndicationFilePath(modelID string) string
 }
 
 // New creates a new puller.
@@ -45,10 +47,6 @@ type P struct {
 	runtimeName string
 	mClient     modelClient
 	downloader  modelDownloader
-}
-
-func (p *P) modelDir() string {
-	return p.downloader.ModelDir()
 }
 
 // Pull pulls the model from the Model Manager Server.
@@ -110,7 +108,7 @@ func (p *P) pullBaseModel(ctx context.Context, modelID string) error {
 
 	// Create a modelfile for Ollama.
 
-	filePath := ollama.ModelfilePath(p.modelDir(), modelID)
+	filePath := ollama.ModelfilePath(p.downloader.ModelDir(), modelID)
 	log.Printf("Creating an Ollama modelfile at %q\n", filePath)
 	modelPath, err := p.downloader.ModelFilePath(modelID, format)
 	if err != nil {
@@ -184,4 +182,16 @@ func (p *P) pullFineTunedModel(ctx context.Context, modelID string) error {
 	log.Printf("Successfully created the Ollama modelfile\n")
 
 	return nil
+}
+
+func (p *P) isDownloaded(modelID string) (bool, error) {
+	cpath := p.downloader.CompletionIndicationFilePath(modelID)
+
+	if _, err := os.Stat(cpath); err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }

@@ -48,6 +48,11 @@ func (d *D) ModelFilePath(modelID string, format mv1.ModelFormat) (string, error
 	return ModelFilePath(d.modelDir, modelID, format)
 }
 
+// CompletionIndicationFilePath returns the completion indication file path.
+func (d *D) CompletionIndicationFilePath(modelID string) string {
+	return CompletionIndicationFilePath(d.modelDir, modelID)
+}
+
 // Download downloads the model.
 func (d *D) Download(
 	ctx context.Context,

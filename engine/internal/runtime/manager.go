@@ -349,6 +349,8 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
 			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), false, getGPU(sts), sts.Status.ReadyReplicas)
+
+			// TODO(kenji): reconcile
 		}
 	}
 	if reason, ok := m.errReason(modelID); ok {
@@ -524,6 +526,46 @@ func (m *Manager) unloadFineTunedModel(
 	return nil
 }
 
+func (m *Manager) reconcile(
+	ctx context.Context,
+	sts appsv1.StatefulSet,
+	rclient Client,
+) error {
+	pods, err := listPods(ctx, m.k8sClient, sts.Namespace, sts.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods {
+		podIP := pod.Status.PodIP
+		if podIP == "" {
+			continue
+		}
+
+		addr := rclient.GetAddress(podIP)
+		vclient := vllm.NewHTTPClient(addr)
+		resp, err := vclient.ListModels(ctx)
+		if err != nil {
+			return nil
+		}
+		for _, model := range resp.Models {
+			// Convert back to non-Ollama model by addking back "ft:"
+		}
+
+		// Convert the model name as we do the same conversion in processor.
+		// TODO(kenji): Revisit.
+		//omid := ollama.ModelName(modelID)
+		//status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
+
+	}
+
+	// for each pod, check loaded models.
+
+	// update the pods.
+
+	return nil
+}
+
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
@@ -617,12 +659,24 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 				}
 			}
 		}
+
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return ctrl.Result{}, nil
+		}
+		if client.RuntimeName() == config.RuntimeNameVLLM && m.vllmConfig.DynamicLoRALoading {
+
+		}
+
 		return ctrl.Result{}, nil
 	}
 
 	if ready {
 		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
+
+			// TODO(kenji): Also delete a LoRA adapter runtime if the base model has.
+
 			m.markRuntimeIsPending(sts.Name, modelID)
 			log.Info("Runtime is scale down to zero")
 		} else {

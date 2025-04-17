@@ -52,6 +52,10 @@ type P struct {
 	modelDir    string
 }
 
+func (p *P) getModelDir() string {
+	return p.modelDir
+}
+
 // Pull pulls the model from the Model Manager Server.
 func (p *P) Pull(ctx context.Context, modelID string) error {
 	ctx = auth.AppendWorkerAuthorization(ctx)

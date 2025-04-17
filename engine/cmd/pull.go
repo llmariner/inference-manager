@@ -83,7 +83,7 @@ func pullCmd() *cobra.Command {
 
 			errCh := make(chan error)
 			go func() {
-				errCh <- srv.Start(ctx, pullerPort)
+				errCh <- srv.Start(pullerPort)
 			}()
 
 			go func() {

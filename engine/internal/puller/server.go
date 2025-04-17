@@ -12,8 +12,13 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 )
 
+type puller interface {
+	Pull(ctx context.Context, modelID string) error
+	getModelDir() string
+}
+
 // NewServer creates a new server instance.
-func NewServer(p *P) *Server {
+func NewServer(p puller) *Server {
 	const queueLengths = 5
 	return &Server{
 		p:      p,
@@ -23,12 +28,12 @@ func NewServer(p *P) *Server {
 
 // Server represents a server that handles pull requests.
 type Server struct {
-	p      *P
+	p      puller
 	pullCh chan string
 }
 
 // Start starts an HTTP server that listens for pull requests.
-func (s *Server) Start(ctx context.Context, port int) error {
+func (s *Server) Start(port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/pull", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -66,8 +71,8 @@ func (s *Server) Start(ctx context.Context, port int) error {
 			return
 		}
 
-		cpath := modeldownloader.CompletionIndicationFilePath(s.p.modelDir, modelID)
-		// Check if the file exists
+		cpath := modeldownloader.CompletionIndicationFilePath(s.p.getModelDir(), modelID)
+		// Check if the file exists.
 		if _, err := os.Stat(cpath); os.IsNotExist(err) {
 			http.Error(w, "Model not found", http.StatusNotFound)
 			return

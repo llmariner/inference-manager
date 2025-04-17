@@ -12,10 +12,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
-	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
-	"github.com/llmariner/inference-manager/engine/internal/ollama"
-	"github.com/llmariner/inference-manager/engine/internal/puller"
-	"github.com/llmariner/inference-manager/engine/internal/vllm"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -205,7 +201,8 @@ func (m *Manager) markRuntimeReady(
 	address string,
 	isDynamicallyLoadedLoRA bool,
 	gpu,
-	replicas int32) {
+	replicas int32,
+) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
@@ -427,67 +424,23 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 	if err != nil {
 		return false, err
 	}
-	if len(pods) == 0 {
-		return false, fmt.Errorf("no pod found for runtime %q", br.name)
-	}
-	// TODO(kenji): Pick up the ready pod.
-	pod := pods[0]
-	podIP := pod.Status.PodIP
-	if podIP == "" {
-		return false, fmt.Errorf("pod %q has no IP address", pod.Name)
-	}
-
-	pclient := puller.NewClient(
-		fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort),
-	)
-	if err := pclient.PullModel(ctx, modelID); err != nil {
-		return false, err
-	}
-
-	log.Info("Waiting for the model to be ready", "modelID", modelID)
-
-	// TODO(kenji): Check the model is ready.
-
-	const retryInterval = 2 * time.Second
-
-	log.Info("Loading LoRA adapter to existing runtime", "modelID", modelID)
-
-	addr := rclient.GetAddress(podIP)
-	for i := 0; ; i++ {
-		status, err := pclient.GetModel(ctx, modelID)
-		if err != nil {
-			return false, err
-		}
-
-		if status == http.StatusOK {
+	var podIP string
+	// TODO(kenji): Pick up the least-loaded ready pod.
+	for _, pod := range pods {
+		if ip := pod.Status.PodIP; ip != "" {
+			podIP = ip
 			break
 		}
-
-		log.Info("Waiting for the model to be ready", "modelID", modelID, "status", status)
-		time.Sleep(retryInterval)
 	}
 
-	vclient := vllm.NewHTTPClient(addr)
-
-	path, err := modeldownloader.ModelFilePath(
-		puller.ModelDir(),
-		modelID,
-		// Fine-tuned models always have the Hugging Face format.
-		mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE,
-	)
-	if err != nil {
-		return false, fmt.Errorf("model file path: %s", err)
+	if podIP == "" {
+		return false, fmt.Errorf("no ready pod found")
 	}
 
-	// Convert the model name as we do the same conversion in processor.
-	// TODO(kenji): Revisit.
-	omid := ollama.ModelName(modelID)
-	status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
-	if err != nil {
-		return false, err
-	}
-	if status != http.StatusOK {
-		return false, fmt.Errorf("load LoRA adapter: %d", status)
+	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort)
+	vllmAddr := rclient.GetAddress(podIP)
+	if err := loadLoRAAdapter(ctx, modelID, pullerAddr, vllmAddr); err != nil {
+		return false, fmt.Errorf("load LoRA adapter: %s", err)
 	}
 
 	log.Info("Model is ready", "modelID", modelID)
@@ -495,33 +448,12 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 	m.markRuntimeReady(
 		rclient.GetName(modelID),
 		modelID,
-		addr,
+		vllmAddr,
 		true, /* isDynamicallyLoadedLoRA */
 		br.gpu,
 		1, /* replicas */
 	)
 	return true, nil
-}
-
-func (m *Manager) unloadFineTunedModel(
-	ctx context.Context,
-	r runtime,
-	modelID string,
-) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Unloading the LoRA adapter from the runtime", "model", modelID)
-
-	vclient := vllm.NewHTTPClient(r.address)
-
-	omid := ollama.ModelName(modelID)
-	status, err := vclient.UnloadLoRAAdapter(ctx, omid)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK {
-		return fmt.Errorf("lbunoad LoRA adapter: %d", status)
-	}
-	return nil
 }
 
 // DeleteModel deletes the model from the model manager.
@@ -538,8 +470,8 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	}
 
 	if r.isDynamicallyLoadedLoRA {
-		if err := m.unloadFineTunedModel(ctx, r, modelID); err != nil {
-			return fmt.Errorf("unload fine-tuned model: %w", err)
+		if err := unloadLoRAAdapter(ctx, r, modelID); err != nil {
+			return fmt.Errorf("unload LoRA adapter: %s", err)
 		}
 	} else {
 		// TODO(kenji): Revisit how to handle the deletion of the base-model when

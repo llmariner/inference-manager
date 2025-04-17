@@ -1,10 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"sync"
-
-	"github.com/llmariner/inference-manager/engine/internal/models"
 )
 
 // NewProcessedModelConfig returns a new ProcessedModelConfig.
@@ -37,7 +37,7 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 
 	// If this is a fine-tuned model, use the runtime that the base model uses.
 	// TODO(kenji): Have a better way to determine if the model is a base model or not.
-	if baseModelID, err := models.ExtractBaseModel(modelID); err == nil {
+	if baseModelID, err := extractBaseModel(modelID); err == nil {
 		modelID = baseModelID
 	}
 
@@ -123,4 +123,14 @@ func (c *ProcessedModelConfig) PreloadedModelIDs() []string {
 		idsSlice = append(idsSlice, id)
 	}
 	return idsSlice
+}
+
+// extractBaseModel extracts the base model ID from the given model ID.
+// TODO(kenji): Deprecate. We should be able to obtain the information from Model Manager Server.
+func extractBaseModel(modelID string) (string, error) {
+	l := strings.Split(modelID, ":")
+	if len(l) <= 2 {
+		return "", fmt.Errorf("invalid model ID: %q", modelID)
+	}
+	return strings.Join(l[1:len(l)-1], ":"), nil
 }

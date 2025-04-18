@@ -1,9 +1,9 @@
 package runtime
 
 import (
-	"context"
 	"testing"
 
+	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +118,7 @@ func TestUpdateLoRALoadingStatus(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, gotHasUpdate, err := updateLoRALoadingStatusForPod(context.Background(), tc.oldS, tc.newS)
+			got, gotHasUpdate, err := updateLoRALoadingStatusForPod(tc.oldS, tc.newS, testutil.NewTestLogger(t))
 			assert.NoError(t, err)
 			if tc.want == nil {
 				assert.False(t, gotHasUpdate)

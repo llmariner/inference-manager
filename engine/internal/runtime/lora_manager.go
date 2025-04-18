@@ -61,6 +61,7 @@ type podStatus struct {
 type LoRAReconciler struct {
 	k8sClient       k8sclient.Client
 	updateProcessor updateProcessor
+	logger          logr.Logger
 
 	podsByUID map[types.UID]*podStatus
 	mu        sync.Mutex
@@ -68,6 +69,8 @@ type LoRAReconciler struct {
 
 // SetupWithManager sets up the runtime manager with the given controller manager.
 func (r *LoRAReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.logger = mgr.GetLogger().WithName("loraReconciler")
+
 	filter := (predicate.NewPredicateFuncs(func(object client.Object) bool {
 		return object.GetLabels()["app.kubernetes.io/created-by"] == managerName
 	}))
@@ -157,7 +160,7 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 		case <-time.After(interval):
 			podsByUID := r.getLoRALoadingStatus(ctx)
 
-			updates, err := r.updateLoRALoadingStatus(ctx, podsByUID)
+			updates, err := r.updateLoRALoadingStatus(podsByUID)
 			if err != nil {
 				return err
 			}
@@ -169,8 +172,6 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 }
 
 func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID]*podStatus {
-	log := ctrl.LoggerFrom(ctx)
-
 	var pods []*corev1.Pod
 	r.mu.Lock()
 	for _, podStatus := range r.podsByUID {
@@ -184,7 +185,7 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 		lstatus, err := listLoRAAdapters(ctx, addr)
 		if err != nil {
 			// Gracefully handle the error as vLLM might not be ready yet.
-			log.Error(err, "Failed to list LoRA adapters", "pod", pod.Name)
+			r.logger.Error(err, "Failed to list LoRA adapters", "pod", pod.Name)
 			continue
 		}
 
@@ -197,17 +198,14 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 	return podsByUID
 }
 
-func (r *LoRAReconciler) updateLoRALoadingStatus(
-	ctx context.Context,
-	podsByUID map[types.UID]*podStatus,
-) ([]*loRAAdapterStatusUpdate, error) {
+func (r *LoRAReconciler) updateLoRALoadingStatus(podsByUID map[types.UID]*podStatus) ([]*loRAAdapterStatusUpdate, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	var updates []*loRAAdapterStatusUpdate
 	for _, oldS := range r.podsByUID {
 		newS := podsByUID[oldS.pod.UID]
-		u, hasUpdate, err := updateLoRALoadingStatusForPod(ctx, oldS, newS)
+		u, hasUpdate, err := updateLoRALoadingStatusForPod(oldS, newS, r.logger)
 		if err != nil {
 			return nil, err
 		}
@@ -223,12 +221,10 @@ func (r *LoRAReconciler) updateLoRALoadingStatus(
 }
 
 func updateLoRALoadingStatusForPod(
-	ctx context.Context,
 	oldS,
 	newS *podStatus,
+	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
-	log := ctrl.LoggerFrom(ctx)
-
 	pod := oldS.pod
 
 	if newS == nil {

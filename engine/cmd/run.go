@@ -38,7 +38,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-const loraReconciliationInterval = 1 * time.Minute
+const loraReconciliationInterval = 30 * time.Second
 
 func runCmd() *cobra.Command {
 	var path string

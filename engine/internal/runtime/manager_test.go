@@ -22,43 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestAddRuntime(t *testing.T) {
-	createSts := func(name string, readyReplicas int32) appsv1.StatefulSet {
-		return appsv1.StatefulSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: "test",
-			},
-			Status: appsv1.StatefulSetStatus{
-				ReadyReplicas: readyReplicas,
-			},
-		}
-	}
-	scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
-	mgr := &Manager{
-		rtClientFactory: &fakeClientFactory{},
-		autoscaler:      scaler,
-		runtimes:        map[string]runtime{},
-	}
-
-	added, ready, err := mgr.addRuntime("model-0", createSts("rt-0", 1))
-	assert.NoError(t, err)
-	assert.True(t, added)
-	assert.True(t, ready)
-	assert.True(t, mgr.runtimes["model-0"].ready)
-	added, ready, err = mgr.addRuntime("model-0", createSts("rt-0", 1))
-	assert.NoError(t, err)
-	assert.False(t, added)
-	assert.False(t, ready)
-
-	added, ready, err = mgr.addRuntime("model-1", createSts("rt-1", 0))
-	assert.NoError(t, err)
-	assert.True(t, added)
-	assert.False(t, ready)
-	assert.False(t, mgr.runtimes["model-1"].ready)
-	assert.Len(t, mgr.runtimes, 2)
-}
-
 func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]runtime{
@@ -66,8 +29,8 @@ func TestDeleteRuntime(t *testing.T) {
 			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
 		},
 	}
-	mgr.deleteRuntime("rt-model-0")
-	mgr.deleteRuntime("rt-model-1")
+	mgr.deleteRuntimeByName("rt-model-0")
+	mgr.deleteRuntimeByName("rt-model-1")
 	assert.Empty(t, mgr.runtimes)
 }
 
@@ -83,37 +46,6 @@ func TestMarkRuntimeReady(t *testing.T) {
 	mgr.markRuntimeReady("rt-model-0", "model-0", "test", false, 1, 1)
 	assert.True(t, mgr.runtimes["model-0"].ready)
 	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-}
-
-func TestMarkRuntimeIsPending(t *testing.T) {
-	mgr := &Manager{
-		runtimes: map[string]runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", false, 1, 1),
-		},
-	}
-	mgr.markRuntimeIsPending("rt-model-0", "model-0")
-	assert.False(t, mgr.runtimes["model-0"].ready)
-	mgr.markRuntimeIsPending("rt-model-0", "model-0")
-	assert.False(t, mgr.runtimes["model-0"].ready)
-	assert.Zero(t, mgr.runtimes["model-0"].replicas)
-}
-
-func TestIsPending(t *testing.T) {
-	mgr := &Manager{
-		runtimes: map[string]runtime{
-			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
-		},
-	}
-	ready, ok := mgr.isReady("model-0")
-	assert.True(t, ok)
-	assert.False(t, ready)
-	ready, ok = mgr.isReady("model-1")
-	assert.True(t, ok)
-	assert.True(t, ready)
-	assert.Equal(t, int32(1), mgr.runtimes["model-1"].replicas)
-	_, ok = mgr.isReady("model-2")
-	assert.False(t, ok)
 }
 
 func TestGetLLMAddress(t *testing.T) {
@@ -218,7 +150,16 @@ func TestPullModel(t *testing.T) {
 				case <-time.After(300 * time.Millisecond):
 					if test.canceled {
 						t.Log("request is canceled")
-						mgr.cancelWaitingRequests(testModelID, "error")
+						mgr.mu.Lock()
+						rt, ok := mgr.runtimes[testModelID]
+						if ok {
+							// cancel the current waiting channel, but recreate to avoid panic.
+							close(rt.waitCh)
+							rt.waitCh = make(chan struct{})
+							rt.errReason = "error"
+							mgr.runtimes[testModelID] = rt
+						}
+						mgr.mu.Unlock()
 					} else {
 						t.Log("marking runtime ready")
 						mgr.markRuntimeReady("rt-model-0", testModelID, "test", false, 1, 1)

@@ -344,3 +344,8 @@ func ModelName(modelID string) string {
 	}
 	return modelID[3:]
 }
+
+// OriginalFineTuningModelName returns the original fine-tuning model name from the model ID used in LLM Operator.
+func OriginalFineTuningModelName(modelID string) string {
+	return "ft:" + modelID
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
@@ -36,6 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
+
+const loraReconciliationInterval = 1 * time.Minute
 
 func runCmd() *cobra.Command {
 	var path string
@@ -166,6 +169,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelSyncer processor.ModelSyncer
 		modelPuller runtime.ModelPuller
 	)
+
+	errCh := make(chan error)
 	if c.Ollama.DynamicModelLoading {
 		pullerAddr := fmt.Sprintf("%s:%d", ollamaClient.GetName(""), c.Ollama.PullerPort)
 		ollamaManager := runtime.NewOllamaManager(mgr.GetClient(), ollamaClient, scaler, pullerAddr)
@@ -218,6 +223,20 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		if err := updater.SetupWithManager(mgr); err != nil {
 			return err
 		}
+
+		if c.VLLM.DynamicLoRALoading {
+			r := runtime.NewLoRAReconciler(
+				mgr.GetClient(),
+				rtManager,
+			)
+			if err := r.SetupWithManager(mgr); err != nil {
+				return err
+			}
+
+			go func() {
+				errCh <- r.Run(ctx, loraReconciliationInterval)
+			}()
+		}
 	}
 
 	engineID, err := id.GenerateID("engine_", 24)
@@ -250,11 +269,15 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	bootLog.Info("Starting manager")
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		logger.Error(err, "Manager exited non-zero")
-		return err
-	}
-	return nil
+	go func() {
+		err := mgr.Start(signals.SetupSignalHandler())
+		if err != nil {
+			logger.Error(err, "Manager exited non-zero")
+		}
+		errCh <- err
+	}()
+
+	return <-errCh
 }
 
 type clientFactory struct {

@@ -643,6 +643,10 @@ func (m *Manager) getAddress(modelID, stsName string) (string, error) {
 	return client.GetAddress(stsName), nil
 }
 
+func (m *Manager) processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate) {
+	// TODO(kenji): Implement.
+}
+
 // SetupWithManager sets up the runtime manager with the given controller manager.
 func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error {
 	filterByLabel := (predicate.NewPredicateFuncs(func(object client.Object) bool {

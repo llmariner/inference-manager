@@ -4,8 +4,8 @@ description: The inference-manager-server schedules inference requests and manag
 home: https://llmariner.ai/
 icon: https://raw.githubusercontent.com/llmariner/llmariner.github.io/refs/heads/main/assets/icons/logo.svg
 type: application
-version: 1.21.0
-appVersion: 1.21.0
+version: 1.22.0
+appVersion: 1.22.0
 sources:
   - https://github.com/llmariner/inference-manager
 keywords:

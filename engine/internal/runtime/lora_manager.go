@@ -374,6 +374,9 @@ func listLoRAAdapters(ctx context.Context, vllmAddr string) (*loRAAdapterStatus,
 	s := loRAAdapterStatus{
 		adapterIDs: make(map[string]struct{}),
 	}
+
+	fmt.Printf("List models response: %+v\n", resp)
+
 	for _, model := range resp.Data {
 		if model.Parent == nil {
 			s.baseModelID = model.ID
@@ -386,6 +389,8 @@ func listLoRAAdapters(ctx context.Context, vllmAddr string) (*loRAAdapterStatus,
 	if s.baseModelID == "" && len(s.adapterIDs) > 0 {
 		return nil, fmt.Errorf("only adapter IDs found: %v", s.adapterIDs)
 	}
+
+	fmt.Printf("List models response: %+v\n", s)
 
 	return &s, nil
 }

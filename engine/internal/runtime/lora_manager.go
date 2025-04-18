@@ -43,6 +43,7 @@ func NewLoRAReconciler(
 	return &LoRAReconciler{
 		k8sClient:       k8sClient,
 		updateProcessor: updateProcessor,
+		podsByUID:       make(map[types.UID]*podStatus),
 	}
 }
 

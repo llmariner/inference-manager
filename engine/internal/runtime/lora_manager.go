@@ -189,6 +189,11 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 			continue
 		}
 
+		if lstatus.baseModelID == "" {
+			r.logger.Info("No base model ID found", "pod", pod.Name)
+			continue
+		}
+
 		podsByUID[pod.UID] = &podStatus{
 			pod:     pod,
 			lstatus: lstatus,

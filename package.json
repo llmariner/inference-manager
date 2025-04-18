@@ -9,21 +9,12 @@
     "ts",
     "/dist"
   ],
-  "devDependencies": {
-    "typescript": "^4.5.4"
-  },
-  "scripts": {
-    "build": "rm -rf ./dist && tsc"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/llmariner/inference-manager.git"
   },
   "author": "llmariner",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/llmariner/inference-manager/issues"
-  },
   "homepage": "https://github.com/llmariner/inference-manager#readme",
   "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

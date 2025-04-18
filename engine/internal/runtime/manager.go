@@ -143,8 +143,15 @@ func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool
 		if err != nil {
 			return false, false, err
 		}
-		// We hit this case when an unregistered statefulset is found. Such a case, the model is not for LoRA.
-		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
+		// We hit this case when an unregistered statefulset is found.
+		// Such a case, the model is not for LoRA.
+		rt = newReadyRuntime(
+			sts.Name,
+			c.GetAddress(sts.Name),
+			false,
+			getGPU(&sts),
+			sts.Status.ReadyReplicas,
+		)
 	} else {
 		rt = newPendingRuntime(sts.Name)
 	}
@@ -473,6 +480,58 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 	return true, nil
 }
 
+func (m *Manager) reconcileLoRAAdapters(
+	ctx context.Context,
+	sts appsv1.StatefulSet,
+	client Client,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	pods, err := listPods(ctx, m.k8sClient, sts.Namespace, sts.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods {
+		podIP := pod.Status.PodIP
+		if podIP == "" {
+			continue
+		}
+
+		vllmAddr := client.GetAddress(podIP)
+		ftModelIDs, err := listLoRAAdapters(ctx, vllmAddr)
+		if err != nil {
+			return fmt.Errorf("list LoRA adapters: %s", err)
+		}
+		for _, ftModelID := range ftModelIDs {
+			log.Info("Found LoRA adapter", "ftModelID", ftModelID)
+			name := client.GetName(ftModelID)
+
+			// Add a new
+			m.mu.Lock()
+			r, ok := m.runtimes[ftModelID]
+			if !ok {
+				r = newPendingRuntime(name)
+				m.runtimes[ftModelID] = r
+			}
+			m.mu.Unlock()
+
+			// If there is an existing one, just add one more addr?
+
+			m.markRuntimeReady(
+				client.GetName(ftModelID),
+				ftModelID,
+				vllmAddr,
+				true, /* isDynamicallyLoadedLoRA */
+				getGPU(&sts),
+				1, /* replicas */
+			}
+		}
+	}
+
+	return nil
+}
+
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
@@ -568,12 +627,26 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			}
 		}
 
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return ctrl.Result{}, nil
+		}
+
+		if client.RuntimeName() == config.RuntimeNameVLLM && m.vllmConfig.DynamicLoRALoading {
+			if err := m.reconcileLoRAAdapters(ctx, sts, client); err != nil {
+				log.Error(err, "Failed to reconcile LoRA adapters")
+				return ctrl.Result{}, err
+			}
+		}
+
 		return ctrl.Result{}, nil
 	}
 
 	if ready {
 		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
+			// TODO(kenji): Also delete a LoRA adapter runtime if the base model has.
+
 			m.markRuntimeIsPending(sts.Name, modelID)
 			log.Info("Runtime is scale down to zero")
 		} else {

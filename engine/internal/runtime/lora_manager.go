@@ -160,10 +160,15 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 		case <-time.After(interval):
 			podsByUID := r.getLoRALoadingStatus(ctx)
 
+			for uid, podStatus := range podsByUID {
+				fmt.Printf("Pod status: %s: %+v\n", uid, *podStatus.lstatus)
+			}
+
 			updates, err := r.updateLoRALoadingStatus(podsByUID)
 			if err != nil {
 				return err
 			}
+
 			for _, u := range updates {
 				r.updateProcessor.processLoRAAdapterUpdate(u)
 			}
@@ -194,6 +199,8 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 			continue
 		}
 
+		fmt.Printf("GET LoRA adapters response: %+v\n", *lstatus)
+
 		podsByUID[pod.UID] = &podStatus{
 			pod:     pod,
 			lstatus: lstatus,
@@ -208,8 +215,11 @@ func (r *LoRAReconciler) updateLoRALoadingStatus(podsByUID map[types.UID]*podSta
 	defer r.mu.Unlock()
 
 	var updates []*loRAAdapterStatusUpdate
-	for _, oldS := range r.podsByUID {
-		newS := podsByUID[oldS.pod.UID]
+	for uid, oldS := range r.podsByUID {
+		newS := podsByUID[uid]
+
+		fmt.Printf("Update LoRA loading status: uid=%v newS=%+v\n", uid, *newS.lstatus)
+
 		u, hasUpdate, err := updateLoRALoadingStatusForPod(oldS, newS, r.logger)
 		if err != nil {
 			return nil, err
@@ -230,9 +240,6 @@ func updateLoRALoadingStatusForPod(
 	newS *podStatus,
 	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
-
-	fmt.Printf("Update LoRA loading status: oldS=%+v, newS=%+v\n", oldS, newS)
-
 	pod := oldS.pod
 
 	if newS == nil {

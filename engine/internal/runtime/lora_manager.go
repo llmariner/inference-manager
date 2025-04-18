@@ -21,7 +21,6 @@ func loadLoRAAdapter(
 	vllmAddr string,
 ) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Loading LoRA adapter to existing runtime", "modelID", modelID)
 
 	pclient := puller.NewClient(pullerAddr)
 	if err := pclient.PullModel(ctx, modelID); err != nil {
@@ -40,7 +39,7 @@ func loadLoRAAdapter(
 			break
 		}
 
-		log.Info("Waiting for the model to be pulled", "modelID", modelID, "status", status)
+		log.Info("Waiting for the model to be pulled", "modelID", modelID, "status", status, "retryCount", i)
 		time.Sleep(retryInterval)
 	}
 
@@ -74,13 +73,10 @@ func loadLoRAAdapter(
 
 func unloadLoRAAdapter(
 	ctx context.Context,
-	r runtime,
+	vllmAddr string,
 	modelID string,
 ) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Unloading the LoRA adapter from the runtime", "model", modelID)
-
-	vclient := vllm.NewHTTPClient(r.address)
+	vclient := vllm.NewHTTPClient(vllmAddr)
 
 	omid := ollama.ModelName(modelID)
 	status, err := vclient.UnloadLoRAAdapter(ctx, omid)

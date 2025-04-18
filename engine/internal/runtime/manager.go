@@ -205,32 +205,42 @@ func (m *Manager) markRuntimeReady(
 ) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
-		if r.waitCh != nil {
-			close(r.waitCh)
-		}
-		m.runtimes[modelID] = newReadyRuntime(name, address, isDynamicallyLoadedLoRA, gpu, replicas)
+	r, ok := m.runtimes[modelID]
+	if !ok || r.ready {
+		return
 	}
+
+	if r.waitCh != nil {
+		close(r.waitCh)
+	}
+	m.runtimes[modelID] = newReadyRuntime(name, address, isDynamicallyLoadedLoRA, gpu, replicas)
 }
 
 func (m *Manager) markRuntimeIsPending(name, modelID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.runtimes[modelID]; ok && r.ready {
-		m.runtimes[modelID] = newPendingRuntime(name)
+
+	r, ok := m.runtimes[modelID]
+	if !ok || !r.ready {
+		return
 	}
+
+	m.runtimes[modelID] = newPendingRuntime(name)
 }
 
 func (m *Manager) cancelWaitingRequests(modelID, reason string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.runtimes[modelID]; ok && !m.runtimes[modelID].ready {
-		// cancel the current waiting channel, but recreate to avoid panic.
-		close(r.waitCh)
-		r.waitCh = make(chan struct{})
-		r.errReason = reason
-		m.runtimes[modelID] = r
+	r, ok := m.runtimes[modelID]
+	if !ok || r.ready {
+		return
 	}
+
+	// cancel the current waiting channel, but recreate to avoid panic.
+	close(r.waitCh)
+	r.waitCh = make(chan struct{})
+	r.errReason = reason
+	m.runtimes[modelID] = r
 }
 
 func (m *Manager) isReady(modelID string) (bool, bool) {
@@ -276,13 +286,15 @@ func (m *Manager) listModels(ready bool) []ModelRuntimeInfo {
 
 	var ms []ModelRuntimeInfo
 	for id, r := range m.runtimes {
-		if r.ready == ready {
-			ms = append(ms, ModelRuntimeInfo{
-				ID:    id,
-				GPU:   r.gpu * r.replicas,
-				Ready: r.ready,
-			})
+		if r.ready != ready {
+			continue
 		}
+
+		ms = append(ms, ModelRuntimeInfo{
+			ID:    id,
+			GPU:   r.gpu * r.replicas,
+			Ready: r.ready,
+		})
 	}
 	return ms
 }
@@ -346,6 +358,8 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 			// STS is already ready, mark the runtime as ready without waiting
 			// for the reconciler (leader-election component) to process it.
 			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), false, getGPU(sts), sts.Status.ReadyReplicas)
+
+			// TODO(kenji): reconcile LoRA adapters?
 		}
 	}
 	if reason, ok := m.errReason(modelID); ok {
@@ -414,16 +428,17 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 		}
 	}
 
-	log.Info("Deploying fine-tuned model to existing runtime", "model", modelID)
-
 	// TODO(kenji): Create a service and endpoint?
 	// TODO(kenji): Be able to register the existing fine-tuned models when the engine starts up.
 	// TODO(kenji): Dynamic rebalancing.
+
+	log.Info("Loading LoRA adapter to existing runtime", "modelID", modelID)
 
 	pods, err := listPods(ctx, m.k8sClient, rclient.Namespace(), br.name)
 	if err != nil {
 		return false, err
 	}
+
 	var podIP string
 	// TODO(kenji): Pick up the least-loaded ready pod.
 	for _, pod := range pods {
@@ -436,6 +451,8 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 	if podIP == "" {
 		return false, fmt.Errorf("no ready pod found")
 	}
+
+	log.Info("Found pod for LoRA adapter loading", "podIP", podIP)
 
 	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort)
 	vllmAddr := rclient.GetAddress(podIP)
@@ -470,7 +487,8 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	}
 
 	if r.isDynamicallyLoadedLoRA {
-		if err := unloadLoRAAdapter(ctx, r, modelID); err != nil {
+		log.Info("Unloading the LoRA adapter from the runtime", "model", modelID)
+		if err := unloadLoRAAdapter(ctx, r.address, modelID); err != nil {
 			return fmt.Errorf("unload LoRA adapter: %s", err)
 		}
 	} else {
@@ -549,6 +567,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 				}
 			}
 		}
+
 		return ctrl.Result{}, nil
 	}
 

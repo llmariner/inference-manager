@@ -136,8 +136,10 @@ func (r *LoRAReconciler) deletePod(pod *corev1.Pod) {
 	r.mu.Unlock()
 
 	var ids []string
-	for id := range s.lstatus.adapterIDs {
-		ids = append(ids, id)
+	if s.lstatus != nil {
+		for id := range s.lstatus.adapterIDs {
+			ids = append(ids, id)
+		}
 	}
 	r.updateProcessor.processLoRAAdapterUpdate(&loRAAdapterStatusUpdate{
 		pod:               pod,

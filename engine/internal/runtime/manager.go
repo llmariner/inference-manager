@@ -30,6 +30,58 @@ import (
 // ErrRequestCanceled is returned when the request is canceled.
 var ErrRequestCanceled = errors.New("request is canceled")
 
+func newPendingRuntime(name string) runtime {
+	return runtime{
+		name:   name,
+		ready:  false,
+		waitCh: make(chan struct{}),
+	}
+}
+
+func newPendingRuntimeWithErrorReason(name, errReason string) runtime {
+	return runtime{
+		name:      name,
+		ready:     false,
+		waitCh:    make(chan struct{}),
+		errReason: errReason,
+	}
+}
+
+type runtime struct {
+	name  string
+	ready bool
+
+	// waitCh is used when the runtime is not ready.
+	waitCh    chan struct{}
+	errReason string
+
+	// address is empty when the runtime is not ready.
+	address string
+	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.
+	isDynamicallyLoadedLoRA bool
+	// replicas is the number of ready replicas.
+	replicas int32
+	// gpu is the GPU limit of the runtime.
+	gpu int32
+}
+
+func newReadyRuntime(
+	name string,
+	address string,
+	isDynamicallyLoadedLoRA bool,
+	gpu,
+	replicas int32,
+) runtime {
+	return runtime{
+		name:                    name,
+		ready:                   true,
+		address:                 address,
+		isDynamicallyLoadedLoRA: isDynamicallyLoadedLoRA,
+		gpu:                     gpu,
+		replicas:                replicas,
+	}
+}
+
 // NewManager creates a new runtime manager.
 func NewManager(
 	k8sClient client.Client,
@@ -62,97 +114,7 @@ type Manager struct {
 	mu       sync.RWMutex
 }
 
-func newPendingRuntime(name string) runtime {
-	return runtime{name: name, ready: false, replicas: int32(0), waitCh: make(chan struct{})}
-}
-
-func newReadyRuntime(
-	name string,
-	address string,
-	isDynamicallyLoadedLoRA bool,
-	gpu,
-	replicas int32,
-) runtime {
-	return runtime{
-		name:                    name,
-		ready:                   true,
-		address:                 address,
-		isDynamicallyLoadedLoRA: isDynamicallyLoadedLoRA,
-		gpu:                     gpu,
-		replicas:                replicas,
-	}
-}
-
-// ModelRuntimeInfo is the info of a model runtime.
-type ModelRuntimeInfo struct {
-	// ID is model ID.
-	ID string
-	// GPU is the total GPU allocated for the model.
-	GPU   int32
-	Ready bool
-}
-
-type runtime struct {
-	name  string
-	ready bool
-	// replicas is the number of ready replicas.
-	replicas int32
-	// gpu is the GPU limit of the runtime.
-	gpu       int32
-	errReason string
-	// address is empty when the runtime is not ready.
-	address string
-	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.
-	isDynamicallyLoadedLoRA bool
-	// waitCh is used when the runtime is not ready.
-	waitCh chan struct{}
-}
-
-func getGPU(sts *appsv1.StatefulSet) int32 {
-	gpu := int32(0)
-	for _, con := range sts.Spec.Template.Spec.Containers {
-		limit := con.Resources.Limits
-		if limit == nil {
-			continue
-		}
-
-		// TODO(guangrui): Support non-Nvidia GPU.
-		v, ok := limit[nvidiaGPUResource]
-		if !ok {
-			continue
-		}
-		count, ok := v.AsInt64()
-		if !ok {
-			continue
-		}
-		gpu += int32(count)
-	}
-	return gpu
-}
-
-func (m *Manager) addRuntime(modelID string, sts appsv1.StatefulSet) (added bool, ready bool, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.runtimes[modelID]; ok {
-		return false, false, nil
-	}
-	var rt runtime
-	ready = sts.Status.ReadyReplicas > 0
-	if ready {
-		c, err := m.rtClientFactory.New(modelID)
-		if err != nil {
-			return false, false, err
-		}
-		// We hit this case when an unregistered statefulset is found. Such a case, the model is not for LoRA.
-		rt = newReadyRuntime(sts.Name, c.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
-	} else {
-		rt = newPendingRuntime(sts.Name)
-	}
-	m.runtimes[modelID] = rt
-	return true, ready, nil
-}
-
-func (m *Manager) deleteRuntime(name string) {
+func (m *Manager) deleteRuntimeByName(name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -183,18 +145,6 @@ func (m *Manager) deleteRuntimeByModelID(modelID string) {
 	delete(m.runtimes, modelID)
 }
 
-func (m *Manager) updateRuntimeReplicas(modelID string, replicas int32) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	r, ok := m.runtimes[modelID]
-	if !ok {
-		return fmt.Errorf("runtime for model %q is not found", modelID)
-	}
-	r.replicas = replicas
-	m.runtimes[modelID] = r
-	return nil
-}
-
 func (m *Manager) markRuntimeReady(
 	name,
 	modelID,
@@ -205,6 +155,7 @@ func (m *Manager) markRuntimeReady(
 ) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	r, ok := m.runtimes[modelID]
 	if !ok || r.ready {
 		return
@@ -216,38 +167,19 @@ func (m *Manager) markRuntimeReady(
 	m.runtimes[modelID] = newReadyRuntime(name, address, isDynamicallyLoadedLoRA, gpu, replicas)
 }
 
-func (m *Manager) markRuntimeIsPending(name, modelID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	r, ok := m.runtimes[modelID]
-	if !ok || !r.ready {
-		return
-	}
-
-	m.runtimes[modelID] = newPendingRuntime(name)
-}
-
-func (m *Manager) cancelWaitingRequests(modelID, reason string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	r, ok := m.runtimes[modelID]
-	if !ok || r.ready {
-		return
-	}
-
-	// cancel the current waiting channel, but recreate to avoid panic.
-	close(r.waitCh)
-	r.waitCh = make(chan struct{})
-	r.errReason = reason
-	m.runtimes[modelID] = r
-}
-
-func (m *Manager) isReady(modelID string) (bool, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	r, ok := m.runtimes[modelID]
-	return r.ready, ok
+func (m *Manager) markRuntimeReadyFromStatefulSet(
+	sts *appsv1.StatefulSet,
+	modelID,
+	address string,
+) {
+	m.markRuntimeReady(
+		sts.Name,
+		modelID,
+		address,
+		false,
+		getGPU(sts),
+		sts.Status.ReadyReplicas,
+	)
 }
 
 func (m *Manager) errReason(modelID string) (string, bool) {
@@ -268,6 +200,15 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 		return r.address, nil
 	}
 	return "", fmt.Errorf("runtime for model %q is not ready", modelID)
+}
+
+// ModelRuntimeInfo is the info of a model runtime.
+type ModelRuntimeInfo struct {
+	// ID is model ID.
+	ID string
+	// GPU is the total GPU allocated for the model.
+	GPU   int32
+	Ready bool
 }
 
 // ListSyncedModels returns the list of models that are synced.
@@ -302,72 +243,102 @@ func (m *Manager) listModels(ready bool) []ModelRuntimeInfo {
 // PullModel pulls the model from the model manager.
 func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
+
+	if err := m.createNewRuntimeToPull(ctx, modelID); err != nil {
+		log.Error(err, "Failed to pull model")
+		return err
+	}
+
+	if err := m.waitForRuntimeToBeReady(ctx, modelID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) createNewRuntimeToPull(ctx context.Context, modelID string) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	client, err := m.rtClientFactory.New(modelID)
+	if err != nil {
+		return err
+	}
+
 	m.mu.Lock()
-	r, ok := m.runtimes[modelID]
-	if ok {
+	if _, ok := m.runtimes[modelID]; ok {
 		m.mu.Unlock()
-		if r.ready {
-			log.V(4).Info("Runtime is already ready", "model", modelID)
-			return nil
-		}
-	} else {
-		client, err := m.rtClientFactory.New(modelID)
-		if err != nil {
-			return err
-		}
-		name := client.GetName(modelID)
+		// The runtime is ready or the pull is already in progress.
+		return nil
+	}
+	// First create a pending runtime.
+	m.runtimes[modelID] = newPendingRuntime(client.GetName(modelID))
+	m.mu.Unlock()
 
-		r = newPendingRuntime(name)
-		m.runtimes[modelID] = r
-		m.mu.Unlock()
+	cleanup := func() {
+		m.deleteRuntimeByModelID(modelID)
+	}
 
-		cleanup := func() {
-			m.mu.Lock()
-			delete(m.runtimes, modelID)
-			if r.waitCh != nil {
-				close(r.waitCh)
-			}
-			m.mu.Unlock()
-		}
-
-		if client.RuntimeName() == config.RuntimeNameVLLM && m.vllmConfig.DynamicLoRALoading {
-			ok, err := m.deployToExistingRuntimeIfFineTunedModel(ctx, modelID, client)
-			if err != nil {
-				cleanup()
-				return err
-			}
-			if ok {
-				// The runtime is already registered.
-				return nil
-			}
-		}
-
-		sts, err := client.DeployRuntime(ctx, modelID, false)
+	if client.RuntimeName() == config.RuntimeNameVLLM && m.vllmConfig.DynamicLoRALoading {
+		ok, err := m.deployToExistingRuntimeIfFineTunedModel(ctx, modelID, client)
 		if err != nil {
 			cleanup()
 			return err
 		}
-		if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
-			log.Error(err, "Failed to register autoscaler")
-			return err
+		if ok {
+			// The runtime is already registered.
+			return nil
 		}
-		if sts.Status.ReadyReplicas > 0 {
-			// If this is called before the first cache sync of the reconciler
-			// is complete, the existing statefulset(STS) for the runtime is not
-			// registered in the manager's managed runtime map. If the runtime's
-			// STS is already ready, mark the runtime as ready without waiting
-			// for the reconciler (leader-election component) to process it.
-			m.markRuntimeReady(sts.Name, modelID, client.GetAddress(sts.Name), false, getGPU(sts), sts.Status.ReadyReplicas)
-
-			// TODO(kenji): reconcile LoRA adapters?
-		}
+		// Fall back to the regular deployment flow.
 	}
+
+	sts, err := client.DeployRuntime(ctx, modelID, false)
+	if err != nil {
+		cleanup()
+		return err
+	}
+
+	if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
+		log.Error(err, "Failed to register autoscaler")
+		cleanup()
+		return err
+	}
+
+	if sts.Status.ReadyReplicas == 0 {
+		return nil
+	}
+
+	// If this is called before the first cache sync of the reconciler
+	// is complete, the existing statefulset(STS) for the runtime is not
+	// registered in the manager's managed runtime map.
+
+	// If the runtime's STS is already ready, mark the runtime as
+	// ready without waiting for the reconciler (leader-election
+	// component) to process it.
+	m.markRuntimeReadyFromStatefulSet(sts, modelID, client.GetAddress(sts.Name))
+
+	return nil
+}
+
+func (m *Manager) waitForRuntimeToBeReady(ctx context.Context, modelID string) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Waiting for runtime to be ready", "model", modelID)
+
+	m.mu.Lock()
+	r, ok := m.runtimes[modelID]
+	m.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("runtime for model %q is not found", modelID)
+	}
+	if r.ready {
+		log.V(4).Info("Runtime is already ready", "model", modelID)
+		return nil
+	}
+
 	if reason, ok := m.errReason(modelID); ok {
 		// The runtime is already in an error state.
 		log.V(4).Info("Runtime is in an error state", "reason", reason)
 		return ErrRequestCanceled
 	}
-	log.Info("Waiting for runtime to be ready", "model", modelID)
+
 	select {
 	case <-r.waitCh:
 		if _, ok := m.errReason(modelID); ok {
@@ -396,7 +367,7 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 
 	if model.IsBaseModel {
 		log.Info("Model is a base model, skipping deployment to existing runtime", "modelID", modelID)
-		return false, err
+		return false, nil
 	}
 
 	// Check if there is already a runtime for the base model.
@@ -410,27 +381,17 @@ func (m *Manager) deployToExistingRuntimeIfFineTunedModel(
 
 	log.Info("Found existing runtime for base model", "baseModel", model.BaseModelId)
 
-	if !br.ready {
-		log.Info("Waiting for base model runtime to be ready", "baseModel", model.BaseModelId)
-		if reason, ok := m.errReason(model.BaseModelId); ok {
-			// The runtime is already in an error state.
-			log.V(4).Info("Runtime is in an error state", "reason", reason)
-			return false, ErrRequestCanceled
-		}
-		select {
-		case <-br.waitCh:
-			if _, ok := m.errReason(model.BaseModelId); ok {
-				// This will happen when the `cancelWaitingRequests` is called.
-				return false, ErrRequestCanceled
-			}
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
+	if err := m.waitForRuntimeToBeReady(ctx, model.BaseModelId); err != nil {
+		log.Error(err, "Failed to wait for runtime to be ready", "baseModel", model.BaseModelId)
+		return false, err
 	}
 
 	// TODO(kenji): Create a service and endpoint?
 	// TODO(kenji): Be able to register the existing fine-tuned models when the engine starts up.
 	// TODO(kenji): Dynamic rebalancing.
+
+	// TODO(kenji): When other engine loads a LoRA adapter, the engine won't know it.
+	// There is some periodic syncing to check the LoRA adapter status.
 
 	log.Info("Loading LoRA adapter to existing runtime", "modelID", modelID)
 
@@ -519,14 +480,12 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 	var sts appsv1.StatefulSet
 	if err := m.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
 		if apierrors.IsNotFound(err) {
-			m.deleteRuntime(req.Name)
+			m.deleteRuntimeByName(req.Name)
 			m.autoscaler.Unregister(req.NamespacedName)
 			log.Info("Runtime is deleted")
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	modelID := sts.GetAnnotations()[modelAnnotationKey]
 
 	// TODO(aya): remove this block after a few releases.
 	// This is for the backward compatibility. The controller no longer
@@ -541,85 +500,147 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 	}
 
+	var unschedulable bool
+	if sts.Status.ReadyReplicas == 0 {
+		var err error
+		unschedulable, err = allChildrenUnschedulable(ctx, m.k8sClient, sts)
+		if err != nil {
+			log.V(2).Error(err, "Failed to check unschedulable children")
+			return ctrl.Result{}, err
+		}
+	}
+
+	modelID := sts.GetAnnotations()[modelAnnotationKey]
 	log.Info("Reconciling runtime...", "model", modelID)
-	ready, ok := m.isReady(modelID)
+
+	m.mu.Lock()
+	rt, ok := m.runtimes[modelID]
 	if !ok {
 		// If an statefulset for the unregistered runtime is found,
 		// the manager registers it to the managed runtime map.
-		// This would call when the manager synchronizes the cache
+		//
+		// This would happen when the manager synchronizes the cache
 		// for the first time or when another engine creates a runtime.
 		log.V(4).Info("Registering runtime", "model", modelID)
-		if added, ready, err := m.addRuntime(modelID, sts); err != nil {
-			log.Error(err, "Failed to add runtime")
-			return ctrl.Result{}, err
-		} else if added {
-			if err := m.autoscaler.Register(ctx, modelID, &sts); err != nil {
-				log.Error(err, "Failed to register autoscaler")
-				return ctrl.Result{}, err
-			}
-			if !ready {
-				if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
-					log.V(2).Error(err, "Failed to check unschedulable children")
-					return ctrl.Result{}, err
-				} else if yes {
-					m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
-					log.V(1).Info("Pod is unschedulable")
-				}
-			}
-		}
 
-		return ctrl.Result{}, nil
-	}
-
-	if ready {
-		// The runtime has already been ready.
-		if sts.Status.Replicas == 0 {
-			m.markRuntimeIsPending(sts.Name, modelID)
-			log.Info("Runtime is scale down to zero")
-		} else {
-			if err := m.updateRuntimeReplicas(modelID, sts.Status.ReadyReplicas); err != nil {
-				log.Error(err, "Failed to update runtime replicas")
-				return ctrl.Result{}, err
-			}
-			log.V(10).Info("Runtime replicas are updated", "modelID", modelID, "replicas", sts.Status.ReadyReplicas)
-		}
-		return ctrl.Result{}, nil
-	}
-
-	if sts.Status.ReadyReplicas > 0 {
-		// The runtime has just became ready.
-		client, err := m.rtClientFactory.New(modelID)
+		rt, err := m.createNewRuntime(modelID, &sts, unschedulable)
 		if err != nil {
-			log.Error(err, "Failed to create runtime client")
+			log.Error(err, "Failed to create new runtime")
+			m.mu.Unlock()
 			return ctrl.Result{}, err
 		}
-		addr := client.GetAddress(sts.Name)
-		// Double check if the statefulset is reachable as it might take some time for the service is being updated.
-		req := &http.Request{
-			Method: http.MethodGet,
-			URL:    &url.URL{Scheme: "http", Host: addr},
+		m.runtimes[modelID] = rt
+
+		m.mu.Unlock()
+
+		// TODO(kenji): reconcile LoRA adapters?
+
+		if err := m.autoscaler.Register(ctx, modelID, &sts); err != nil {
+			log.Error(err, "Failed to register autoscaler")
+			return ctrl.Result{}, err
 		}
-		if _, err := http.DefaultClient.Do(req); err != nil {
-			retryAfter := 500 * time.Millisecond
-			log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
-			return ctrl.Result{RequeueAfter: retryAfter}, err
-		}
-		m.markRuntimeReady(sts.Name, modelID, addr, false, getGPU(&sts), sts.Status.ReadyReplicas)
-		log.Info("Runtime is ready")
+
 		return ctrl.Result{}, nil
 	}
 
-	// The runtime is still not ready.
+	if rt.ready {
+		// The runtime has already been ready.
 
-	if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
-		log.V(2).Error(err, "Failed to check unschedulable children")
-		return ctrl.Result{}, err
-	} else if yes {
-		m.cancelWaitingRequests(modelID, corev1.PodReasonUnschedulable)
-		log.V(1).Info("Pod is unschedulable")
+		defer m.mu.Unlock()
+
+		if sts.Status.Replicas == 0 {
+			log.Info("Runtime is scale down to zero")
+			m.runtimes[modelID] = newPendingRuntime(sts.Name)
+			return ctrl.Result{}, nil
+		}
+
+		// Update the runtime replicas.
+		log.V(10).Info("Runtime replicas are updated", "modelID", modelID, "replicas", sts.Status.ReadyReplicas)
+		rt.replicas = sts.Status.Replicas
+		m.runtimes[modelID] = rt
+		return ctrl.Result{}, nil
 	}
 
+	if sts.Status.ReadyReplicas == 0 {
+		// The runtime is still not ready.
+		defer m.mu.Unlock()
+
+		if !unschedulable {
+			return ctrl.Result{}, nil
+		}
+
+		log.V(1).Info("Pod is unschedulable")
+		// cancel the current waiting channel, but recreate to avoid panic.
+		close(rt.waitCh)
+		rt.waitCh = make(chan struct{})
+		rt.errReason = corev1.PodReasonUnschedulable
+		m.runtimes[modelID] = rt
+
+		return ctrl.Result{}, nil
+	}
+
+	m.mu.Unlock()
+
+	// The runtime has just became ready.
+
+	addr, err := m.getAddress(modelID, sts.Name)
+	if err != nil {
+		log.Error(err, "Failed to get addr")
+		return ctrl.Result{}, err
+	}
+
+	// Double check if the statefulset is reachable as it might take some time for the service is being updated.
+	hreq := &http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Scheme: "http", Host: addr},
+	}
+	if _, err := http.DefaultClient.Do(hreq); err != nil {
+		retryAfter := 500 * time.Millisecond
+		log.Error(err, "Still unable to reach the runtime endpoint", "retry-after", retryAfter)
+		return ctrl.Result{RequeueAfter: retryAfter}, err
+	}
+
+	// TODO(kenji): Find LoRA adapters.
+
+	m.markRuntimeReadyFromStatefulSet(&sts, modelID, addr)
+
+	log.Info("Runtime is ready")
 	return ctrl.Result{}, nil
+}
+
+func (m *Manager) createNewRuntime(
+	modelID string,
+	sts *appsv1.StatefulSet,
+	unschedulable bool,
+) (runtime, error) {
+	if sts.Status.ReadyReplicas == 0 {
+		var errReason string
+		if unschedulable {
+			errReason = corev1.PodReasonUnschedulable
+		}
+		return newPendingRuntimeWithErrorReason(sts.Name, errReason), nil
+	}
+
+	address, err := m.getAddress(modelID, sts.Name)
+	if err != nil {
+		return runtime{}, err
+	}
+
+	return newReadyRuntime(
+		sts.Name,
+		address,
+		false,
+		getGPU(sts),
+		sts.Status.ReadyReplicas,
+	), nil
+}
+
+func (m *Manager) getAddress(modelID, stsName string) (string, error) {
+	client, err := m.rtClientFactory.New(modelID)
+	if err != nil {
+		return "", err
+	}
+	return client.GetAddress(stsName), nil
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.
@@ -687,4 +708,26 @@ func isPodUnschedulable(pod corev1.Pod) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+func getGPU(sts *appsv1.StatefulSet) int32 {
+	gpu := int32(0)
+	for _, con := range sts.Spec.Template.Spec.Containers {
+		limit := con.Resources.Limits
+		if limit == nil {
+			continue
+		}
+
+		// TODO(guangrui): Support non-Nvidia GPU.
+		v, ok := limit[nvidiaGPUResource]
+		if !ok {
+			continue
+		}
+		count, ok := v.AsInt64()
+		if !ok {
+			continue
+		}
+		gpu += int32(count)
+	}
+	return gpu
 }

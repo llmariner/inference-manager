@@ -7,9 +7,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
-	mv1 "github.com/llmariner/model-manager/api/v1"
 )
+
+// Model is a struct that represents a model.
+// This mostly follows the OpenAI API format but havs extra field like "parent".
+type Model struct {
+	ID string `json:"id"`
+	// Parent is set to a base model ID if the model is a LoRA adapter..
+	Parent *string `json:"parent"`
+}
+
+// ListModelsResponse is a struct that represents the response from the list models endpoint.
+type ListModelsResponse struct {
+	Data []*Model `json:"data"`
+}
 
 // NewHTTPClient creates a new HTTP client with the given address.
 func NewHTTPClient(addr string) *HTTPClient {
@@ -78,7 +89,7 @@ func (c *HTTPClient) UnloadLoRAAdapter(ctx context.Context, loraName string) (in
 }
 
 // ListModels lists all models.
-func (c *HTTPClient) ListModels(ctx context.Context) (*mv1.ListModelsResponse, error) {
+func (c *HTTPClient) ListModels(ctx context.Context) (*ListModelsResponse, error) {
 	resp, err := c.sendHTTPRequest(ctx, "GET", "/v1/models", nil)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %s", err)
@@ -90,7 +101,7 @@ func (c *HTTPClient) ListModels(ctx context.Context) (*mv1.ListModelsResponse, e
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var mresp mv1.ListModelsResponse
+	var mresp ListModelsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&mresp); err != nil {
 		return nil, fmt.Errorf("decode response: %s", err)
 	}

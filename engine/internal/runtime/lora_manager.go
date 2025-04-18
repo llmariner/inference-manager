@@ -88,3 +88,26 @@ func unloadLoRAAdapter(
 	}
 	return nil
 }
+
+func listLoRAAdapters(
+	ctx context.Context,
+	vllmAddr string,
+) ([]string, error) {
+	vclient := vllm.NewHTTPClient(vllmAddr)
+	resp, err := vclient.ListModels(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var modelIDs []string
+	for _, model := range resp.Data {
+		if model.Parent == nil {
+			// Ignore the base model.
+			continue
+		}
+
+		modelIDs = append(modelIDs, ollama.OriginalFineTuningModelName(model.ID))
+	}
+
+	return modelIDs, nil
+}

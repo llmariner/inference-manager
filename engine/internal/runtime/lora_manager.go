@@ -240,6 +240,7 @@ func updateLoRALoadingStatusForPod(
 	newS *podStatus,
 	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
+	fmt.Printf("Update LoRA loading status  <2>:  newS=%+v\n", *newS.lstatus)
 	pod := oldS.pod
 
 	if newS == nil {
@@ -258,7 +259,8 @@ func updateLoRALoadingStatusForPod(
 	}
 
 	if oldS.lstatus == nil {
-		log.Info("New status found", "pod", pod.Name, "status", *newS.lstatus)
+		log.Info("New status found", "pod", pod.Name, "status", newS.lstatus)
+		fmt.Printf("Update LoRA loading status  <3>:  newS=%+v\n", *newS.lstatus)
 		var ids []string
 		for id := range newS.lstatus.adapterIDs {
 			ids = append(ids, id)

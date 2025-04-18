@@ -160,10 +160,6 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 		case <-time.After(interval):
 			podsByUID := r.getLoRALoadingStatus(ctx)
 
-			for uid, podStatus := range podsByUID {
-				fmt.Printf("Pod status: %s: %+v\n", uid, *podStatus.lstatus)
-			}
-
 			updates, err := r.updateLoRALoadingStatus(podsByUID)
 			if err != nil {
 				return err
@@ -199,8 +195,6 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 			continue
 		}
 
-		fmt.Printf("GET LoRA adapters response: %+v\n", *lstatus)
-
 		podsByUID[pod.UID] = &podStatus{
 			pod:     pod,
 			lstatus: lstatus,
@@ -217,8 +211,6 @@ func (r *LoRAReconciler) updateLoRALoadingStatus(podsByUID map[types.UID]*podSta
 	var updates []*loRAAdapterStatusUpdate
 	for uid, oldS := range r.podsByUID {
 		newS := podsByUID[uid]
-
-		fmt.Printf("Update LoRA loading status: uid=%v newS=%+v\n", uid, *newS.lstatus)
 
 		u, hasUpdate, err := updateLoRALoadingStatusForPod(oldS, newS, r.logger)
 		if err != nil {
@@ -240,7 +232,6 @@ func updateLoRALoadingStatusForPod(
 	newS *podStatus,
 	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
-	fmt.Printf("Update LoRA loading status  <2>:  newS=%+v\n", *newS.lstatus)
 	pod := oldS.pod
 
 	if newS == nil {
@@ -259,8 +250,7 @@ func updateLoRALoadingStatusForPod(
 	}
 
 	if oldS.lstatus == nil {
-		log.Info("New status found", "pod", pod.Name, "status", newS.lstatus)
-		fmt.Printf("Update LoRA loading status  <3>:  newS=%+v\n", *newS.lstatus)
+		log.Info("New status found", "pod", pod.Name, "new adapters", newS.lstatus.adapterIDs)
 		var ids []string
 		for id := range newS.lstatus.adapterIDs {
 			ids = append(ids, id)
@@ -387,8 +377,6 @@ func listLoRAAdapters(ctx context.Context, vllmAddr string) (*loRAAdapterStatus,
 		adapterIDs: make(map[string]struct{}),
 	}
 
-	fmt.Printf("List models response: %+v\n", resp)
-
 	for _, model := range resp.Data {
 		if model.Parent == nil {
 			s.baseModelID = model.ID
@@ -401,8 +389,6 @@ func listLoRAAdapters(ctx context.Context, vllmAddr string) (*loRAAdapterStatus,
 	if s.baseModelID == "" && len(s.adapterIDs) > 0 {
 		return nil, fmt.Errorf("only adapter IDs found: %v", s.adapterIDs)
 	}
-
-	fmt.Printf("List models response: %+v\n", s)
 
 	return &s, nil
 }

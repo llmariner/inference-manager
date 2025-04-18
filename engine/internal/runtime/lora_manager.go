@@ -230,6 +230,9 @@ func updateLoRALoadingStatusForPod(
 	newS *podStatus,
 	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
+
+	fmt.Printf("Update LoRA loading status: oldS=%+v, newS=%+v\n", oldS, newS)
+
 	pod := oldS.pod
 
 	if newS == nil {

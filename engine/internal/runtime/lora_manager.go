@@ -258,7 +258,7 @@ func updateLoRALoadingStatusForPod(
 	}
 
 	if oldS.lstatus == nil {
-		log.Info("New status found", "pod", pod.Name, "status", newS.lstatus)
+		log.Info("New status found", "pod", pod.Name, "status", *newS.lstatus)
 		var ids []string
 		for id := range newS.lstatus.adapterIDs {
 			ids = append(ids, id)

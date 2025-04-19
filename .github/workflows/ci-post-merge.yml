@@ -133,4 +133,5 @@ jobs:
       uses: softprops/action-gh-release@v2.0.8
       with:
         tag_name: v${{ env.version }}
+        target_commitish: ${{ github.sha }}
         generate_release_notes: true

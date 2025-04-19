@@ -29,16 +29,16 @@ import (
 // ErrRequestCanceled is returned when the request is canceled.
 var ErrRequestCanceled = errors.New("request is canceled")
 
-func newPendingRuntime(name string) runtime {
-	return runtime{
+func newPendingRuntime(name string) *runtime {
+	return &runtime{
 		name:   name,
 		ready:  false,
 		waitCh: make(chan struct{}),
 	}
 }
 
-func newPendingRuntimeWithErrorReason(name, errReason string) runtime {
-	return runtime{
+func newPendingRuntimeWithErrorReason(name, errReason string) *runtime {
+	return &runtime{
 		name:      name,
 		ready:     false,
 		waitCh:    make(chan struct{}),
@@ -64,14 +64,42 @@ type runtime struct {
 	gpu int32
 }
 
+func (r *runtime) updateStateToPending() {
+	r.ready = false
+	r.waitCh = make(chan struct{})
+}
+
+func (r *runtime) setErrorReason(errReason string) {
+	// cancel the current waiting channel, but recreate to avoid panic.
+	close(r.waitCh)
+	r.waitCh = make(chan struct{})
+	r.errReason = corev1.PodReasonUnschedulable
+}
+
+func (r *runtime) updateStateToReady(
+	address string,
+	isDynamicallyLoadedLoRA bool,
+	gpu,
+	replicas int32,
+) {
+	close(r.waitCh)
+	r.errReason = ""
+
+	r.ready = true
+	r.address = address
+	r.isDynamicallyLoadedLoRA = isDynamicallyLoadedLoRA
+	r.gpu = gpu
+	r.replicas = replicas
+}
+
 func newReadyRuntime(
 	name string,
 	address string,
 	isDynamicallyLoadedLoRA bool,
 	gpu,
 	replicas int32,
-) runtime {
-	return runtime{
+) *runtime {
+	return &runtime{
 		name:                    name,
 		ready:                   true,
 		address:                 address,
@@ -95,7 +123,7 @@ func NewManager(
 		autoscaler:      autoscaler,
 		modelClient:     modelClient,
 		vllmConfig:      vllmConfig,
-		runtimes:        make(map[string]runtime),
+		runtimes:        make(map[string]*runtime),
 	}
 }
 
@@ -109,7 +137,7 @@ type Manager struct {
 	vllmConfig  config.VLLMConfig
 
 	// runtimes is keyed by model ID.
-	runtimes map[string]runtime
+	runtimes map[string]*runtime
 	mu       sync.RWMutex
 }
 
@@ -160,10 +188,7 @@ func (m *Manager) markRuntimeReady(
 		return
 	}
 
-	if r.waitCh != nil {
-		close(r.waitCh)
-	}
-	m.runtimes[modelID] = newReadyRuntime(name, address, isDynamicallyLoadedLoRA, gpu, replicas)
+	r.updateStateToReady(address, isDynamicallyLoadedLoRA, gpu, replicas)
 }
 
 func (m *Manager) markRuntimeReadyFromStatefulSet(
@@ -536,14 +561,13 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 
 		if sts.Status.Replicas == 0 {
 			log.Info("Runtime is scale down to zero")
-			m.runtimes[modelID] = newPendingRuntime(sts.Name)
+			rt.updateStateToPending()
 			return ctrl.Result{}, nil
 		}
 
 		// Update the runtime replicas.
 		log.V(10).Info("Runtime replicas are updated", "modelID", modelID, "replicas", sts.Status.ReadyReplicas)
 		rt.replicas = sts.Status.Replicas
-		m.runtimes[modelID] = rt
 		return ctrl.Result{}, nil
 	}
 
@@ -556,11 +580,7 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 
 		log.V(1).Info("Pod is unschedulable")
-		// cancel the current waiting channel, but recreate to avoid panic.
-		close(rt.waitCh)
-		rt.waitCh = make(chan struct{})
-		rt.errReason = corev1.PodReasonUnschedulable
-		m.runtimes[modelID] = rt
+		rt.setErrorReason(corev1.PodReasonUnschedulable)
 
 		return ctrl.Result{}, nil
 	}
@@ -598,7 +618,7 @@ func (m *Manager) createNewRuntime(
 	modelID string,
 	sts *appsv1.StatefulSet,
 	unschedulable bool,
-) (runtime, error) {
+) (*runtime, error) {
 	if sts.Status.ReadyReplicas == 0 {
 		var errReason string
 		if unschedulable {
@@ -609,7 +629,7 @@ func (m *Manager) createNewRuntime(
 
 	address, err := m.getAddress(modelID, sts.Name)
 	if err != nil {
-		return runtime{}, err
+		return nil, err
 	}
 
 	return newReadyRuntime(

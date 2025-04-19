@@ -40,7 +40,7 @@ func TestOllamaPullModel(t *testing.T) {
 	)
 	var tests = []struct {
 		name   string
-		rt     runtime
+		rt     *runtime
 		models *ollamaModel
 	}{
 		{

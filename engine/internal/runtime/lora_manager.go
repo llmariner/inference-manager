@@ -15,7 +15,6 @@ import (
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +24,7 @@ import (
 )
 
 type loRAAdapterStatusUpdate struct {
-	pod               *corev1.Pod
+	podName           string
 	baseModelID       string
 	addedAdapterIDs   []string
 	removedAdapterIDs []string
@@ -43,7 +42,7 @@ func NewLoRAReconciler(
 	return &LoRAReconciler{
 		k8sClient:       k8sClient,
 		updateProcessor: updateProcessor,
-		podsByUID:       make(map[types.UID]*podStatus),
+		podsByName:      make(map[string]*podStatus),
 	}
 }
 
@@ -63,8 +62,8 @@ type LoRAReconciler struct {
 	updateProcessor updateProcessor
 	logger          logr.Logger
 
-	podsByUID map[types.UID]*podStatus
-	mu        sync.Mutex
+	podsByName map[string]*podStatus
+	mu         sync.Mutex
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.
@@ -101,7 +100,7 @@ func (r *LoRAReconciler) Reconcile(
 		}
 
 		log.Info("Pod deleted", "pod", pod.Name)
-		r.deletePod(&pod)
+		r.deletePod(req.Name)
 
 		return ctrl.Result{}, nil
 	}
@@ -120,23 +119,23 @@ func (r *LoRAReconciler) Reconcile(
 func (r *LoRAReconciler) addPod(pod *corev1.Pod) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.podsByUID[pod.UID]; ok {
+	if _, ok := r.podsByName[pod.Name]; ok {
 		// Pod already exists, no need to add it again.
 		return
 	}
-	r.podsByUID[pod.UID] = &podStatus{
+	r.podsByName[pod.Name] = &podStatus{
 		pod: pod,
 	}
 }
 
-func (r *LoRAReconciler) deletePod(pod *corev1.Pod) {
+func (r *LoRAReconciler) deletePod(name string) {
 	r.mu.Lock()
-	s, ok := r.podsByUID[pod.UID]
+	s, ok := r.podsByName[name]
 	if !ok {
 		r.mu.Unlock()
 		return
 	}
-	delete(r.podsByUID, pod.UID)
+	delete(r.podsByName, name)
 	r.mu.Unlock()
 
 	var ids []string
@@ -146,7 +145,7 @@ func (r *LoRAReconciler) deletePod(pod *corev1.Pod) {
 		}
 	}
 	r.updateProcessor.processLoRAAdapterUpdate(&loRAAdapterStatusUpdate{
-		pod:               pod,
+		podName:           name,
 		removedAdapterIDs: ids,
 	})
 }
@@ -158,9 +157,9 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(interval):
-			podsByUID := r.getLoRALoadingStatus(ctx)
+			podsByName := r.getLoRALoadingStatus(ctx)
 
-			updates, err := r.updateLoRALoadingStatus(podsByUID)
+			updates, err := r.updateLoRALoadingStatus(podsByName)
 			if err != nil {
 				return err
 			}
@@ -172,15 +171,15 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 	}
 }
 
-func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID]*podStatus {
+func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[string]*podStatus {
 	var pods []*corev1.Pod
 	r.mu.Lock()
-	for _, podStatus := range r.podsByUID {
+	for _, podStatus := range r.podsByName {
 		pods = append(pods, podStatus.pod)
 	}
 	r.mu.Unlock()
 
-	podsByUID := make(map[types.UID]*podStatus)
+	podsByName := make(map[string]*podStatus)
 	for _, pod := range pods {
 		addr := fmt.Sprintf("%s:%d", pod.Status.PodIP, vllmHTTPPort)
 		lstatus, err := listLoRAAdapters(ctx, addr)
@@ -195,22 +194,22 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[types.UID
 			continue
 		}
 
-		podsByUID[pod.UID] = &podStatus{
+		podsByName[pod.Name] = &podStatus{
 			pod:     pod,
 			lstatus: lstatus,
 		}
 	}
 
-	return podsByUID
+	return podsByName
 }
 
-func (r *LoRAReconciler) updateLoRALoadingStatus(podsByUID map[types.UID]*podStatus) ([]*loRAAdapterStatusUpdate, error) {
+func (r *LoRAReconciler) updateLoRALoadingStatus(podsByName map[string]*podStatus) ([]*loRAAdapterStatusUpdate, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	var updates []*loRAAdapterStatusUpdate
-	for uid, oldS := range r.podsByUID {
-		newS := podsByUID[uid]
+	for name, oldS := range r.podsByName {
+		newS := podsByName[name]
 
 		u, hasUpdate, err := updateLoRALoadingStatusForPod(oldS, newS, r.logger)
 		if err != nil {
@@ -222,7 +221,7 @@ func (r *LoRAReconciler) updateLoRALoadingStatus(podsByUID map[types.UID]*podSta
 		}
 	}
 
-	r.podsByUID = podsByUID
+	r.podsByName = podsByName
 
 	return updates, nil
 }
@@ -243,7 +242,7 @@ func updateLoRALoadingStatusForPod(
 			ids = append(ids, id)
 		}
 		return &loRAAdapterStatusUpdate{
-			pod:               pod,
+			podName:           pod.Name,
 			baseModelID:       oldS.lstatus.baseModelID,
 			removedAdapterIDs: ids,
 		}, true, nil
@@ -256,7 +255,7 @@ func updateLoRALoadingStatusForPod(
 			ids = append(ids, id)
 		}
 		return &loRAAdapterStatusUpdate{
-			pod:             pod,
+			podName:         pod.Name,
 			baseModelID:     newS.lstatus.baseModelID,
 			addedAdapterIDs: ids,
 		}, true, nil
@@ -284,7 +283,7 @@ func updateLoRALoadingStatusForPod(
 
 	log.Info("LoRA adapter status changed", "pod", pod.Name, "added", added, "removed", removed)
 	return &loRAAdapterStatusUpdate{
-		pod:               pod,
+		podName:           pod.Name,
 		baseModelID:       newS.lstatus.baseModelID,
 		addedAdapterIDs:   added,
 		removedAdapterIDs: removed,

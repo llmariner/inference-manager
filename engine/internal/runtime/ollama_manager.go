@@ -45,7 +45,7 @@ type OllamaManager struct {
 
 	pullerAddr string
 
-	runtime runtime
+	runtime *runtime
 	// models is keyed by model ID.
 	models map[string]ollamaModel
 	mu     sync.RWMutex

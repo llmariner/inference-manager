@@ -17,14 +17,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
-		runtimes: map[string]runtime{
+		runtimes: map[string]*runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
 			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
 		},
@@ -36,7 +35,7 @@ func TestDeleteRuntime(t *testing.T) {
 
 func TestMarkRuntimeReady(t *testing.T) {
 	mgr := &Manager{
-		runtimes: map[string]runtime{
+		runtimes: map[string]*runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
 		},
 	}
@@ -50,7 +49,7 @@ func TestMarkRuntimeReady(t *testing.T) {
 
 func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
-		runtimes: map[string]runtime{
+		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", false, 1, 1),
 			"model-1": newPendingRuntime("rt-model-1"),
 		},
@@ -64,7 +63,7 @@ func TestGetLLMAddress(t *testing.T) {
 
 func TestListSyncedModels(t *testing.T) {
 	mgr := &Manager{
-		runtimes: map[string]runtime{
+		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", false, 1, 1),
 			"model-1": newPendingRuntime("rt-model-1"),
 			"model-2": newReadyRuntime("rt-model-2", "test2", false, 1, 2),
@@ -80,7 +79,7 @@ func TestListSyncedModels(t *testing.T) {
 
 func TestListInProgressModels(t *testing.T) {
 	mgr := &Manager{
-		runtimes: map[string]runtime{
+		runtimes: map[string]*runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
 			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
 			"model-2": newPendingRuntime("rt-model-2"),
@@ -107,11 +106,11 @@ func TestPullModel(t *testing.T) {
 	}{
 		{
 			name: "already ready",
-			rt:   ptr.To(newReadyRuntime("rt-model-0", "test", false, 1, 1)),
+			rt:   newReadyRuntime("rt-model-0", "test", false, 1, 1),
 		},
 		{
 			name: "already pending",
-			rt:   ptr.To(newPendingRuntime("rt-model-1")),
+			rt:   newPendingRuntime("rt-model-1"),
 		},
 		{
 			name:     "new model",
@@ -133,12 +132,12 @@ func TestPullModel(t *testing.T) {
 			rtClient := &fakeClient{deployed: map[string]bool{}, readyReplicas: test.readyReplicas}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := &Manager{
-				runtimes:        map[string]runtime{},
+				runtimes:        map[string]*runtime{},
 				rtClientFactory: &fakeClientFactory{c: rtClient},
 				autoscaler:      scaler,
 			}
 			if test.rt != nil {
-				mgr.runtimes[testModelID] = *test.rt
+				mgr.runtimes[testModelID] = test.rt
 			}
 			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
 			defer cancel()
@@ -214,7 +213,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime(name)),
+			rt: newPendingRuntime(name),
 		},
 		{
 			name: "unreachable",
@@ -222,7 +221,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime(name)),
+			rt: newPendingRuntime(name),
 			preFn: func(ctx context.Context, m *Manager) {
 				http.DefaultClient = &http.Client{
 					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
@@ -238,7 +237,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: ptr.To(newPendingRuntime(name)),
+			rt: newPendingRuntime(name),
 			preFn: func(ctx context.Context, m *Manager) {
 				http.DefaultClient = &http.Client{
 					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
@@ -273,7 +272,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
-			rt: ptr.To(newReadyRuntime(name, "test", false, 1, 1)),
+			rt: newReadyRuntime(name, "test", false, 1, 1),
 		},
 		{
 			name: "not-registered (pending)",
@@ -317,7 +316,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (pending)",
 			sts:  nil,
-			rt:   ptr.To(newPendingRuntime(name)),
+			rt:   newPendingRuntime(name),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -326,7 +325,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (ready)",
 			sts:  nil,
-			rt:   ptr.To(newReadyRuntime(name, "test", false, 1, 1)),
+			rt:   newReadyRuntime(name, "test", false, 1, 1),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -353,7 +352,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			rt:          ptr.To(newPendingRuntime(name)),
+			rt:          newPendingRuntime(name),
 			wantChClose: true,
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Equal(t, corev1.PodReasonUnschedulable, m.runtimes[modelID].errReason)
@@ -374,12 +373,12 @@ func TestReconcile(t *testing.T) {
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := &Manager{
 				k8sClient:       k8sClient,
-				runtimes:        map[string]runtime{},
+				runtimes:        map[string]*runtime{},
 				rtClientFactory: &fakeClientFactory{c: rtClient},
 				autoscaler:      scaler,
 			}
 			if test.rt != nil {
-				mgr.runtimes[modelID] = *test.rt
+				mgr.runtimes[modelID] = test.rt
 			}
 
 			ctx := testutil.ContextWithLogger(t)
@@ -391,10 +390,11 @@ func TestReconcile(t *testing.T) {
 
 			var chClosed atomic.Bool
 			if test.wantChClose {
+				waitCh := test.rt.waitCh
 				go func() {
 					select {
 					case <-ctx.Done():
-					case <-test.rt.waitCh:
+					case <-waitCh:
 						chClosed.Store(true)
 					}
 				}()
@@ -410,7 +410,8 @@ func TestReconcile(t *testing.T) {
 			}
 
 			if test.rt != nil {
-				assert.Equal(t, test.wantReady, mgr.runtimes[modelID].ready)
+				rt := mgr.runtimes[modelID]
+				assert.Equal(t, test.wantReady, rt != nil && rt.ready)
 			}
 			if test.wantExtra != nil {
 				test.wantExtra(mgr, scaler)

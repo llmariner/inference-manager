@@ -348,22 +348,26 @@ func (m *Manager) waitForRuntimeToBeReady(ctx context.Context, modelID string) e
 
 	m.mu.Lock()
 	r, ok := m.runtimes[modelID]
-	// Copy the channel as the field can be updated.
-	waitCh := r.waitCh
-	m.mu.Unlock()
 	if !ok {
+		m.mu.Unlock()
 		return fmt.Errorf("runtime for model %q is not found", modelID)
 	}
+
 	if r.ready {
+		m.mu.Unlock()
 		log.V(4).Info("Runtime is already ready", "model", modelID)
 		return nil
 	}
 
-	if reason, ok := m.errReason(modelID); ok {
-		// The runtime is already in an error state.
+	if reason := r.errReason; reason != "" {
+		m.mu.Unlock()
 		log.V(4).Info("Runtime is in an error state", "reason", reason)
 		return ErrRequestCanceled
 	}
+
+	// Copy the channel as the field can be updated.
+	waitCh := r.waitCh
+	m.mu.Unlock()
 
 	select {
 	case <-waitCh:

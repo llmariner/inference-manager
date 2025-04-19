@@ -228,6 +228,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			r := runtime.NewLoRAReconciler(
 				mgr.GetClient(),
 				rtManager,
+				&runtime.LoRAAdapterStatusGetter{},
 			)
 			if err := r.SetupWithManager(mgr); err != nil {
 				return err

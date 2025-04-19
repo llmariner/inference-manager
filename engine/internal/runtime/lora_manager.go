@@ -34,21 +34,27 @@ type updateProcessor interface {
 	processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate)
 }
 
+type loRAAdapterStatus struct {
+	baseModelID string
+	adapterIDs  map[string]struct{}
+}
+
+type loraAdapterStatusGetter interface {
+	get(ctx context.Context, addr string) (*loRAAdapterStatus, error)
+}
+
 // NewLoRAReconciler creates a new LoRAReconciler.
 func NewLoRAReconciler(
 	k8sClient k8sclient.Client,
 	updateProcessor updateProcessor,
+	loraAdapterStatusGetter loraAdapterStatusGetter,
 ) *LoRAReconciler {
 	return &LoRAReconciler{
-		k8sClient:       k8sClient,
-		updateProcessor: updateProcessor,
-		podsByName:      make(map[string]*podStatus),
+		k8sClient:               k8sClient,
+		updateProcessor:         updateProcessor,
+		loraAdapterStatusGetter: loraAdapterStatusGetter,
+		podsByName:              make(map[string]*podStatus),
 	}
-}
-
-type loRAAdapterStatus struct {
-	baseModelID string
-	adapterIDs  map[string]struct{}
 }
 
 type podStatus struct {
@@ -58,9 +64,10 @@ type podStatus struct {
 
 // LoRAReconciler reconciles the LoRA adapters loading status.
 type LoRAReconciler struct {
-	k8sClient       k8sclient.Client
-	updateProcessor updateProcessor
-	logger          logr.Logger
+	k8sClient               k8sclient.Client
+	updateProcessor         updateProcessor
+	loraAdapterStatusGetter loraAdapterStatusGetter
+	logger                  logr.Logger
 
 	podsByName map[string]*podStatus
 	mu         sync.Mutex
@@ -157,18 +164,25 @@ func (r *LoRAReconciler) Run(ctx context.Context, interval time.Duration) error 
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(interval):
-			podsByName := r.getLoRALoadingStatus(ctx)
-
-			updates, err := r.updateLoRALoadingStatus(podsByName)
-			if err != nil {
+			if err := r.run(ctx); err != nil {
 				return err
-			}
-
-			for _, u := range updates {
-				r.updateProcessor.processLoRAAdapterUpdate(u)
 			}
 		}
 	}
+}
+
+func (r *LoRAReconciler) run(ctx context.Context) error {
+	podsByName := r.getLoRALoadingStatus(ctx)
+
+	updates, err := r.updateLoRALoadingStatus(podsByName)
+	if err != nil {
+		return err
+	}
+
+	for _, u := range updates {
+		r.updateProcessor.processLoRAAdapterUpdate(u)
+	}
+	return nil
 }
 
 func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[string]*podStatus {
@@ -182,7 +196,7 @@ func (r *LoRAReconciler) getLoRALoadingStatus(ctx context.Context) map[string]*p
 	podsByName := make(map[string]*podStatus)
 	for _, pod := range pods {
 		addr := fmt.Sprintf("%s:%d", pod.Status.PodIP, vllmHTTPPort)
-		lstatus, err := listLoRAAdapters(ctx, addr)
+		lstatus, err := r.loraAdapterStatusGetter.get(ctx, addr)
 		if err != nil {
 			// Gracefully handle the error as vLLM might not be ready yet.
 			r.logger.Error(err, "Failed to list LoRA adapters", "pod", pod.Name)
@@ -365,8 +379,12 @@ func unloadLoRAAdapter(
 	return nil
 }
 
-func listLoRAAdapters(ctx context.Context, vllmAddr string) (*loRAAdapterStatus, error) {
-	vclient := vllm.NewHTTPClient(vllmAddr)
+// LoRAAdapterStatusGetter is a getter for LoRA adapter status.
+type LoRAAdapterStatusGetter struct {
+}
+
+func (*LoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdapterStatus, error) {
+	vclient := vllm.NewHTTPClient(addr)
 	resp, err := vclient.ListModels(ctx)
 	if err != nil {
 		return nil, err

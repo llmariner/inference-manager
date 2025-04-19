@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -485,19 +484,6 @@ func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 			log.Info("Runtime is deleted")
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	// TODO(aya): remove this block after a few releases.
-	// This is for the backward compatibility. The controller no longer
-	// adds the finalizer to the statefulset.
-	if controllerutil.ContainsFinalizer(&sts, finalizerKey) {
-		patch := client.MergeFrom(&sts)
-		newSts := sts.DeepCopy()
-		controllerutil.RemoveFinalizer(newSts, finalizerKey)
-		if err := client.IgnoreNotFound(m.k8sClient.Patch(ctx, newSts, patch)); err != nil {
-			log.Error(err, "Failed to remove finalizer")
-			return ctrl.Result{}, err
-		}
 	}
 
 	var unschedulable bool

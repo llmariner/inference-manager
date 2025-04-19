@@ -73,7 +73,8 @@ endif
 .PHONY: typescript-compile
 typescript-compile: buf-generate-ts
 ifneq (,$(wildcard ./buf.gen.ts.yaml))
-	tsc --skipLibCheck
+	rm -fr ./dist
+	tsc
 endif
 
 buf-lint:

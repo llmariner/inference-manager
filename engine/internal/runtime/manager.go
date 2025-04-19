@@ -73,7 +73,7 @@ func (r *runtime) setErrorReason(errReason string) {
 	// cancel the current waiting channel, but recreate to avoid panic.
 	close(r.waitCh)
 	r.waitCh = make(chan struct{})
-	r.errReason = corev1.PodReasonUnschedulable
+	r.errReason = errReason
 }
 
 func (r *runtime) updateStateToReady(

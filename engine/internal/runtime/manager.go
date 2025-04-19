@@ -466,7 +466,7 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 		}
 	}
 
-	m.deleteRuntimeByModelID(modelID)
+	// No need to call m.deleteRuntimeByModelID() as Reconcile will delete the runtime.
 
 	log.Info("Deleted model", "model", modelID)
 	return nil

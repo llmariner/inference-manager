@@ -111,7 +111,7 @@ func TestLoRAReconciler_Reconcile(t *testing.T) {
 
 			k8sClient := fake.NewFakeClient(objs...)
 			processor := &fakeUpdateProcessor{}
-			r := NewLoRAReconciler(k8sClient, processor)
+			r := NewLoRAReconciler(k8sClient, processor, &fakeLoRAAdapterStatusGetter{})
 			r.podsByName = tc.podsByName
 
 			_, err := r.Reconcile(context.Background(), tc.req)
@@ -134,6 +134,45 @@ func TestLoRAReconciler_Reconcile(t *testing.T) {
 			assert.ElementsMatch(t, tc.wantProcessed.removedAdapterIDs, gotUpdate.removedAdapterIDs)
 		})
 	}
+}
+
+func TestLoRAReconciler_Run(t *testing.T) {
+	k8sClient := fake.NewFakeClient()
+	processor := &fakeUpdateProcessor{}
+	lister := &fakeLoRAAdapterStatusGetter{
+		s: &loRAAdapterStatus{
+			baseModelID: "base0",
+			adapterIDs: map[string]struct{}{
+				"adapter0": {},
+			},
+		},
+	}
+
+	r := NewLoRAReconciler(k8sClient, processor, lister)
+	r.podsByName = map[string]*podStatus{
+		"pod0": {
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod0",
+					Namespace: "default",
+				},
+			},
+			lstatus: &loRAAdapterStatus{
+				baseModelID: "base0",
+				adapterIDs: map[string]struct{}{
+					"adapter1": {},
+				},
+			},
+		},
+	}
+
+	err := r.run(context.Background())
+	assert.NoError(t, err)
+
+	assert.Len(t, processor.processedUpdates, 1)
+	gotUpdate := processor.processedUpdates[0]
+	assert.ElementsMatch(t, []string{"adapter0"}, gotUpdate.addedAdapterIDs)
+	assert.ElementsMatch(t, []string{"adapter1"}, gotUpdate.removedAdapterIDs)
 }
 
 func TestUpdateLoRALoadingStatus(t *testing.T) {
@@ -265,4 +304,12 @@ type fakeUpdateProcessor struct {
 
 func (f *fakeUpdateProcessor) processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate) {
 	f.processedUpdates = append(f.processedUpdates, update)
+}
+
+type fakeLoRAAdapterStatusGetter struct {
+	s *loRAAdapterStatus
+}
+
+func (f *fakeLoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdapterStatus, error) {
+	return f.s, nil
 }

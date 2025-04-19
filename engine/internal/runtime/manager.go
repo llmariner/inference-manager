@@ -348,6 +348,8 @@ func (m *Manager) waitForRuntimeToBeReady(ctx context.Context, modelID string) e
 
 	m.mu.Lock()
 	r, ok := m.runtimes[modelID]
+	// Copy the channel as the field can be updated.
+	waitCh := r.waitCh
 	m.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("runtime for model %q is not found", modelID)
@@ -364,7 +366,7 @@ func (m *Manager) waitForRuntimeToBeReady(ctx context.Context, modelID string) e
 	}
 
 	select {
-	case <-r.waitCh:
+	case <-waitCh:
 		if _, ok := m.errReason(modelID); ok {
 			// This will happen when the `cancelWaitingRequests` is called.
 			return ErrRequestCanceled

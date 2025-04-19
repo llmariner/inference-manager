@@ -390,10 +390,11 @@ func TestReconcile(t *testing.T) {
 
 			var chClosed atomic.Bool
 			if test.wantChClose {
+				waitCh := test.rt.waitCh
 				go func() {
 					select {
 					case <-ctx.Done():
-					case <-test.rt.waitCh:
+					case <-waitCh:
 						chClosed.Store(true)
 					}
 				}()

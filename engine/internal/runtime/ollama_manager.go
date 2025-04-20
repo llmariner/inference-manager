@@ -235,7 +235,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := m.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
 		if apierrors.IsNotFound(err) {
 			m.mu.Lock()
-			m.runtime = newPendingRuntime(sts.Name)
+			m.runtime.updateStateToPending()
 			m.cleanupModels()
 			m.mu.Unlock()
 			m.autoscaler.Unregister(req.NamespacedName)
@@ -260,7 +260,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
 			m.mu.Lock()
-			m.runtime = newPendingRuntime(sts.Name)
+			m.runtime.updateStateToPending()
 			m.cleanupModels()
 			m.mu.Unlock()
 			log.Info("Runtime is scale down to zero")
@@ -278,7 +278,12 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		for _, ch := range m.runtime.waitChs {
 			close(ch)
 		}
-		m.runtime = newReadyRuntime(sts.Name, m.ollamaClient.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
+		m.runtime.updateStateToReady(
+			m.ollamaClient.GetAddress(sts.Name),
+			false,
+			getGPU(&sts),
+			sts.Status.ReadyReplicas,
+		)
 		m.mu.Unlock()
 
 		log.Info("Runtime is ready")

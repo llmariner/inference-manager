@@ -31,9 +31,8 @@ var ErrRequestCanceled = errors.New("request is canceled")
 
 func newPendingRuntime(name string) *runtime {
 	return &runtime{
-		name:   name,
-		ready:  false,
-		waitCh: make(chan struct{}),
+		name:  name,
+		ready: false,
 	}
 }
 
@@ -41,7 +40,6 @@ func newPendingRuntimeWithErrorReason(name, errReason string) *runtime {
 	return &runtime{
 		name:      name,
 		ready:     false,
-		waitCh:    make(chan struct{}),
 		errReason: errReason,
 	}
 }
@@ -50,8 +48,8 @@ type runtime struct {
 	name  string
 	ready bool
 
-	// waitCh is used when the runtime is not ready.
-	waitCh    chan struct{}
+	// waitChs is used to notify when the runtime becomes ready.
+	waitChs   []chan struct{}
 	errReason string
 
 	// address is empty when the runtime is not ready.
@@ -66,13 +64,13 @@ type runtime struct {
 
 func (r *runtime) updateStateToPending() {
 	r.ready = false
-	r.waitCh = make(chan struct{})
 }
 
 func (r *runtime) setErrorReason(errReason string) {
-	// cancel the current waiting channel, but recreate to avoid panic.
-	close(r.waitCh)
-	r.waitCh = make(chan struct{})
+	for _, ch := range r.waitChs {
+		close(ch)
+	}
+	r.waitChs = nil
 	r.errReason = errReason
 }
 
@@ -82,7 +80,10 @@ func (r *runtime) updateStateToReady(
 	gpu,
 	replicas int32,
 ) {
-	close(r.waitCh)
+	for _, ch := range r.waitChs {
+		close(ch)
+	}
+	r.waitChs = nil
 	r.errReason = ""
 
 	r.ready = true
@@ -150,8 +151,8 @@ func (m *Manager) deleteRuntimeByName(name string) {
 			continue
 		}
 
-		if r.waitCh != nil {
-			close(r.waitCh)
+		for _, ch := range r.waitChs {
+			close(ch)
 		}
 		delete(m.runtimes, id)
 		break
@@ -166,8 +167,8 @@ func (m *Manager) deleteRuntimeByModelID(modelID string) {
 	if !ok {
 		return
 	}
-	if r.waitCh != nil {
-		close(r.waitCh)
+	for _, ch := range r.waitChs {
+		close(ch)
 	}
 	delete(m.runtimes, modelID)
 }
@@ -366,7 +367,8 @@ func (m *Manager) waitForRuntimeToBeReady(ctx context.Context, modelID string) e
 	}
 
 	// Copy the channel as the field can be updated.
-	waitCh := r.waitCh
+	waitCh := make(chan struct{})
+	r.waitChs = append(r.waitChs, waitCh)
 	m.mu.Unlock()
 
 	select {

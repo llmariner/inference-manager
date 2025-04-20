@@ -78,7 +78,9 @@ func TestOllamaPullModel(t *testing.T) {
 						return
 					case <-time.After(300 * time.Millisecond):
 						mgr.mu.Lock()
-						close(mgr.runtime.waitCh)
+						for _, ch := range mgr.runtime.waitChs {
+							close(ch)
+						}
 						mgr.runtime = newReadyRuntime(stsName, addr, false, 1, 1)
 						mgr.mu.Unlock()
 					}

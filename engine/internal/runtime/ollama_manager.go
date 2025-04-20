@@ -124,15 +124,16 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	// check if the runtime is ready.
-	m.mu.RLock()
+	m.mu.Lock()
 	runtimeAddr := m.runtime.address
 	if m.runtime.ready {
 		log.V(2).Info("Runtime is ready", "address", runtimeAddr)
-		m.mu.RUnlock()
+		m.mu.Unlock()
 	} else {
 		log.Info("Waiting for the runtime to be ready", "address", runtimeAddr)
-		ch := m.runtime.waitCh
-		m.mu.RUnlock()
+		ch := make(chan struct{})
+		m.runtime.waitChs = append(m.runtime.waitChs, ch)
+		m.mu.Unlock()
 		select {
 		case <-ch:
 		case <-ctx.Done():
@@ -274,8 +275,8 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if sts.Status.ReadyReplicas > 0 {
 		m.mu.Lock()
-		if m.runtime.waitCh != nil {
-			close(m.runtime.waitCh)
+		for _, ch := range m.runtime.waitChs {
+			close(ch)
 		}
 		m.runtime = newReadyRuntime(sts.Name, m.ollamaClient.GetAddress(sts.Name), false, getGPU(&sts), sts.Status.ReadyReplicas)
 		m.mu.Unlock()
@@ -291,11 +292,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	} else if yes {
 		m.mu.Lock()
 		if r := m.runtime; !r.ready {
-			// cancel the current waiting channel, but recreate to avoid panic.
-			close(r.waitCh)
-			r.waitCh = make(chan struct{})
-			r.errReason = corev1.PodReasonUnschedulable
-			m.runtime = r
+			r.setErrorReason(corev1.PodReasonUnschedulable)
 		}
 		m.mu.Unlock()
 		log.V(1).Info("Pod is unschedulable")

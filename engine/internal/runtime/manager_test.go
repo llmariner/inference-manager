@@ -152,11 +152,7 @@ func TestPullModel(t *testing.T) {
 						mgr.mu.Lock()
 						rt, ok := mgr.runtimes[testModelID]
 						if ok {
-							// cancel the current waiting channel, but recreate to avoid panic.
-							close(rt.waitCh)
-							rt.waitCh = make(chan struct{})
-							rt.errReason = "error"
-							mgr.runtimes[testModelID] = rt
+							rt.setErrorReason("error")
 						}
 						mgr.mu.Unlock()
 					} else {
@@ -390,7 +386,8 @@ func TestReconcile(t *testing.T) {
 
 			var chClosed atomic.Bool
 			if test.wantChClose {
-				waitCh := test.rt.waitCh
+				waitCh := make(chan struct{})
+				test.rt.waitChs = append(test.rt.waitChs, waitCh)
 				go func() {
 					select {
 					case <-ctx.Done():

@@ -48,7 +48,8 @@ func NewManager(
 		runtimes:        make(map[string]*runtime),
 		eventCh:         make(chan interface{}),
 
-		loraAdapterLoader: &loraAdapterLoaderImpl{},
+		runtimeReadinessChecker: &runtimeReadinessCheckerImpl{},
+		loraAdapterLoader:       &loraAdapterLoaderImpl{},
 
 		readinessCheckMaxRetryCount: 3,
 		readinessCheckRetryInterval: 500 * time.Millisecond,
@@ -85,6 +86,10 @@ type loraAdapterLoader interface {
 	unload(ctx context.Context, vllmAddr string, modelID string) error
 }
 
+type runtimeReadinessChecker interface {
+	check(addr string) error
+}
+
 // Manager manages runtimes.
 type Manager struct {
 	k8sClient       client.Client
@@ -101,7 +106,8 @@ type Manager struct {
 
 	mu sync.RWMutex
 
-	loraAdapterLoader loraAdapterLoader
+	runtimeReadinessChecker runtimeReadinessChecker
+	loraAdapterLoader       loraAdapterLoader
 
 	// readinessCheckMaxRetryCount is the maximum number of retries for the readiness check.
 	readinessCheckMaxRetryCount int
@@ -520,7 +526,8 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	}
 
 	// The runtime has just became ready.
-	if !m.isRuntimeReachable(e.address) {
+	if err := m.runtimeReadinessChecker.check(e.address); err != nil {
+		log.Error(err, "Runtime is not ready", "modelID", e.modelID, "address", e.address)
 		if e.retryCount >= m.readinessCheckMaxRetryCount {
 			log.Info("runtime is not reachable", "modelID", e.modelID, "retryCount", e.retryCount)
 			rt.closeWaitChs(errMsgUnreachableRuntime)
@@ -557,16 +564,6 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	rt.closeWaitChs("")
 
 	return nil
-}
-
-func (m *Manager) isRuntimeReachable(addr string) bool {
-	// TODO(kenji): Repliace this with get model?
-	req := &http.Request{
-		Method: http.MethodGet,
-		URL:    &url.URL{Scheme: "http", Host: addr},
-	}
-	_, err := http.DefaultClient.Do(req)
-	return err == nil
 }
 
 // PullModel pulls the model from the model manager.
@@ -666,6 +663,19 @@ func setupWithManager(mgr ctrl.Manager, leaderElection bool, r reconcile.Reconci
 		// for this controller if the processor disables the leader election.
 		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).
 		Complete(r)
+}
+
+type runtimeReadinessCheckerImpl struct {
+}
+
+func (*runtimeReadinessCheckerImpl) check(addr string) error {
+	// TODO(kenji): Repliace this with get model?
+	req := &http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Scheme: "http", Host: addr},
+	}
+	_, err := http.DefaultClient.Do(req)
+	return err
 }
 
 func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts appsv1.StatefulSet) (bool, error) {

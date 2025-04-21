@@ -234,8 +234,10 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	if r, ok := m.runtimes[e.modelID]; ok {
 		// The runtime is ready, or the pull is already in progress.
 		if r.ready {
+			log.Info("Runtime is ready. No need to pull the model", "modelID", e.modelID)
 			close(e.readyWaitCh)
 		} else {
+			log.Info("Pull is in progress. Waiting for the runtime to be ready", "modelID", e.modelID)
 			r.waitChs = append(r.waitChs, e.readyWaitCh)
 		}
 		m.mu.Unlock()
@@ -249,6 +251,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	}
 
 	if !isDynamicLoRAApplicable {
+		log.Info("Creating a new pending runtime", "modelID", e.modelID)
 		r := newPendingRuntime(client.GetName(e.modelID))
 		r.waitChs = append(r.waitChs, e.readyWaitCh)
 
@@ -384,6 +387,7 @@ func (m *Manager) findLoRAAdapterLoadingTargetPod(
 
 func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEvent) error {
 	log := ctrl.LoggerFrom(ctx)
+	log.Info("Deleting model...", "modelID", e.modelID)
 
 	defer close(e.eventWaitCh)
 
@@ -391,12 +395,12 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 	r, ok := m.runtimes[e.modelID]
 	m.mu.Unlock()
 	if !ok {
-		log.V(4).Info("Runtime does not exist", "model", e.modelID)
+		log.V(4).Info("Runtime does not exist", "modelID", e.modelID)
 		return nil
 	}
 
 	if r.isDynamicallyLoadedLoRA {
-		log.Info("Unloading the LoRA adapter from the runtime", "model", e.modelID)
+		log.Info("Unloading the LoRA adapter from the runtime", "modelID", e.modelID)
 		if err := m.loraAdapterLoader.unload(ctx, r.address, e.modelID); err != nil {
 			return fmt.Errorf("unload LoRA adapter: %s", err)
 		}
@@ -413,6 +417,7 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 		return err
 	}
 
+	log.Info("Deleting runtime...", "modelID", e.modelID)
 	if err := client.DeleteRuntime(ctx, e.modelID); err != nil {
 		return err
 	}
@@ -424,6 +429,7 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 
 func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *reconcileStatefulSetEvent) error {
 	log := ctrl.LoggerFrom(ctx)
+	log.Info("Reconciling statefulset...", "modelID", e.namespacedName.Name)
 
 	defer close(e.eventWaitCh)
 
@@ -433,15 +439,13 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 			return err
 		}
 
-		log.Info("Deleting runtime...", "model", e.namespacedName.Name)
+		log.Info("Deleting runtime...", "modelID", e.namespacedName.Name)
 		m.deleteRuntimeByName(e.namespacedName.Name)
 		m.autoscaler.Unregister(e.namespacedName)
 		return nil
 	}
 
 	modelID := sts.GetAnnotations()[modelAnnotationKey]
-
-	log.Info("Reconciling runtime...", "model", modelID)
 
 	var unschedulable bool
 	if sts.Status.ReadyReplicas == 0 {
@@ -521,7 +525,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	rt, ok := m.runtimes[e.modelID]
 	m.mu.Unlock()
 	if !ok {
-		log.Info("Runtime does not exist", "model", e.modelID)
+		log.Info("Runtime does not exist", "modelID", e.modelID)
 		return nil
 	}
 
@@ -591,7 +595,7 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deleting model", "model", modelID)
+	log.Info("Deleting model", "modelID", modelID)
 
 	waitCh := make(chan struct{})
 	m.eventCh <- &deleteModelEvent{
@@ -605,7 +609,7 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 		return ctx.Err()
 	}
 
-	log.Info("Deleted model", "model", modelID)
+	log.Info("Deleted model", "modelID", modelID)
 	return nil
 }
 

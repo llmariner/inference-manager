@@ -304,7 +304,10 @@ func updateLoRALoadingStatusForPod(
 	}, true, nil
 }
 
-func loadLoRAAdapter(
+type loraAdapterLoaderImpl struct {
+}
+
+func (*loraAdapterLoaderImpl) load(
 	ctx context.Context,
 	modelID string,
 	pullerAddr string,
@@ -361,7 +364,7 @@ func loadLoRAAdapter(
 	return nil
 }
 
-func unloadLoRAAdapter(
+func (*loraAdapterLoaderImpl) unload(
 	ctx context.Context,
 	vllmAddr string,
 	modelID string,

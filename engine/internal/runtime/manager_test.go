@@ -329,10 +329,11 @@ func TestReconcile(t *testing.T) {
 	var tests = []struct {
 		name string
 
-		preFn func(ctx context.Context, m *Manager)
-		sts   *appsv1.StatefulSet
-		pod   *corev1.Pod
-		rt    *runtime
+		sts *appsv1.StatefulSet
+		pod *corev1.Pod
+		rt  *runtime
+
+		readinessCheck error
 
 		wantReady     bool
 		wantChClose   bool
@@ -353,13 +354,9 @@ func TestReconcile(t *testing.T) {
 				sts.Status.Replicas = 1
 			}),
 			rt: newPendingRuntime(name),
-			preFn: func(ctx context.Context, m *Manager) {
-				http.DefaultClient = &http.Client{
-					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
-						return nil, errors.New("runtime not reachable")
-					}},
-				}
-			},
+
+			readinessCheck: errors.New("runtime not reachable"),
+
 			wantChClose:   true,
 			wantErrReason: errMsgUnreachableRuntime,
 		},
@@ -370,13 +367,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.Replicas = 1
 			}),
 			rt: newPendingRuntime(name),
-			preFn: func(ctx context.Context, m *Manager) {
-				http.DefaultClient = &http.Client{
-					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
-						return &http.Response{StatusCode: http.StatusOK}, nil
-					}},
-				}
-			},
+
 			wantReady:   true,
 			wantChClose: true,
 		},
@@ -386,13 +377,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			preFn: func(ctx context.Context, m *Manager) {
-				http.DefaultClient = &http.Client{
-					Transport: &fakeRoundTripper{resp: func() (*http.Response, error) {
-						return &http.Response{StatusCode: http.StatusOK}, nil
-					}},
-				}
-			},
+
 			wantReady: true,
 			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
@@ -512,14 +497,14 @@ func TestReconcile(t *testing.T) {
 			)
 			// Disable the retry.
 			mgr.readinessCheckMaxRetryCount = 0
+			mgr.runtimeReadinessChecker = &fakeRuntimeReadinessChecker{
+				err: test.readinessCheck,
+			}
 			if test.rt != nil {
 				mgr.runtimes[modelID] = test.rt
 			}
 
 			ctx := testutil.ContextWithLogger(t)
-			if test.preFn != nil {
-				test.preFn(ctx, mgr)
-			}
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
@@ -772,6 +757,14 @@ func (l *fakeLoraAdapterLoader) load(ctx context.Context, modelID string, puller
 func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr string, modelID string) error {
 	l.unloaded[modelID] = true
 	return nil
+}
+
+type fakeRuntimeReadinessChecker struct {
+	err error
+}
+
+func (c *fakeRuntimeReadinessChecker) check(addr string) error {
+	return c.err
 }
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {

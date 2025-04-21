@@ -131,7 +131,7 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		m.mu.Unlock()
 	} else {
 		log.Info("Waiting for the runtime to be ready", "address", runtimeAddr)
-		ch := make(chan struct{})
+		ch := make(chan string)
 		m.runtime.waitChs = append(m.runtime.waitChs, ch)
 		m.mu.Unlock()
 		select {
@@ -142,7 +142,7 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 		m.mu.Lock()
 		if !m.runtime.ready {
-			err := fmt.Errorf("runtime is not ready: %s", m.runtime.errReason)
+			err := fmt.Errorf("runtime is not ready")
 			log.Error(err, "Runtime is not ready", "address", runtimeAddr)
 			m.mu.Unlock()
 			return err
@@ -235,7 +235,8 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := m.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
 		if apierrors.IsNotFound(err) {
 			m.mu.Lock()
-			m.runtime.updateStateToPending()
+			m.runtime.ready = false
+			m.runtime.closeWaitChs("")
 			m.cleanupModels()
 			m.mu.Unlock()
 			m.autoscaler.Unregister(req.NamespacedName)
@@ -260,7 +261,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
 			m.mu.Lock()
-			m.runtime.updateStateToPending()
+			m.runtime.ready = false
 			m.cleanupModels()
 			m.mu.Unlock()
 			log.Info("Runtime is scale down to zero")
@@ -278,12 +279,12 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		for _, ch := range m.runtime.waitChs {
 			close(ch)
 		}
-		m.runtime.updateStateToReady(
+		m.runtime.becomeReady(
 			m.ollamaClient.GetAddress(sts.Name),
-			false,
 			getGPU(&sts),
 			sts.Status.ReadyReplicas,
 		)
+		m.runtime.closeWaitChs("")
 		m.mu.Unlock()
 
 		log.Info("Runtime is ready")
@@ -297,7 +298,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	} else if yes {
 		m.mu.Lock()
 		if r := m.runtime; !r.ready {
-			r.setErrorReason(corev1.PodReasonUnschedulable)
+			r.closeWaitChs(corev1.PodReasonUnschedulable)
 		}
 		m.mu.Unlock()
 		log.V(1).Info("Pod is unschedulable")

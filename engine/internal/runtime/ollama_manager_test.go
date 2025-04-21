@@ -49,11 +49,11 @@ func TestOllamaPullModel(t *testing.T) {
 		},
 		{
 			name: "new model",
-			rt:   newReadyRuntime(stsName, addr, false, 1, 1),
+			rt:   newReadyRuntime(stsName, addr, 1),
 		},
 		{
 			name:   "already pulled",
-			rt:     newReadyRuntime(stsName, addr, false, 1, 1),
+			rt:     newReadyRuntime(stsName, addr, 1),
 			models: &ollamaModel{id: modelID, waitCh: make(chan struct{})},
 		},
 	}
@@ -78,10 +78,8 @@ func TestOllamaPullModel(t *testing.T) {
 						return
 					case <-time.After(300 * time.Millisecond):
 						mgr.mu.Lock()
-						for _, ch := range mgr.runtime.waitChs {
-							close(ch)
-						}
-						mgr.runtime = newReadyRuntime(stsName, addr, false, 1, 1)
+						mgr.runtime.becomeReady(addr, 1, 1)
+						mgr.runtime.closeWaitChs("")
 						mgr.mu.Unlock()
 					}
 				}()

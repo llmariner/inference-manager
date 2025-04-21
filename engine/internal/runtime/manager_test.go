@@ -10,14 +10,15 @@ import (
 	"time"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -25,7 +26,7 @@ func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 		},
 	}
 	mgr.deleteRuntimeByName("rt-model-0")
@@ -33,24 +34,10 @@ func TestDeleteRuntime(t *testing.T) {
 	assert.Empty(t, mgr.runtimes)
 }
 
-func TestMarkRuntimeReady(t *testing.T) {
-	mgr := &Manager{
-		runtimes: map[string]*runtime{
-			"model-0": newPendingRuntime("rt-model-0"),
-		},
-	}
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test", false, 1, 1)
-	assert.True(t, mgr.runtimes["model-0"].ready)
-	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-	mgr.markRuntimeReady("rt-model-0", "model-0", "test", false, 1, 1)
-	assert.True(t, mgr.runtimes["model-0"].ready)
-	assert.Equal(t, "test", mgr.runtimes["model-0"].address)
-}
-
 func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", false, 1, 1),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1),
 			"model-1": newPendingRuntime("rt-model-1"),
 		},
 	}
@@ -64,9 +51,9 @@ func TestGetLLMAddress(t *testing.T) {
 func TestListSyncedModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
-			"model-0": newReadyRuntime("rt-model-0", "test", false, 1, 1),
+			"model-0": newReadyRuntime("rt-model-0", "test", 1),
 			"model-1": newPendingRuntime("rt-model-1"),
-			"model-2": newReadyRuntime("rt-model-2", "test2", false, 1, 2),
+			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
 	}
 	models := mgr.ListSyncedModels()
@@ -81,7 +68,7 @@ func TestListInProgressModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", false, 1, 1),
+			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 			"model-2": newPendingRuntime("rt-model-2"),
 		},
 	}
@@ -97,16 +84,26 @@ func TestPullModel(t *testing.T) {
 	const (
 		testModelID = "mid-0"
 	)
+
 	var tests = []struct {
 		name          string
 		rt            *runtime
+		sts           *appsv1.StatefulSet
 		deployed      bool
 		readyReplicas int32
 		canceled      bool
 	}{
 		{
 			name: "already ready",
-			rt:   newReadyRuntime("rt-model-0", "test", false, 1, 1),
+			rt:   newReadyRuntime("rt-model-0", "test", 1),
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "rt-model-0",
+				},
+				Status: appsv1.StatefulSetStatus{
+					ReadyReplicas: 1,
+				},
+			},
 		},
 		{
 			name: "already pending",
@@ -129,13 +126,25 @@ func TestPullModel(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rtClient := &fakeClient{deployed: map[string]bool{}, readyReplicas: test.readyReplicas}
-			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
-			mgr := &Manager{
-				runtimes:        map[string]*runtime{},
-				rtClientFactory: &fakeClientFactory{c: rtClient},
-				autoscaler:      scaler,
+			var objs []apiruntime.Object
+			if test.sts != nil {
+				objs = append(objs, test.sts)
 			}
+			k8sClient := fake.NewFakeClient(objs...)
+
+			rtClient := &fakeClient{
+				deployed:      map[string]bool{},
+				readyReplicas: test.readyReplicas,
+				k8sClient:     k8sClient,
+			}
+			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				scaler,
+				nil,
+				config.VLLMConfig{},
+			)
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = test.rt
 			}
@@ -152,15 +161,27 @@ func TestPullModel(t *testing.T) {
 						mgr.mu.Lock()
 						rt, ok := mgr.runtimes[testModelID]
 						if ok {
-							rt.setErrorReason("error")
+							rt.closeWaitChs("error")
 						}
 						mgr.mu.Unlock()
 					} else {
 						t.Log("marking runtime ready")
-						mgr.markRuntimeReady("rt-model-0", testModelID, "test", false, 1, 1)
+						mgr.mu.Lock()
+						rt, ok := mgr.runtimes[testModelID]
+						if ok {
+							rt.becomeReady("test", 1, 1)
+							rt.closeWaitChs("")
+						}
 					}
 				}
 			}()
+
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
 			err := mgr.PullModel(ctx, testModelID)
 			if test.canceled {
 				assert.ErrorIs(t, err, ErrRequestCanceled)
@@ -199,10 +220,10 @@ func TestReconcile(t *testing.T) {
 		pod   *corev1.Pod
 		rt    *runtime
 
-		wantError   bool
-		wantReady   bool
-		wantChClose bool
-		wantExtra   func(m *Manager, fs *fakeScalerRegister)
+		wantReady     bool
+		wantChClose   bool
+		wantErrReason string
+		wantExtra     func(m *Manager, fs *fakeScalerRegister)
 	}{
 		{
 			name: "still pending",
@@ -225,7 +246,8 @@ func TestReconcile(t *testing.T) {
 					}},
 				}
 			},
-			wantError: true,
+			wantChClose:   true,
+			wantErrReason: errMsgUnreachableRuntime,
 		},
 		{
 			name: "to be ready",
@@ -268,7 +290,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 0
 			}),
-			rt: newReadyRuntime(name, "test", false, 1, 1),
+			rt: newReadyRuntime(name, "test", 1),
 		},
 		{
 			name: "not-registered (pending)",
@@ -306,7 +328,6 @@ func TestReconcile(t *testing.T) {
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
 				assert.Len(t, m.runtimes, 1, "runtime")
-				assert.Equal(t, corev1.PodReasonUnschedulable, m.runtimes[modelID].errReason)
 			},
 		},
 		{
@@ -321,7 +342,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (ready)",
 			sts:  nil,
-			rt:   newReadyRuntime(name, "test", false, 1, 1),
+			rt:   newReadyRuntime(name, "test", 1),
 			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -348,11 +369,9 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			rt:          newPendingRuntime(name),
-			wantChClose: true,
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
-				assert.Equal(t, corev1.PodReasonUnschedulable, m.runtimes[modelID].errReason)
-			},
+			rt:            newPendingRuntime(name),
+			wantChClose:   true,
+			wantErrReason: corev1.PodReasonUnschedulable,
 		},
 	}
 	for _, test := range tests {
@@ -367,12 +386,15 @@ func TestReconcile(t *testing.T) {
 			k8sClient := fake.NewFakeClient(objs...)
 			rtClient := &fakeClient{deployed: map[string]bool{}}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
-			mgr := &Manager{
-				k8sClient:       k8sClient,
-				runtimes:        map[string]*runtime{},
-				rtClientFactory: &fakeClientFactory{c: rtClient},
-				autoscaler:      scaler,
-			}
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				scaler,
+				nil,
+				config.VLLMConfig{},
+			)
+			// Disable the retry.
+			mgr.readinessCheckMaxRetryCount = 0
 			if test.rt != nil {
 				mgr.runtimes[modelID] = test.rt
 			}
@@ -384,26 +406,51 @@ func TestReconcile(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			var chClosed atomic.Bool
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
+			var (
+				chClosed     atomic.Bool
+				gotErrReason atomic.Value
+			)
 			if test.wantChClose {
-				waitCh := make(chan struct{})
+				waitCh := make(chan string)
 				test.rt.waitChs = append(test.rt.waitChs, waitCh)
 				go func() {
-					select {
-					case <-ctx.Done():
-					case <-waitCh:
-						chClosed.Store(true)
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case errReason := <-waitCh:
+							if errReason != "" {
+								gotErrReason.Store(errReason)
+							} else {
+								chClosed.Store(true)
+								return
+							}
+						}
 					}
 				}()
 			}
 
 			nn := types.NamespacedName{Name: name, Namespace: namespace}
 			_, err := mgr.Reconcile(ctx, ctrl.Request{NamespacedName: nn})
+			assert.NoError(t, err)
 
-			if test.wantError {
-				assert.Error(t, err)
+			// TODO(kenji): Wait for the reconciliation event is processed.
+
+			if test.wantChClose {
+				assert.Eventually(t, func() bool {
+					return chClosed.Load()
+				}, time.Second, 100*time.Millisecond)
+			}
+			if w, g := test.wantErrReason, gotErrReason.Load(); w != "" {
+				assert.Equal(t, w, g)
 			} else {
-				assert.NoError(t, err)
+				assert.Nil(t, g)
 			}
 
 			if test.rt != nil {
@@ -412,11 +459,6 @@ func TestReconcile(t *testing.T) {
 			}
 			if test.wantExtra != nil {
 				test.wantExtra(mgr, scaler)
-			}
-			if test.wantChClose {
-				assert.Eventually(t, func() bool {
-					return chClosed.Load()
-				}, time.Second, 100*time.Millisecond)
 			}
 		})
 	}
@@ -513,92 +555,6 @@ func TestAllChildrenUnschedulable(t *testing.T) {
 	}
 }
 
-func TestGetGPU(t *testing.T) {
-	tcs := []struct {
-		name string
-		sts  appsv1.StatefulSet
-		want int32
-	}{
-		{
-			name: "gpu",
-			sts: appsv1.StatefulSet{
-				Spec: appsv1.StatefulSetSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Resources: corev1.ResourceRequirements{
-										Limits: corev1.ResourceList{
-											nvidiaGPUResource: resource.MustParse("1"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: 1,
-		},
-		{
-			name: "no gpu",
-			sts: appsv1.StatefulSet{
-				Spec: appsv1.StatefulSetSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Resources: corev1.ResourceRequirements{
-										Limits: corev1.ResourceList{
-											"cpu": resource.MustParse("1"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "multiple containers",
-			sts: appsv1.StatefulSet{
-				Spec: appsv1.StatefulSetSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Resources: corev1.ResourceRequirements{
-										Limits: corev1.ResourceList{
-											nvidiaGPUResource: resource.MustParse("1"),
-										},
-									},
-								},
-								{
-									Resources: corev1.ResourceRequirements{
-										Limits: corev1.ResourceList{
-											nvidiaGPUResource: resource.MustParse("2"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: 3,
-		},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			got := getGPU(&tc.sts)
-			assert.Equal(t, tc.want, got)
-		})
-	}
-}
-
 type fakeRoundTripper struct {
 	resp func() (*http.Response, error)
 }
@@ -618,6 +574,7 @@ func (f *fakeClientFactory) New(modelID string) (Client, error) {
 type fakeClient struct {
 	deployed      map[string]bool
 	readyReplicas int32
+	k8sClient     client.Client
 }
 
 func (m *fakeClient) GetName(modelID string) string {
@@ -630,7 +587,7 @@ func (m *fakeClient) GetAddress(name string) string {
 
 func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
 	m.deployed[modelID] = true
-	return &appsv1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.GetName(modelID),
 			Namespace: "default",
@@ -638,7 +595,13 @@ func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update b
 		Status: appsv1.StatefulSetStatus{
 			ReadyReplicas: m.readyReplicas,
 		},
-	}, nil
+	}
+	if m.k8sClient != nil {
+		if err := m.k8sClient.Create(ctx, sts); err != nil {
+			return nil, err
+		}
+	}
+	return sts, nil
 }
 
 func (m *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
@@ -666,4 +629,13 @@ func (m *fakeScalerRegister) Register(ctx context.Context, modelID string, targe
 
 func (m *fakeScalerRegister) Unregister(nn types.NamespacedName) {
 	delete(m.registered, nn)
+}
+
+func newReadyRuntime(name, addr string, replicas int32) *runtime {
+	return &runtime{
+		ready:    true,
+		name:     name,
+		address:  addr,
+		replicas: replicas,
+	}
 }

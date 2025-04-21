@@ -224,6 +224,10 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			return err
 		}
 
+		go func() {
+			errCh <- rtManager.RunStateMachine(ctx)
+		}()
+
 		if c.VLLM.DynamicLoRALoading {
 			r := runtime.NewLoRAReconciler(
 				mgr.GetClient(),

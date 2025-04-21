@@ -669,7 +669,7 @@ type runtimeReadinessCheckerImpl struct {
 }
 
 func (*runtimeReadinessCheckerImpl) check(addr string) error {
-	// TODO(kenji): Repliace this with get model?
+	// TODO(kenji): Replace this with get model?
 	req := &http.Request{
 		Method: http.MethodGet,
 		URL:    &url.URL{Scheme: "http", Host: addr},

@@ -83,6 +83,7 @@ func TestListInProgressModels(t *testing.T) {
 func TestPullModel(t *testing.T) {
 	const (
 		testModelID = "mid-0"
+		namespace   = "rt-0"
 	)
 
 	var tests = []struct {
@@ -136,6 +137,7 @@ func TestPullModel(t *testing.T) {
 				deployed:      map[string]bool{},
 				readyReplicas: test.readyReplicas,
 				k8sClient:     k8sClient,
+				namespace:     namespace,
 			}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := NewManager(
@@ -194,6 +196,118 @@ func TestPullModel(t *testing.T) {
 	}
 }
 
+func TestDeleteModel(t *testing.T) {
+	const (
+		name        = "rt-mid-0"
+		namespace   = "ns-0"
+		testModelID = "mid-0"
+	)
+
+	var tests = []struct {
+		name         string
+		rt           *runtime
+		sts          *appsv1.StatefulSet
+		runReconcile bool
+		wantExtra    func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader)
+	}{
+		{
+			name: "no runtime",
+		},
+		{
+			name: "existing runtime",
+			rt:   newReadyRuntime(name, "test", 1),
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+			},
+			runReconcile: true,
+			wantExtra: func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader) {
+				assert.False(t, c.deployed[testModelID])
+			},
+		},
+		{
+			name: "existing runtime with dynamic LoRA loading",
+			rt: &runtime{
+				ready:                   true,
+				name:                    name,
+				isDynamicallyLoadedLoRA: true,
+			},
+			wantExtra: func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader) {
+				assert.True(t, l.unloaded[testModelID])
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var objs []apiruntime.Object
+			if test.sts != nil {
+				objs = append(objs, test.sts)
+			}
+			k8sClient := fake.NewFakeClient(objs...)
+
+			deployed := map[string]bool{}
+			if test.rt != nil {
+				deployed[testModelID] = true
+			}
+
+			rtClient := &fakeClient{
+				deployed:  deployed,
+				k8sClient: k8sClient,
+				namespace: namespace,
+			}
+			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				scaler,
+				nil,
+				config.VLLMConfig{},
+			)
+			loader := &fakeLoraAdapterLoader{
+				loaded:   map[string]bool{},
+				unloaded: map[string]bool{},
+			}
+			mgr.loraAdapterLoader = loader
+
+			if test.rt != nil {
+				mgr.runtimes[testModelID] = test.rt
+			}
+			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
+			defer cancel()
+
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
+			err := mgr.DeleteModel(ctx, testModelID)
+			assert.NoError(t, err)
+
+			// Run reconciliation to mimic the stateful deletion event.
+			if test.runReconcile {
+				if test.sts != nil {
+					_, err := mgr.Reconcile(ctx, ctrl.Request{
+						NamespacedName: types.NamespacedName{Name: name, Namespace: namespace},
+					})
+					assert.NoError(t, err)
+				}
+			}
+
+			mgr.mu.Lock()
+			_, ok := mgr.runtimes[testModelID]
+			assert.False(t, ok)
+			mgr.mu.Unlock()
+
+			if f := test.wantExtra; f != nil {
+				f(t, rtClient, loader)
+			}
+		})
+	}
+}
+
 func TestReconcile(t *testing.T) {
 	const (
 		name      = "rt-0"
@@ -223,7 +337,7 @@ func TestReconcile(t *testing.T) {
 		wantReady     bool
 		wantChClose   bool
 		wantErrReason string
-		wantExtra     func(m *Manager, fs *fakeScalerRegister)
+		wantExtra     func(t *testing.T, m *Manager, fs *fakeScalerRegister)
 	}{
 		{
 			name: "still pending",
@@ -280,7 +394,7 @@ func TestReconcile(t *testing.T) {
 				}
 			},
 			wantReady: true,
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
 				assert.Len(t, m.runtimes, 1, "runtime")
 			},
@@ -298,7 +412,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.Replicas = 1
 			}),
 			wantReady: false,
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
 				assert.Len(t, m.runtimes, 1, "runtime")
 			},
@@ -325,7 +439,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			wantReady: false,
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Len(t, fs.registered, 1, "scaler")
 				assert.Len(t, m.runtimes, 1, "runtime")
 			},
@@ -334,7 +448,7 @@ func TestReconcile(t *testing.T) {
 			name: "not found (pending)",
 			sts:  nil,
 			rt:   newPendingRuntime(name),
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
 			},
@@ -343,7 +457,7 @@ func TestReconcile(t *testing.T) {
 			name: "not found (ready)",
 			sts:  nil,
 			rt:   newReadyRuntime(name, "test", 1),
-			wantExtra: func(m *Manager, fs *fakeScalerRegister) {
+			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
 			},
@@ -384,7 +498,10 @@ func TestReconcile(t *testing.T) {
 				objs = append(objs, test.pod)
 			}
 			k8sClient := fake.NewFakeClient(objs...)
-			rtClient := &fakeClient{deployed: map[string]bool{}}
+			rtClient := &fakeClient{
+				deployed:  map[string]bool{},
+				namespace: namespace,
+			}
 			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
 			mgr := NewManager(
 				k8sClient,
@@ -458,7 +575,7 @@ func TestReconcile(t *testing.T) {
 				assert.Equal(t, test.wantReady, rt != nil && rt.ready)
 			}
 			if test.wantExtra != nil {
-				test.wantExtra(mgr, scaler)
+				test.wantExtra(t, mgr, scaler)
 			}
 		})
 	}
@@ -575,45 +692,56 @@ type fakeClient struct {
 	deployed      map[string]bool
 	readyReplicas int32
 	k8sClient     client.Client
+	namespace     string
 }
 
-func (m *fakeClient) GetName(modelID string) string {
+func (c *fakeClient) GetName(modelID string) string {
 	return fmt.Sprintf("rt-%s", modelID)
 }
 
-func (m *fakeClient) GetAddress(name string) string {
+func (c *fakeClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:1234", name)
 }
 
-func (m *fakeClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
-	m.deployed[modelID] = true
+func (c *fakeClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
+	c.deployed[modelID] = true
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.GetName(modelID),
-			Namespace: "default",
+			Name:      c.GetName(modelID),
+			Namespace: c.namespace,
 		},
 		Status: appsv1.StatefulSetStatus{
-			ReadyReplicas: m.readyReplicas,
+			ReadyReplicas: c.readyReplicas,
 		},
 	}
-	if m.k8sClient != nil {
-		if err := m.k8sClient.Create(ctx, sts); err != nil {
+	if c.k8sClient != nil {
+		if err := c.k8sClient.Create(ctx, sts); err != nil {
 			return nil, err
 		}
 	}
 	return sts, nil
 }
 
-func (m *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
-	m.deployed[modelID] = false
+func (c *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
+	c.deployed[modelID] = false
+	if c.k8sClient != nil {
+		if err := c.k8sClient.Delete(ctx, &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      c.GetName(modelID),
+				Namespace: c.namespace,
+			},
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func (m *fakeClient) Namespace() string {
+func (c *fakeClient) Namespace() string {
 	return "fake-namespace"
 }
 
-func (m *fakeClient) RuntimeName() string {
+func (c *fakeClient) RuntimeName() string {
 	return "fake"
 }
 
@@ -621,14 +749,29 @@ type fakeScalerRegister struct {
 	registered map[types.NamespacedName]bool
 }
 
-func (m *fakeScalerRegister) Register(ctx context.Context, modelID string, target *appsv1.StatefulSet) error {
+func (r *fakeScalerRegister) Register(ctx context.Context, modelID string, target *appsv1.StatefulSet) error {
 	nn := types.NamespacedName{Name: target.Name, Namespace: target.Namespace}
-	m.registered[nn] = true
+	r.registered[nn] = true
 	return nil
 }
 
-func (m *fakeScalerRegister) Unregister(nn types.NamespacedName) {
-	delete(m.registered, nn)
+func (r *fakeScalerRegister) Unregister(nn types.NamespacedName) {
+	delete(r.registered, nn)
+}
+
+type fakeLoraAdapterLoader struct {
+	loaded   map[string]bool
+	unloaded map[string]bool
+}
+
+func (l *fakeLoraAdapterLoader) load(ctx context.Context, modelID string, pullerAddr string, vllmAddr string) error {
+	l.loaded[modelID] = true
+	return nil
+}
+
+func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr string, modelID string) error {
+	l.unloaded[modelID] = true
+	return nil
 }
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {

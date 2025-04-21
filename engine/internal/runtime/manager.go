@@ -48,6 +48,8 @@ func NewManager(
 		runtimes:        make(map[string]*runtime),
 		eventCh:         make(chan interface{}),
 
+		loraAdapterLoader: &loraAdapterLoaderImpl{},
+
 		readinessCheckMaxRetryCount: 3,
 		readinessCheckRetryInterval: 500 * time.Millisecond,
 	}
@@ -78,6 +80,11 @@ type readinessCheckEvent struct {
 	retryCount int
 }
 
+type loraAdapterLoader interface {
+	load(ctx context.Context, modelID string, pullerAddr string, vllmAddr string) error
+	unload(ctx context.Context, vllmAddr string, modelID string) error
+}
+
 // Manager manages runtimes.
 type Manager struct {
 	k8sClient       client.Client
@@ -93,6 +100,8 @@ type Manager struct {
 	eventCh chan interface{}
 
 	mu sync.RWMutex
+
+	loraAdapterLoader loraAdapterLoader
 
 	// readinessCheckMaxRetryCount is the maximum number of retries for the readiness check.
 	readinessCheckMaxRetryCount int
@@ -291,7 +300,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort)
 	vllmAddr := client.GetAddress(podIP)
-	if err := loadLoRAAdapter(ctx, e.modelID, pullerAddr, vllmAddr); err != nil {
+	if err := m.loraAdapterLoader.load(ctx, e.modelID, pullerAddr, vllmAddr); err != nil {
 		return fmt.Errorf("load LoRA adapter: %s", err)
 	}
 
@@ -382,11 +391,9 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 
 	if r.isDynamicallyLoadedLoRA {
 		log.Info("Unloading the LoRA adapter from the runtime", "model", e.modelID)
-		if err := unloadLoRAAdapter(ctx, r.address, e.modelID); err != nil {
+		if err := m.loraAdapterLoader.unload(ctx, r.address, e.modelID); err != nil {
 			return fmt.Errorf("unload LoRA adapter: %s", err)
 		}
-		m.mu.Lock()
-		defer m.mu.Unlock()
 		m.deleteRuntimeByModelID(e.modelID)
 		return nil
 	}
@@ -420,13 +427,14 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 			return err
 		}
 
+		log.Info("Deleting runtime...", "model", e.namespacedName.Name)
 		m.deleteRuntimeByName(e.namespacedName.Name)
 		m.autoscaler.Unregister(e.namespacedName)
-		log.Info("Runtime is deleted")
 		return nil
 	}
 
 	modelID := sts.GetAnnotations()[modelAnnotationKey]
+
 	log.Info("Reconciling runtime...", "model", modelID)
 
 	var unschedulable bool

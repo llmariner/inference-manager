@@ -65,11 +65,27 @@ type VLLMConfig struct {
 	// PullerPort is the port for the puller. This is only used when
 	// DynamicModelLoading is true.
 	PullerPort int `yaml:"pullerPort"`
+
+	LoggingLevel string `yaml:"loggingLevel"`
 }
 
 func (c VLLMConfig) validate() error {
 	if c.DynamicLoRALoading && c.PullerPort <= 0 {
 		return fmt.Errorf("pullerPort must be set when dynamicLoRALoading is true")
+	}
+
+	levels := []string{
+		"DEBUG",
+		"INFO",
+		"WARNING",
+		"ERROR",
+	}
+	levelsMap := map[string]bool{}
+	for _, level := range levels {
+		levelsMap[level] = true
+	}
+	if !levelsMap[c.LoggingLevel] {
+		return fmt.Errorf("invalid loggingLevel: %q, must be one of %v", c.LoggingLevel, levels)
 	}
 	return nil
 }

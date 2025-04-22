@@ -906,6 +906,11 @@ func (l *fakeLoraAdapterLoader) pullModel(ctx context.Context, pullerAddr, model
 	return nil
 }
 
+func (l *fakeLoraAdapterLoader) checkModelPullStatus(ctx context.Context, pullerAddr, modelID string) (bool, error) {
+	_, ok := l.pulled[modelID]
+	return ok, nil
+}
+
 func (l *fakeLoraAdapterLoader) load(ctx context.Context, vllmAddr, modelID string) error {
 	l.loaded[modelID] = true
 	return nil

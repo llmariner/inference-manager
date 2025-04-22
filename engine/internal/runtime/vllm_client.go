@@ -256,7 +256,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args:              args,
 		initContainerSpec: initContainerSepc,
 		pullerDaemonMode:  v.vLLMConfig.DynamicLoRALoading,
-		pullerPort:        v.vLLMConfig.PullerPort,
+		pullerPort:        v.rconfig.PullerPort,
 	}, nil
 }
 

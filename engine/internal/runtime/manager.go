@@ -37,16 +37,20 @@ func NewManager(
 	rtClientFactory ClientFactory,
 	autoscaler autoscaler.Registerer,
 	modelClient modelClient,
-	vllmConfig config.VLLMConfig,
+	enableDynamicLoRALoading bool,
+	pullerPort int,
 ) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
 		rtClientFactory: rtClientFactory,
 		autoscaler:      autoscaler,
 		modelClient:     modelClient,
-		vllmConfig:      vllmConfig,
-		runtimes:        make(map[string]*runtime),
-		eventCh:         make(chan interface{}),
+
+		enableDynamicLoRALoading: enableDynamicLoRALoading,
+		pullerPort:               pullerPort,
+
+		runtimes: make(map[string]*runtime),
+		eventCh:  make(chan interface{}),
 
 		runtimeReadinessChecker: &runtimeReadinessCheckerImpl{},
 		loraAdapterLoadingTargetSelector: &loraAdapterLoadingTargetSelectorImpl{
@@ -106,6 +110,9 @@ type Manager struct {
 
 	modelClient modelClient
 	vllmConfig  config.VLLMConfig
+
+	enableDynamicLoRALoading bool
+	pullerPort               int
 
 	// runtimes is keyed by model ID.
 	runtimes map[string]*runtime
@@ -311,7 +318,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	log.Info("Found pod for LoRA adapter loading", "podIP", podIP)
 
-	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.vllmConfig.PullerPort)
+	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.pullerPort)
 	vllmAddr := client.GetAddress(podIP)
 	if err := m.loraAdapterLoader.load(ctx, e.modelID, pullerAddr, vllmAddr); err != nil {
 		return fmt.Errorf("load LoRA adapter: %s", err)
@@ -357,7 +364,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 }
 
 func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID string) (bool, string, error) {
-	if !m.vllmConfig.DynamicLoRALoading {
+	if !m.enableDynamicLoRALoading {
 		return false, "", nil
 	}
 

@@ -150,7 +150,7 @@ ollama serve
 			args:                []string{"-c", script},
 			dynamicModelLoading: true,
 			pullerDaemonMode:    true,
-			pullerPort:          o.config.PullerPort,
+			pullerPort:          o.rconfig.PullerPort,
 		}, update)
 	}
 

@@ -451,7 +451,7 @@ func (c *Config) Validate() error {
 
 	if c.Ollama.DynamicModelLoading || c.VLLM.DynamicLoRALoading {
 		if c.Runtime.PullerPort <= 0 {
-			return fmt.Errorf("pullerPort must be set when dynamicModelLoading or dynamicLoRALoading is true")
+			return fmt.Errorf("runtime: pullerPort must be set when dynamicModelLoading or dynamicLoRALoading is true")
 		}
 	}
 

@@ -72,16 +72,7 @@ func pullCmd() *cobra.Command {
 				return p.Pull(ctx, modelID)
 			}
 
-			var pullerPort int
-			switch runtime {
-			case config.RuntimeNameOllama:
-				pullerPort = c.Ollama.PullerPort
-			case config.RuntimeNameVLLM:
-				pullerPort = c.VLLM.PullerPort
-			default:
-				return fmt.Errorf("daemonmode unsupported runtime: %q", runtime)
-			}
-			if pullerPort <= 0 {
+			if c.Runtime.PullerPort <= 0 {
 				return fmt.Errorf("puller port must be set on the daemon mode")
 			}
 
@@ -89,7 +80,7 @@ func pullCmd() *cobra.Command {
 
 			errCh := make(chan error)
 			go func() {
-				errCh <- srv.Start(pullerPort)
+				errCh <- srv.Start(c.Runtime.PullerPort)
 			}()
 
 			go func() {

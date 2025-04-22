@@ -49,7 +49,11 @@ func NewManager(
 		eventCh:         make(chan interface{}),
 
 		runtimeReadinessChecker: &runtimeReadinessCheckerImpl{},
-		loraAdapterLoader:       &loraAdapterLoaderImpl{},
+		loraAdapterLoadingTargetSelector: &loraAdapterLoadingTargetSelectorImpl{
+			k8sClient:       k8sClient,
+			rtClientFactory: rtClientFactory,
+		},
+		loraAdapterLoader: &loraAdapterLoaderImpl{},
 
 		readinessCheckMaxRetryCount: 3,
 		readinessCheckRetryInterval: 500 * time.Millisecond,
@@ -81,13 +85,17 @@ type readinessCheckEvent struct {
 	retryCount int
 }
 
+type runtimeReadinessChecker interface {
+	check(addr string) error
+}
+
+type loraAdapterLoadingTargetSelector interface {
+	selectTarget(ctx context.Context, modelID string, stsName string) (string, error)
+}
+
 type loraAdapterLoader interface {
 	load(ctx context.Context, modelID string, pullerAddr string, vllmAddr string) error
 	unload(ctx context.Context, vllmAddr string, modelID string) error
-}
-
-type runtimeReadinessChecker interface {
-	check(addr string) error
 }
 
 // Manager manages runtimes.
@@ -106,8 +114,9 @@ type Manager struct {
 
 	mu sync.RWMutex
 
-	runtimeReadinessChecker runtimeReadinessChecker
-	loraAdapterLoader       loraAdapterLoader
+	runtimeReadinessChecker          runtimeReadinessChecker
+	loraAdapterLoadingTargetSelector loraAdapterLoadingTargetSelector
+	loraAdapterLoader                loraAdapterLoader
 
 	// readinessCheckMaxRetryCount is the maximum number of retries for the readiness check.
 	readinessCheckMaxRetryCount int
@@ -223,6 +232,7 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 
 func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) error {
 	log := ctrl.LoggerFrom(ctx)
+	log.Info("Pulling model...", "modelID", e.modelID)
 
 	client, err := m.rtClientFactory.New(e.modelID)
 	if err != nil {
@@ -232,19 +242,23 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	m.mu.Lock()
 
 	if r, ok := m.runtimes[e.modelID]; ok {
+		defer m.mu.Unlock()
 		// The runtime is ready, or the pull is already in progress.
 		if r.ready {
 			log.Info("Runtime is ready. No need to pull the model", "modelID", e.modelID)
 			close(e.readyWaitCh)
-		} else {
-			log.Info("Pull is in progress. Waiting for the runtime to be ready", "modelID", e.modelID)
-			r.waitChs = append(r.waitChs, e.readyWaitCh)
+			return nil
 		}
-		m.mu.Unlock()
+
+		log.Info("Pull is in progress. Waiting for the runtime to be ready", "modelID", e.modelID)
+		r.waitChs = append(r.waitChs, e.readyWaitCh)
+
 		return nil
 	}
 
-	// TODO(kenji): Revisit the lockig if this takes a long time.
+	log.Info("Runtime is not ready. Checking if LoRA adapter loading is applicable", "modelID", e.modelID)
+
+	// TODO(kenji): Revisit the locking if this takes a long time.
 	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRARloadingApplicable(ctx, e.modelID)
 	if err != nil {
 		return err
@@ -254,41 +268,31 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		log.Info("Creating a new pending runtime", "modelID", e.modelID)
 		r := newPendingRuntime(client.GetName(e.modelID))
 		r.waitChs = append(r.waitChs, e.readyWaitCh)
-
 		m.runtimes[e.modelID] = r
 		m.mu.Unlock()
 
-		sts, err := client.DeployRuntime(ctx, e.modelID, false)
-		if err != nil {
-			return err
+		if err := m.deployRuntime(ctx, e.modelID); err != nil {
+			return fmt.Errorf("deploy runtime: %s", err)
 		}
-
-		if err := m.autoscaler.Register(ctx, e.modelID, sts); err != nil {
-			return err
-		}
-
-		go func() {
-			m.eventCh <- &reconcileStatefulSetEvent{
-				namespacedName: types.NamespacedName{
-					Name:      sts.Name,
-					Namespace: sts.Namespace,
-				},
-				eventWaitCh: make(chan struct{}),
-			}
-		}()
-
 		return nil
 	}
 
 	br, ok := m.runtimes[baseModelID]
 	if !ok {
+		log.Info("Creating a new pending runtime for the base model", "baseModelID", baseModelID)
 		br = newPendingRuntime(client.GetName(baseModelID))
 		m.runtimes[baseModelID] = br
+
+		// TODO(kenji): Revisit the locking if this takes a long time.
+		if err := m.deployRuntime(ctx, baseModelID); err != nil {
+			return fmt.Errorf("deploy runtime: %s", err)
+		}
 	}
 
 	if !br.ready {
 		log.Info("Base model is not ready. Request a pull", "baseModelID", baseModelID, "modelID", e.modelID)
 		br.addPendingPullModelRequest(e)
+		m.mu.Unlock()
 		return nil
 	}
 
@@ -300,7 +304,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	m.runtimes[e.modelID] = r
 	m.mu.Unlock()
 
-	podIP, err := m.findLoRAAdapterLoadingTargetPod(ctx, e.modelID, br.name)
+	podIP, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, e.modelID, br.name)
 	if err != nil {
 		return fmt.Errorf("find LoRA adapter loading target pod: %s", err)
 	}
@@ -322,6 +326,33 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		}
 	}()
 
+	return nil
+}
+
+func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
+	client, err := m.rtClientFactory.New(modelID)
+	if err != nil {
+		return err
+	}
+
+	sts, err := client.DeployRuntime(ctx, modelID, false)
+	if err != nil {
+		return err
+	}
+
+	if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
+		return err
+	}
+
+	go func() {
+		m.eventCh <- &reconcileStatefulSetEvent{
+			namespacedName: types.NamespacedName{
+				Name:      sts.Name,
+				Namespace: sts.Namespace,
+			},
+			eventWaitCh: make(chan struct{}),
+		}
+	}()
 	return nil
 }
 
@@ -351,38 +382,6 @@ func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID s
 	}
 
 	return true, model.BaseModelId, nil
-}
-
-func (m *Manager) findLoRAAdapterLoadingTargetPod(
-	ctx context.Context,
-	modelID string,
-	stsName string,
-) (string, error) {
-	client, err := m.rtClientFactory.New(modelID)
-	if err != nil {
-		return "", err
-	}
-
-	pods, err := listPods(ctx, m.k8sClient, client.Namespace(), stsName)
-	if err != nil {
-		return "", err
-	}
-
-	var podIP string
-	// TODO(kenji): Pick up the least-loaded ready pod.
-	for _, pod := range pods {
-		if ip := pod.Status.PodIP; ip != "" {
-			podIP = ip
-			break
-		}
-	}
-
-	if podIP == "" {
-		// TODO(kenji): Add a retry or gracefully handle.
-		return "", fmt.Errorf("no ready pod found")
-	}
-
-	return podIP, nil
 }
 
 func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEvent) error {
@@ -519,6 +518,7 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 
 func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCheckEvent) error {
 	log := ctrl.LoggerFrom(ctx)
+	log.Info("Checking runtime readiness...", "modelID", e.modelID, "address", e.address)
 
 	// If this is a Lora adapter, we need to check if the address is reachable.
 	m.mu.Lock()
@@ -554,7 +554,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	log.Info("Runtime is ready")
+	log.Info("Runtime is ready", "modelID", e.modelID)
 
 	rt.becomeReady(e.address, e.gpu, e.replicas)
 

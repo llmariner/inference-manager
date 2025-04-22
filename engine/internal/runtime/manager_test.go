@@ -11,6 +11,7 @@ import (
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/llmariner/inference-manager/engine/internal/config"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -192,6 +193,140 @@ func TestPullModel(t *testing.T) {
 			}
 			assert.Equal(t, test.deployed, rtClient.deployed[testModelID])
 			assert.Equal(t, test.deployed, len(scaler.registered) == 1)
+		})
+	}
+}
+
+func TestPullModel_DynamicLoRALoading(t *testing.T) {
+	const (
+		baseModelID   = "base-mid-0"
+		baseModelName = "rt-base-mid-0"
+
+		fineTunedModelID   = "fine-tuned-mid-0"
+		fineTunedModelName = "rt-fine-tuned-mid-0"
+
+		namespace = "rt-0"
+	)
+
+	var tests = []struct {
+		name    string
+		baseRT  *runtime
+		baseSTS *appsv1.StatefulSet
+	}{
+		{
+			name: "no base model",
+		},
+		{
+			name: "base model ready",
+			baseRT: &runtime{
+				ready: true,
+				name:  baseModelName,
+			},
+			baseSTS: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      baseModelName,
+					Namespace: namespace,
+					Annotations: map[string]string{
+						modelAnnotationKey: baseModelID,
+					},
+				},
+			},
+		},
+		{
+			name: "base model pending",
+			baseRT: &runtime{
+				ready: false,
+				name:  baseModelName,
+			},
+			baseSTS: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      baseModelName,
+					Namespace: namespace,
+					Annotations: map[string]string{
+						modelAnnotationKey: baseModelID,
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var objs []apiruntime.Object
+			if test.baseSTS != nil {
+				objs = append(objs, test.baseSTS)
+			}
+			k8sClient := fake.NewFakeClient(objs...)
+
+			rtClient := &fakeClient{
+				deployed:      map[string]bool{},
+				readyReplicas: 1,
+				k8sClient:     k8sClient,
+				namespace:     namespace,
+				runtimeName:   config.RuntimeNameVLLM,
+			}
+			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				scaler,
+				&fakeModelClient{
+					model: &mv1.Model{
+						IsBaseModel: false,
+						BaseModelId: baseModelID,
+					},
+				},
+				config.VLLMConfig{
+					DynamicLoRALoading: true,
+				},
+			)
+			loader := &fakeLoraAdapterLoader{
+				loaded:   map[string]bool{},
+				unloaded: map[string]bool{},
+			}
+			mgr.loraAdapterLoader = loader
+			mgr.runtimeReadinessChecker = &fakeRuntimeReadinessChecker{
+				err: nil,
+			}
+			mgr.loraAdapterLoadingTargetSelector = &fakeLoRAAdapterLoadingTargetSelector{
+				podIP: "fake-pod-ip",
+			}
+
+			if test.baseRT != nil {
+				mgr.runtimes[baseModelID] = test.baseRT
+			}
+			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
+			defer cancel()
+
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
+			go func() {
+				rt := test.baseRT
+				if rt == nil || rt.ready {
+					return
+				}
+
+				// Wait until the pull request for the fine-tuned model is queued.
+				assert.Eventually(t, func() bool {
+					mgr.mu.Lock()
+					defer mgr.mu.Unlock()
+					return len(rt.pendingPullModelRequests) > 0
+				}, time.Second, 100*time.Millisecond)
+
+				mgr.mu.Lock()
+				defer mgr.mu.Unlock()
+				mgr.eventCh <- &readinessCheckEvent{
+					modelID: baseModelID,
+				}
+			}()
+
+			err := mgr.PullModel(ctx, fineTunedModelID)
+			assert.NoError(t, err)
+
+			assert.True(t, loader.loaded[fineTunedModelID])
 		})
 	}
 }
@@ -542,8 +677,6 @@ func TestReconcile(t *testing.T) {
 			_, err := mgr.Reconcile(ctx, ctrl.Request{NamespacedName: nn})
 			assert.NoError(t, err)
 
-			// TODO(kenji): Wait for the reconciliation event is processed.
-
 			if test.wantChClose {
 				assert.Eventually(t, func() bool {
 					return chClosed.Load()
@@ -678,6 +811,7 @@ type fakeClient struct {
 	readyReplicas int32
 	k8sClient     client.Client
 	namespace     string
+	runtimeName   string
 }
 
 func (c *fakeClient) GetName(modelID string) string {
@@ -694,6 +828,9 @@ func (c *fakeClient) DeployRuntime(ctx context.Context, modelID string, update b
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.GetName(modelID),
 			Namespace: c.namespace,
+			Annotations: map[string]string{
+				modelAnnotationKey: modelID,
+			},
 		},
 		Status: appsv1.StatefulSetStatus{
 			ReadyReplicas: c.readyReplicas,
@@ -723,11 +860,11 @@ func (c *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
 }
 
 func (c *fakeClient) Namespace() string {
-	return "fake-namespace"
+	return c.namespace
 }
 
 func (c *fakeClient) RuntimeName() string {
-	return "fake"
+	return c.runtimeName
 }
 
 type fakeScalerRegister struct {
@@ -742,6 +879,14 @@ func (r *fakeScalerRegister) Register(ctx context.Context, modelID string, targe
 
 func (r *fakeScalerRegister) Unregister(nn types.NamespacedName) {
 	delete(r.registered, nn)
+}
+
+type fakeRuntimeReadinessChecker struct {
+	err error
+}
+
+func (c *fakeRuntimeReadinessChecker) check(addr string) error {
+	return c.err
 }
 
 type fakeLoraAdapterLoader struct {
@@ -759,12 +904,15 @@ func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr string, mod
 	return nil
 }
 
-type fakeRuntimeReadinessChecker struct {
-	err error
+type fakeLoRAAdapterLoadingTargetSelector struct {
+	podIP string
 }
 
-func (c *fakeRuntimeReadinessChecker) check(addr string) error {
-	return c.err
+func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, modelID, stsName string) (string, error) {
+	if s.podIP == "" {
+		return "", errors.New("no pod")
+	}
+	return s.podIP, nil
 }
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {

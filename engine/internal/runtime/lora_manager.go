@@ -412,3 +412,40 @@ func (*LoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdap
 
 	return &s, nil
 }
+
+type loraAdapterLoadingTargetSelectorImpl struct {
+	rtClientFactory ClientFactory
+	k8sClient       client.Client
+}
+
+func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
+	ctx context.Context,
+	modelID string,
+	stsName string,
+) (string, error) {
+	client, err := s.rtClientFactory.New(modelID)
+	if err != nil {
+		return "", err
+	}
+
+	pods, err := listPods(ctx, s.k8sClient, client.Namespace(), stsName)
+	if err != nil {
+		return "", err
+	}
+
+	var podIP string
+	// TODO(kenji): Pick up the least-loaded ready pod.
+	for _, pod := range pods {
+		if ip := pod.Status.PodIP; ip != "" {
+			podIP = ip
+			break
+		}
+	}
+
+	if podIP == "" {
+		// TODO(kenji): Add a retry or gracefully handle.
+		return "", fmt.Errorf("no ready pod found")
+	}
+
+	return podIP, nil
+}

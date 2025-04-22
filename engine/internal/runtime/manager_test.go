@@ -369,6 +369,7 @@ func TestDeleteModel(t *testing.T) {
 				ready:                   true,
 				name:                    name,
 				isDynamicallyLoadedLoRA: true,
+				addresses:               []string{"test"},
 			},
 			wantExtra: func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader) {
 				assert.True(t, l.unloaded[testModelID])
@@ -934,9 +935,9 @@ func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context,
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {
 	return &runtime{
-		ready:    true,
-		name:     name,
-		address:  addr,
-		replicas: replicas,
+		ready:     true,
+		name:      name,
+		addresses: []string{addr},
+		replicas:  replicas,
 	}
 }

@@ -139,10 +139,21 @@ func (m *Manager) deleteRuntimeByModelID(modelID string) {
 func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if r, ok := m.runtimes[modelID]; ok && r.ready {
-		return r.address, nil
+	r, ok := m.runtimes[modelID]
+	if !ok {
+		return "", fmt.Errorf("runtime for model %q does not exist", modelID)
 	}
-	return "", fmt.Errorf("runtime for model %q is not ready", modelID)
+	if !r.ready {
+		return "", fmt.Errorf("runtime for model %q is not ready", modelID)
+	}
+
+	if len(r.addresses) == 0 {
+		return "", fmt.Errorf("runtime for model %q has no address", modelID)
+	}
+
+	// Return the first address.
+	// TODO(kenji): Improve.
+	return r.addresses[0], nil
 }
 
 // ModelRuntimeInfo is the info of a model runtime.
@@ -386,8 +397,10 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 
 	if r.isDynamicallyLoadedLoRA {
 		log.Info("Unloading the LoRA adapter from the runtime", "modelID", e.modelID)
-		if err := m.loraAdapterLoader.unload(ctx, r.address, e.modelID); err != nil {
-			return fmt.Errorf("unload LoRA adapter: %s", err)
+		for _, addr := range r.addresses {
+			if err := m.loraAdapterLoader.unload(ctx, addr, e.modelID); err != nil {
+				return fmt.Errorf("unload LoRA adapter: %s", err)
+			}
 		}
 		m.deleteRuntimeByModelID(e.modelID)
 		return nil

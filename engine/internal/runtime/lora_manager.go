@@ -393,6 +393,8 @@ func (*loraAdapterLoaderImpl) unload(
 ) error {
 	vclient := vllm.NewHTTPClient(vllmAddr)
 
+	// Convert the model name as we do the same conversion in processor.
+	// TODO(kenji): Revisit.
 	omid := ollama.ModelName(modelID)
 	status, err := vclient.UnloadLoRAAdapter(ctx, omid)
 	if err != nil {
@@ -425,7 +427,10 @@ func (*LoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdap
 			continue
 		}
 
-		s.adapterIDs[model.ID] = struct{}{}
+		// Convert the model name back to the original ID as we do the conversion when loading the LoRA adapter.
+		// TODO(kenji): Revisit.
+		origID := ollama.OriginalFineTuningModelName(model.ID)
+		s.adapterIDs[origID] = struct{}{}
 	}
 
 	if s.baseModelID == "" && len(s.adapterIDs) > 0 {

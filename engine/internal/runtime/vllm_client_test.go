@@ -26,6 +26,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 				},
 			},
 		}),
+		rconfig: &config.RuntimeConfig{},
 	}
 
 	tcs := []struct {

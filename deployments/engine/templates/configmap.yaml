@@ -45,6 +45,7 @@ data:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      pullerPort: {{ .Values.runtime.pullerPort }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.ollama.maxConcurrentRequests }}
@@ -52,10 +53,8 @@ data:
       debug: {{ .Values.ollama.debug }}
       runnersDir: {{ .Values.ollama.runnersDir }}
       dynamicModelLoading: {{ .Values.ollama.dynamicModelLoading }}
-      pullerPort: {{ .Values.ollama.pullerPort }}
     vllm:
       dynamicLoRALoading: {{ .Values.vllm.dynamicLoRALoading }}
-      pullerPort: {{ .Values.vllm.pullerPort }}
       loggingLevel: {{ .Values.vllm.loggingLevel }}
     model:
       default:

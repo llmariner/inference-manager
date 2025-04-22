@@ -172,7 +172,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 
 	errCh := make(chan error)
 	if c.Ollama.DynamicModelLoading {
-		pullerAddr := fmt.Sprintf("%s:%d", ollamaClient.GetName(""), c.Ollama.PullerPort)
+		pullerAddr := fmt.Sprintf("%s:%d", ollamaClient.GetName(""), c.Runtime.PullerPort)
 		ollamaManager := runtime.NewOllamaManager(mgr.GetClient(), ollamaClient, scaler, pullerAddr)
 		if err := ollamaManager.SetupWithManager(mgr, leaderElection); err != nil {
 			return err
@@ -210,7 +210,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			rtClientFactory,
 			scaler,
 			modelClient,
-			c.VLLM,
+			c.VLLM.DynamicLoRALoading,
+			c.Runtime.PullerPort,
 		)
 		if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
 			return err

@@ -146,7 +146,8 @@ func TestPullModel(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				nil,
-				config.VLLMConfig{},
+				false,
+				-1,
 			)
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = test.rt
@@ -275,9 +276,8 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 						BaseModelId: baseModelID,
 					},
 				},
-				config.VLLMConfig{
-					DynamicLoRALoading: true,
-				},
+				true,
+				9090,
 			)
 			loader := &fakeLoraAdapterLoader{
 				loaded:   map[string]bool{},
@@ -398,7 +398,8 @@ func TestDeleteModel(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				nil,
-				config.VLLMConfig{},
+				false,
+				-1,
 			)
 			loader := &fakeLoraAdapterLoader{
 				loaded:   map[string]bool{},
@@ -628,7 +629,8 @@ func TestReconcile(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				nil,
-				config.VLLMConfig{},
+				false,
+				-1,
 			)
 			// Disable the retry.
 			mgr.readinessCheckMaxRetryCount = 0

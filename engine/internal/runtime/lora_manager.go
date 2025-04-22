@@ -263,6 +263,11 @@ func updateLoRALoadingStatusForPod(
 		pod := oldS.pod
 		log.Info("Pod not found", "pod", pod.Name)
 
+		if oldS.lstatus == nil {
+			// No previous status. Do nothing.
+			return nil, false, nil
+		}
+
 		// Pod not found or vLLM is unreachable. Consider that all LoRA adapters are deleted.
 		var ids []string
 		for id := range oldS.lstatus.adapterIDs {

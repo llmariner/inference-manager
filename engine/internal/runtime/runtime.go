@@ -34,8 +34,8 @@ type runtime struct {
 
 	// The following fields are only used when the runtime is ready.
 
-	// address is empty when the runtime is not ready.
-	address string
+	// addresses is a set of runtime addresses. Each address is a host and port pair.
+	addresses []string
 	// replicas is the number of ready replicas.
 	replicas int32
 	// gpu is the GPU limit of the runtime.
@@ -76,7 +76,7 @@ func (r *runtime) becomeReady(
 	replicas int32,
 ) {
 	r.ready = true
-	r.address = address
+	r.addresses = []string{address}
 	r.gpu = gpu
 	r.replicas = replicas
 }

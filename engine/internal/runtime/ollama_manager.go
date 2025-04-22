@@ -125,12 +125,19 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 	// check if the runtime is ready.
 	m.mu.Lock()
-	runtimeAddr := m.runtime.address
+
+	var runtimeAddr string
 	if m.runtime.ready {
-		log.V(2).Info("Runtime is ready", "address", runtimeAddr)
+		if len(m.runtime.addresses) != 1 {
+			m.mu.Unlock()
+			return fmt.Errorf("expected only one address: %v", m.runtime.addresses)
+		}
+		runtimeAddr = m.runtime.addresses[0]
+
+		log.V(2).Info("Runtime is ready", "addresses", runtimeAddr)
 		m.mu.Unlock()
 	} else {
-		log.Info("Waiting for the runtime to be ready", "address", runtimeAddr)
+		log.Info("Waiting for the runtime to be ready", "addresses", m.runtime.addresses)
 		ch := make(chan string)
 		m.runtime.waitChs = append(m.runtime.waitChs, ch)
 		m.mu.Unlock()
@@ -143,11 +150,17 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		m.mu.Lock()
 		if !m.runtime.ready {
 			err := fmt.Errorf("runtime is not ready")
-			log.Error(err, "Runtime is not ready", "address", runtimeAddr)
+			log.Error(err, "Runtime is not ready", "addresses", m.runtime.addresses)
 			m.mu.Unlock()
 			return err
 		}
-		runtimeAddr = m.runtime.address
+
+		if len(m.runtime.addresses) != 1 {
+			m.mu.Unlock()
+			return fmt.Errorf("expected only one address: %v", m.runtime.addresses)
+		}
+		runtimeAddr = m.runtime.addresses[0]
+
 		m.mu.Unlock()
 		log.Info("Runtime is ready", "address", runtimeAddr)
 	}

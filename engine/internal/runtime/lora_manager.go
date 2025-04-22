@@ -312,31 +312,26 @@ func (*loraAdapterLoaderImpl) pullModel(
 	pullerAddr string,
 	modelID string,
 ) error {
-	log := ctrl.LoggerFrom(ctx)
-
 	pclient := puller.NewClient(pullerAddr)
 	if err := pclient.PullModel(ctx, modelID); err != nil {
 		return err
 	}
+	return nil
+}
 
-	const retryInterval = 2 * time.Second
+func (*loraAdapterLoaderImpl) checkModelPullStatus(
+	ctx context.Context,
+	pullerAddr string,
+	modelID string,
+) (bool, error) {
+	pclient := puller.NewClient(pullerAddr)
 
-	for i := 0; ; i++ {
-		status, err := pclient.GetModel(ctx, modelID)
-		if err != nil {
-			return err
-		}
-
-		if status == http.StatusOK {
-			break
-		}
-
-		log.Info("Waiting for the model to be pulled", "modelID", modelID, "status", status, "retryCount", i)
-		time.Sleep(retryInterval)
+	status, err := pclient.GetModel(ctx, modelID)
+	if err != nil {
+		return false, err
 	}
 
-	log.Info("Model has been pulled", "modelID", modelID)
-	return nil
+	return status == http.StatusOK, nil
 }
 
 func (*loraAdapterLoaderImpl) load(

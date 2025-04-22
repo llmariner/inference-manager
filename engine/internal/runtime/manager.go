@@ -64,31 +64,6 @@ func NewManager(
 	}
 }
 
-type pullModelEvent struct {
-	modelID     string
-	readyWaitCh chan string
-}
-
-type deleteModelEvent struct {
-	modelID     string
-	eventWaitCh chan struct{}
-}
-
-type reconcileStatefulSetEvent struct {
-	namespacedName types.NamespacedName
-	eventWaitCh    chan struct{}
-}
-
-type readinessCheckEvent struct {
-	modelID string
-
-	address  string
-	gpu      int32
-	replicas int32
-
-	retryCount int
-}
-
 type runtimeReadinessChecker interface {
 	check(addr string) error
 }
@@ -99,6 +74,7 @@ type loraAdapterLoadingTargetSelector interface {
 
 type loraAdapterLoader interface {
 	pullModel(ctx context.Context, pullerAddr, modelID string) error
+	checkModelPullStatus(ctx context.Context, pullerAddr string, modelID string) (bool, error)
 	load(ctx context.Context, vllmAddr, modelID string) error
 	unload(ctx context.Context, vllmAddr, modelID string) error
 }
@@ -231,6 +207,10 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 				if err := m.processReadinessCheckEvent(ctx, e); err != nil {
 					return err
 				}
+			case *loraAdapterPullStatusCheckEvent:
+				if err := m.processLoRAAdapterPullStatusCheckEvent(ctx, e); err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("unknown event type: %T", e)
 			}
@@ -324,17 +304,11 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		return fmt.Errorf("pull model: %s", err)
 	}
 
-	vllmAddr := client.GetAddress(podIP)
-	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
-		return fmt.Errorf("load LoRA adapter: %s", err)
-	}
-
 	go func() {
-		m.eventCh <- &readinessCheckEvent{
-			modelID:  e.modelID,
-			address:  vllmAddr,
-			gpu:      br.gpu,
-			replicas: 1,
+		m.eventCh <- &loraAdapterPullStatusCheckEvent{
+			modelID: e.modelID,
+			podIP:   podIP,
+			gpu:     br.gpu,
 		}
 	}()
 
@@ -578,6 +552,49 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	}(rt.dequeuePendingPullModelRequests())
 
 	rt.closeWaitChs("")
+
+	return nil
+}
+
+func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e *loraAdapterPullStatusCheckEvent) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
+	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
+
+	if err != nil {
+		return fmt.Errorf("check model pull status: %s", err)
+	}
+	if !ok {
+		// Retry. We repeat without the max limit as we don't know how long the pull will take.
+		// TODO(kenji): Revisit
+		log.Info("LoRA adapter pull is not finished. Retrying...", "modelID", e.modelID)
+		time.Sleep(m.readinessCheckRetryInterval)
+		go func() {
+			m.eventCh <- e
+		}()
+		return nil
+	}
+
+	log.Info("LoRA adapter has been pulled", "modelID", e.modelID)
+
+	client, err := m.rtClientFactory.New(e.modelID)
+	if err != nil {
+		return err
+	}
+	vllmAddr := client.GetAddress(e.podIP)
+	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
+		return fmt.Errorf("load LoRA adapter: %s", err)
+	}
+
+	go func() {
+		m.eventCh <- &readinessCheckEvent{
+			modelID:  e.modelID,
+			address:  vllmAddr,
+			gpu:      e.gpu,
+			replicas: 1,
+		}
+	}()
 
 	return nil
 }

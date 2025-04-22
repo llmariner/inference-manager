@@ -693,12 +693,16 @@ func TestReconcile(t *testing.T) {
 				assert.Nil(t, g)
 			}
 
+			assert.Eventually(t, func() bool {
+				mgr.mu.Lock()
+				defer mgr.mu.Unlock()
+				rt := mgr.runtimes[modelID]
+				return test.wantReady == (rt != nil && rt.ready)
+			}, time.Second, 100*time.Millisecond)
+
 			mgr.mu.Lock()
 			defer mgr.mu.Unlock()
-			if test.rt != nil {
-				rt := mgr.runtimes[modelID]
-				assert.Equal(t, test.wantReady, rt != nil && rt.ready)
-			}
+
 			if test.wantExtra != nil {
 				test.wantExtra(t, mgr, scaler)
 			}

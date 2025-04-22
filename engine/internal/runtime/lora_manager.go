@@ -422,14 +422,14 @@ func (*LoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdap
 	}
 
 	for _, model := range resp.Data {
-		// Convert the model name back to the original ID as we do the conversion when loading the LoRA adapter.
-		// TODO(kenji): Revisit.
-		origID := ollama.ModelName(model.ID)
 		if model.Parent == nil {
-			s.baseModelID = origID
+			s.baseModelID = model.ID
 			continue
 		}
 
+		// Convert the model name back to the original ID as we do the conversion when loading the LoRA adapter.
+		// TODO(kenji): Revisit.
+		origID := ollama.OriginalFineTuningModelName(model.ID)
 		s.adapterIDs[origID] = struct{}{}
 	}
 

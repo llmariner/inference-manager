@@ -98,8 +98,9 @@ type loraAdapterLoadingTargetSelector interface {
 }
 
 type loraAdapterLoader interface {
-	load(ctx context.Context, modelID string, pullerAddr string, vllmAddr string) error
-	unload(ctx context.Context, vllmAddr string, modelID string) error
+	pullModel(ctx context.Context, pullerAddr, modelID string) error
+	load(ctx context.Context, vllmAddr, modelID string) error
+	unload(ctx context.Context, vllmAddr, modelID string) error
 }
 
 // Manager manages runtimes.
@@ -319,8 +320,12 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	log.Info("Found pod for LoRA adapter loading", "podIP", podIP)
 
 	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.pullerPort)
+	if err := m.loraAdapterLoader.pullModel(ctx, pullerAddr, e.modelID); err != nil {
+		return fmt.Errorf("pull model: %s", err)
+	}
+
 	vllmAddr := client.GetAddress(podIP)
-	if err := m.loraAdapterLoader.load(ctx, e.modelID, pullerAddr, vllmAddr); err != nil {
+	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
 		return fmt.Errorf("load LoRA adapter: %s", err)
 	}
 

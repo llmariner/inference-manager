@@ -553,9 +553,9 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	log.Info("Runtime is ready", "modelID", e.modelID)
-
 	rt.becomeReady(e.address, e.gpu, e.replicas)
+
+	log.Info("Runtime is ready", "modelID", e.modelID)
 
 	go func(es []*pullModelEvent) {
 		for _, e := range es {

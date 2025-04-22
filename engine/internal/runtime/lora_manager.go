@@ -24,14 +24,17 @@ import (
 )
 
 type loRAAdapterStatusUpdate struct {
-	podName           string
+	podName string
+	podIP   string
+	gpu     int32
+
 	baseModelID       string
 	addedAdapterIDs   []string
 	removedAdapterIDs []string
 }
 
 type updateProcessor interface {
-	processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate)
+	processLoRAAdapterUpdate(ctx context.Context, update *loRAAdapterStatusUpdate) error
 }
 
 type loRAAdapterStatus struct {
@@ -107,7 +110,10 @@ func (r *LoRAReconciler) Reconcile(
 		}
 
 		log.Info("Pod deleted", "pod", pod.Name)
-		r.deletePod(req.Name)
+		if err := r.deletePod(ctx, req.Name); err != nil {
+			log.Error(err, "Failed to delete pod")
+			return ctrl.Result{}, err
+		}
 
 		return ctrl.Result{}, nil
 	}
@@ -135,12 +141,12 @@ func (r *LoRAReconciler) addPod(pod *corev1.Pod) {
 	}
 }
 
-func (r *LoRAReconciler) deletePod(name string) {
+func (r *LoRAReconciler) deletePod(ctx context.Context, name string) error {
 	r.mu.Lock()
 	s, ok := r.podsByName[name]
 	if !ok {
 		r.mu.Unlock()
-		return
+		return nil
 	}
 	delete(r.podsByName, name)
 	r.mu.Unlock()
@@ -151,10 +157,16 @@ func (r *LoRAReconciler) deletePod(name string) {
 			ids = append(ids, id)
 		}
 	}
-	r.updateProcessor.processLoRAAdapterUpdate(&loRAAdapterStatusUpdate{
+	if err := r.updateProcessor.processLoRAAdapterUpdate(ctx, &loRAAdapterStatusUpdate{
 		podName:           name,
+		podIP:             s.pod.Status.PodIP,
+		gpu:               getGPUForPod(s.pod),
 		removedAdapterIDs: ids,
-	})
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Run periodically checks the status of the pods and loaded LoRA adapters.
@@ -180,7 +192,9 @@ func (r *LoRAReconciler) run(ctx context.Context) error {
 	}
 
 	for _, u := range updates {
-		r.updateProcessor.processLoRAAdapterUpdate(u)
+		if err := r.updateProcessor.processLoRAAdapterUpdate(ctx, u); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -245,9 +259,8 @@ func updateLoRALoadingStatusForPod(
 	newS *podStatus,
 	log logr.Logger,
 ) (*loRAAdapterStatusUpdate, bool, error) {
-	pod := oldS.pod
-
 	if newS == nil {
+		pod := oldS.pod
 		log.Info("Pod not found", "pod", pod.Name)
 
 		// Pod not found or vLLM is unreachable. Consider that all LoRA adapters are deleted.
@@ -257,10 +270,14 @@ func updateLoRALoadingStatusForPod(
 		}
 		return &loRAAdapterStatusUpdate{
 			podName:           pod.Name,
+			podIP:             pod.Status.PodIP,
+			gpu:               getGPUForPod(pod),
 			baseModelID:       oldS.lstatus.baseModelID,
 			removedAdapterIDs: ids,
 		}, true, nil
 	}
+
+	pod := newS.pod
 
 	if oldS.lstatus == nil {
 		log.Info("New status found", "pod", pod.Name, "new adapters", newS.lstatus.adapterIDs)
@@ -270,6 +287,8 @@ func updateLoRALoadingStatusForPod(
 		}
 		return &loRAAdapterStatusUpdate{
 			podName:         pod.Name,
+			podIP:           pod.Status.PodIP,
+			gpu:             getGPUForPod(pod),
 			baseModelID:     newS.lstatus.baseModelID,
 			addedAdapterIDs: ids,
 		}, true, nil
@@ -298,6 +317,8 @@ func updateLoRALoadingStatusForPod(
 	log.Info("LoRA adapter status changed", "pod", pod.Name, "added", added, "removed", removed)
 	return &loRAAdapterStatusUpdate{
 		podName:           pod.Name,
+		podIP:             pod.Status.PodIP,
+		gpu:               getGPUForPod(pod),
 		baseModelID:       newS.lstatus.baseModelID,
 		addedAdapterIDs:   added,
 		removedAdapterIDs: removed,

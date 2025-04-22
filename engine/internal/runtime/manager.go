@@ -222,6 +222,10 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 				if err := m.processLoRAAdapterPullStatusCheckEvent(ctx, e); err != nil {
 					return err
 				}
+			case *loraAdapterStatusUpdateEvent:
+				if err := m.processLoRAAdapterStatusUpdateEvent(ctx, e); err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("unknown event type: %T", e)
 			}
@@ -612,6 +616,65 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	return nil
 }
 
+func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *loraAdapterStatusUpdateEvent) error {
+	defer close(e.eventWaitCh)
+
+	if e.update.podIP == "" {
+		return fmt.Errorf("podIP is empty")
+	}
+
+	log := ctrl.LoggerFrom(ctx)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, modelID := range e.update.addedAdapterIDs {
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return err
+		}
+		vllmAddr := client.GetAddress(e.update.podIP)
+
+		log.Info("Adding a new LoRA adapter", "modelID", modelID, "vllmAddr", vllmAddr)
+
+		r, ok := m.runtimes[modelID]
+		if !ok {
+			log.Info("Creating a new runtime", "modelID", modelID)
+			r = newPendingRuntime(modelID)
+			r.becomeReady(vllmAddr, e.update.gpu, 1)
+			m.runtimes[modelID] = r
+		}
+
+		r.addAddress(vllmAddr)
+	}
+
+	for _, modelID := range e.update.removedAdapterIDs {
+		client, err := m.rtClientFactory.New(modelID)
+		if err != nil {
+			return err
+		}
+		vllmAddr := client.GetAddress(e.update.podIP)
+
+		log.Info("Removing a LoRA adapter", "modelID", modelID, "vllmAddr", vllmAddr)
+		r, ok := m.runtimes[modelID]
+		if !ok {
+			continue
+		}
+
+		r.removeAddress(vllmAddr)
+
+		if len(r.addresses) != 0 {
+			continue
+		}
+
+		log.Info("Removing the runtime", "modelID", modelID)
+		r.closeWaitChs(errMsgDeletedRuntime)
+		delete(m.runtimes, modelID)
+	}
+
+	return nil
+}
+
 // PullModel pulls the model from the model manager.
 func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 	waitCh := make(chan string)
@@ -680,8 +743,22 @@ func (m *Manager) getAddress(modelID, stsName string) (string, error) {
 	return client.GetAddress(stsName), nil
 }
 
-func (m *Manager) processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate) {
-	// TODO(kenji): Implement.
+func (m *Manager) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdapterStatusUpdate) error {
+	waitCh := make(chan struct{})
+	go func() {
+		m.eventCh <- &loraAdapterStatusUpdateEvent{
+			update:      update,
+			eventWaitCh: waitCh,
+		}
+	}()
+
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.

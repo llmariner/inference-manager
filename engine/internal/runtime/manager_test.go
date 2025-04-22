@@ -280,6 +280,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				9090,
 			)
 			loader := &fakeLoraAdapterLoader{
+				pulled:   map[string]bool{},
 				loaded:   map[string]bool{},
 				unloaded: map[string]bool{},
 			}
@@ -402,6 +403,7 @@ func TestDeleteModel(t *testing.T) {
 				-1,
 			)
 			loader := &fakeLoraAdapterLoader{
+				pulled:   map[string]bool{},
 				loaded:   map[string]bool{},
 				unloaded: map[string]bool{},
 			}
@@ -690,11 +692,11 @@ func TestReconcile(t *testing.T) {
 				assert.Nil(t, g)
 			}
 
+			mgr.mu.Lock()
+			defer mgr.mu.Unlock()
 			if test.rt != nil {
-				mgr.mu.Lock()
 				rt := mgr.runtimes[modelID]
 				assert.Equal(t, test.wantReady, rt != nil && rt.ready)
-				mgr.mu.Unlock()
 			}
 			if test.wantExtra != nil {
 				test.wantExtra(t, mgr, scaler)
@@ -894,16 +896,22 @@ func (c *fakeRuntimeReadinessChecker) check(addr string) error {
 }
 
 type fakeLoraAdapterLoader struct {
+	pulled   map[string]bool
 	loaded   map[string]bool
 	unloaded map[string]bool
 }
 
-func (l *fakeLoraAdapterLoader) load(ctx context.Context, modelID string, pullerAddr string, vllmAddr string) error {
+func (l *fakeLoraAdapterLoader) pullModel(ctx context.Context, pullerAddr, modelID string) error {
+	l.pulled[modelID] = true
+	return nil
+}
+
+func (l *fakeLoraAdapterLoader) load(ctx context.Context, vllmAddr, modelID string) error {
 	l.loaded[modelID] = true
 	return nil
 }
 
-func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr string, modelID string) error {
+func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr, modelID string) error {
 	l.unloaded[modelID] = true
 	return nil
 }

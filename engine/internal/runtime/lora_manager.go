@@ -307,11 +307,10 @@ func updateLoRALoadingStatusForPod(
 type loraAdapterLoaderImpl struct {
 }
 
-func (*loraAdapterLoaderImpl) load(
+func (*loraAdapterLoaderImpl) pullModel(
 	ctx context.Context,
-	modelID string,
 	pullerAddr string,
-	vllmAddr string,
+	modelID string,
 ) error {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -337,7 +336,14 @@ func (*loraAdapterLoaderImpl) load(
 	}
 
 	log.Info("Model has been pulled", "modelID", modelID)
+	return nil
+}
 
+func (*loraAdapterLoaderImpl) load(
+	ctx context.Context,
+	vllmAddr string,
+	modelID string,
+) error {
 	vclient := vllm.NewHTTPClient(vllmAddr)
 
 	path, err := modeldownloader.ModelFilePath(

@@ -201,7 +201,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	}
 
 	envs := []*corev1apply.EnvVarApplyConfiguration{
-		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue("ERROR"),
+		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue(v.vLLMConfig.LoggingLevel),
 		// Increase the timeout (default: 10 seconds) as we hit
 		// https://github.com/vllm-project/vllm/discussions/9418 when
 		// running the Nvidia Llama3.1 Nemotron 70B with a larger context size.

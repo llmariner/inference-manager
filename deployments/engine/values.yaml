@@ -274,6 +274,8 @@ vllm:
   # The port number of the puller server for the daemon mode.
   # +docs:type=number
   pullerPort: 8080
+  # Logging level of VLLM.
+  loggingLevel: ERROR
 
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.

@@ -37,9 +37,6 @@ type OllamaConfig struct {
 	// DynamicModelLoading is true if the model is loaded dynamically.
 	// If this is set to true, the puller is run in the daemon mode.
 	DynamicModelLoading bool `yaml:"dynamicModelLoading"`
-	// PullerPort is the port for the puller. This is only used when
-	// DynamicModelLoading is true.
-	PullerPort int `yaml:"pullerPort"`
 }
 
 func (c *OllamaConfig) validate() error {
@@ -52,9 +49,6 @@ func (c *OllamaConfig) validate() error {
 	if c.RunnersDir == "" {
 		return fmt.Errorf("runnerDir must be set")
 	}
-	if c.DynamicModelLoading && c.PullerPort <= 0 {
-		return fmt.Errorf("pullerPort must be set when dynamicModelLoading is true")
-	}
 	return nil
 }
 
@@ -62,18 +56,10 @@ func (c *OllamaConfig) validate() error {
 type VLLMConfig struct {
 	DynamicLoRALoading bool `yaml:"dynamicLoRALoading"`
 
-	// PullerPort is the port for the puller. This is only used when
-	// DynamicModelLoading is true.
-	PullerPort int `yaml:"pullerPort"`
-
 	LoggingLevel string `yaml:"loggingLevel"`
 }
 
 func (c VLLMConfig) validate() error {
-	if c.DynamicLoRALoading && c.PullerPort <= 0 {
-		return fmt.Errorf("pullerPort must be set when dynamicLoRALoading is true")
-	}
-
 	levels := []string{
 		"DEBUG",
 		"INFO",
@@ -132,6 +118,10 @@ type RuntimeConfig struct {
 	Tolerations          []TolerationConfig `yaml:"tolerations"`
 	UnstructuredAffinity any                `yaml:"affinity"`
 	Affinity             *corev1.Affinity   `yaml:"-"`
+
+	// PullerPort is the port for the puller. This is only used when
+	// Ollama's DynamicModelLoading or vLLM's DynamicLoRALoading is enabled.
+	PullerPort int `yaml:"pullerPort"`
 }
 
 func (c *RuntimeConfig) validate() error {
@@ -457,6 +447,12 @@ func (c *Config) Validate() error {
 
 	if err := c.Runtime.validate(); err != nil {
 		return fmt.Errorf("runtime: %s", err)
+	}
+
+	if c.Ollama.DynamicModelLoading || c.VLLM.DynamicLoRALoading {
+		if c.Runtime.PullerPort <= 0 {
+			return fmt.Errorf("pullerPort must be set when dynamicModelLoading or dynamicLoRALoading is true")
+		}
 	}
 
 	if err := c.Autoscaler.Validate(); err != nil {

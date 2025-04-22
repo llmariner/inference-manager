@@ -104,6 +104,10 @@ runtime:
   # Kubernetes imagePullPolicy for the runtime Statefulset.
   imagePullPolicy: IfNotPresent
 
+  # The port number of the puller server for the daemon mode.
+  # +docs:type=number
+  pullerPort: 8080
+
   # Use this for the regular shutdown of all inference runtimes.
   # e.g., during weekends or nighttime.
   # NOTE: This feature runs once for each given scheduled time. Hence,
@@ -264,16 +268,10 @@ ollama:
   maxConcurrentRequests: 0
   # If set, the model is loaded dynamically and the puller is run in the daemon mode.
   dynamicModelLoading: false
-  # The port number of the puller server for the daemon mode.
-  # +docs:type=number
-  pullerPort: 8080
 
 vllm:
   # If set, dynamic LoRA adapter loading is enabled.
   dynamicLoRALoading: false
-  # The port number of the puller server for the daemon mode.
-  # +docs:type=number
-  pullerPort: 8080
   # Logging level of VLLM.
   loggingLevel: ERROR
 

@@ -226,7 +226,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 
 		go func() {
-			errCh <- rtManager.RunStateMachine(ctx)
+			errCh <- rtManager.RunStateMachine(ctrl.LoggerInto(ctx, logger))
 		}()
 
 		if c.VLLM.DynamicLoRALoading {

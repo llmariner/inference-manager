@@ -12,6 +12,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	mv1 "github.com/llmariner/model-manager/api/v1"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -371,6 +372,7 @@ func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID s
 		return false, "", nil
 	}
 
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	model, err := m.modelClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})

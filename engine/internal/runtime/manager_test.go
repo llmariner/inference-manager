@@ -710,6 +710,129 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
+	const (
+		modelID   = "fine-tuned-mid-0"
+		modelName = "rt-fine-tuned-mid-0"
+
+		podName   = "pod-0"
+		podIP     = "pod-0-ip"
+		podAddr   = "pod-0-ip:1234"
+		namespace = "rt-0"
+	)
+
+	var tests = []struct {
+		name      string
+		rt        *runtime
+		update    *loRAAdapterStatusUpdate
+		isReady   bool
+		wantAddrs []string
+	}{
+		{
+			name: "add to existing runtime",
+			update: &loRAAdapterStatusUpdate{
+				podName:         podName,
+				podIP:           podIP,
+				gpu:             1,
+				addedAdapterIDs: []string{modelID},
+			},
+			rt: &runtime{
+				ready:     true,
+				name:      modelName,
+				addresses: []string{"other_addr"},
+			},
+			isReady:   true,
+			wantAddrs: []string{"other_addr", podAddr},
+		},
+		{
+			name: "create a new runtime",
+			update: &loRAAdapterStatusUpdate{
+				podName:         podName,
+				podIP:           podIP,
+				gpu:             1,
+				addedAdapterIDs: []string{modelID},
+			},
+
+			isReady:   true,
+			wantAddrs: []string{podAddr},
+		},
+		{
+			name: "remove addr and delete runtime",
+			update: &loRAAdapterStatusUpdate{
+				podName:           podName,
+				podIP:             podIP,
+				gpu:               1,
+				removedAdapterIDs: []string{modelID},
+			},
+			rt: &runtime{
+				ready:     true,
+				name:      modelName,
+				addresses: []string{podAddr},
+			},
+			isReady:   false,
+			wantAddrs: []string{},
+		},
+		{
+			name: "remove addr but keep runtime",
+			update: &loRAAdapterStatusUpdate{
+				podName:           podName,
+				podIP:             podIP,
+				gpu:               1,
+				removedAdapterIDs: []string{modelID},
+			},
+			rt: &runtime{
+				ready:     true,
+				name:      modelName,
+				addresses: []string{podAddr, "other_addr"},
+			},
+			isReady:   true,
+			wantAddrs: []string{"other_addr"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var objs []apiruntime.Object
+			k8sClient := fake.NewFakeClient(objs...)
+
+			rtClient := &fakeClient{
+				deployed: map[string]bool{},
+			}
+			scaler := &fakeScalerRegister{registered: map[types.NamespacedName]bool{}}
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				scaler,
+				&fakeModelClient{},
+				true,
+				9090,
+			)
+			if test.rt != nil {
+				mgr.runtimes[modelID] = test.rt
+			}
+			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
+			defer cancel()
+
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
+			err := mgr.processLoRAAdapterUpdate(ctx, test.update)
+			assert.NoError(t, err)
+
+			mgr.mu.Lock()
+			defer mgr.mu.Unlock()
+
+			rt := mgr.runtimes[modelID]
+			assert.Equal(t, test.isReady, rt != nil && rt.ready)
+			if test.isReady {
+				assert.ElementsMatch(t, test.wantAddrs, rt.addresses)
+			}
+		})
+	}
+}
+
 func TestAllChildrenUnschedulable(t *testing.T) {
 	ctx := testutil.ContextWithLogger(t)
 	createPod := func(name, revision string, unschedulable bool) corev1.Pod {

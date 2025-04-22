@@ -35,3 +35,9 @@ type loraAdapterPullStatusCheckEvent struct {
 	podIP string
 	gpu   int32
 }
+
+type loraAdapterStatusUpdateEvent struct {
+	update *loRAAdapterStatusUpdate
+
+	eventWaitCh chan struct{}
+}

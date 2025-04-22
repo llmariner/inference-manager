@@ -302,8 +302,9 @@ type fakeUpdateProcessor struct {
 	processedUpdates []*loRAAdapterStatusUpdate
 }
 
-func (f *fakeUpdateProcessor) processLoRAAdapterUpdate(update *loRAAdapterStatusUpdate) {
+func (f *fakeUpdateProcessor) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdapterStatusUpdate) error {
 	f.processedUpdates = append(f.processedUpdates, update)
+	return nil
 }
 
 type fakeLoRAAdapterStatusGetter struct {

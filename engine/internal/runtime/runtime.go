@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // ErrRequestCanceled is returned when the request is canceled.
@@ -40,6 +41,30 @@ type runtime struct {
 	replicas int32
 	// gpu is the GPU limit of the runtime.
 	gpu int32
+}
+
+func (r *runtime) addAddress(address string) {
+	for _, a := range r.addresses {
+		if a != address {
+			continue
+		}
+		// No need to add.
+		return
+	}
+
+	r.addresses = append(r.addresses, address)
+}
+
+func (r *runtime) removeAddress(address string) {
+	for i, a := range r.addresses {
+		if a != address {
+			continue
+		}
+
+		// Found the address, remove it.
+		r.addresses = append(r.addresses[:i], r.addresses[i+1:]...)
+		return
+	}
 }
 
 func (r *runtime) addPendingPullModelRequest(e *pullModelEvent) {
@@ -84,6 +109,28 @@ func (r *runtime) becomeReady(
 func getGPU(sts *appsv1.StatefulSet) int32 {
 	gpu := int32(0)
 	for _, con := range sts.Spec.Template.Spec.Containers {
+		limit := con.Resources.Limits
+		if limit == nil {
+			continue
+		}
+
+		// TODO(guangrui): Support non-Nvidia GPU.
+		v, ok := limit[nvidiaGPUResource]
+		if !ok {
+			continue
+		}
+		count, ok := v.AsInt64()
+		if !ok {
+			continue
+		}
+		gpu += int32(count)
+	}
+	return gpu
+}
+
+func getGPUForPod(pod *corev1.Pod) int32 {
+	gpu := int32(0)
+	for _, con := range pod.Spec.Containers {
 		limit := con.Resources.Limits
 		if limit == nil {
 			continue

@@ -335,6 +335,15 @@ func (c *commonClient) deployRuntime(
 			WithVolumeMounts(volumeMounts...).
 			WithResources(runtimeResources).
 			WithReadinessProbe(params.readinessProbe))
+
+	if secrets := c.rconfig.RuntimeImagePullSecrets; len(secrets) > 0 {
+		var objs []*corev1apply.LocalObjectReferenceApplyConfiguration
+		for _, secret := range secrets {
+			objs = append(objs, corev1apply.LocalObjectReference().WithName(secret))
+		}
+		podSpec = podSpec.WithImagePullSecrets(objs...)
+	}
+
 	if len(params.additionalContainers) > 0 {
 		podSpec = podSpec.WithContainers(params.additionalContainers...)
 	}

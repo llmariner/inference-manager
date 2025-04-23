@@ -103,6 +103,8 @@ runtime:
 
   # Kubernetes imagePullPolicy for the runtime Statefulset.
   imagePullPolicy: IfNotPresent
+  # Kubernetes imagePullSecrets for the runtime Statefulset.
+  imagePullSecrets: []
 
   # The port number of the puller server for the daemon mode.
   # +docs:type=number

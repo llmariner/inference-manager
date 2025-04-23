@@ -102,6 +102,7 @@ type RuntimeConfig struct {
 	PullerImagePullPolicy      string            `yaml:"pullerImagePullPolicy"`
 	TritonProxyImagePullPolicy string            `yaml:"tritonProxyImagePullPolicy"`
 	RuntimeImagePullPolicy     string            `yaml:"runtimeImagePullPolicy"`
+	RuntimeImagePullSecrets    []string          `yaml:"runtimeImagePullSecrets"`
 
 	ConfigMapName        string `yaml:"configMapName"`
 	AWSSecretName        string `yaml:"awsSecretName"`

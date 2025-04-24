@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	statusReportInterval = 30 * time.Second
+	statusReportInterval = 10 * time.Second
 	retryInterval        = 10 * time.Second
 )
 
@@ -31,11 +31,12 @@ func newTaskReceiver(
 	logger logr.Logger,
 ) *taskReceiver {
 	return &taskReceiver{
-		infProcessor: infProcessor,
-		localPodName: localPodName,
-		serverAddr:   serverAddr,
-		cancelF:      cancelF,
-		logger:       logger,
+		infProcessor:   infProcessor,
+		localPodName:   localPodName,
+		serverAddr:     serverAddr,
+		cancelF:        cancelF,
+		logger:         logger,
+		engineStatuses: make(map[string]map[string]*v1.EngineStatus),
 	}
 }
 
@@ -45,6 +46,10 @@ type taskReceiver struct {
 	serverAddr   string
 	cancelF      context.CancelFunc
 	logger       logr.Logger
+
+	// engineStatuses is mapped by tenant ID and engine ID.
+	engineStatuses map[string]map[string]*v1.EngineStatus
+	mu             sync.Mutex
 }
 
 func (r *taskReceiver) run(ctx context.Context) error {
@@ -131,22 +136,47 @@ type senderSrv interface {
 }
 
 func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var needSend bool
+
 	// Report the status of the local engines. We don't report the status of remote
 	// engines since that will cause a loop.
 	enginesByTenantID := r.infProcessor.LocalEngines()
 
 	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
 	for tenantID, es := range enginesByTenantID {
+		cachedEngineStatuses, ok := r.engineStatuses[tenantID]
+		if !ok {
+			needSend = true
+		}
+
+		updatedEngineStatuses := make(map[string]*v1.EngineStatus)
 		for _, e := range es {
+			if !needSend {
+				cachedStatus, ok := cachedEngineStatuses[e.EngineId]
+				if !ok {
+					needSend = true
+				} else {
+					// Check if the engine status is changed.
+					needSend = !sameEngineStatus(cachedStatus, e)
+				}
+			}
 			// Overwrite the ready status based on the status of the server.
 			e.Ready = ready
 			statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
 				EngineStatus: e,
 				TenantId:     tenantID,
 			})
+			updatedEngineStatuses[e.EngineId] = e
 		}
+		r.engineStatuses[tenantID] = updatedEngineStatuses
 	}
 
+	if !needSend {
+		return nil
+	}
 	req := &v1.ProcessTasksInternalRequest{
 		Message: &v1.ProcessTasksInternalRequest_ServerStatus{
 			ServerStatus: &v1.ServerStatus{
@@ -159,6 +189,34 @@ func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
 		return err
 	}
 	return nil
+}
+
+func sameEngineStatus(a, b *v1.EngineStatus) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if a.EngineId != b.EngineId || a.ClusterId != b.ClusterId || a.Ready != b.Ready {
+		return false
+	}
+	if len(a.Models) != len(b.Models) {
+		return false
+	}
+	aModels := make(map[string]*v1.EngineStatus_Model)
+	for _, m := range a.Models {
+		aModels[m.Id] = m
+	}
+	for _, m := range b.Models {
+		am, ok := aModels[m.Id]
+		if !ok {
+			return false
+		}
+		if am.IsReady != m.IsReady ||
+			am.InProgressTaskCount != m.InProgressTaskCount ||
+			am.GpuAllocated != m.GpuAllocated {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *taskReceiver) processTasks(

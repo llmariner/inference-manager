@@ -526,6 +526,9 @@ func (p *P) activateModel(
 	if err := p.modelSyncer.PullModel(ctx, req.Id); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
+	if err := p.sendEngineStatus(stream, true); err != nil {
+		return fmt.Errorf("send engine status: %s", err)
+	}
 	return nil
 }
 
@@ -551,6 +554,9 @@ func (p *P) deactivateModel(
 		return fmt.Errorf("delete model: %s", err)
 	}
 
+	if err := p.sendEngineStatus(stream, true); err != nil {
+		return fmt.Errorf("send engine status: %s", err)
+	}
 	return nil
 }
 

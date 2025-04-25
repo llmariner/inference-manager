@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 )
 
 // NewLimiter returns a new rate limiter.
@@ -33,6 +34,19 @@ type Limiter struct {
 
 // Take takes a token from the given key if available.
 func (l *Limiter) Take(ctx context.Context, key string) (*Result, error) {
+	// Check if the user is excluded from rate limiting
+	if userInfo, ok := auth.ExtractUserInfoFromContext(ctx); ok && userInfo.ExcludedFromRateLimiting {
+		// Create a result that indicates unlimited usage for excluded API keys
+		return &Result{
+			Allowed:    true,
+			Limit:      -1, // -1 indicates unlimited
+			Remaining:  -1, // -1 indicates unlimited
+			RetryAfter: 0,  // No retry needed
+			ResetAfter: 0,  // No reset
+		}, nil
+	}
+
+	// For all other cases, apply normal rate limiting
 	// TODO(aya): support inference-token limiter
 	return l.store.Take(ctx, key, 1)
 }

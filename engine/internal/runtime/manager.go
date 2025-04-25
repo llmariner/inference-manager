@@ -197,6 +197,8 @@ func (m *Manager) listModels(ready bool) []ModelRuntimeInfo {
 
 // RunStateMachine runs the state machine for the manager.
 func (m *Manager) RunStateMachine(ctx context.Context) error {
+	// Append auth token here so that it can be used in all the events.
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -372,7 +374,6 @@ func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID s
 		return false, "", nil
 	}
 
-	ctx = auth.AppendWorkerAuthorization(ctx)
 	model, err := m.modelClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})

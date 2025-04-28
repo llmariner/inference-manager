@@ -37,15 +37,17 @@ func (s *S) CreateEmbedding(
 		s.usageSetter.AddUsage(&usage)
 	}()
 
-	res, err := s.ratelimiter.Take(req.Context(), userInfo.APIKeyID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	rate.SetRateLimitHTTPHeaders(w, res)
-	if !res.Allowed {
-		httpError(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests, &usage)
-		return
+	if !userInfo.ExcludedFromRateLimiting {
+		res, err := s.ratelimiter.Take(req.Context(), userInfo.APIKeyID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rate.SetRateLimitHTTPHeaders(w, res)
+		if !res.Allowed {
+			httpError(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests, &usage)
+			return
+		}
 	}
 
 	reqBody, err := io.ReadAll(req.Body)

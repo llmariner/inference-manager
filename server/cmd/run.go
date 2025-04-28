@@ -301,9 +301,6 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	go func() {
 		errCh <- ims.Run(ctx, c.AuthConfig, c.ManagementGRPCPort)
 	}()
-	go func() {
-		errCh <- ims.Refresh(ctx, c.StatusRefreshInterval)
-	}()
 
 	return <-errCh
 }

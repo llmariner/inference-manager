@@ -483,8 +483,6 @@ func (c *commonClient) deployRuntime(
 
 // DeleteRuntime deletes the runtime for the given model.
 func (c *commonClient) DeleteRuntime(ctx context.Context, modelID string) error {
-	// TODO(kenji): Support the dynamic model loading mode. We cannot simply delete the
-	// statefulset because the runtime might be managing other models.
 	name := c.GetName(modelID)
 
 	log := ctrl.LoggerFrom(ctx).WithValues("name", name)

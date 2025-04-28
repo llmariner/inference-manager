@@ -43,7 +43,7 @@ func (c *Client) PullModel(ctx context.Context, modelID string) error {
 		return fmt.Errorf("marshal pull model request: %s", err)
 	}
 
-	// TODO(kenji): Consider movinng the retry logic to a caller.
+	// TODO(kenji): Consider moving the retry logic to a caller.
 	if err := httputil.SendHTTPRequestWithRetry(ctx, pullURL, pullData, func(status int, err error) (bool, error) {
 		if err != nil {
 			log.V(2).Error(err, "Failed to pull model", "url", pullURL, "retry-interval", retryInterval)

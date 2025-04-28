@@ -42,4 +42,3 @@ data:
     gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
     serverPodLabelKey: app.kubernetes.io/name
     serverPodLabelValue: {{ include "inference-manager-server.name" . }}
-    statusRefreshInterval: {{ .Values.statusRefreshInterval }}

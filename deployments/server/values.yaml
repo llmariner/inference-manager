@@ -385,10 +385,6 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
-# How often (in seconds) to refresh inference status. Default to 60 seconds.
-# +docs:type=string
-statusRefreshInterval: 60s
-
 # Additional volumes to add to the inference-manager-server pod.
 # For more information, see [Volumes](https://kubernetes.io/docs/concepts/storage/volumes/).
 # +docs:property

@@ -684,6 +684,16 @@ type EngineStatus struct {
 	ClusterID string                   `json:"clusterId"`
 }
 
+func newEngineStatus(e *engine) *EngineStatus {
+	return &EngineStatus{
+		RegisteredModelIDs: e.modelIDs,
+		InProgressModelIDs: e.inProgressModelIDs,
+		Models:             e.models,
+		IsLocal:            e.isLocal,
+		ClusterID:          e.clusterID,
+	}
+}
+
 // TenantStatus is the status of a tenant.
 type TenantStatus struct {
 	Engines map[string]*EngineStatus `json:"engines"`
@@ -692,6 +702,59 @@ type TenantStatus struct {
 // Status is the status of the processor.
 type Status struct {
 	Tenants map[string]*TenantStatus `json:"tenants"`
+}
+
+// DumpTenantStatus dumps the status of a tenant.
+func (p *P) DumpTenantStatus(tenantID string) *TenantStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	t := &TenantStatus{
+		Engines: map[string]*EngineStatus{},
+	}
+	for id, e := range p.engines[tenantID] {
+		t.Engines[id] = newEngineStatus(e)
+	}
+
+	tasksByEnginesAndModelIDs := make(map[string]map[string]int32)
+	for _, task := range p.inProgressTasksByID {
+		if task.tenantID != tenantID {
+			continue
+		}
+		e, ok := t.Engines[task.engineID]
+		if !ok {
+			e = &EngineStatus{}
+			t.Engines[task.engineID] = e
+		}
+
+		e.Tasks = append(e.Tasks, &TaskStatus{
+			ID:      task.id,
+			ModelID: task.model(),
+		})
+		em, ok := tasksByEnginesAndModelIDs[task.engineID]
+		if !ok {
+			em = make(map[string]int32)
+			tasksByEnginesAndModelIDs[task.engineID] = em
+		}
+		em[task.model()]++
+	}
+
+	// Sort the modelIDs and task IDs for deterministic output.
+	for eid, e := range t.Engines {
+		sort.Strings(e.RegisteredModelIDs)
+		sort.Strings(e.InProgressModelIDs)
+		sort.Slice(e.Models, func(i, j int) bool {
+			return e.Models[i].Id < e.Models[j].Id
+		})
+		sort.Slice(e.Tasks, func(i, j int) bool {
+			return e.Tasks[i].ID < e.Tasks[j].ID
+		})
+		for _, m := range e.Models {
+			m.InProgressTaskCount = tasksByEnginesAndModelIDs[eid][m.Id]
+		}
+	}
+
+	return t
 }
 
 // DumpStatus dumps the status of the processor.
@@ -713,13 +776,7 @@ func (p *P) DumpStatus() *Status {
 		}
 
 		for id, e := range engines {
-			t.Engines[id] = &EngineStatus{
-				RegisteredModelIDs: e.modelIDs,
-				InProgressModelIDs: e.inProgressModelIDs,
-				Models:             e.models,
-				IsLocal:            e.isLocal,
-				ClusterID:          e.clusterID,
-			}
+			t.Engines[id] = newEngineStatus(e)
 		}
 	}
 
@@ -758,12 +815,12 @@ func (p *P) DumpStatus() *Status {
 			sort.Slice(e.Models, func(i, j int) bool {
 				return e.Models[i].Id < e.Models[j].Id
 			})
-			for _, m := range e.Models {
-				m.InProgressTaskCount = tasksByEnginesAndModelIDs[eid][m.Id]
-			}
 			sort.Slice(e.Tasks, func(i, j int) bool {
 				return e.Tasks[i].ID < e.Tasks[j].ID
 			})
+			for _, m := range e.Models {
+				m.InProgressTaskCount = tasksByEnginesAndModelIDs[eid][m.Id]
+			}
 		}
 	}
 

@@ -408,6 +408,109 @@ func TestLocalEngines(t *testing.T) {
 	assert.Equal(t, "e0", got["tenant0"][0].EngineId)
 }
 
+func TestDumpTenantStatus(t *testing.T) {
+	iprocessor := &P{
+		engines: map[string]map[string]*engine{
+			"tenant0": {
+				"e0": {
+					modelIDs: []string{"m0", "m1"},
+				},
+				"e1": {
+					modelIDs:           []string{"m2"},
+					inProgressModelIDs: []string{"m3"},
+				},
+			},
+		},
+		inProgressTasksByID: map[string]*task{
+			"task0": {
+				id:       "task0",
+				engineID: "e0",
+				tenantID: "tenant0",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m0",
+						},
+					},
+				},
+			},
+			"task1": {
+				id:       "task1",
+				engineID: "e0",
+				tenantID: "tenant0",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m1",
+						},
+					},
+				},
+			},
+			"task2": {
+				id:       "task2",
+				engineID: "e1",
+				tenantID: "tenant0",
+				request: &v1.TaskRequest{
+					Request: &v1.TaskRequest_ChatCompletion{
+						ChatCompletion: &v1.CreateChatCompletionRequest{
+							Model: "m2",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tcs := []struct {
+		tenantID string
+		want     *TenantStatus
+	}{
+		{
+			tenantID: "tenant0",
+			want: &TenantStatus{
+				Engines: map[string]*EngineStatus{
+					"e0": {
+						RegisteredModelIDs: []string{"m0", "m1"},
+						Tasks: []*TaskStatus{
+							{
+								ID:      "task0",
+								ModelID: "m0",
+							},
+							{
+								ID:      "task1",
+								ModelID: "m1",
+							},
+						},
+					},
+					"e1": {
+						RegisteredModelIDs: []string{"m2"},
+						InProgressModelIDs: []string{"m3"},
+						Tasks: []*TaskStatus{
+							{
+								ID:      "task2",
+								ModelID: "m2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			tenantID: "tenant1",
+			want: &TenantStatus{
+				Engines: map[string]*EngineStatus{},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.tenantID, func(t *testing.T) {
+			got := iprocessor.DumpTenantStatus(tc.tenantID)
+			assert.True(t, reflect.DeepEqual(tc.want, got), "want: %v, got: %v", tc.want, got)
+		})
+	}
+}
+
 func TestDumpStatus(t *testing.T) {
 	iprocessor := &P{
 		engines: map[string]map[string]*engine{

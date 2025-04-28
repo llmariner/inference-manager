@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"sync"
-	"time"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
@@ -42,10 +40,6 @@ func NewInferenceManagementServer(
 // IMS is a server for inference management services.
 type IMS struct {
 	v1.UnimplementedInferenceServiceServer
-
-	// keyed by tenant ID and cluster ID.
-	tenantStatuses map[string]map[string][]*v1.EngineStatus
-	mu             sync.RWMutex
 
 	infProcessor *infprocessor.P
 	modelClient  ModelClient
@@ -103,55 +97,6 @@ func (s *IMS) Stop() {
 	s.srv.Stop()
 }
 
-// Refresh refreshes the inference status.
-func (s *IMS) Refresh(ctx context.Context, interval time.Duration) error {
-	s.refresh()
-
-	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			s.refresh()
-		}
-	}
-}
-
-func (s *IMS) refresh() {
-	tss := make(map[string]map[string][]*v1.EngineStatus)
-	for tid, ts := range s.infProcessor.DumpStatus().Tenants {
-		tss[tid] = make(map[string][]*v1.EngineStatus)
-		for eid, e := range ts.Engines {
-			es, ok := tss[tid][e.ClusterID]
-			if !ok {
-				es = make([]*v1.EngineStatus, 0)
-			}
-			es = append(es, &v1.EngineStatus{
-				EngineId:  eid,
-				ClusterId: e.ClusterID,
-				Models:    e.Models,
-				// Set to true as the engine reported from infProcessor is already ready.
-				Ready: true,
-			})
-			tss[tid][e.ClusterID] = es
-		}
-
-		for _, es := range tss[tid] {
-			sort.Slice(es, func(i, j int) bool {
-				return es[i].EngineId < es[j].EngineId
-			})
-		}
-	}
-
-	s.logger.V(10).Info("refreshing status...", "tss", tss)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.tenantStatuses = tss
-}
-
 // GetInferenceStatus returns the inference status.
 func (s *IMS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatusRequest) (*v1.InferenceStatus, error) {
 	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
@@ -164,14 +109,39 @@ func (s *IMS) GetInferenceStatus(ctx context.Context, req *v1.GetInferenceStatus
 		clusterNamesByID[env.ClusterID] = env.ClusterName
 	}
 
-	s.mu.Lock()
-	ts := s.tenantStatuses[userInfo.TenantID]
-	s.mu.Unlock()
+	statusesByClusterID := make(map[string][]*v1.EngineStatus)
+	ts := s.infProcessor.DumpTenantStatus(userInfo.TenantID)
+	for eid, e := range ts.Engines {
+		es, ok := statusesByClusterID[e.ClusterID]
+		if !ok {
+			es = make([]*v1.EngineStatus, 0)
+		}
+		statusesByClusterID[e.ClusterID] = append(es, &v1.EngineStatus{
+			EngineId:  eid,
+			ClusterId: e.ClusterID,
+			Models:    e.Models,
+			// Set to true as the engine reported from infProcessor is already ready.
+			Ready: true,
+		})
+	}
 
+	for _, es := range statusesByClusterID {
+		sort.Slice(es, func(i, j int) bool {
+			return es[i].EngineId < es[j].EngineId
+		})
+	}
+
+	return s.getInferenceStatus(statusesByClusterID, clusterNamesByID)
+}
+
+func (s *IMS) getInferenceStatus(
+	statusesByClusterID map[string][]*v1.EngineStatus,
+	clusterNamesByID map[string]string,
+) (*v1.InferenceStatus, error) {
 	var css []*v1.ClusterStatus
 	tasks := make(map[string]int32)
 	for cid, cname := range clusterNamesByID {
-		es, ok := ts[cid]
+		es, ok := statusesByClusterID[cid]
 		if !ok {
 			continue
 		}

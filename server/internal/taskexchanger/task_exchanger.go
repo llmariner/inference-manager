@@ -256,7 +256,7 @@ func (e *E) RemoveServer(serverPodName string) {
 
 // StartGracefulShutdown makes the task receiver send task statuses with no ready engines
 // so that this server stop receiving new tasks.
-func (e *E) StartGracefulShutdown(serverPodName string) {
+func (e *E) StartGracefulShutdown() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

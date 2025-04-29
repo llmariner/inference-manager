@@ -2,6 +2,7 @@ package taskexchanger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -179,21 +180,28 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 	e.taskReceivers[pod.Name] = r
 
 	go func() {
-		if err := r.run(ctx); err != nil {
+		err := r.run(ctx)
+		if err != nil {
 			// TODO(kenji): Improve the error handling.
 			log.Error(err, "Failed to run the client")
 		}
 
+		if errors.Is(err, context.Canceled) {
+			log.Info("Task receiver stopped with context.Canceled")
+			return
+		}
+
+		// Run the reconciliation. If the pod is still ready, a task receiver
+		// is created again.
 		log.Info("Task receiver stopped. Trigger reconciliation")
 		e.deleteTaskReceiver(ctx, pod.Name)
 
-		_, err := e.Reconcile(ctx, ctrl.Request{
+		if _, err := e.Reconcile(ctx, ctrl.Request{
 			NamespacedName: k8sclient.ObjectKey{
 				Name:      pod.Name,
 				Namespace: pod.Namespace,
 			},
-		})
-		if err != nil {
+		}); err != nil {
 			log.Error(err, "Failed to trigger reconciliation")
 		}
 	}()

@@ -181,16 +181,15 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 
 	go func() {
 		err := r.run(ctx)
-		if err != nil {
-			// TODO(kenji): Improve the error handling.
-			log.Error(err, "Failed to run the client")
-		}
-
 		if errors.Is(err, context.Canceled) {
 			log.Info("Task receiver stopped with context.Canceled")
 			return
 		}
 
+		if err != nil {
+			// TODO(kenji): Improve the error handling.
+			log.Error(err, "Failed to run the client")
+		}
 		// Run the reconciliation. If the pod is still ready, a task receiver
 		// is created again.
 		log.Info("Task receiver stopped. Trigger reconciliation")

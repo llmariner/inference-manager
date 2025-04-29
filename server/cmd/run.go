@@ -313,7 +313,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	case sig := <-sigCh:
 		log.Info("Got signal, waiting for graceful shutdown", "signal", sig)
 
-		// TODO(kenji): Make the task exchanger let other pods know that this pod is shutting down.
+		te.StartGracefulShutdown()
 
 		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
 		time.Sleep(c.GracefulShutdownDelay)

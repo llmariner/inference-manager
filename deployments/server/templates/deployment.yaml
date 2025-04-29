@@ -19,8 +19,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.podTerminationGracePeriodSeconds }}
-      terminationGracePeriodSeconds: {{ .Values.podTerminationGracePeriodSeconds }}
+      {{- with .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
       {{- end }}
       serviceAccountName: {{ include "inference-manager-server.serviceAccountName" . }}
       securityContext:

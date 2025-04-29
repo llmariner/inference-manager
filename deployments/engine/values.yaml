@@ -401,7 +401,7 @@ leaderElection:
 # opportunity to shut down). If not specified, the default grace
 # period (30 seconds) will be used instead.
 # +docs:property
-# podTerminationGracePeriodSeconds: ""
+# terminationGracePeriodSeconds: ""
 
 # The log level of the inference-manager-engine container.
 # +docs:type=number

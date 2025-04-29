@@ -208,3 +208,8 @@ func (s *S) Run(ctx context.Context, port int, authConfig config.AuthConfig) err
 func (s *S) Stop() {
 	s.srv.Stop()
 }
+
+// GracefulStop gracefully stops the gRPC server.
+func (s *S) GracefulStop() {
+	s.srv.GracefulStop()
+}

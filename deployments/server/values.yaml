@@ -79,6 +79,9 @@ managementPort: 8090
 # +docs:type=number
 managementGrpcPort: 8091
 
+# Delay before shutting down the server.
+gracefulShutdownDelay: 0s
+
 # The address of the model-manager-server to call public model APIs.
 modelManagerServerAddr: model-manager-server-grpc:8081
 # The address of the vector-store-manager-server to call public vector-store APIs.
@@ -238,7 +241,7 @@ logLevel: 10
 # opportunity to shut down). If not specified, the default grace
 # period (30 seconds) will be used instead.
 # +docs:property
-# podTerminationGracePeriodSeconds: ""
+# terminationGracePeriodSeconds: ""
 
 # Override the "inference-manager-server.fullname" value. This value
 # is used as part of most of the names of the resources created by

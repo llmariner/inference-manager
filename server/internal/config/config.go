@@ -21,6 +21,9 @@ type Config struct {
 	ManagementPort        int `yaml:"managementPort"`
 	ManagementGRPCPort    int `yaml:"managementGrpcPort"`
 
+	// GracefulShutdownDelay is the delay before shutting down the server.
+	GracefulShutdownDelay time.Duration `yaml:"gracefulShutdownDelay"`
+
 	ModelManagerServerAddr               string `yaml:"modelManagerServerAddr"`
 	VectorStoreManagerServerAddr         string `yaml:"vectorStoreManagerServerAddr"`
 	VectorStoreManagerInternalServerAddr string `yaml:"vectorStoreManagerInternalServerAddr"`
@@ -136,6 +139,9 @@ func (c *Config) Validate() error {
 	}
 	if c.ManagementGRPCPort <= 0 {
 		return fmt.Errorf("managementGrpcPort must be greater than 0")
+	}
+	if c.GracefulShutdownDelay < 0 {
+		return fmt.Errorf("gracefulShutdownDelay must be greater than or equal to 0")
 	}
 
 	if err := c.AuthConfig.validate(); err != nil {

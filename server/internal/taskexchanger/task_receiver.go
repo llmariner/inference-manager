@@ -49,7 +49,9 @@ type taskReceiver struct {
 
 	// engineStatuses is mapped by tenant ID and engine ID.
 	engineStatuses map[string]map[string]*v1.EngineStatus
-	mu             sync.Mutex
+	// isShutdown is true if the task exchanger is shutting down.
+	isShutdown bool
+	mu         sync.Mutex
 }
 
 func (r *taskReceiver) run(ctx context.Context) error {
@@ -146,37 +148,43 @@ func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
 	enginesByTenantID := r.infProcessor.LocalEngines()
 
 	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
-	for tenantID, es := range enginesByTenantID {
-		cachedEngineStatuses, ok := r.engineStatuses[tenantID]
-		if !ok {
-			needSend = true
-		}
 
-		updatedEngineStatuses := make(map[string]*v1.EngineStatus)
-		for _, e := range es {
-			if !needSend {
-				cachedStatus, ok := cachedEngineStatuses[e.EngineId]
-				if !ok {
-					needSend = true
-				} else {
-					// Check if the engine status is changed.
-					needSend = !sameEngineStatus(cachedStatus, e)
-				}
+	// Keep the engine statuses empty if the server is shutting down.
+	// This will prevent new tasks from being scheduled to this server.
+	if !r.isShutdown {
+		for tenantID, es := range enginesByTenantID {
+			cachedEngineStatuses, ok := r.engineStatuses[tenantID]
+			if !ok {
+				needSend = true
 			}
-			// Overwrite the ready status based on the status of the server.
-			e.Ready = ready
-			statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
-				EngineStatus: e,
-				TenantId:     tenantID,
-			})
-			updatedEngineStatuses[e.EngineId] = e
+
+			updatedEngineStatuses := make(map[string]*v1.EngineStatus)
+			for _, e := range es {
+				if !needSend {
+					cachedStatus, ok := cachedEngineStatuses[e.EngineId]
+					if !ok {
+						needSend = true
+					} else {
+						// Check if the engine status is changed.
+						needSend = !sameEngineStatus(cachedStatus, e)
+					}
+				}
+				// Overwrite the ready status based on the status of the server.
+				e.Ready = ready
+				statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
+					EngineStatus: e,
+					TenantId:     tenantID,
+				})
+				updatedEngineStatuses[e.EngineId] = e
+			}
+			r.engineStatuses[tenantID] = updatedEngineStatuses
 		}
-		r.engineStatuses[tenantID] = updatedEngineStatuses
+
+		if !needSend {
+			return nil
+		}
 	}
 
-	if !needSend {
-		return nil
-	}
 	req := &v1.ProcessTasksInternalRequest{
 		Message: &v1.ProcessTasksInternalRequest_ServerStatus{
 			ServerStatus: &v1.ServerStatus{
@@ -296,6 +304,12 @@ func (r *taskReceiver) processTask(
 			},
 		})
 	})
+}
+
+func (r *taskReceiver) startGracefulShutdown() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.isShutdown = true
 }
 
 func isConnClosedErr(err error) bool {

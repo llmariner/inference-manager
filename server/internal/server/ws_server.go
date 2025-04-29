@@ -109,6 +109,11 @@ func (ws *WS) Stop() {
 	ws.srv.Stop()
 }
 
+// GracefulStop gracefully stops the worker service server.
+func (ws *WS) GracefulStop() {
+	ws.srv.GracefulStop()
+}
+
 func (ws *WS) extractClusterInfoFromContext(ctx context.Context) (*auth.ClusterInfo, error) {
 	if !ws.enableAuth {
 		return &auth.ClusterInfo{

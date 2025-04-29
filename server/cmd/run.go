@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/stdr"
@@ -219,6 +221,9 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		))
 	mux.Handle("POST", pat, grpcSrv.CreateEmbedding)
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
 	go func() {
 		log := logger.WithName("http")
 		log.Info("Starting HTTP server...", "port", c.HTTPPort)
@@ -239,8 +244,8 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- grpcSrv.Run(ctx, c.GRPCPort, c.AuthConfig)
 	}()
 
+	wsSrv := server.NewWorkerServiceServer(infProcessor, logger)
 	go func() {
-		wsSrv := server.NewWorkerServiceServer(infProcessor, logger)
 		errCh <- wsSrv.Run(ctx, c.WorkerServiceGRPCPort, c.AuthConfig, c.WorkerServiceTLS)
 	}()
 
@@ -302,5 +307,21 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- ims.Run(ctx, c.AuthConfig, c.ManagementGRPCPort)
 	}()
 
-	return <-errCh
+	select {
+	case err := <-errCh:
+		return err
+	case sig := <-sigCh:
+		log.Info("Got signal, waiting for graceful shutdown", "signal", sig)
+
+		// TODO(kenji): Make the task exchanger let other pods know that this pod is shutting down.
+
+		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
+		time.Sleep(c.GracefulShutdownDelay)
+
+		log.Info("Starting graceful shutdown.")
+		grpcSrv.GracefulStop()
+		wsSrv.GracefulStop()
+
+		return nil
+	}
 }

@@ -195,6 +195,9 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 		log.Info("Task receiver stopped. Trigger reconciliation")
 		e.deleteTaskReceiver(ctx, pod.Name)
 
+		// Reset the logger in the context to avoid repeatedly add "serverPodName" to logger.
+		ctx = ctrl.LoggerInto(ctx, e.logger)
+
 		if _, err := e.Reconcile(ctx, ctrl.Request{
 			NamespacedName: k8sclient.ObjectKey{
 				Name:      pod.Name,

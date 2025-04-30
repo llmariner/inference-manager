@@ -34,7 +34,7 @@ type task struct {
 
 	createdAt time.Time
 
-	// preferedIgnoredEngines is a list of engine IDs that should be ignored
+	// preferredIgnoredEngines is a list of engine IDs that should be ignored
 	// when scheduling the task only if the requested model is not loaded.
 	preferredIgnoredEngines map[string]bool
 

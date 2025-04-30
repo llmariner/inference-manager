@@ -89,7 +89,7 @@ func (r *taskReceiver) run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			log.Info("Stopped taskReceiver", "ctx", ctx.Err())
-			return nil
+			return ctx.Err()
 		case <-time.After(retryInterval):
 			log.Info("Retrying taskReceiver", "retry-interval", retryInterval)
 		}

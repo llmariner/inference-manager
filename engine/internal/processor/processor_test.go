@@ -35,7 +35,7 @@ func TestP(t *testing.T) {
 		"engine_id0",
 		nil,
 		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
-		&fakeModelSyncer{},
+		newFakeModelSyncer(),
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
@@ -77,7 +77,7 @@ func TestEmbedding(t *testing.T) {
 		"engine_id0",
 		nil,
 		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
-		&fakeModelSyncer{},
+		newFakeModelSyncer(),
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
@@ -100,6 +100,90 @@ func TestEmbedding(t *testing.T) {
 	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))
 	assert.Equal(t, "ok", string(resp.Body))
+}
+
+func TestActivateTask(t *testing.T) {
+	// Start a fake ollama server.
+	ollamaSrv, err := newFakeOllamaServer()
+	assert.NoError(t, err)
+
+	go ollamaSrv.serve()
+	defer ollamaSrv.shutdown(context.Background())
+
+	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
+
+	ctx := testutil.ContextWithLogger(t)
+	logger := ctrl.LoggerFrom(ctx)
+
+	fakeModelSyncer := newFakeModelSyncer()
+	processor := NewP(
+		"engine_id0",
+		nil,
+		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		fakeModelSyncer,
+		logger,
+		&metrics.NoopCollector{},
+		time.Second,
+	)
+
+	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+
+	task := &v1.Task{
+		Request: &v1.TaskRequest{
+			Request: &v1.TaskRequest_ModelActivation{
+				ModelActivation: &v1.ActivateModelRequest{
+					Id: "m0",
+				},
+			},
+		},
+	}
+
+	err = processor.processTask(ctx, fakeClient, task)
+	assert.NoError(t, err)
+
+	assert.True(t, fakeModelSyncer.pulledModels["m0"])
+}
+
+func TestDeactivateTask(t *testing.T) {
+	// Start a fake ollama server.
+	ollamaSrv, err := newFakeOllamaServer()
+	assert.NoError(t, err)
+
+	go ollamaSrv.serve()
+	defer ollamaSrv.shutdown(context.Background())
+
+	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
+
+	ctx := testutil.ContextWithLogger(t)
+	logger := ctrl.LoggerFrom(ctx)
+
+	fakeModelSyncer := newFakeModelSyncer()
+	processor := NewP(
+		"engine_id0",
+		nil,
+		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		fakeModelSyncer,
+		logger,
+		&metrics.NoopCollector{},
+		time.Second,
+	)
+
+	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+
+	task := &v1.Task{
+		Request: &v1.TaskRequest{
+			Request: &v1.TaskRequest_ModelDeactivation{
+				ModelDeactivation: &v1.DeactivateModelRequest{
+					Id: "m0",
+				},
+			},
+		},
+	}
+
+	err = processor.processTask(ctx, fakeClient, task)
+	assert.NoError(t, err)
+
+	assert.True(t, fakeModelSyncer.deletedModels["m0"])
 }
 
 func newFakeOllamaServer() (*fakeOllamaServer, error) {
@@ -164,7 +248,16 @@ func (s *fakeOllamaServer) port() int {
 	return s.listener.Addr().(*net.TCPAddr).Port
 }
 
+func newFakeModelSyncer() *fakeModelSyncer {
+	return &fakeModelSyncer{
+		pulledModels:  map[string]bool{},
+		deletedModels: map[string]bool{},
+	}
+}
+
 type fakeModelSyncer struct {
+	pulledModels  map[string]bool
+	deletedModels map[string]bool
 }
 
 func (f *fakeModelSyncer) ListSyncedModels() []runtime.ModelRuntimeInfo {
@@ -172,6 +265,7 @@ func (f *fakeModelSyncer) ListSyncedModels() []runtime.ModelRuntimeInfo {
 }
 
 func (f *fakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
+	f.pulledModels[modelID] = true
 	return nil
 }
 
@@ -180,6 +274,7 @@ func (f *fakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 }
 
 func (f *fakeModelSyncer) DeleteModel(ctx context.Context, modelID string) error {
+	f.deletedModels[modelID] = true
 	return nil
 }
 

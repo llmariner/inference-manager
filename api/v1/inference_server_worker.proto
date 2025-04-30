@@ -40,12 +40,18 @@ message ProcessTasksRequest {
   }
 }
 
+message GoAwayRequest {
+}
+
 message TaskRequest {
   oneof request {
     llmariner.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
     llmariner.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
     ActivateModelRequest model_activation = 3;
     DeactivateModelRequest model_deactivation = 4;
+    // go_away is used to signal the worker to disconnect and
+    // reconnect to other server.
+    GoAwayRequest go_away = 5;
   }
 }
 

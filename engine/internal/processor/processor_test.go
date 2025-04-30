@@ -15,6 +15,8 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -41,7 +43,7 @@ func TestP(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+	fakeSender := &fakeSender{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -53,9 +55,9 @@ func TestP(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(ctx, fakeClient, task)
+	err = processor.processTask(ctx, fakeSender, task, nil)
 	assert.NoError(t, err)
-	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
+	resp := fakeSender.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))
 	assert.Equal(t, "ok", string(resp.Body))
 }
@@ -83,7 +85,7 @@ func TestEmbedding(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+	fakeSender := &fakeSender{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -95,9 +97,9 @@ func TestEmbedding(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(ctx, fakeClient, task)
+	err = processor.processTask(ctx, fakeSender, task, nil)
 	assert.NoError(t, err)
-	resp := fakeClient.gotReq.GetTaskResult().GetHttpResponse()
+	resp := fakeSender.gotReq.GetTaskResult().GetHttpResponse()
 	assert.Equal(t, http.StatusOK, int(resp.StatusCode))
 	assert.Equal(t, "ok", string(resp.Body))
 }
@@ -126,7 +128,7 @@ func TestActivateTask(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+	fakeSender := &fakeSender{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -138,7 +140,7 @@ func TestActivateTask(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(ctx, fakeClient, task)
+	err = processor.processTask(ctx, fakeSender, task, nil)
 	assert.NoError(t, err)
 
 	assert.True(t, fakeModelSyncer.pulledModels["m0"])
@@ -168,7 +170,7 @@ func TestDeactivateTask(t *testing.T) {
 		time.Second,
 	)
 
-	fakeClient := &fakeProcessTasksClient{ctx: ctx}
+	fakeSender := &fakeSender{ctx: ctx}
 
 	task := &v1.Task{
 		Request: &v1.TaskRequest{
@@ -180,10 +182,54 @@ func TestDeactivateTask(t *testing.T) {
 		},
 	}
 
-	err = processor.processTask(ctx, fakeClient, task)
+	err = processor.processTask(ctx, fakeSender, task, nil)
 	assert.NoError(t, err)
 
 	assert.True(t, fakeModelSyncer.deletedModels["m0"])
+}
+
+func TestGoAwayTask(t *testing.T) {
+	// Start a fake ollama server.
+	ollamaSrv, err := newFakeOllamaServer()
+	assert.NoError(t, err)
+
+	go ollamaSrv.serve()
+	defer ollamaSrv.shutdown(context.Background())
+
+	assert.Eventuallyf(t, ollamaSrv.isReady, 10*time.Second, 100*time.Millisecond, "engine server is not ready")
+
+	ctx := testutil.ContextWithLogger(t)
+	logger := ctrl.LoggerFrom(ctx)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	fakeProcessTaskClient := &fakeProcessTaskClient{
+		stream: &fakeStream{
+			ctx: ctx,
+			resp: &v1.ProcessTasksResponse{
+				NewTask: &v1.Task{
+					Request: &v1.TaskRequest{
+						Request: &v1.TaskRequest_GoAway{
+							GoAway: &v1.GoAwayRequest{},
+						},
+					},
+				},
+			},
+		},
+	}
+	processor := NewP(
+		"engine_id0",
+		fakeProcessTaskClient,
+		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
+		newFakeModelSyncer(),
+		logger,
+		&metrics.NoopCollector{},
+		time.Second,
+	)
+
+	err = processor.run(ctx)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, errGoAway)
 }
 
 func newFakeOllamaServer() (*fakeOllamaServer, error) {
@@ -278,16 +324,69 @@ func (f *fakeModelSyncer) DeleteModel(ctx context.Context, modelID string) error
 	return nil
 }
 
-type fakeProcessTasksClient struct {
+type fakeProcessTaskClient struct {
+	stream *fakeStream
+}
+
+func (c *fakeProcessTaskClient) ProcessTasks(ctx context.Context, opts ...grpc.CallOption) (v1.InferenceWorkerService_ProcessTasksClient, error) {
+	return c.stream, nil
+}
+
+type fakeStream struct {
+	ctx  context.Context
+	resp *v1.ProcessTasksResponse
+}
+
+func (s *fakeStream) Context() context.Context {
+	return s.ctx
+}
+
+func (s *fakeStream) Recv() (*v1.ProcessTasksResponse, error) {
+	if s.resp == nil {
+		// Block forever.
+		<-s.ctx.Done()
+		return nil, s.ctx.Err()
+	}
+
+	resp := s.resp
+	s.resp = nil
+	return resp, nil
+}
+
+func (s *fakeStream) CloseSend() error {
+	return nil
+}
+
+func (s *fakeStream) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
+func (s *fakeStream) RecvMsg(any) error {
+	return nil
+}
+
+func (s *fakeStream) SendMsg(any) error {
+	return nil
+}
+
+func (s *fakeStream) Trailer() metadata.MD {
+	return nil
+}
+
+func (s *fakeStream) Send(req *v1.ProcessTasksRequest) error {
+	return nil
+}
+
+type fakeSender struct {
 	ctx    context.Context
 	gotReq *v1.ProcessTasksRequest
 }
 
-func (c *fakeProcessTasksClient) Context() context.Context {
+func (c *fakeSender) Context() context.Context {
 	return c.ctx
 }
 
-func (c *fakeProcessTasksClient) Send(req *v1.ProcessTasksRequest) error {
+func (c *fakeSender) Send(req *v1.ProcessTasksRequest) error {
 	c.gotReq = req
 	return nil
 }

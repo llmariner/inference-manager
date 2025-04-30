@@ -47,12 +47,15 @@ type BaseProcessTasksRequest = {
 export type ProcessTasksRequest = BaseProcessTasksRequest
   & OneOf<{ engine_status: LlmarinerInferenceServerV1Inference_server_management.EngineStatus; task_result: TaskResult }>
 
+export type GoAwayRequest = {
+}
+
 
 type BaseTaskRequest = {
 }
 
 export type TaskRequest = BaseTaskRequest
-  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; model_activation: LlmarinerInferenceServerV1Inference_server_management.ActivateModelRequest; model_deactivation: LlmarinerInferenceServerV1Inference_server_management.DeactivateModelRequest }>
+  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; model_activation: LlmarinerInferenceServerV1Inference_server_management.ActivateModelRequest; model_deactivation: LlmarinerInferenceServerV1Inference_server_management.DeactivateModelRequest; go_away: GoAwayRequest }>
 
 export type Task = {
   id?: string

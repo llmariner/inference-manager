@@ -22,7 +22,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/llmariner/rbac-manager/pkg/auth"
-	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -36,7 +36,11 @@ const (
 	statusReportInterval = 30 * time.Second
 
 	retryInterval = 10 * time.Second
+
+	goAwayDelay = 3 * time.Second
 )
+
+var errGoAway = errors.New("go away")
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
@@ -51,10 +55,21 @@ type AddressGetter interface {
 	GetLLMAddress(modelID string) (string, error)
 }
 
+type stream interface {
+	Context() context.Context
+	Send(*v1.ProcessTasksRequest) error
+	Recv() (*v1.ProcessTasksResponse, error)
+	CloseSend() error
+}
+
+type processTasksClient interface {
+	ProcessTasks(ctx context.Context, opts ...grpc.CallOption) (v1.InferenceWorkerService_ProcessTasksClient, error)
+}
+
 // NewP returns a new processor.
 func NewP(
 	engineID string,
-	client v1.InferenceWorkerServiceClient,
+	client processTasksClient,
 	addrGetter AddressGetter,
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
@@ -79,7 +94,7 @@ func NewP(
 // P processes tasks.
 type P struct {
 	engineID    string
-	client      v1.InferenceWorkerServiceClient
+	client      processTasksClient
 	addrGetter  AddressGetter
 	modelSyncer ModelSyncer
 	metrics     metrics.Collector
@@ -128,7 +143,13 @@ func (p *P) Start(ctx context.Context) error {
 			p.mu.Lock()
 			p.lastErr = err
 			p.mu.Unlock()
+
+			if errors.Is(err, errGoAway) {
+				log.Info("Processor stopped due to go away. Reconnecting immediately")
+				continue
+			}
 		}
+
 		select {
 		case <-ctx.Done():
 			log.Info("Stopped processor", "ctx", ctx.Err())
@@ -153,15 +174,23 @@ func (p *P) run(ctx context.Context) error {
 	}
 	defer func() { _ = stream.CloseSend() }()
 
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { return p.sendEngineStatusPeriodically(ctx, stream) })
-	eg.Go(func() error { return p.processTasks(ctx, stream) })
-	return eg.Wait()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error)
+	go func() {
+		errCh <- p.sendEngineStatusPeriodically(ctx, stream)
+	}()
+	go func() {
+		errCh <- p.processTasks(ctx, stream)
+	}()
+
+	return <-errCh
 }
 
 func (p *P) sendEngineStatusPeriodically(
 	ctx context.Context,
-	stream v1.InferenceWorkerService_ProcessTasksClient,
+	stream stream,
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("status")
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -191,7 +220,7 @@ func (p *P) sendEngineStatusPeriodically(
 			if err := p.sendEngineStatus(stream, false); err != nil {
 				return err
 			}
-			return nil
+			return ctx.Err()
 		case <-time.After(statusReportInterval):
 		}
 	}
@@ -199,7 +228,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 func (p *P) processTasks(
 	ctx context.Context,
-	stream v1.InferenceWorkerService_ProcessTasksClient,
+	stream stream,
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("task")
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -231,6 +260,7 @@ func (p *P) processTasks(
 	}()
 
 	var wg sync.WaitGroup
+	goAwayCh := make(chan struct{})
 	for {
 		select {
 		case resp := <-respCh:
@@ -244,7 +274,7 @@ func (p *P) processTasks(
 
 				log := log.WithValues("taskID", resp.NewTask.Id)
 				log.Info("Started processing task")
-				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask); errors.Is(err, context.Canceled) {
+				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask, goAwayCh); errors.Is(err, context.Canceled) {
 					log.Info("Canceled task", "reason", err)
 				} else if err != nil {
 					log.Error(err, "Failed to process task")
@@ -254,8 +284,15 @@ func (p *P) processTasks(
 			}()
 		case err := <-errCh:
 			return err
+		case <-goAwayCh:
+			log.Info("Received the go-away request")
+			time.Sleep(goAwayDelay)
+			log.Info("Stopping and waiting for all tasks to complete for the go-away request")
+			wg.Wait()
+			close(doneCh)
+			return errGoAway
 		case <-ctx.Done():
-			log.Info("Stopping and Waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
+			log.Info("Stopping and waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
 			wg.Wait()
 			close(doneCh)
 			return nil
@@ -272,6 +309,7 @@ func (p *P) processTask(
 	ctx context.Context,
 	stream sender,
 	t *v1.Task,
+	goAwayCh chan struct{},
 ) error {
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding:
@@ -280,6 +318,9 @@ func (p *P) processTask(
 		return p.activateModel(ctx, stream, t)
 	case *v1.TaskRequest_ModelDeactivation:
 		return p.deactivateModel(ctx, stream, t)
+	case *v1.TaskRequest_GoAway:
+		close(goAwayCh)
+		return nil
 	default:
 		return fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -670,7 +711,7 @@ func taskModel(t *v1.Task) string {
 	case *v1.TaskRequest_Embedding:
 		return req.GetEmbedding().Model
 	default:
-		return ""
+		return "n/a"
 	}
 }
 

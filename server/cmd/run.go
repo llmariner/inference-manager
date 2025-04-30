@@ -311,7 +311,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	case err := <-errCh:
 		return err
 	case sig := <-sigCh:
-		log.Info("Got signal, waiting for graceful shutdown", "signal", sig)
+		log.Info("Got signal. Start graceful shutdown", "signal", sig)
 
 		te.StartGracefulShutdown()
 

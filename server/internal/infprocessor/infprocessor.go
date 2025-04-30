@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -16,92 +15,8 @@ import (
 )
 
 const (
-	taskQueueSize = 100
-
 	maxRetryCount = 3
 )
-
-type resultOrError struct {
-	result *v1.TaskResult
-	err    error
-}
-
-// task is an inference task.
-// TODO(kenji): Consider preserving the request context as well.
-type task struct {
-	id       string
-	tenantID string
-
-	header http.Header
-
-	request *v1.TaskRequest
-
-	resultCh chan *resultOrError
-
-	engineID string
-
-	createdAt time.Time
-
-	// preferedIgnoredEngines is a list of engine IDs that should be ignored
-	// when scheduling the task only if the requested model is not loaded.
-	preferredIgnoredEngines map[string]bool
-
-	retryCount int
-}
-
-func (t *task) model() string {
-	switch req := t.request; req.Request.(type) {
-	case *v1.TaskRequest_ChatCompletion:
-		return req.GetChatCompletion().Model
-	case *v1.TaskRequest_Embedding:
-		return req.GetEmbedding().Model
-	case *v1.TaskRequest_ModelActivation:
-		return req.GetModelActivation().Id
-	case *v1.TaskRequest_ModelDeactivation:
-		return req.GetModelDeactivation().Id
-	default:
-		return ""
-	}
-}
-
-func (t *task) stream() bool {
-	switch req := t.request; req.Request.(type) {
-	case *v1.TaskRequest_ChatCompletion:
-		return req.GetChatCompletion().Stream
-	default:
-		return false
-	}
-}
-
-// newTaskQueue creates a new task queue.
-func newTaskQueue() *taskQueue {
-	return &taskQueue{
-		tasks: make(chan *task, taskQueueSize),
-	}
-}
-
-// taskQueue is a queue for inference tasks.
-type taskQueue struct {
-	tasks    chan *task
-	numTasks atomic.Int32
-}
-
-// Enqueue inserts a task into the queue.
-func (q *taskQueue) Enqueue(t *task) {
-	q.numTasks.Add(1)
-	q.tasks <- t
-}
-
-// Dequeue removes a task from the queue.
-func (q *taskQueue) Dequeue(ctx context.Context) (*task, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case t := <-q.tasks:
-		q.numTasks.Add(-1)
-		return t, nil
-	}
-}
 
 type engineRouter interface {
 	AddOrUpdateEngine(engineID, tenantID string, modelIDs []string)
@@ -173,13 +88,7 @@ func (p *P) Run(ctx context.Context) error {
 }
 
 func (p *P) scheduleTask(ctx context.Context, t *task) error {
-	// TODO (aya): Rethink the routing logic. The engines in the same
-	// cluster currently share the same model set. It would be better
-	// to choose the cluster first and then randomly select an engine
-	//
-	// TODO(kenji): Change the routing logic for model deactivation tasks. The deactivation requests
-	// should be sent to all clusters where the model exists. Also the task should
-	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID, t.preferredIgnoredEngines)
+	engineIDs, err := p.getEnginesForTask(ctx, t)
 	if err != nil {
 		return fmt.Errorf("find an engine to route the request: %s", err)
 	}
@@ -208,6 +117,21 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 		return fmt.Errorf("send the task: %s", err)
 	}
 	return nil
+}
+
+func (p *P) getEnginesForTask(ctx context.Context, t *task) ([]string, error) {
+
+	// TODO (aya): Rethink the routing logic. The engines in the same
+	// cluster currently share the same model set. It would be better
+	// to choose the cluster first and then randomly select an engine
+	//
+	// TODO(kenji): Change the routing logic for model deactivation tasks. The deactivation requests
+	// should be sent to all clusters where the model exists.
+	engineIDs, err := p.engineRouter.GetEnginesForModel(ctx, t.model(), t.tenantID, t.preferredIgnoredEngines)
+	if err != nil {
+		return nil, fmt.Errorf("find an engine to route the request: %s", err)
+	}
+	return engineIDs, nil
 }
 
 func (p *P) assignTaskToEngine(t *task, engineID string) error {
@@ -297,14 +221,14 @@ func (p *P) SendAndProcessTask(
 			header.Add(k, v)
 		}
 	}
-	resultCh := make(chan *resultOrError)
+
 	task := &task{
 		id:        origTask.Id,
 		tenantID:  tenantID,
 		header:    header,
 		request:   origTask.Request,
 		createdAt: time.Now(),
-		resultCh:  resultCh,
+		resultCh:  make(chan *resultOrError),
 	}
 
 	return p.enqueueAndProcessTask(ctx, task, processResult, log)
@@ -381,14 +305,13 @@ func (p *P) sendTask(
 	}
 	log := logger.WithValues("id", taskID)
 
-	resultCh := make(chan *resultOrError)
 	task := &task{
 		id:        taskID,
 		tenantID:  tenantID,
 		header:    header,
 		request:   request,
 		createdAt: time.Now(),
-		resultCh:  resultCh,
+		resultCh:  make(chan *resultOrError),
 	}
 
 	log.V(1).Info("Waiting to receive an initial response to the task")

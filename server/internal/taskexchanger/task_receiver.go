@@ -126,7 +126,7 @@ func (r *taskReceiver) sendServerStatusPeriodically(
 			if err := r.sendServerStatus(stream, false); err != nil {
 				return err
 			}
-			return nil
+			return ctx.Err()
 		case <-time.After(statusReportInterval):
 		}
 	}

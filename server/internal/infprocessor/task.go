@@ -2,16 +2,64 @@ package infprocessor
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
 
+	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 )
 
 const (
 	taskQueueSize = 100
 )
+
+func newTaskID() (string, error) {
+	taskID, err := id.GenerateID("inf_", 24)
+	if err != nil {
+		return "", fmt.Errorf("generate task ID: %s", err)
+	}
+	return taskID, nil
+}
+
+func newTask(
+	tenantID string,
+	request *v1.TaskRequest,
+	header http.Header,
+	targetEngineID string,
+) (*task, error) {
+	id, err := newTaskID()
+	if err != nil {
+		return nil, err
+	}
+
+	return newTaskWithID(
+		id,
+		tenantID,
+		request,
+		header,
+		targetEngineID,
+	), nil
+}
+
+func newTaskWithID(
+	id string,
+	tenantID string,
+	request *v1.TaskRequest,
+	header http.Header,
+	targetEngineID string,
+) *task {
+	return &task{
+		id:             id,
+		tenantID:       tenantID,
+		request:        request,
+		header:         header,
+		targetEngineID: targetEngineID,
+		createdAt:      time.Now(),
+		resultCh:       make(chan *resultOrError),
+	}
+}
 
 type resultOrError struct {
 	result *v1.TaskResult
@@ -24,13 +72,16 @@ type task struct {
 	id       string
 	tenantID string
 
-	header http.Header
-
 	request *v1.TaskRequest
+
+	header http.Header
 
 	resultCh chan *resultOrError
 
 	engineID string
+
+	// targetEngineID is set if the task must be sent to this engine.
+	targetEngineID string
 
 	createdAt time.Time
 

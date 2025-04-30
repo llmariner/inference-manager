@@ -311,14 +311,20 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	case err := <-errCh:
 		return err
 	case sig := <-sigCh:
-		log.Info("Got signal. Start graceful shutdown", "signal", sig)
+		log.Info("Got signal", "signal", sig)
 
+		log.Info("Sending GoAway task to local engines")
+		if err := infProcessor.SendGoAwayTaskToLocalEngines(ctx); err != nil {
+			log.Error(err, "Failed to send go away task to local engines")
+		}
+
+		log.Info("Starting graceful shutdown of task exchanger")
 		te.StartGracefulShutdown()
 
 		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
 		time.Sleep(c.GracefulShutdownDelay)
 
-		log.Info("Starting graceful shutdown.")
+		log.Info("Starting graceful shutdown of gRPC servers")
 		grpcSrv.GracefulStop()
 		wsSrv.GracefulStop()
 

@@ -122,26 +122,8 @@ func (p *P) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, log)
 	ctx = auth.AppendWorkerAuthorization(ctx)
 
-	run := func() error {
-		streamCtx, streamCancel := context.WithCancel(context.Background())
-		streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
-		streamCtx = auth.AppendWorkerAuthorization(streamCtx)
-		defer streamCancel()
-		// Use separate context for the stream to gracefully handle the task requests.
-		stream, err := p.client.ProcessTasks(streamCtx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = stream.CloseSend() }()
-
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.Go(func() error { return p.sendEngineStatusPeriodically(ctx, stream) })
-		eg.Go(func() error { return p.processTasks(ctx, stream) })
-		return eg.Wait()
-	}
-
 	for {
-		if err := run(); err != nil {
+		if err := p.run(ctx); err != nil {
 			log.Error(err, "Processor error")
 			p.mu.Lock()
 			p.lastErr = err
@@ -155,6 +137,26 @@ func (p *P) Start(ctx context.Context) error {
 			log.Info("Retrying processor", "retry-interval", retryInterval)
 		}
 	}
+}
+
+func (p *P) run(ctx context.Context) error {
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+
+	streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
+	streamCtx = auth.AppendWorkerAuthorization(streamCtx)
+
+	// Use separate context for the stream to gracefully handle the task requests.
+	stream, err := p.client.ProcessTasks(streamCtx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.CloseSend() }()
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error { return p.sendEngineStatusPeriodically(ctx, stream) })
+	eg.Go(func() error { return p.processTasks(ctx, stream) })
+	return eg.Wait()
 }
 
 func (p *P) sendEngineStatusPeriodically(

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 )
 
@@ -120,6 +119,9 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 }
 
 func (p *P) getEnginesForTask(ctx context.Context, t *task) ([]string, error) {
+	if eid := t.targetEngineID; eid != "" {
+		return []string{eid}, nil
+	}
 
 	// TODO (aya): Rethink the routing logic. The engines in the same
 	// cluster currently share the same model set. It would be better
@@ -222,14 +224,13 @@ func (p *P) SendAndProcessTask(
 		}
 	}
 
-	task := &task{
-		id:        origTask.Id,
-		tenantID:  tenantID,
-		header:    header,
-		request:   origTask.Request,
-		createdAt: time.Now(),
-		resultCh:  make(chan *resultOrError),
-	}
+	task := newTaskWithID(
+		origTask.Id,
+		tenantID,
+		origTask.Request,
+		header,
+		"",
+	)
 
 	return p.enqueueAndProcessTask(ctx, task, processResult, log)
 }
@@ -241,12 +242,21 @@ func (p *P) SendChatCompletionTask(
 	req *v1.CreateChatCompletionRequest,
 	header http.Header,
 ) (*http.Response, error) {
-	r := &v1.TaskRequest{
-		Request: &v1.TaskRequest_ChatCompletion{
-			ChatCompletion: req,
+	t, err := newTask(
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_ChatCompletion{
+				ChatCompletion: req,
+			},
 		},
+		header,
+		"",
+	)
+	if err != nil {
+		return nil, err
 	}
-	return p.sendTask(ctx, tenantID, r, header, p.logger.WithName("chat"))
+
+	return p.sendTask(ctx, t, p.logger.WithName("chat"))
 }
 
 // SendEmbeddingTask sends an embedding task.
@@ -256,12 +266,21 @@ func (p *P) SendEmbeddingTask(
 	req *v1.CreateEmbeddingRequest,
 	header http.Header,
 ) (*http.Response, error) {
-	r := &v1.TaskRequest{
-		Request: &v1.TaskRequest_Embedding{
-			Embedding: req,
+	t, err := newTask(
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_Embedding{
+				Embedding: req,
+			},
 		},
+		header,
+		"",
+	)
+	if err != nil {
+		return nil, err
 	}
-	return p.sendTask(ctx, tenantID, r, header, p.logger.WithName("embedded"))
+
+	return p.sendTask(ctx, t, p.logger.WithName("embedded"))
 }
 
 // SendModelActivationTask sends a model activation task.
@@ -270,12 +289,21 @@ func (p *P) SendModelActivationTask(
 	tenantID string,
 	req *v1.ActivateModelRequest,
 ) (*http.Response, error) {
-	r := &v1.TaskRequest{
-		Request: &v1.TaskRequest_ModelActivation{
-			ModelActivation: req,
+	t, err := newTask(
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_ModelActivation{
+				ModelActivation: req,
+			},
 		},
+		http.Header{},
+		"",
+	)
+	if err != nil {
+		return nil, err
 	}
-	return p.sendTask(ctx, tenantID, r, http.Header{}, p.logger.WithName("modelActivation"))
+
+	return p.sendTask(ctx, t, p.logger.WithName("modelActivation"))
 }
 
 // SendModelDeactivationTask sends a model deactivation task.
@@ -284,36 +312,69 @@ func (p *P) SendModelDeactivationTask(
 	tenantID string,
 	req *v1.DeactivateModelRequest,
 ) (*http.Response, error) {
-	r := &v1.TaskRequest{
-		Request: &v1.TaskRequest_ModelDeactivation{
-			ModelDeactivation: req,
+	t, err := newTask(
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_ModelDeactivation{
+				ModelDeactivation: req,
+			},
 		},
+		http.Header{},
+		"",
+	)
+	if err != nil {
+		return nil, err
 	}
-	return p.sendTask(ctx, tenantID, r, http.Header{}, p.logger.WithName("modelDeactivation"))
+
+	return p.sendTask(ctx, t, p.logger.WithName("modelDeactivation"))
+}
+
+// SendGoAwayTaskToLocalEngines sends a go away task to local engines.
+func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
+	p.mu.Lock()
+	engineIDsByTenant := map[string][]string{}
+	for tenantID, es := range p.engines {
+		for _, e := range es {
+			if !e.isLocal {
+				continue
+			}
+			engineIDsByTenant[tenantID] = append(engineIDsByTenant[tenantID], e.id)
+		}
+	}
+	p.mu.Unlock()
+
+	for tenantID, engineIDs := range engineIDsByTenant {
+		for _, engineID := range engineIDs {
+			p.logger.Info("Sending go away task to local engine", "engineID", engineID, "tenantID", tenantID)
+			t, err := newTask(
+				tenantID,
+				&v1.TaskRequest{
+					Request: &v1.TaskRequest_GoAway{
+						GoAway: &v1.GoAwayRequest{},
+					},
+				},
+				http.Header{},
+				engineID,
+			)
+			if err != nil {
+				return err
+			}
+
+			if _, err := p.sendTask(ctx, t, p.logger.WithName("goAway")); err != nil {
+				return fmt.Errorf("send go away task: %s", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p *P) sendTask(
 	ctx context.Context,
-	tenantID string,
-	request *v1.TaskRequest,
-	header http.Header,
+	t *task,
 	logger logr.Logger,
 ) (*http.Response, error) {
-	taskID, err := id.GenerateID("inf_", 24)
-	if err != nil {
-		return nil, fmt.Errorf("generate task ID: %s", err)
-	}
-	log := logger.WithValues("id", taskID)
-
-	task := &task{
-		id:        taskID,
-		tenantID:  tenantID,
-		header:    header,
-		request:   request,
-		createdAt: time.Now(),
-		resultCh:  make(chan *resultOrError),
-	}
-
+	log := logger.WithValues("id", t.id)
 	log.V(1).Info("Waiting to receive an initial response to the task")
 
 	respCh := make(chan *http.Response)
@@ -330,7 +391,7 @@ func (p *P) sendTask(
 		f := func(r *v1.TaskResult) error {
 			return writeTaskResultToHTTPRespCh(r, bodyWriter, respCh, log)
 		}
-		if err := p.enqueueAndProcessTask(ctx, task, f, log); err != nil {
+		if err := p.enqueueAndProcessTask(ctx, t, f, log); err != nil {
 			// Use a non-blocking write as an error might happen after the message is respCh is written
 			// and this function ends.
 			select {

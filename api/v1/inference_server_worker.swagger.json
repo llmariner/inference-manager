@@ -407,6 +407,9 @@
         }
       }
     },
+    "v1GoAwayRequest": {
+      "type": "object"
+    },
     "v1HeaderValue": {
       "type": "object",
       "properties": {
@@ -492,6 +495,10 @@
         },
         "modelDeactivation": {
           "$ref": "#/definitions/v1DeactivateModelRequest"
+        },
+        "goAway": {
+          "$ref": "#/definitions/v1GoAwayRequest",
+          "description": "go_away is used to signal the worker to disconnect and\nreconnect to other server."
         }
       }
     },

@@ -263,6 +263,9 @@ func (e *E) StartGracefulShutdown() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// TODO(kenji): Make local engines connect to other servers.
+	// If there is an
+
 	for _, r := range e.taskReceivers {
 		r.startGracefulShutdown()
 	}

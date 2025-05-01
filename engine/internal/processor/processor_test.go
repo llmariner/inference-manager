@@ -219,7 +219,9 @@ func TestGoAwayTask(t *testing.T) {
 	}
 	processor := NewP(
 		"engine_id0",
-		fakeProcessTaskClient,
+		&fakeProcessTaskClientFactory{
+			client: fakeProcessTaskClient,
+		},
 		newFixedAddressGetter(fmt.Sprintf("localhost:%d", ollamaSrv.port())),
 		newFakeModelSyncer(),
 		logger,
@@ -322,6 +324,14 @@ func (f *fakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 func (f *fakeModelSyncer) DeleteModel(ctx context.Context, modelID string) error {
 	f.deletedModels[modelID] = true
 	return nil
+}
+
+type fakeProcessTaskClientFactory struct {
+	client *fakeProcessTaskClient
+}
+
+func (f *fakeProcessTaskClientFactory) Create() (ProcessTasksClient, func(), error) {
+	return f.client, func() {}, nil
 }
 
 type fakeProcessTaskClient struct {

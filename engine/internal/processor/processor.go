@@ -62,14 +62,19 @@ type stream interface {
 	CloseSend() error
 }
 
-type processTasksClient interface {
+// ProcessTasksClient is a client for the ProcessTasks RPC.
+type ProcessTasksClient interface {
 	ProcessTasks(ctx context.Context, opts ...grpc.CallOption) (v1.InferenceWorkerService_ProcessTasksClient, error)
+}
+
+type processTasksClientFactory interface {
+	Create() (ProcessTasksClient, func(), error)
 }
 
 // NewP returns a new processor.
 func NewP(
 	engineID string,
-	client processTasksClient,
+	clientFactory processTasksClientFactory,
 	addrGetter AddressGetter,
 	modelSyncer ModelSyncer,
 	logger logr.Logger,
@@ -77,8 +82,10 @@ func NewP(
 	gracefulShutdownTimeout time.Duration,
 ) *P {
 	return &P{
-		engineID:    engineID,
-		client:      client,
+		engineID: engineID,
+
+		clientFactory: clientFactory,
+
 		addrGetter:  addrGetter,
 		modelSyncer: modelSyncer,
 		logger:      logger,
@@ -93,8 +100,10 @@ func NewP(
 
 // P processes tasks.
 type P struct {
-	engineID    string
-	client      processTasksClient
+	engineID string
+
+	clientFactory processTasksClientFactory
+
 	addrGetter  AddressGetter
 	modelSyncer ModelSyncer
 	metrics     metrics.Collector
@@ -161,14 +170,23 @@ func (p *P) Start(ctx context.Context) error {
 }
 
 func (p *P) run(ctx context.Context) error {
+	// Use separate context for the stream to gracefully handle the task requests.
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
 
 	streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
 	streamCtx = auth.AppendWorkerAuthorization(streamCtx)
 
-	// Use separate context for the stream to gracefully handle the task requests.
-	stream, err := p.client.ProcessTasks(streamCtx)
+	// Create a new GRPC client so that a new TCP connection is established.
+	// This is especially useful when a GoAway request is received and a new connection
+	// is needed to be established to other server.
+	client, cleanup, err := p.clientFactory.Create()
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	stream, err := client.ProcessTasks(streamCtx)
 	if err != nil {
 		return err
 	}

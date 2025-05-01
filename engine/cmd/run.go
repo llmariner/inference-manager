@@ -250,15 +250,9 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	conn, err = grpc.NewClient(c.InferenceManagerServerWorkerServiceAddr, grpcOption(c))
-	if err != nil {
-		return err
-	}
-	wsClient := v1.NewInferenceWorkerServiceClient(conn)
-
 	p := processor.NewP(
 		engineID,
-		wsClient,
+		&grpcClientFactory{c: c},
 		addrGetter,
 		modelSyncer,
 		logger,
@@ -284,6 +278,23 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}()
 
 	return <-errCh
+}
+
+type grpcClientFactory struct {
+	c *config.Config
+}
+
+// Create creates a new gRPC client for the inference manager.
+func (f *grpcClientFactory) Create() (processor.ProcessTasksClient, func(), error) {
+	conn, err := grpc.NewClient(f.c.InferenceManagerServerWorkerServiceAddr, grpcOption(f.c))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cleanup := func() {
+		_ = conn.Close()
+	}
+	return v1.NewInferenceWorkerServiceClient(conn), cleanup, nil
 }
 
 type clientFactory struct {

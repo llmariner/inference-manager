@@ -311,12 +311,20 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	case err := <-errCh:
 		return err
 	case sig := <-sigCh:
-		log.Info("Got signal", "signal", sig)
+		// Wait until the endpoints are updated. Once the endpoints are updated,
+		// engines will not reconnect to this server. Also new tasks will not be
+		// directly coming to this server. (Tasks will still come from other servers.)
+		log.Info("Got signal. Waiting for graceful shutdown", "signal", sig, "delay", c.GracefulShutdownDelay)
+		time.Sleep(c.GracefulShutdownDelay)
 
 		log.Info("Sending GoAway task to local engines")
 		if err := infProcessor.SendGoAwayTaskToLocalEngines(ctx); err != nil {
 			log.Error(err, "Failed to send go away task to local engines")
 		}
+
+		// Wait until the engine successfully reconnects to the other servers.
+		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
+		time.Sleep(c.GracefulShutdownDelay)
 
 		log.Info("Starting graceful shutdown of task exchanger")
 		te.StartGracefulShutdown()

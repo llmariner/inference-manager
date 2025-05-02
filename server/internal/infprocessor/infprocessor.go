@@ -522,7 +522,7 @@ func (p *P) AddOrUpdateEngineStatus(
 			clusterID:  engineStatus.ClusterId,
 		}
 		engines[engineStatus.EngineId] = e
-		log.Info("Registered new engine")
+		log.Info("Registered new engine", "isLocal", isLocal)
 	}
 	e.modelIDs = engineStatus.ModelIds
 	e.models = engineStatus.Models

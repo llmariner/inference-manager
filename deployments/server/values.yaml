@@ -232,9 +232,9 @@ kubernetesManager:
 logLevel: 10
 
 # The duration given to runnable to stop before the manager actually
-# returns on stop. If not specified, manager timeouts in 30 seconds.
+# returns on stop.
 # +docs:property
-# gracefulShutdownTimeout: ""
+gracefulShutdownTimeout: 0s
 
 # Optional duration in seconds the pod needs to terminate gracefully.
 # The value zero indicates stop immediately via the kill signal (no

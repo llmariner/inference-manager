@@ -41,7 +41,7 @@ type Config struct {
 	KubernetesManager KubernetesManagerConfig `yaml:"kubernetesManager"`
 
 	// GracefulShutdownTimeout is the duration given to runnable to stop
-	// before the manager actually returns on stop. Default is 30 seconds.
+	// before the manager actually returns on stop.
 	GracefulShutdownTimeout time.Duration `yaml:"gracefulShutdownTimeout"`
 
 	// ServerPodLabelKey is the key of the label that the server pod has.
@@ -162,11 +162,6 @@ func (c *Config) Validate() error {
 
 	if err := c.KubernetesManager.validate(); err != nil {
 		return fmt.Errorf("kubernetesManager: %s", err)
-	}
-
-	if c.GracefulShutdownTimeout <= 0 {
-		// default period is same as the default value in ctrl.Manager.
-		c.GracefulShutdownTimeout = 30 * time.Second
 	}
 
 	if c.ServerPodLabelKey == "" {

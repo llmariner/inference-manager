@@ -47,7 +47,7 @@ jobs:
     - name: Build and publish engine docker image
       uses: docker/build-push-action@v5
       with:
-        file: ./build/loader/Dockerfile
+        file: ./build/engine/Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |

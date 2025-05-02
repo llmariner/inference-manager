@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
@@ -68,6 +69,7 @@ func TestP(t *testing.T) {
 	assert.Empty(t, iprocessor.engines["tenant0"])
 	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
+	assert.Truef(t, strings.Contains(err.Error(), "no engine available"), "got %s", err)
 }
 
 func TestEmbedding(t *testing.T) {

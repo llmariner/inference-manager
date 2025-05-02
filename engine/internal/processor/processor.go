@@ -193,7 +193,6 @@ func (p *P) run(ctx context.Context) error {
 	defer func() { _ = stream.CloseSend() }()
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	errCh := make(chan error)
 	go func() {
@@ -203,7 +202,12 @@ func (p *P) run(ctx context.Context) error {
 		errCh <- p.processTasks(ctx, stream)
 	}()
 
-	return <-errCh
+	// Wait for the first error from either sendEngineStatusPeriodically or processTasks.
+	// Then cancel the context to stop both goroutines.
+	err = <-errCh
+	cancel()
+	<-errCh
+	return err
 }
 
 func (p *P) sendEngineStatusPeriodically(

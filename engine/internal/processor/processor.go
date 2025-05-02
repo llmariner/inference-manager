@@ -337,8 +337,7 @@ func (p *P) processTask(
 	case *v1.TaskRequest_ModelDeactivation:
 		return p.deactivateModel(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
-		close(goAwayCh)
-		return nil
+		return p.goAway(ctx, stream, t, goAwayCh)
 	default:
 		return fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -618,6 +617,28 @@ func (p *P) deactivateModel(
 	if err := p.sendEngineStatus(stream, true); err != nil {
 		return fmt.Errorf("send engine status: %s", err)
 	}
+	return nil
+}
+
+func (p *P) goAway(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+	goAwayCh chan struct{},
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Processing a GoAway request")
+
+	// Return the response to the server so that the server move to the next step for graceful shutdown.
+	resp := &v1.HttpResponse{
+		StatusCode: int32(http.StatusAccepted),
+	}
+	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
+		return err
+	}
+
+	close(goAwayCh)
+
 	return nil
 }
 

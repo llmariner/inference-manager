@@ -38,7 +38,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -274,7 +273,10 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 
 	go func() {
 		log.Info("Starting manager")
-		errCh <- mgr.Start(signals.SetupSignalHandler())
+		// Do not set a singal handler for the manager so that
+		// we can stop the task exchanger after gracefully shutting down task
+		// processing.
+		errCh <- mgr.Start(ctx)
 	}()
 
 	imux := runtime.NewServeMux(

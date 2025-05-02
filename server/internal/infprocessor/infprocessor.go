@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -343,27 +344,37 @@ func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 	}
 	p.mu.Unlock()
 
+	var errGroup errgroup.Group
 	for tenantID, engineIDs := range engineIDsByTenant {
+		tid := tenantID
 		for _, engineID := range engineIDs {
-			p.logger.Info("Sending go away task to local engine", "engineID", engineID, "tenantID", tenantID)
-			t, err := newTask(
-				tenantID,
-				&v1.TaskRequest{
-					Request: &v1.TaskRequest_GoAway{
-						GoAway: &v1.GoAwayRequest{},
+			eid := engineID
+			errGroup.Go(func() error {
+				p.logger.Info("Sending go away task to local engine", "engineID", eid, "tenantID", tid)
+				t, err := newTask(
+					tenantID,
+					&v1.TaskRequest{
+						Request: &v1.TaskRequest_GoAway{
+							GoAway: &v1.GoAwayRequest{},
+						},
 					},
-				},
-				http.Header{},
-				engineID,
-			)
-			if err != nil {
-				return err
-			}
+					http.Header{},
+					eid,
+				)
+				if err != nil {
+					return err
+				}
 
-			if _, err := p.sendTask(ctx, t, p.logger.WithName("goAway")); err != nil {
-				return fmt.Errorf("send go away task: %s", err)
-			}
+				if _, err := p.sendTask(ctx, t, p.logger.WithName("goAway")); err != nil {
+					return fmt.Errorf("send go away task: %s", err)
+				}
+				return nil
+			})
 		}
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return fmt.Errorf("send go away task: %s", err)
 	}
 
 	return nil

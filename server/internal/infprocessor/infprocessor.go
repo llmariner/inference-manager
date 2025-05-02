@@ -389,7 +389,9 @@ func (p *P) sendTask(
 	log.V(1).Info("Waiting to receive an initial response to the task")
 
 	respCh := make(chan *http.Response)
-	errCh := make(chan error)
+	// Keep a buffer an error might happen after the message is respCh is written
+	// and this function ends.
+	errCh := make(chan error, 1)
 
 	go func() {
 		bodyWriter := newPipeReadWriteCloser()
@@ -403,12 +405,7 @@ func (p *P) sendTask(
 			return writeTaskResultToHTTPRespCh(r, bodyWriter, respCh, log)
 		}
 		if err := p.enqueueAndProcessTask(ctx, t, f, log); err != nil {
-			// Use a non-blocking write as an error might happen after the message is respCh is written
-			// and this function ends.
-			select {
-			case errCh <- err:
-			default:
-			}
+			errCh <- err
 		}
 	}()
 

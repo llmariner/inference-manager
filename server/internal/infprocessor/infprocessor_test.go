@@ -65,6 +65,7 @@ func TestP(t *testing.T) {
 
 	// Remove the engine. Check if a newly created task will fail.
 	iprocessor.RemoveEngine("engine_id0", "tenant0")
+	assert.Empty(t, iprocessor.engines["tenant0"])
 	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 }

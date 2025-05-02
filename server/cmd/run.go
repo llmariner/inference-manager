@@ -320,7 +320,10 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		time.Sleep(c.GracefulShutdownDelay)
 
 		log.Info("Sending GoAway task to local engines")
-		if err := infProcessor.SendGoAwayTaskToLocalEngines(ctx); err != nil {
+		cctx, cancel := context.WithTimeout(ctx, c.GracefulShutdownDelay)
+		defer cancel()
+
+		if err := infProcessor.SendGoAwayTaskToLocalEngines(cctx); err != nil {
 			log.Error(err, "Failed to send go away task to local engines")
 		}
 

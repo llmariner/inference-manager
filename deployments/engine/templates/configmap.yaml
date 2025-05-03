@@ -82,7 +82,8 @@ data:
         preloaded: {{ .Values.model.default.preloaded }}
         contextLength: {{ .Values.model.default.contextLength }}
         {{- with .Values.model.default.vllmExtraFlags }}
-        vllmExtraFlags: {{ . }}
+        vllmExtraFlags:
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         schedulerName: {{ .Values.model.default.schedulerName }}
         containerRuntimeClassName: {{ .Values.model.default.containerRuntimeClassName }}

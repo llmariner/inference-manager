@@ -2,7 +2,9 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -99,6 +101,10 @@ func (s *S) CreateCompletion(
 
 	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), dropUnnecessaryHeaders(req.Header))
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			httpError(w, "Request canceled", http.StatusBadRequest, &usage)
+			return
+		}
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}

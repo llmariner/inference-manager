@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -93,6 +95,10 @@ func (s *S) CreateEmbedding(
 
 	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			httpError(w, "Request canceled", http.StatusBadRequest, &usage)
+			return
+		}
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}

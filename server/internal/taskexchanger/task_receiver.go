@@ -12,7 +12,6 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,31 +58,8 @@ func (r *taskReceiver) run(ctx context.Context) error {
 	log.Info("Starting taskReceiver")
 	ctx = ctrl.LoggerInto(ctx, log)
 
-	conn, err := grpc.NewClient(r.serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return err
-	}
-	client := v1.NewInferenceInternalServiceClient(conn)
-
-	runInternal := func() error {
-		streamCtx, streamCancel := context.WithCancel(context.Background())
-		streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
-		defer streamCancel()
-		// Use separate context for the stream to gracefully handle the task requests.
-		stream, err := client.ProcessTasksInternal(streamCtx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = stream.CloseSend() }()
-
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.Go(func() error { return r.sendServerStatusPeriodically(ctx, stream) })
-		eg.Go(func() error { return r.processTasks(ctx, stream) })
-		return eg.Wait()
-	}
-
 	for {
-		if err := runInternal(); err != nil {
+		if err := r.runInternal(ctx); err != nil {
 			log.Error(err, "TaskReceiver error")
 		}
 		select {
@@ -94,6 +70,46 @@ func (r *taskReceiver) run(ctx context.Context) error {
 			log.Info("Retrying taskReceiver", "retry-interval", retryInterval)
 		}
 	}
+}
+
+func (r *taskReceiver) runInternal(ctx context.Context) error {
+	// Use separate context for the stream to gracefully handle the task requests.
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	streamCtx = ctrl.LoggerInto(streamCtx, ctrl.LoggerFrom(ctx))
+	defer streamCancel()
+
+	conn, err := grpc.NewClient(r.serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	client := v1.NewInferenceInternalServiceClient(conn)
+	stream, err := client.ProcessTasksInternal(streamCtx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.CloseSend() }()
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	errCh := make(chan error)
+	go func() {
+		errCh <- r.sendServerStatusPeriodically(ctx, stream)
+	}()
+	go func() {
+		errCh <- r.processTasks(ctx, stream)
+	}()
+
+	// Wait for the first error from either sendEngineStatusPeriodically or processTasks.
+	// Then cancel the context to stop both goroutines.
+	err = <-errCh
+	cancel()
+	<-errCh
+	return err
 }
 
 func (r *taskReceiver) stop() {

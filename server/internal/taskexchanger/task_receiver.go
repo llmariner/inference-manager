@@ -328,6 +328,12 @@ func (r *taskReceiver) startGracefulShutdown() {
 	r.isShutdown = true
 }
 
+func (r *taskReceiver) shutdownStarted() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.isShutdown
+}
+
 func isConnClosedErr(err error) bool {
 	return err == io.EOF ||
 		// connection error type is defined in the gRPC internal transpot package.

@@ -206,6 +206,9 @@ func TestIntegration(t *testing.T) {
 	cancel()
 
 	for _, s := range servers {
+		s.taskExchanger.StartGracefulShutdown()
+	}
+	for _, s := range servers {
 		s.internalServer.Stop()
 		s.wsServer.Stop()
 	}

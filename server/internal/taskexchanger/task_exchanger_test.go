@@ -76,6 +76,8 @@ func TestE_Reconcile(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Len(t, exchanger.taskReceivers, 1)
+
+	exchanger.StartGracefulShutdown()
 }
 
 func TestE_AddUpdateRemoveServer(t *testing.T) {

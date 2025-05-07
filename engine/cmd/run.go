@@ -165,9 +165,9 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	)
 
 	var (
-		addrGetter  processor.AddressGetter
-		modelSyncer processor.ModelSyncer
-		modelPuller runtime.ModelPuller
+		addrGetter   processor.AddressGetter
+		modelSyncer  processor.ModelSyncer
+		modelManager runtime.ModelManager
 	)
 
 	errCh := make(chan error)
@@ -179,7 +179,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 		addrGetter = ollamaManager
 		modelSyncer = ollamaManager
-		modelPuller = ollamaManager
+		modelManager = ollamaManager
 
 	} else {
 		rtClientFactory := &clientFactory{
@@ -218,7 +218,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 		addrGetter = rtManager
 		modelSyncer = rtManager
-		modelPuller = rtManager
+		modelManager = rtManager
 
 		updater := runtime.NewUpdater(ns, rtClientFactory)
 		if err := updater.SetupWithManager(mgr); err != nil {
@@ -263,8 +263,13 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(modelPuller, processedConfig.PreloadedModelIDs(), modelClient)
+	preloader := runtime.NewPreloader(modelManager, processedConfig.PreloadedModelIDs(), modelClient)
 	if err := preloader.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	activator := runtime.NewModelActivator(modelManager, modelClient)
+	if err := activator.SetupWithManager(mgr); err != nil {
 		return err
 	}
 

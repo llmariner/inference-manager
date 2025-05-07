@@ -92,6 +92,9 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.
 		}
 		if err := s3Client.Download(ctx, df, filepath.Join(srcS3Path, fn)); err != nil {
 			if f.isOptional && isNotFound(err) {
+				if err := os.Remove(df.Name()); err != nil {
+					return fmt.Errorf("remove file %q: %s", df.Name(), err)
+				}
 				continue
 			}
 			return fmt.Errorf("download %s: %s", fn, err)

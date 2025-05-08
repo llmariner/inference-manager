@@ -21,7 +21,7 @@ const (
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
 	metricsNameNumEngines                = "inference_manager_server_num_engines"
 
-	metricsNameLastEngineHeartbeat = "inference_manager_server_last_engine_heartbeat"
+	metricsNameSinceLastEngineHeartbeat = "inference_manager_server_since_last_engine_heartbeat"
 
 	metricLabelModelID = "model_id"
 
@@ -44,7 +44,7 @@ type MetricsMonitor struct {
 	maxInProgressTaskDurationGauge prometheus.Gauge
 	numEnginesGaugeVec             *prometheus.GaugeVec
 
-	lastEngineHeartbeatGaugeVec *prometheus.GaugeVec
+	sinceLastEngineHeartbeatGaugeVec *prometheus.GaugeVec
 }
 
 // latencyBuckets are the buckets for the latencies from 100ms to 5 minutes.
@@ -127,10 +127,10 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		},
 	)
 
-	lastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
+	sinceLastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Name:      metricsNameLastEngineHeartbeat,
+			Name:      metricsNameSinceLastEngineHeartbeat,
 		},
 		[]string{
 			metricLabelEngineID,
@@ -141,15 +141,15 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		p:      p,
 		logger: logger.WithName("monitor"),
 
-		completionLatencyHistVec:       completionLatencyHistVec,
-		completionRequestGaugeVec:      completionRequestGaugeVec,
-		embeddingLatencyHistVec:        embeddingLatencyHistVec,
-		embeddingRequestGaugeVec:       embeddingRequestGaugeVec,
-		numQueuedTasksGauge:            numQueuedTasksGauge,
-		numInProgressTasksGauge:        numInProgressTasksGauge,
-		maxInProgressTaskDurationGauge: maxInProgressTaskDurationGauge,
-		numEnginesGaugeVec:             numEnginesGaugeVec,
-		lastEngineHeartbeatGaugeVec:    lastEngineHeartbeatGaugeVec,
+		completionLatencyHistVec:         completionLatencyHistVec,
+		completionRequestGaugeVec:        completionRequestGaugeVec,
+		embeddingLatencyHistVec:          embeddingLatencyHistVec,
+		embeddingRequestGaugeVec:         embeddingRequestGaugeVec,
+		numQueuedTasksGauge:              numQueuedTasksGauge,
+		numInProgressTasksGauge:          numInProgressTasksGauge,
+		maxInProgressTaskDurationGauge:   maxInProgressTaskDurationGauge,
+		numEnginesGaugeVec:               numEnginesGaugeVec,
+		sinceLastEngineHeartbeatGaugeVec: sinceLastEngineHeartbeatGaugeVec,
 	}
 
 	prometheus.MustRegister(
@@ -161,7 +161,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec,
-		lastEngineHeartbeatGaugeVec,
+		sinceLastEngineHeartbeatGaugeVec,
 	)
 
 	return m
@@ -211,9 +211,10 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 		m.numEnginesGaugeVec.WithLabelValues(tenantID).Set(float64(numEngines))
 	}
 
-	m.lastEngineHeartbeatGaugeVec.Reset()
+	m.sinceLastEngineHeartbeatGaugeVec.Reset()
 	for engineID, lastHeartbeat := range m.p.LastEngineHeartbeats() {
-		m.lastEngineHeartbeatGaugeVec.WithLabelValues(engineID).Set(float64(lastHeartbeat.Unix()))
+		d := time.Since(lastHeartbeat)
+		m.sinceLastEngineHeartbeatGaugeVec.WithLabelValues(engineID).Set(float64(d / time.Second))
 	}
 }
 
@@ -227,5 +228,5 @@ func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.numInProgressTasksGauge)
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
 	prometheus.Unregister(m.numEnginesGaugeVec)
-	prometheus.Unregister(m.lastEngineHeartbeatGaugeVec)
+	prometheus.Unregister(m.sinceLastEngineHeartbeatGaugeVec)
 }

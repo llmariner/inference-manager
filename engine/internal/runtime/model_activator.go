@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -78,7 +79,14 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 			// Do nothing for backward compatibility.
 		case mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE:
 			if err := a.mmanager.PullModel(ctx, model.Id); err != nil {
-				return fmt.Errorf("pull model %s: %s", model.Id, err)
+				// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
+				// an error from here will make the preloading fails, but an unschedulable pod is
+				// expected when a cluster is being autoscaled.
+				if errors.Is(err, ErrRequestCanceled) {
+					a.logger.Error(err, "pull model canceled", "modelID", model.Id)
+				} else {
+					return fmt.Errorf("pull model %s: %s", model.Id, err)
+				}
 			}
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
 			if err := a.mmanager.DeleteModel(ctx, model.Id); err != nil {

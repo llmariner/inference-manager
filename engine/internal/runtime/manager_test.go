@@ -737,9 +737,10 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				addedAdapterIDs: []string{modelID},
 			},
 			rt: &runtime{
-				ready:     true,
-				name:      modelName,
-				addresses: []string{"other_addr"},
+				ready:                   true,
+				isDynamicallyLoadedLoRA: true,
+				name:                    modelName,
+				addresses:               []string{"other_addr"},
 			},
 			isReady:   true,
 			wantAddrs: []string{"other_addr", podAddr},
@@ -765,9 +766,10 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				removedAdapterIDs: []string{modelID},
 			},
 			rt: &runtime{
-				ready:     true,
-				name:      modelName,
-				addresses: []string{podAddr},
+				ready:                   true,
+				isDynamicallyLoadedLoRA: true,
+				name:                    modelName,
+				addresses:               []string{podAddr},
 			},
 			isReady:   false,
 			wantAddrs: []string{},
@@ -781,9 +783,10 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				removedAdapterIDs: []string{modelID},
 			},
 			rt: &runtime{
-				ready:     true,
-				name:      modelName,
-				addresses: []string{podAddr, "other_addr"},
+				ready:                   true,
+				isDynamicallyLoadedLoRA: true,
+				name:                    modelName,
+				addresses:               []string{podAddr, "other_addr"},
 			},
 			isReady:   true,
 			wantAddrs: []string{"other_addr"},
@@ -826,6 +829,9 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 
 			rt := mgr.runtimes[modelID]
 			assert.Equal(t, test.isReady, rt != nil && rt.ready)
+			if rt != nil {
+				assert.True(t, rt.isDynamicallyLoadedLoRA)
+			}
 			if test.isReady {
 				assert.ElementsMatch(t, test.wantAddrs, rt.addresses)
 			}

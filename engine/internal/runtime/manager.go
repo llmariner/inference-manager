@@ -238,7 +238,6 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 
 func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Pulling model...", "modelID", e.modelID)
 
 	client, err := m.rtClientFactory.New(e.modelID)
 	if err != nil {
@@ -251,7 +250,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		defer m.mu.Unlock()
 		// The runtime is ready, or the pull is already in progress.
 		if r.ready {
-			log.Info("Runtime is ready. No need to pull the model", "modelID", e.modelID)
+			log.V(1).Info("Runtime is ready. No need to pull the model", "modelID", e.modelID)
 			close(e.readyWaitCh)
 			return nil
 		}
@@ -262,6 +261,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		return nil
 	}
 
+	log.Info("Pulling model...", "modelID", e.modelID)
 	log.Info("Runtime is not ready. Checking if LoRA adapter loading is applicable", "modelID", e.modelID)
 
 	// TODO(kenji): Revisit the locking if this takes a long time.
@@ -390,7 +390,6 @@ func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID s
 
 func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEvent) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deleting model...", "modelID", e.modelID)
 
 	defer close(e.eventWaitCh)
 
@@ -401,6 +400,8 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 		log.V(4).Info("Runtime does not exist", "modelID", e.modelID)
 		return nil
 	}
+
+	log.Info("Deleting model...", "modelID", e.modelID)
 
 	if r.isDynamicallyLoadedLoRA {
 		log.Info("Unloading the LoRA adapter from the runtime", "modelID", e.modelID)
@@ -702,10 +703,8 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deleting model", "modelID", modelID)
-
 	waitCh := make(chan struct{})
+
 	m.eventCh <- &deleteModelEvent{
 		modelID:     modelID,
 		eventWaitCh: waitCh,
@@ -717,7 +716,6 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 		return ctx.Err()
 	}
 
-	log.Info("Deleted model", "modelID", modelID)
 	return nil
 }
 

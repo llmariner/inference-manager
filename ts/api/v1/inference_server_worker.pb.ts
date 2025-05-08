@@ -64,6 +64,7 @@ export type Task = {
   id?: string
   request?: TaskRequest
   header?: {[key: string]: HeaderValue}
+  engine_id?: string
 }
 
 export type ProcessTasksResponse = {

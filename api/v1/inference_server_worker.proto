@@ -65,7 +65,9 @@ message Task {
   TaskRequest request = 4;
   map<string, HeaderValue> header = 3;
 
-  // Next ID: 5
+  string engine_id = 5;
+
+  // Next ID: 6
 }
 
 message ProcessTasksResponse {

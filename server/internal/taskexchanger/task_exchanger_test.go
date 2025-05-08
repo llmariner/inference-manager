@@ -3,6 +3,7 @@ package taskexchanger
 import (
 	"context"
 	"testing"
+	"time"
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -52,7 +53,8 @@ func TestE_Reconcile(t *testing.T) {
 		testutil.NewTestLogger(t),
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := testutil.ContextWithLogger(t)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	_, err := exchanger.Reconcile(ctx, reconcile.Request{
@@ -64,7 +66,7 @@ func TestE_Reconcile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, exchanger.taskReceivers, 1)
 
-	_, ok := exchanger.taskReceivers["server0"]
+	r, ok := exchanger.taskReceivers["server0"]
 	assert.True(t, ok)
 
 	// A new task sender is not created since the pod is not ready.
@@ -78,6 +80,14 @@ func TestE_Reconcile(t *testing.T) {
 	assert.Len(t, exchanger.taskReceivers, 1)
 
 	exchanger.StartGracefulShutdown()
+
+	r.stop()
+
+	assert.Eventually(t, func() bool {
+		exchanger.mu.Lock()
+		defer exchanger.mu.Unlock()
+		return len(exchanger.taskReceivers) == 0
+	}, 1*time.Second, 100*time.Millisecond)
 }
 
 func TestE_AddUpdateRemoveServer(t *testing.T) {

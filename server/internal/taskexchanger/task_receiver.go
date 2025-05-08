@@ -107,12 +107,15 @@ func (r *taskReceiver) runInternal(ctx context.Context) error {
 	// Wait for the first error from either sendEngineStatusPeriodically or processTasks.
 	// Then cancel the context to stop both goroutines.
 	err = <-errCh
+	r.logger.Error(err, "TaskReceiver error")
 	cancel()
 	<-errCh
+	r.logger.Info("Stopped taskReceiver")
 	return err
 }
 
 func (r *taskReceiver) stop() {
+	r.logger.Info("Stopping taskReceiver")
 	r.cancelF()
 }
 

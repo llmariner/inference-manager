@@ -591,7 +591,6 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 
 	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
-
 	if err != nil {
 		return fmt.Errorf("check model pull status: %s", err)
 	}

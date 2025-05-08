@@ -17,4 +17,12 @@ spec:
       annotations:
         title: Inference Manager Server in-progress task duration
         description: Inference Manager Server is taking more than 5 minutes to process tasks.
+    - alert: Inference Manager Server engine status inconsistency
+      expr: max(sum by (tenant_id, pod) (llmariner_inference_manager_server_num_engines)) - min(sum by (tenant_id, pod) (llmariner_inference_manager_server_num_engines)) > 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        title: Inference Manager Server engine status inconsistency
+        description: Inference Manager Servers have inconsistent status on engines
 {{- end }}

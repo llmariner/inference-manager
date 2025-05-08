@@ -54,6 +54,8 @@ type engine struct {
 
 	// isLocal indicates whether the engine is connected to this local server or not.
 	isLocal bool
+
+	lastHeartbeat time.Time
 }
 
 // P processes inference tasks.
@@ -332,11 +334,55 @@ func (p *P) SendModelDeactivationTask(
 
 // SendGoAwayTaskToLocalEngines sends a go away task to local engines.
 func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
+	req := &v1.TaskRequest{
+		Request: &v1.TaskRequest_GoAway{
+			GoAway: &v1.GoAwayRequest{},
+		},
+	}
+
+	noopCallback := func(engineID string) {}
+
+	if err := p.sendTaskToEngines(ctx, req, "goAway", noopCallback, true, 0); err != nil {
+		return fmt.Errorf("send go away task to local engines: %s", err)
+	}
+
+	return nil
+}
+
+// SendHeartbeatTaskToEngines sends a heartbeat task to engines.
+func (p *P) SendHeartbeatTaskToEngines(ctx context.Context, timeout time.Duration) error {
+	req := &v1.TaskRequest{
+		Request: &v1.TaskRequest_Heartbeat{
+			Heartbeat: &v1.HeartbeatRequest{},
+		},
+	}
+
+	callback := func(engineID string) {
+		if err := p.updateLastEngineHeartbeat(engineID, time.Now()); err != nil {
+			p.logger.Error(err, "Failed to update the last heartbeat time")
+		}
+	}
+
+	if err := p.sendTaskToEngines(ctx, req, "heartbeat", callback, false, timeout); err != nil {
+		return fmt.Errorf("send heartbeat task to engines: %s", err)
+	}
+
+	return nil
+}
+
+func (p *P) sendTaskToEngines(
+	ctx context.Context,
+	req *v1.TaskRequest,
+	taskName string,
+	callback func(engineID string),
+	localOnly bool,
+	timeout time.Duration,
+) error {
 	p.mu.Lock()
 	engineIDsByTenant := map[string][]string{}
 	for tenantID, es := range p.engines {
 		for _, e := range es {
-			if !e.isLocal {
+			if localOnly && !e.isLocal {
 				continue
 			}
 			engineIDsByTenant[tenantID] = append(engineIDsByTenant[tenantID], e.id)
@@ -350,14 +396,17 @@ func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 		for _, engineID := range engineIDs {
 			eid := engineID
 			errGroup.Go(func() error {
-				p.logger.Info("Sending go away task to local engine", "engineID", eid, "tenantID", tid)
+				p.logger.Info("Sending task to local engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
+
+				if timeout > 0 {
+					var cancel context.CancelFunc
+					ctx, cancel = context.WithTimeout(ctx, timeout)
+					defer cancel()
+				}
+
 				t, err := newTask(
 					tenantID,
-					&v1.TaskRequest{
-						Request: &v1.TaskRequest_GoAway{
-							GoAway: &v1.GoAwayRequest{},
-						},
-					},
+					req,
 					http.Header{},
 					eid,
 				)
@@ -365,9 +414,12 @@ func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 					return err
 				}
 
-				if _, err := p.sendTask(ctx, t, p.logger.WithName("goAway")); err != nil {
-					return fmt.Errorf("send go away task: %s", err)
+				if _, err := p.sendTask(ctx, t, p.logger.WithName(taskName)); err != nil {
+					return fmt.Errorf("send task: %s", err)
 				}
+
+				callback(eid)
+
 				return nil
 			})
 		}
@@ -655,6 +707,43 @@ func (p *P) NumEnginesByTenantID() map[string]int {
 	m := make(map[string]int, len(p.engines))
 	for tenantID, engines := range p.engines {
 		m[tenantID] = len(engines)
+	}
+	return m
+}
+
+// updateLastEngineHeartbeat updates the last heartbeat time of an engine.
+func (p *P) updateLastEngineHeartbeat(engineID string, t time.Time) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var found bool
+	for _, engines := range p.engines {
+		e, ok := engines[engineID]
+		if !ok {
+			continue
+		}
+
+		e.lastHeartbeat = t
+		found = true
+		break
+	}
+
+	if !found {
+		return fmt.Errorf("engine %s not found", engineID)
+	}
+	return nil
+}
+
+// LastEngineHeartbeats returns the last heartbeat time of each engine.
+func (p *P) LastEngineHeartbeats() map[string]time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	m := make(map[string]time.Time, len(p.engines))
+	for _, engines := range p.engines {
+		for _, e := range engines {
+			m[e.id] = e.lastHeartbeat
+		}
 	}
 	return m
 }

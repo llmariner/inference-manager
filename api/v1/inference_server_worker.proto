@@ -43,6 +43,9 @@ message ProcessTasksRequest {
 message GoAwayRequest {
 }
 
+message HeartbeatRequest {
+}
+
 message TaskRequest {
   oneof request {
     llmariner.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
@@ -52,6 +55,7 @@ message TaskRequest {
     // go_away is used to signal the worker to disconnect and
     // reconnect to other server.
     GoAwayRequest go_away = 5;
+    HeartbeatRequest heartbeat = 6;
   }
 }
 

@@ -37,6 +37,7 @@ export type ProcessTasksRequest = BaseProcessTasksRequest & OneOf<{
     task_result: TaskResult;
 }>;
 export type GoAwayRequest = {};
+export type HeartbeatRequest = {};
 type BaseTaskRequest = {};
 export type TaskRequest = BaseTaskRequest & OneOf<{
     chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest;
@@ -44,6 +45,7 @@ export type TaskRequest = BaseTaskRequest & OneOf<{
     model_activation: LlmarinerInferenceServerV1Inference_server_management.ActivateModelRequest;
     model_deactivation: LlmarinerInferenceServerV1Inference_server_management.DeactivateModelRequest;
     go_away: GoAwayRequest;
+    heartbeat: HeartbeatRequest;
 }>;
 export type Task = {
     id?: string;

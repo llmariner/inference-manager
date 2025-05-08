@@ -23,6 +23,9 @@ data:
     vectorStoreManagerServerAddr: {{ .Values.vectorStoreManagerServerAddr }}
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}
     gracefulShutdownDelay: {{ .Values.gracefulShutdownDelay }}
+    engineHeartbeat:
+      interval: {{ .Values.engineHeartbeat.interval }}
+      timeout: {{ .Values.engineHeartbeat.timeout }}
     auth:
       enable: {{ .Values.global.auth.enable }}
       rbacInternalServerAddr: {{ .Values.global.auth.rbacInternalServerAddr }}

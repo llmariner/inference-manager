@@ -380,12 +380,12 @@ func (*loraAdapterLoaderImpl) load(
 	// Convert the model name as we do the same conversion in processor.
 	// TODO(kenji): Revisit.
 	omid := ollama.ModelName(modelID)
-	status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
+	code, status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
 	if err != nil {
 		return err
 	}
-	if status != http.StatusOK {
-		return fmt.Errorf("load LoRA adapter: %d", status)
+	if code != http.StatusOK {
+		return fmt.Errorf("load LoRA adapter: code=%d, status=%s", code, status)
 	}
 
 	return nil

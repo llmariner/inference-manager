@@ -25,4 +25,12 @@ spec:
       annotations:
         title: Inference Manager Server engine status inconsistency
         description: Inference Manager Servers have inconsistent status on engines
+    - alert: Inference Manager Server engine heartbeat
+      expr: llmariner_inference_manager_server_since_last_engine_heartbeat > 300
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        title: Inference Manager Server engine heartbeat
+        description: Inference Manager Server is not receiving heartbeat from engine
 {{- end }}

@@ -391,20 +391,18 @@ func (p *P) sendTaskToEngines(
 	}
 	p.mu.Unlock()
 
-	var errGroup errgroup.Group
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for tenantID, engineIDs := range engineIDsByTenant {
 		tid := tenantID
 		for _, engineID := range engineIDs {
 			eid := engineID
 			errGroup.Go(func() error {
 				p.logger.Info("Sending task to engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
-
-				lctx := ctx
-				if timeout > 0 {
-					var cancel context.CancelFunc
-					lctx, cancel = context.WithTimeout(lctx, timeout)
-					defer cancel()
-				}
 
 				t, err := newTask(
 					tenantID,
@@ -416,7 +414,7 @@ func (p *P) sendTaskToEngines(
 					return err
 				}
 
-				if _, err := p.sendTask(lctx, t, p.logger.WithName(taskName)); err != nil {
+				if _, err := p.sendTask(ctx, t, p.logger.WithName(taskName)); err != nil {
 					return fmt.Errorf("send task: %s", err)
 				}
 

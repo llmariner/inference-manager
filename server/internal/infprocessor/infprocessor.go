@@ -397,7 +397,7 @@ func (p *P) sendTaskToEngines(
 		for _, engineID := range engineIDs {
 			eid := engineID
 			errGroup.Go(func() error {
-				p.logger.Info("Sending task to local engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
+				p.logger.Info("Sending task to engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
 
 				if timeout > 0 {
 					var cancel context.CancelFunc

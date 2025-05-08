@@ -21,7 +21,11 @@ const (
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
 	metricsNameNumEngines                = "inference_manager_server_num_engines"
 
+	metricsNameLastEngineHeartbeat = "inference_manager_server_last_engine_heartbeat"
+
 	metricLabelModelID = "model_id"
+
+	metricLabelEngineID = "engine_id"
 
 	metricLabelTenantID = "tenant_id"
 )
@@ -39,6 +43,8 @@ type MetricsMonitor struct {
 	numInProgressTasksGauge        prometheus.Gauge
 	maxInProgressTaskDurationGauge prometheus.Gauge
 	numEnginesGaugeVec             *prometheus.GaugeVec
+
+	lastEngineHeartbeatGaugeVec *prometheus.GaugeVec
 }
 
 // latencyBuckets are the buckets for the latencies from 100ms to 5 minutes.
@@ -121,6 +127,16 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		},
 	)
 
+	lastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameLastEngineHeartbeat,
+		},
+		[]string{
+			metricLabelEngineID,
+		},
+	)
+
 	m := &MetricsMonitor{
 		p:      p,
 		logger: logger.WithName("monitor"),
@@ -133,6 +149,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numInProgressTasksGauge:        numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge: maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec:             numEnginesGaugeVec,
+		lastEngineHeartbeatGaugeVec:    lastEngineHeartbeatGaugeVec,
 	}
 
 	prometheus.MustRegister(
@@ -144,6 +161,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec,
+		lastEngineHeartbeatGaugeVec,
 	)
 
 	return m
@@ -192,6 +210,11 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 	for tenantID, numEngines := range m.p.NumEnginesByTenantID() {
 		m.numEnginesGaugeVec.WithLabelValues(tenantID).Set(float64(numEngines))
 	}
+
+	m.lastEngineHeartbeatGaugeVec.Reset()
+	for engineID, lastHeartbeat := range m.p.LastEngineHeartbeats() {
+		m.lastEngineHeartbeatGaugeVec.WithLabelValues(engineID).Set(float64(lastHeartbeat.Unix()))
+	}
 }
 
 // UnregisterAllCollectors unregisters all connectors.
@@ -204,4 +227,5 @@ func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.numInProgressTasksGauge)
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
 	prometheus.Unregister(m.numEnginesGaugeVec)
+	prometheus.Unregister(m.lastEngineHeartbeatGaugeVec)
 }

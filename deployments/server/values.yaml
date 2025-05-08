@@ -89,6 +89,13 @@ vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 # The address of the vector-store-manager-server to call internal vector-store APIs.
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
+
+engineHeartbeat:
+  # The interval on heartbeat requests sent to engines.
+  interval: 1m
+  # The timeout on heartbeat requests sent to engines.
+  timeout: 10s
+
 # Specify the Service resource settings for the inference public service and monitoring.
 # For more information, see [Service](https://kubernetes.io/docs/concepts/services-networking/service),
 # and [Install across Multiple Clusters](https://llmariner.ai/docs/setup/install/multi_cluster_production/).

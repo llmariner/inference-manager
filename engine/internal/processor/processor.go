@@ -342,6 +342,8 @@ func (p *P) processTask(
 		return p.deactivateModel(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
 		return p.goAway(ctx, stream, t, goAwayCh)
+	case *v1.TaskRequest_Heartbeat:
+		return p.heartbeat(ctx, stream, t)
 	default:
 		return fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -642,6 +644,25 @@ func (p *P) goAway(
 	}
 
 	close(goAwayCh)
+
+	return nil
+}
+
+func (p *P) heartbeat(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Processing a Heartbeat request")
+
+	// Just return the response to the server.
+	resp := &v1.HttpResponse{
+		StatusCode: int32(http.StatusOK),
+	}
+	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
+		return err
+	}
 
 	return nil
 }

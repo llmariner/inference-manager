@@ -16,6 +16,7 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/admin"
 	"github.com/llmariner/inference-manager/server/internal/config"
+	"github.com/llmariner/inference-manager/server/internal/heartbeater"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/inference-manager/server/internal/monitoring"
 	"github.com/llmariner/inference-manager/server/internal/rag"
@@ -168,6 +169,11 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	infProcessor := infprocessor.NewP(router.New(c.RequestRouting.EnableDynamicModelLoading), logger)
 	go func() {
 		errCh <- infProcessor.Run(ctx)
+	}()
+
+	heartbeater := heartbeater.New(infProcessor, c.EngineHeartbeat, logger)
+	go func() {
+		errCh <- heartbeater.Run(ctx)
 	}()
 
 	m := monitoring.NewMetricsMonitor(infProcessor, logger)

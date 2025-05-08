@@ -44,6 +44,8 @@ type Config struct {
 	// before the manager actually returns on stop.
 	GracefulShutdownTimeout time.Duration `yaml:"gracefulShutdownTimeout"`
 
+	EngineHeartbeat EngineHeartbeatConfig `yaml:"engineHeartbeat"`
+
 	// ServerPodLabelKey is the key of the label that the server pod has.
 	ServerPodLabelKey string `yaml:"serverPodLabelKey"`
 	// ServerPodLabelKey is the value of the label that the server pod has for ServerPodLabelKey.
@@ -114,6 +116,23 @@ type DebugConfig struct {
 	UseNoopClient bool `yaml:"useNoopClient"`
 }
 
+// EngineHeartbeatConfig is the engine heartbeat configuration.
+type EngineHeartbeatConfig struct {
+	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
+}
+
+// validate validates the configuration.
+func (c *EngineHeartbeatConfig) validate() error {
+	if c.Interval <= 0 {
+		return fmt.Errorf("interval must be greater than 0")
+	}
+	if c.Timeout <= 0 {
+		return fmt.Errorf("timeout must be greater than 0")
+	}
+	return nil
+}
+
 // Validate validates the configuration.
 func (c *Config) Validate() error {
 	if c.GRPCPort <= 0 {
@@ -142,6 +161,10 @@ func (c *Config) Validate() error {
 	}
 	if c.GracefulShutdownDelay < 0 {
 		return fmt.Errorf("gracefulShutdownDelay must be greater than or equal to 0")
+	}
+
+	if err := c.EngineHeartbeat.validate(); err != nil {
+		return fmt.Errorf("engineHeartbeat: %s", err)
 	}
 
 	if err := c.AuthConfig.validate(); err != nil {

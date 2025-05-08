@@ -421,6 +421,9 @@
         }
       }
     },
+    "v1HeartbeatRequest": {
+      "type": "object"
+    },
     "v1HttpResponse": {
       "type": "object",
       "properties": {
@@ -499,6 +502,9 @@
         "goAway": {
           "$ref": "#/definitions/v1GoAwayRequest",
           "description": "go_away is used to signal the worker to disconnect and\nreconnect to other server."
+        },
+        "heartbeat": {
+          "$ref": "#/definitions/v1HeartbeatRequest"
         }
       }
     },

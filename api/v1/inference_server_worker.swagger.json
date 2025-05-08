@@ -481,6 +481,9 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1HeaderValue"
           }
+        },
+        "engineId": {
+          "type": "string"
         }
       }
     },

@@ -111,9 +111,10 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	}
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id:      t.id,
-			Request: t.request,
-			Header:  header,
+			Id:       t.id,
+			Request:  t.request,
+			Header:   header,
+			EngineId: engine.id,
 		},
 	}); err != nil {
 		return fmt.Errorf("send the task: %s", err)
@@ -232,7 +233,7 @@ func (p *P) SendAndProcessTask(
 		tenantID,
 		origTask.Request,
 		header,
-		"",
+		origTask.EngineId,
 	)
 
 	return p.enqueueAndProcessTask(ctx, task, processResult, log)

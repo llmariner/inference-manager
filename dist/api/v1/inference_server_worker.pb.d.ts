@@ -53,6 +53,7 @@ export type Task = {
     header?: {
         [key: string]: HeaderValue;
     };
+    engine_id?: string;
 };
 export type ProcessTasksResponse = {
     new_task?: Task;

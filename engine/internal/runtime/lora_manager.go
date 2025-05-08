@@ -365,7 +365,23 @@ func (*loraAdapterLoaderImpl) load(
 	vllmAddr string,
 	modelID string,
 ) error {
+	// Convert the model name as we do the same conversion in processor.
+	// TODO(kenji): Revisit.
+	omid := ollama.ModelName(modelID)
+
 	vclient := vllm.NewHTTPClient(vllmAddr)
+
+	// Check if the model is already loaded. If so, do not load it again.
+	resp, err := vclient.ListModels(ctx)
+	if err != nil {
+		return fmt.Errorf("list models: %s", err)
+	}
+	for _, model := range resp.Data {
+		if model.ID == omid {
+			// Model is already loaded.
+			return nil
+		}
+	}
 
 	path, err := modeldownloader.ModelFilePath(
 		puller.ModelDir(),
@@ -377,15 +393,12 @@ func (*loraAdapterLoaderImpl) load(
 		return fmt.Errorf("model file path: %s", err)
 	}
 
-	// Convert the model name as we do the same conversion in processor.
-	// TODO(kenji): Revisit.
-	omid := ollama.ModelName(modelID)
-	code, status, err := vclient.LoadLoRAAdapter(ctx, omid, path)
+	code, err := vclient.LoadLoRAAdapter(ctx, omid, path)
 	if err != nil {
 		return err
 	}
 	if code != http.StatusOK {
-		return fmt.Errorf("load LoRA adapter: code=%d, status=%s", code, status)
+		return fmt.Errorf("load LoRA adapter: code=%d", code)
 	}
 
 	return nil

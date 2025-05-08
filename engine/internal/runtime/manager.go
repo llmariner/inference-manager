@@ -654,6 +654,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		if !ok {
 			log.Info("Creating a new runtime", "modelID", modelID)
 			r = newPendingRuntime(modelID)
+			r.isDynamicallyLoadedLoRA = true
 			r.becomeReady(vllmAddr, e.update.gpu, 1)
 			m.runtimes[modelID] = r
 		}

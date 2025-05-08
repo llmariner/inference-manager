@@ -35,7 +35,7 @@ type HTTPClient struct {
 }
 
 // LoadLoRAAdapter loads a LoRA adapter from the given path.
-func (c *HTTPClient) LoadLoRAAdapter(ctx context.Context, loraName, loraPath string) (int, error) {
+func (c *HTTPClient) LoadLoRAAdapter(ctx context.Context, loraName, loraPath string) (int, string, error) {
 	type request struct {
 		LoRAName string `json:"lora_name"`
 		LoRAPath string `json:"lora_path"`
@@ -47,19 +47,19 @@ func (c *HTTPClient) LoadLoRAAdapter(ctx context.Context, loraName, loraPath str
 	}
 	data, err := json.Marshal(req)
 	if err != nil {
-		return -1, fmt.Errorf("marshal request: %s", err)
+		return -1, "", fmt.Errorf("marshal request: %s", err)
 	}
 
 	resp, err := c.sendHTTPRequest(ctx, "POST", "/v1/load_lora_adapter", data)
 	if err != nil {
-		return -1, fmt.Errorf("send request: %s", err)
+		return -1, "", fmt.Errorf("send request: %s", err)
 	}
 
 	if err := resp.Body.Close(); err != nil {
-		return -1, fmt.Errorf("close response body: %s", err)
+		return -1, "", fmt.Errorf("close response body: %s", err)
 	}
 
-	return resp.StatusCode, nil
+	return resp.StatusCode, resp.Status, nil
 }
 
 // UnloadLoRAAdapter unnloads a LoRA adapter from the given path.

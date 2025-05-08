@@ -44,7 +44,7 @@ type ModelActivator struct {
 
 // SetupWithManager sets up the multi-autoscaler with the Manager.
 func (a *ModelActivator) SetupWithManager(mgr ctrl.Manager) error {
-	a.logger = mgr.GetLogger().WithName("preloader")
+	a.logger = mgr.GetLogger().WithName("activator")
 	return mgr.Add(a)
 }
 

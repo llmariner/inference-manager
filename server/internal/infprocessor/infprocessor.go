@@ -399,9 +399,10 @@ func (p *P) sendTaskToEngines(
 			errGroup.Go(func() error {
 				p.logger.Info("Sending task to engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
 
+				lctx := ctx
 				if timeout > 0 {
 					var cancel context.CancelFunc
-					ctx, cancel = context.WithTimeout(ctx, timeout)
+					lctx, cancel = context.WithTimeout(lctx, timeout)
 					defer cancel()
 				}
 
@@ -415,7 +416,7 @@ func (p *P) sendTaskToEngines(
 					return err
 				}
 
-				if _, err := p.sendTask(ctx, t, p.logger.WithName(taskName)); err != nil {
+				if _, err := p.sendTask(lctx, t, p.logger.WithName(taskName)); err != nil {
 					return fmt.Errorf("send task: %s", err)
 				}
 

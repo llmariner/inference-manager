@@ -29,6 +29,8 @@ type runtime struct {
 	// An error reason is sent when the runtime gets an error
 	waitChs []chan string
 
+	lastErrReason string
+
 	// pendingPullModelRequests is the list of model IDs that are queued for pull.
 	// The map is keyed by the base model IDs.
 	pendingPullModelRequests []*pullModelEvent
@@ -85,6 +87,7 @@ func (r *runtime) closeWaitChs(errReason string) {
 		close(ch)
 	}
 	r.waitChs = nil
+	r.lastErrReason = errReason
 
 	for _, req := range r.pendingPullModelRequests {
 		if errReason != "" {

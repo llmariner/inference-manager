@@ -255,7 +255,15 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 			return nil
 		}
 
+		if r.lastErrReason != "" {
+			log.Info("Runtime is not ready. Closing the wait channel", "modelID", e.modelID)
+			e.readyWaitCh <- r.lastErrReason
+			close(e.readyWaitCh)
+			return nil
+		}
+
 		log.Info("Pull is in progress. Waiting for the runtime to be ready", "modelID", e.modelID)
+
 		r.waitChs = append(r.waitChs, e.readyWaitCh)
 
 		return nil
@@ -542,6 +550,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 		if e.retryCount >= m.readinessCheckMaxRetryCount {
 			log.Info("runtime is not reachable", "modelID", e.modelID, "retryCount", e.retryCount)
 			rt.closeWaitChs(errMsgUnreachableRuntime)
+			// TODO(kenji): Delete the runtime here?
 			return nil
 		}
 

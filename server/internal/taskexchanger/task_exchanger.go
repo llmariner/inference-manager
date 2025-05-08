@@ -142,6 +142,7 @@ func (e *E) Reconcile(
 			return ctrl.Result{}, err
 		}
 
+		log.Info("Pod not found. Deleting task receiver")
 		e.deleteTaskReceiver(ctx, req.Name)
 
 		return ctrl.Result{}, nil

@@ -426,7 +426,7 @@ func (p *P) sendTaskToEngines(
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		return fmt.Errorf("send go away task: %s", err)
+		return fmt.Errorf("send task %q: %s", taskName, err)
 	}
 
 	return nil

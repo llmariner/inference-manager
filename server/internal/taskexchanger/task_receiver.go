@@ -299,6 +299,7 @@ func (r *taskReceiver) processTasks(
 				}
 			}()
 		case err := <-errCh:
+			r.logger.Error(err, "Failed to process tasks")
 			return err
 		case <-ctx.Done():
 			log.Info("Stopping and waiting for all tasks to complete")
@@ -317,6 +318,7 @@ func (r *taskReceiver) processTask(
 	tenantID string,
 ) error {
 	return r.infProcessor.SendAndProcessTask(ctx, t, tenantID, func(result *v1.TaskResult) error {
+		r.logger.V(1).Info("Sending task result", "taskID", t.Id)
 		return stream.Send(&v1.ProcessTasksInternalRequest{
 			Message: &v1.ProcessTasksInternalRequest_TaskResult{
 				TaskResult: result,

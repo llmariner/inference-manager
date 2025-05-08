@@ -98,6 +98,7 @@ func (is *IS) ProcessTasksInternal(srv v1.InferenceInternalService_ProcessTasksI
 			is.taskExchanger.AddOrUpdateServerStatus(srv, msg.ServerStatus)
 			serverPodName = msg.ServerStatus.PodName
 		case *v1.ProcessTasksInternalRequest_TaskResult:
+			is.logger.V(1).Info("Received task result", "taskID", msg.TaskResult.TaskId)
 			is.infProcessor.ProcessTaskResult(msg.TaskResult)
 		default:
 			return fmt.Errorf("unknown message type: %T", msg)

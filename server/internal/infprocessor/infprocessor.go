@@ -639,6 +639,7 @@ func (p *P) writeResultToTask(taskID string, r *resultOrError) {
 
 	if !ok {
 		// The task has already been removed from the in-progress tasks map due to an error or context cancel.
+		p.logger.Info("No task found for the result", "taskID", taskID)
 		return
 	}
 

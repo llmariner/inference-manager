@@ -179,10 +179,30 @@ func TestConvertChatTemplateKewargs(t *testing.T) {
 	got, err := applyConvertFuncs([]byte(body), []convertF{convertChatTemplateKwargs})
 	assert.NoError(t, err)
 
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[chatTemplateKwargsKey]
+	assert.False(t, ok)
+
+	_, ok = r[encodedChatTemplateKwargsKey]
+	assert.True(t, ok)
+
 	got, err = applyConvertFuncs(got, []convertF{convertEncodedChatTemplateKwargs})
 	assert.NoError(t, err)
 
 	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[chatTemplateKwargsKey]
+	assert.True(t, ok)
+
+	_, ok = r[encodedChatTemplateKwargsKey]
+	assert.False(t, ok)
 }
 
 func TestConvertContentStringToArray(t *testing.T) {

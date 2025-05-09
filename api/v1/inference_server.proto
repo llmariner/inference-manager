@@ -122,7 +122,16 @@ message CreateChatCompletionRequest {
   // MaxCompletionTokens specifies the maximum limit on the number of tokens that can be generated during a completion.`
   int32 max_completion_tokens = 21;
 
-  // Next ID: 22
+  // encoded_chat_template_kwargs is encoded value of "chat_template_kwargs". This is a special parameter
+  // that only vLLM uses.
+  //
+  // The field is converted to the "chat_template_kwargs" field when the request is being
+  // sent to vLLM.
+  //
+  // https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#id7
+  string encoded_chat_template_kwargs = 22;
+
+  // Next ID: 23
 }
 
 message ToolCall {

@@ -15,6 +15,7 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 	fs := []convertF{
 		convertToolChoice,
 		convertFunctionParameters,
+		convertChatTemplateKwargs,
 		convertContentStringToArray,
 	}
 	return applyConvertFuncs(body, fs)
@@ -23,6 +24,11 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 // ConvertCreateChatCompletionRequestToOpenAI converts the request to the OpenAI format.
 func ConvertCreateChatCompletionRequestToOpenAI(body []byte) ([]byte, error) {
 	fs := []convertF{
+		// The order of the functions is the opposite of the ConvertCreateChatCompletionRequestToProto.
+		//
+		// We don't have a function that corresponds to convertContentStringToArray as the convertion
+		// doesn't break the OpenAI API spec.
+		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
 		convertToolChoiceObject,
 	}
@@ -123,6 +129,37 @@ func convertEncodedFunctionParameters(r map[string]interface{}) error {
 		fn["parameters"] = pp
 		delete(fn, "encoded_parameters")
 	}
+	return nil
+}
+
+func convertChatTemplateKwargs(r map[string]interface{}) error {
+	v, ok := r["chat_template_kwargs"]
+	if !ok {
+		return nil
+	}
+
+	j, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	r["encoded_chat_template_kwargs"] = base64.URLEncoding.EncodeToString(j)
+	delete(r, "encoded_chat_template_kwargs")
+	return nil
+}
+
+func convertEncodedChatTemplateKwargs(r map[string]interface{}) error {
+	v, ok := r["encoded_chat_template_kwargs"]
+	if !ok {
+		return nil
+	}
+
+	b, err := base64.URLEncoding.DecodeString(v.(string))
+	if err != nil {
+		return err
+	}
+	r["chat_template_kwargs"] = string(b)
+	delete(r, "encoded_chat_template_kwargs")
 	return nil
 }
 

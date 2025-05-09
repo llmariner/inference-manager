@@ -91,6 +91,8 @@ vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:
 
 
 engineHeartbeat:
+  # Set to true to enable heartbeats from the server to engines.
+  enable: false
   # The interval on heartbeat requests sent to engines.
   interval: 1m
   # The timeout on heartbeat requests sent to engines.

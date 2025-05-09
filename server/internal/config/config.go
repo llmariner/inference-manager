@@ -118,6 +118,7 @@ type DebugConfig struct {
 
 // EngineHeartbeatConfig is the engine heartbeat configuration.
 type EngineHeartbeatConfig struct {
+	Enable   bool          `yaml:"enable"`
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 }

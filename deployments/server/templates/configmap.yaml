@@ -24,6 +24,7 @@ data:
     vectorStoreManagerInternalServerAddr: {{ .Values.vectorStoreManagerInternalServerAddr }}
     gracefulShutdownDelay: {{ .Values.gracefulShutdownDelay }}
     engineHeartbeat:
+      enable: {{ .Values.engineHeartbeat.enable }}
       interval: {{ .Values.engineHeartbeat.interval }}
       timeout: {{ .Values.engineHeartbeat.timeout }}
     auth:

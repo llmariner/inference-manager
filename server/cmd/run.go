@@ -171,10 +171,13 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		errCh <- infProcessor.Run(ctx)
 	}()
 
-	heartbeater := heartbeater.New(infProcessor, c.EngineHeartbeat, logger)
-	go func() {
-		errCh <- heartbeater.Run(ctx)
-	}()
+	if c.EngineHeartbeat.Enable {
+		log.Info("Starting engine heartbeat")
+		heartbeater := heartbeater.New(infProcessor, c.EngineHeartbeat, logger)
+		go func() {
+			errCh <- heartbeater.Run(ctx)
+		}()
+	}
 
 	m := monitoring.NewMetricsMonitor(infProcessor, logger)
 	go func() {

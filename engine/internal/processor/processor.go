@@ -345,7 +345,9 @@ func (p *P) processTask(
 	case *v1.TaskRequest_Heartbeat:
 		return p.heartbeat(ctx, stream, t)
 	default:
-		return fmt.Errorf("unknown request type: %T", req.Request)
+		// Do not return an error to be able to release the server without
+		// updating the engine.
+		return p.handleUnimplemented(ctx, stream, t)
 	}
 }
 
@@ -659,6 +661,24 @@ func (p *P) heartbeat(
 	// Just return the response to the server.
 	resp := &v1.HttpResponse{
 		StatusCode: int32(http.StatusOK),
+	}
+	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *P) handleUnimplemented(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Received an unimplemented request", "request", t.Request)
+
+	resp := &v1.HttpResponse{
+		StatusCode: int32(http.StatusNotImplemented),
 	}
 	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
 		return err

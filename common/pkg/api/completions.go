@@ -8,6 +8,11 @@ import (
 
 const (
 	contentTypeText = "text"
+
+	// chatTemplateKwargsKey is the key for the chat template kwargs.
+	chatTemplateKwargsKey = "chat_template_kwargs"
+	// encodedChatTemplateKwargsKey is the key for the encoded chat template kwargs.
+	encodedChatTemplateKwargsKey = "encoded_chat_template_kwargs"
 )
 
 // ConvertCreateChatCompletionRequestToProto converts the request to the protobuf format.
@@ -133,23 +138,28 @@ func convertEncodedFunctionParameters(r map[string]interface{}) error {
 }
 
 func convertChatTemplateKwargs(r map[string]interface{}) error {
-	v, ok := r["chat_template_kwargs"]
+	v, ok := r[chatTemplateKwargsKey]
 	if !ok {
 		return nil
 	}
 
-	j, err := json.Marshal(v)
+	kw, ok := v.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("chat_template_kwargs should be a map")
+	}
+
+	b, err := json.Marshal(kw)
 	if err != nil {
 		return err
 	}
 
-	r["encoded_chat_template_kwargs"] = base64.URLEncoding.EncodeToString(j)
-	delete(r, "encoded_chat_template_kwargs")
+	r[encodedChatTemplateKwargsKey] = base64.URLEncoding.EncodeToString(b)
+	delete(r, chatTemplateKwargsKey)
 	return nil
 }
 
 func convertEncodedChatTemplateKwargs(r map[string]interface{}) error {
-	v, ok := r["encoded_chat_template_kwargs"]
+	v, ok := r[encodedChatTemplateKwargsKey]
 	if !ok {
 		return nil
 	}
@@ -158,8 +168,14 @@ func convertEncodedChatTemplateKwargs(r map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	r["chat_template_kwargs"] = string(b)
-	delete(r, "encoded_chat_template_kwargs")
+
+	kw := map[string]interface{}{}
+	if err := json.Unmarshal(b, &kw); err != nil {
+		return err
+	}
+
+	r[chatTemplateKwargsKey] = kw
+	delete(r, encodedChatTemplateKwargsKey)
 	return nil
 }
 

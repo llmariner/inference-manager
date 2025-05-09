@@ -712,6 +712,23 @@ func (p *P) NumEnginesByTenantID() map[string]int {
 	return m
 }
 
+// NumLocalEnginesByTenantID returns the number of localengines by tenant ID.
+func (p *P) NumLocalEnginesByTenantID() map[string]int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	m := make(map[string]int, len(p.engines))
+	for tenantID, engines := range p.engines {
+		var num int
+		for _, e := range engines {
+			if e.isLocal {
+				num++
+			}
+		}
+		m[tenantID] = num
+	}
+	return m
+}
+
 // updateLastEngineHeartbeat updates the last heartbeat time of an engine.
 func (p *P) updateLastEngineHeartbeat(engineID string, t time.Time) error {
 	p.mu.Lock()

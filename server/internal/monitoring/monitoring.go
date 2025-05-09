@@ -20,6 +20,7 @@ const (
 	metricsNameNumInProgressTasks        = "inference_manager_server_num_in_progress_tasks"
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
 	metricsNameNumEngines                = "inference_manager_server_num_engines"
+	metricsNameNumLocalEngines           = "inference_manager_server_num_local_engines"
 
 	metricsNameSinceLastEngineHeartbeat = "inference_manager_server_since_last_engine_heartbeat"
 
@@ -43,6 +44,7 @@ type MetricsMonitor struct {
 	numInProgressTasksGauge        prometheus.Gauge
 	maxInProgressTaskDurationGauge prometheus.Gauge
 	numEnginesGaugeVec             *prometheus.GaugeVec
+	numLocalEnginesGaugeVec        *prometheus.GaugeVec
 
 	sinceLastEngineHeartbeatGaugeVec *prometheus.GaugeVec
 }
@@ -127,6 +129,16 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		},
 	)
 
+	numLocalEnginesGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameNumLocalEngines,
+		},
+		[]string{
+			metricLabelTenantID,
+		},
+	)
+
 	sinceLastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
@@ -149,6 +161,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numInProgressTasksGauge:          numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge:   maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec:               numEnginesGaugeVec,
+		numLocalEnginesGaugeVec:          numLocalEnginesGaugeVec,
 		sinceLastEngineHeartbeatGaugeVec: sinceLastEngineHeartbeatGaugeVec,
 	}
 
@@ -161,6 +174,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numInProgressTasksGauge,
 		maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec,
+		numLocalEnginesGaugeVec,
 		sinceLastEngineHeartbeatGaugeVec,
 	)
 
@@ -211,6 +225,11 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 		m.numEnginesGaugeVec.WithLabelValues(tenantID).Set(float64(numEngines))
 	}
 
+	m.numLocalEnginesGaugeVec.Reset()
+	for tenantID, numLocalEngines := range m.p.NumLocalEnginesByTenantID() {
+		m.numLocalEnginesGaugeVec.WithLabelValues(tenantID).Set(float64(numLocalEngines))
+	}
+
 	m.sinceLastEngineHeartbeatGaugeVec.Reset()
 	for engineID, lastHeartbeat := range m.p.LastEngineHeartbeats() {
 		d := time.Since(lastHeartbeat)
@@ -228,5 +247,6 @@ func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.numInProgressTasksGauge)
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
 	prometheus.Unregister(m.numEnginesGaugeVec)
+	prometheus.Unregister(m.numLocalEnginesGaugeVec)
 	prometheus.Unregister(m.sinceLastEngineHeartbeatGaugeVec)
 }

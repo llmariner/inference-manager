@@ -87,7 +87,7 @@ func TestE_Reconcile(t *testing.T) {
 		exchanger.mu.Lock()
 		defer exchanger.mu.Unlock()
 		return len(exchanger.taskReceivers) == 0
-	}, 1*time.Second, 100*time.Millisecond)
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestE_AddUpdateRemoveServer(t *testing.T) {

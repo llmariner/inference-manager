@@ -173,6 +173,18 @@ func TestConvertEncodedFunctionParameters(t *testing.T) {
 	assert.Equal(t, wantR, gotR)
 }
 
+func TestConvertChatTemplateKewargs(t *testing.T) {
+	body := `{"chat_template_kwargs":{"enable_thinking":true}}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertChatTemplateKwargs})
+	assert.NoError(t, err)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedChatTemplateKwargs})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+}
+
 func TestConvertContentStringToArray(t *testing.T) {
 	tcs := []struct {
 		name string

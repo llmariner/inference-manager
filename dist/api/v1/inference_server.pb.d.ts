@@ -78,6 +78,7 @@ export type CreateChatCompletionRequest = {
     tool_choice_object?: CreateChatCompletionRequestToolChoice;
     user?: string;
     max_completion_tokens?: number;
+    encoded_chat_template_kwargs?: string;
 };
 export type ToolCallFunction = {
     name?: string;

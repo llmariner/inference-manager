@@ -96,7 +96,7 @@ func (r *LoRAReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable.
-func (p *LoRAReconciler) NeedLeaderElection() bool {
+func (r *LoRAReconciler) NeedLeaderElection() bool {
 	return false
 }
 

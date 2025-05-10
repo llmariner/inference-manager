@@ -196,6 +196,17 @@ func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
 				})
 				updatedEngineStatuses[e.EngineId] = e
 			}
+
+			if !needSend {
+				// Check if there is any deleted engines. If so, set needSend to true.
+				for _, cachedStatus := range cachedEngineStatuses {
+					if _, ok := updatedEngineStatuses[cachedStatus.EngineId]; !ok {
+						needSend = true
+						break
+					}
+				}
+			}
+
 			r.engineStatuses[tenantID] = updatedEngineStatuses
 		}
 

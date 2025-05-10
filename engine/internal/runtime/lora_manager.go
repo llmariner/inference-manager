@@ -95,6 +95,11 @@ func (r *LoRAReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// NeedLeaderElection implements LeaderElectionRunnable.
+func (r *LoRAReconciler) NeedLeaderElection() bool {
+	return false
+}
+
 // Reconcile updates the pods in the cluster.
 func (r *LoRAReconciler) Reconcile(
 	ctx context.Context,

@@ -231,7 +231,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			imagePullPolicy: corev1.PullIfNotPresent,
 			command:         []string{"/bin/sh", "-c"},
 			// wait for the cpath file to be created
-			args: []string{"while [ ! -f " + cpath + " ]; echo 'Waiting for the model pull'; do sleep 1; done"},
+			args: []string{"while [ ! -f " + cpath + " ]; do echo 'Waiting for the model pull'; sleep 1; done"},
 		}
 	}
 

@@ -174,6 +174,7 @@ func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 			defer func() {
 				ws.infProcessor.RemoveEngine(engineID, clusterInfo.TenantID)
 				ws.logger.Info("Unregistered engine", "engineID", engineID)
+				// TODO(kenji): Wait until all sends complete before closing.
 			}()
 			registered = true
 		}

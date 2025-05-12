@@ -24,6 +24,7 @@ import (
 // ModelClient is an interface for a model client.
 type ModelClient interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+	ActivateModel(ctx context.Context, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error)
 }
 
 // NoopModelClient is a no-op model client.
@@ -33,6 +34,11 @@ type NoopModelClient struct {
 // GetModel is a no-op implementation of GetModel.
 func (c *NoopModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
 	return &mv1.Model{}, nil
+}
+
+// ActivateModel is a no-op implementation of ActivateModel.
+func (c *NoopModelClient) ActivateModel(ctx context.Context, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error) {
+	return &mv1.ActivateModelResponse{}, nil
 }
 
 // VectorStoreClient is an interface for a vector store client.

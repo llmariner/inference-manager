@@ -332,14 +332,28 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 }
 
 func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, error) {
-	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+	m, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
-	}); err != nil {
+	})
+
+	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return http.StatusBadRequest, fmt.Errorf("model not found: %s", modelID)
 		}
 		return http.StatusInternalServerError, fmt.Errorf("get model: %s", err)
 	}
+
+	if m.ActivationStatus == mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE {
+		return http.StatusOK, nil
+	}
+
+	s.logger.Info("Activating model", "modelID", modelID, "activationStatus", m.ActivationStatus)
+	if _, err := s.modelClient.ActivateModel(ctx, &mv1.ActivateModelRequest{
+		Id: modelID,
+	}); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("activate model: %s", err)
+	}
+
 	return http.StatusOK, nil
 }
 

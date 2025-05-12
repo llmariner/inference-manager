@@ -108,6 +108,7 @@ func (is *IS) ProcessTasksInternal(srv v1.InferenceInternalService_ProcessTasksI
 			defer func() {
 				is.taskExchanger.RemoveServer(serverPodName)
 				is.logger.Info("Unregistered server", "serverPodName", serverPodName)
+				// TODO(kenji): Wait until all sends complete before closing.
 			}()
 			registered = true
 		}

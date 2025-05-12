@@ -4,8 +4,8 @@ description: The inference-manager-engine manages inference runtimes (e.g., vLLM
 home: https://llmariner.ai/
 icon: https://raw.githubusercontent.com/llmariner/llmariner.github.io/refs/heads/main/assets/icons/logo.svg
 type: application
-version: 1.27.1
-appVersion: 1.27.1
+version: 1.27.2
+appVersion: 1.27.2
 sources:
   - https://github.com/llmariner/inference-manager
 keywords:

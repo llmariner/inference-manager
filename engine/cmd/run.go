@@ -268,7 +268,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	activator := runtime.NewModelActivator(modelManager, modelClient)
+	activator := runtime.NewModelActivator(processedConfig.PreloadedModelIDs(), modelManager, modelClient)
 	if err := activator.SetupWithManager(mgr); err != nil {
 		return err
 	}

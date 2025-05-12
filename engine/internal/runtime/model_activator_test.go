@@ -25,13 +25,17 @@ func TestReconcileModelActivation(t *testing.T) {
 				},
 				{
 					Id:               "model3",
+					ActivationStatus: mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE,
+				},
+				{
+					Id:               "model4",
 					ActivationStatus: mv1.ActivationStatus_ACTIVATION_STATUS_UNSPECIFIED,
 				},
 			},
 		},
 	}
 
-	a := NewModelActivator(mmanager, fakeModelLister)
+	a := NewModelActivator([]string{"model3"}, mmanager, fakeModelLister)
 	err := a.reconcileModelActivation(context.Background())
 	assert.NoError(t, err)
 

@@ -26,15 +26,23 @@ type modelLister interface {
 }
 
 // NewModelActivator creates a new ModelActivator.
-func NewModelActivator(mmanager ModelManager, modelLister modelLister) *ModelActivator {
+func NewModelActivator(preloadedModelIDs []string, mmanager ModelManager, modelLister modelLister) *ModelActivator {
+	m := map[string]bool{}
+	for _, id := range preloadedModelIDs {
+		m[id] = true
+	}
+
 	return &ModelActivator{
-		mmanager:    mmanager,
-		modelLister: modelLister,
+		preloadedModelIDs: m,
+		mmanager:          mmanager,
+		modelLister:       modelLister,
 	}
 }
 
 // ModelActivator preloads models.
 type ModelActivator struct {
+	preloadedModelIDs map[string]bool
+
 	mmanager ModelManager
 
 	modelLister modelLister
@@ -89,6 +97,11 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 				}
 			}
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
+			if a.preloadedModelIDs[model.Id] {
+				// Do not inactivate the preloaded models.
+				continue
+			}
+
 			if err := a.mmanager.DeleteModel(ctx, model.Id); err != nil {
 				return fmt.Errorf("delete model %s: %s", model.Id, err)
 			}

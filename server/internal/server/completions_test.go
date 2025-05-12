@@ -520,6 +520,10 @@ func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest,
 	return model, nil
 }
 
+func (c *fakeModelClient) ActivateModel(ctx context.Context, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error) {
+	return &mv1.ActivateModelResponse{}, nil
+}
+
 type fakeRewriter struct {
 	msg *v1.CreateChatCompletionRequest_Message
 }

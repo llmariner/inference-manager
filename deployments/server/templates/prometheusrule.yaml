@@ -31,7 +31,7 @@ spec:
       labels:
         severity: critical
       annotations:
-        title: Inference Manager Server disconnected from engines for tenant {{ $labels.tenant_id }}
+        title: Inference Manager Server disconnected from engines
         description: Inference Manager Server has no connected engines for tenant {{ $labels.tenant_id }}
 {{- if .Values.engineHeartbeat.enable }}
     - alert: Inference Manager Server engine heartbeat

@@ -25,6 +25,14 @@ spec:
       annotations:
         title: Inference Manager Server engine status inconsistency
         description: Inference Manager Servers have inconsistent status on engines
+    - alert: Inference Manager Server disconnected from engines
+      expr: sum by (tenant_id) (llmariner_inference_manager_server_num_engines) == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        title: Inference Manager Server disconnected from engines for tenant {{ $labels.tenant_id }}
+        description: Inference Manager Server has no connected engines for tenant {{ $labels.tenant_id }}
 {{- if .Values.engineHeartbeat.enable }}
     - alert: Inference Manager Server engine heartbeat
       expr: llmariner_inference_manager_server_since_last_engine_heartbeat > 300

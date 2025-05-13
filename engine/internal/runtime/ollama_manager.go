@@ -161,8 +161,7 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	}
 
 	// check if the model is already pulled.
-	model, ok := m.models[modelID]
-	if ok {
+	if model, ok := m.models[modelID]; ok {
 		if model.ready {
 			log.Info("Model is pulled", "modelID", modelID)
 			m.mu.Unlock()
@@ -181,15 +180,18 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		}
 
 		m.mu.Lock()
-		if m.models[modelID].ready {
+		if model, ok := m.models[modelID]; ok && model.ready {
 			log.Info("Model is pulled", "modelID", modelID)
 			m.mu.Unlock()
 			return nil
+		} else if !ok {
+			// model has been deleted.
+			m.models[modelID] = &ollamaModel{id: modelID}
 		}
 		log.Info("Model pulling is canceled, retrying", "modelID", modelID)
+	} else {
+		m.models[modelID] = &ollamaModel{id: modelID}
 	}
-
-	m.models[modelID] = &ollamaModel{id: modelID}
 	m.mu.Unlock()
 
 	log.Info("Model is being pulled", "modelID", modelID)
@@ -209,11 +211,11 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 	log.Info("Model is ready", "modelID", modelID)
 	m.mu.Lock()
-	if r, ok := m.models[modelID]; ok && !m.models[modelID].ready {
+	if r, ok := m.models[modelID]; ok && !r.ready {
 		for _, ch := range r.waitChs {
 			close(ch)
 		}
-		m.models[modelID] = &ollamaModel{id: modelID, ready: true}
+		r.ready = true
 	}
 	m.mu.Unlock()
 	return nil

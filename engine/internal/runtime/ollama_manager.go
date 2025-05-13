@@ -163,25 +163,29 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	// check if the model is already pulled.
 	model, ok := m.models[modelID]
 	if ok {
-		m.mu.Unlock()
-		if !model.ready {
-			log.Info("Waiting for the model to be ready", "modelID", modelID)
-			select {
-			case <-model.waitCh:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-
-			m.mu.Lock()
-			if m.models[modelID].ready {
-				m.mu.Unlock()
-				log.Info("Model is pulled", "modelID", modelID)
-				return nil
-			}
-			m.models[modelID] = ollamaModel{id: modelID, waitCh: make(chan struct{})}
+		if model.ready {
+			log.Info("Model is pulled", "modelID", modelID)
 			m.mu.Unlock()
-			log.Info("Model pulling is canceled, retrying", "modelID", modelID)
+			return nil
 		}
+
+		m.mu.Unlock()
+		log.Info("Waiting for the model to be ready", "modelID", modelID)
+		select {
+		case <-model.waitCh:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
+		m.mu.Lock()
+		if m.models[modelID].ready {
+			m.mu.Unlock()
+			log.Info("Model is pulled", "modelID", modelID)
+			return nil
+		}
+		m.models[modelID] = ollamaModel{id: modelID, waitCh: make(chan struct{})}
+		m.mu.Unlock()
+		log.Info("Model pulling is canceled, retrying", "modelID", modelID)
 	} else {
 		m.models[modelID] = ollamaModel{id: modelID, waitCh: make(chan struct{})}
 		m.mu.Unlock()

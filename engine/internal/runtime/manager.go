@@ -589,6 +589,8 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e *loraAdapterPullStatusCheckEvent) error {
 	log := ctrl.LoggerFrom(ctx)
 
+	// TODO(kenji): Check if the pod still exists. If not, we should stop retrying.
+
 	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
 	if err != nil {
@@ -596,7 +598,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	}
 	if !ok {
 		// Retry. We repeat without the max limit as we don't know how long the pull will take.
-		// TODO(kenji): Revisit
+		// TODO(kenji): Revisit. We should stop retry if the pod no longer exists.
 		log.Info("LoRA adapter pull is not finished. Retrying...", "modelID", e.modelID)
 		time.Sleep(m.readinessCheckRetryInterval)
 		go func() {
@@ -613,7 +615,13 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	}
 	vllmAddr := client.GetAddress(e.podIP)
 	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
-		return fmt.Errorf("load LoRA adapter: %s", err)
+		// TODO(kenji): Revisit. We should stop retry if the pod no longer exists.
+		log.Error(err, "Failed to load LoRA adapter. Retrying...", "modelID", e.modelID)
+		time.Sleep(m.readinessCheckRetryInterval)
+		go func() {
+			m.eventCh <- e
+		}()
+		return nil
 	}
 
 	go func() {

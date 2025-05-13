@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -36,6 +37,8 @@ func NewModelActivator(preloadedModelIDs []string, mmanager ModelManager, modelL
 		preloadedModelIDs: m,
 		mmanager:          mmanager,
 		modelLister:       modelLister,
+
+		parallelism: 3,
 	}
 }
 
@@ -46,6 +49,8 @@ type ModelActivator struct {
 	mmanager ModelManager
 
 	modelLister modelLister
+
+	parallelism int
 
 	logger logr.Logger
 }
@@ -81,33 +86,47 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("list models: %s", err)
 	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(a.parallelism)
 	for _, model := range resp.Data {
+		mid := model.Id
 		switch model.ActivationStatus {
 		case mv1.ActivationStatus_ACTIVATION_STATUS_UNSPECIFIED:
 			// Do nothing for backward compatibility.
 		case mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE:
-			if err := a.mmanager.PullModel(ctx, model.Id); err != nil {
-				// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
-				// an error from here will make the preloading fails, but an unschedulable pod is
-				// expected when a cluster is being autoscaled.
-				if errors.Is(err, ErrRequestCanceled) {
-					a.logger.Error(err, "pull model canceled", "modelID", model.Id)
-				} else {
-					return fmt.Errorf("pull model %s: %s", model.Id, err)
+			g.Go(func() error {
+				if err := a.mmanager.PullModel(ctx, mid); err != nil {
+					// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
+					// an error from here will make the preloading fails, but an unschedulable pod is
+					// expected when a cluster is being autoscaled.
+					if errors.Is(err, ErrRequestCanceled) {
+						a.logger.Error(err, "pull model canceled", "modelID", mid)
+					} else {
+						return fmt.Errorf("pull model %s: %s", mid, err)
+					}
 				}
-			}
+				return nil
+			})
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
-			if a.preloadedModelIDs[model.Id] {
+			if a.preloadedModelIDs[mid] {
 				// Do not inactivate the preloaded models.
 				continue
 			}
 
-			if err := a.mmanager.DeleteModel(ctx, model.Id); err != nil {
-				return fmt.Errorf("delete model %s: %s", model.Id, err)
-			}
+			g.Go(func() error {
+				if err := a.mmanager.DeleteModel(ctx, mid); err != nil {
+					return fmt.Errorf("delete model %s: %s", mid, err)
+				}
+				return nil
+			})
 		default:
 			return fmt.Errorf("unknown activation state: %s", model.ActivationStatus)
 		}
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("preloading: %s", err)
 	}
 
 	a.logger.Info("Model activation reconciled", "modelCount", len(resp.Data))

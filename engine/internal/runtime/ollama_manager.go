@@ -30,7 +30,7 @@ func NewOllamaManager(
 		autoscaler:   autoscaler,
 		pullerAddr:   pullerAddr,
 		runtime:      newPendingRuntime(client.GetName("")),
-		models:       make(map[string]ollamaModel),
+		models:       make(map[string]*ollamaModel),
 	}
 }
 
@@ -44,15 +44,15 @@ type OllamaManager struct {
 
 	runtime *runtime
 	// models is keyed by model ID.
-	models map[string]ollamaModel
+	models map[string]*ollamaModel
 	mu     sync.RWMutex
 }
 
 type ollamaModel struct {
 	id    string
 	ready bool
-	// waitCh is used when the model is not ready.
-	waitCh chan struct{}
+	// waitChs is used when the model is not ready.
+	waitChs []chan struct{}
 }
 
 // ListSyncedModels returns the list of models that are synced.
@@ -86,12 +86,11 @@ func (m *OllamaManager) listModels(ready bool) []ModelRuntimeInfo {
 
 func (m *OllamaManager) cleanupModels() {
 	for _, model := range m.models {
-		if model.ready {
-			continue
+		for _, ch := range model.waitChs {
+			close(ch)
 		}
-		close(model.waitCh)
 	}
-	m.models = make(map[string]ollamaModel)
+	m.models = make(map[string]*ollamaModel)
 }
 
 // Start deploys the ollama runtime.
@@ -169,10 +168,13 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 			return nil
 		}
 
+		ch := make(chan struct{})
+		model.waitChs = append(model.waitChs, ch)
 		m.mu.Unlock()
+
 		log.Info("Waiting for the model to be ready", "modelID", modelID)
 		select {
-		case <-model.waitCh:
+		case <-ch:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -183,11 +185,11 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 			log.Info("Model is pulled", "modelID", modelID)
 			return nil
 		}
-		m.models[modelID] = ollamaModel{id: modelID, waitCh: make(chan struct{})}
+		m.models[modelID] = &ollamaModel{id: modelID}
 		m.mu.Unlock()
 		log.Info("Model pulling is canceled, retrying", "modelID", modelID)
 	} else {
-		m.models[modelID] = ollamaModel{id: modelID, waitCh: make(chan struct{})}
+		m.models[modelID] = &ollamaModel{id: modelID}
 		m.mu.Unlock()
 	}
 	log.Info("Model is being pulled", "modelID", modelID)
@@ -208,10 +210,10 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	log.Info("Model is ready", "modelID", modelID)
 	m.mu.Lock()
 	if r, ok := m.models[modelID]; ok && !m.models[modelID].ready {
-		if r.waitCh != nil {
-			close(r.waitCh)
+		for _, ch := range r.waitChs {
+			close(ch)
 		}
-		m.models[modelID] = ollamaModel{id: modelID, ready: true}
+		m.models[modelID] = &ollamaModel{id: modelID, ready: true}
 	}
 	m.mu.Unlock()
 	return nil

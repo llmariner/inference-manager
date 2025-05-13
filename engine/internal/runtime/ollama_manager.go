@@ -135,7 +135,6 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		runtimeAddr = m.runtime.addresses[0]
 
 		log.V(2).Info("Runtime is ready", "addresses", runtimeAddr)
-		m.mu.Unlock()
 	} else {
 		log.Info("Waiting for the runtime to be ready", "addresses", m.runtime.addresses)
 		ch := make(chan string)
@@ -161,12 +160,10 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		}
 		runtimeAddr = m.runtime.addresses[0]
 
-		m.mu.Unlock()
 		log.Info("Runtime is ready", "address", runtimeAddr)
 	}
 
 	// check if the model is already pulled.
-	m.mu.Lock()
 	model, ok := m.models[modelID]
 	if ok {
 		m.mu.Unlock()

@@ -226,7 +226,11 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}
 
 		go func() {
-			errCh <- rtManager.RunStateMachine(ctrl.LoggerInto(ctx, logger))
+			if err := rtManager.RunStateMachine(ctrl.LoggerInto(ctx, logger)); err != nil {
+				errCh <- fmt.Errorf("run state machine: %s", err)
+				return
+			}
+			errCh <- nil
 		}()
 
 		if c.VLLM.DynamicLoRALoading {
@@ -240,7 +244,11 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			}
 
 			go func() {
-				errCh <- r.Run(ctx, loraReconciliationInterval)
+				if err := r.Run(ctx, loraReconciliationInterval); err != nil {
+					errCh <- fmt.Errorf("run lora reconciliation: %s", err)
+					return
+				}
+				errCh <- nil
 			}()
 		}
 	}

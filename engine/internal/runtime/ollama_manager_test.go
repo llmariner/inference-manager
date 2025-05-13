@@ -54,7 +54,7 @@ func TestOllamaPullModel(t *testing.T) {
 		{
 			name:   "already pulled",
 			rt:     newReadyRuntime(stsName, addr, 1),
-			models: &ollamaModel{id: modelID, waitCh: make(chan struct{})},
+			models: &ollamaModel{id: modelID},
 		},
 	}
 	for _, test := range tests {
@@ -64,7 +64,7 @@ func TestOllamaPullModel(t *testing.T) {
 				ollamaClient: rtClient,
 				pullerAddr:   addr,
 				runtime:      test.rt,
-				models:       make(map[string]ollamaModel),
+				models:       make(map[string]*ollamaModel),
 			}
 
 			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
@@ -85,7 +85,7 @@ func TestOllamaPullModel(t *testing.T) {
 				}()
 			}
 			if test.models != nil {
-				mgr.models[modelID] = *test.models
+				mgr.models[modelID] = test.models
 
 				go func() {
 					// emulate model to be ready
@@ -94,8 +94,10 @@ func TestOllamaPullModel(t *testing.T) {
 						return
 					case <-time.After(300 * time.Millisecond):
 						mgr.mu.Lock()
-						close(mgr.models[modelID].waitCh)
-						mgr.models[modelID] = ollamaModel{id: modelID, ready: true}
+						for _, ch := range mgr.models[modelID].waitChs {
+							close(ch)
+						}
+						mgr.models[modelID] = &ollamaModel{id: modelID, ready: true}
 						mgr.mu.Unlock()
 					}
 				}()

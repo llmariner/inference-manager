@@ -589,7 +589,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e *loraAdapterPullStatusCheckEvent) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	// TODO(kenji): Check if the pod still exits. If not, we should stop retrying.
+	// TODO(kenji): Check if the pod still exists. If not, we should stop retrying.
 
 	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)

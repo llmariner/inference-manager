@@ -289,9 +289,6 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if sts.Status.ReadyReplicas > 0 {
 		m.mu.Lock()
-		for _, ch := range m.runtime.waitChs {
-			close(ch)
-		}
 		m.runtime.becomeReady(
 			m.ollamaClient.GetAddress(sts.Name),
 			getGPU(&sts),

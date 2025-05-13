@@ -3,14 +3,11 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"sync"
-	"time"
 
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
-	"github.com/llmariner/inference-manager/engine/internal/httputil"
+	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -202,25 +199,9 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	// wait until the model is ready.
 	log.Info("Waiting for the model to be ready", "modelID", modelID)
 
-	const (
-		requestTimeout = 3 * time.Second
-		retryInterval  = 2 * time.Second
-	)
-
-	showURL := url.URL{Scheme: "http", Host: runtimeAddr, Path: "/api/show"}
-	data := fmt.Appendf([]byte{}, `{"model": "%s"}`, modelID)
-	if err := httputil.SendHTTPRequestWithRetry(ctx, showURL, data, func(status int, err error) (bool, error) {
-		if err != nil {
-			log.V(2).Error(err, "Failed to check model status", "url", showURL, "retry-interval", retryInterval)
-			return true, nil
-		}
-		if status != http.StatusOK {
-			log.V(2).Info("Model is not ready yet", "status", status, "retry-interval", retryInterval)
-			return true, nil
-		}
-		return false, nil
-	}, requestTimeout, retryInterval, -1); err != nil {
-		return fmt.Errorf("failed to check model: %s", err)
+	oc := ollama.NewClient(runtimeAddr, log)
+	if err := oc.Show(ctx, modelID); err != nil {
+		return fmt.Errorf("check model: %s", err)
 	}
 
 	log.Info("Model is ready", "modelID", modelID)

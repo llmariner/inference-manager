@@ -135,14 +135,15 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 		log.Info("Waiting for the runtime to be ready", "addresses", m.runtime.addresses)
 		ch := make(chan string)
 		m.runtime.waitChs = append(m.runtime.waitChs, ch)
+
 		m.mu.Unlock()
 		select {
 		case <-ch:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-
 		m.mu.Lock()
+
 		if !m.runtime.ready {
 			err := fmt.Errorf("runtime is not ready")
 			log.Error(err, "Runtime is not ready", "addresses", m.runtime.addresses)
@@ -181,17 +182,16 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 		m.mu.Lock()
 		if m.models[modelID].ready {
-			m.mu.Unlock()
 			log.Info("Model is pulled", "modelID", modelID)
+			m.mu.Unlock()
 			return nil
 		}
-		m.models[modelID] = &ollamaModel{id: modelID}
-		m.mu.Unlock()
 		log.Info("Model pulling is canceled, retrying", "modelID", modelID)
-	} else {
-		m.models[modelID] = &ollamaModel{id: modelID}
-		m.mu.Unlock()
 	}
+
+	m.models[modelID] = &ollamaModel{id: modelID}
+	m.mu.Unlock()
+
 	log.Info("Model is being pulled", "modelID", modelID)
 
 	pc := puller.NewClient(m.pullerAddr)
@@ -249,54 +249,47 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	unschedulable, err := allChildrenUnschedulable(ctx, m.k8sClient, sts)
+	if err != nil {
+		log.V(2).Error(err, "Failed to check unschedulable children")
+		return ctrl.Result{}, err
+	}
+
 	log.Info("Reconciling runtime...")
-	var ready bool
-	m.mu.RLock()
-	ready = m.runtime.ready
-	m.mu.RUnlock()
-	if ready {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.runtime.ready {
 		// The runtime has already been ready.
 		if sts.Status.Replicas == 0 {
-			m.mu.Lock()
 			m.runtime.ready = false
 			m.cleanupModels()
-			m.mu.Unlock()
 			log.Info("Runtime is scale down to zero")
 		} else {
-			m.mu.Lock()
 			m.runtime.replicas = sts.Status.ReadyReplicas
-			m.mu.Unlock()
 			log.V(10).Info("Runtime replicas are updated", "replicas", sts.Status.ReadyReplicas)
 		}
 		return ctrl.Result{}, nil
 	}
 
-	if sts.Status.ReadyReplicas > 0 {
-		m.mu.Lock()
-		m.runtime.becomeReady(
-			m.ollamaClient.GetAddress(sts.Name),
-			getGPU(&sts),
-			sts.Status.ReadyReplicas,
-		)
-		m.runtime.closeWaitChs("")
-		m.mu.Unlock()
-
-		log.Info("Runtime is ready")
+	if sts.Status.ReadyReplicas == 0 {
+		// The runtime is still not ready.
+		if unschedulable {
+			log.V(1).Info("Pod is unschedulable")
+			m.runtime.closeWaitChs(corev1.PodReasonUnschedulable)
+		}
 		return ctrl.Result{}, nil
 	}
 
-	// The runtime is still not ready.
-	if yes, err := allChildrenUnschedulable(ctx, m.k8sClient, sts); err != nil {
-		log.V(2).Error(err, "Failed to check unschedulable children")
-		return ctrl.Result{}, err
-	} else if yes {
-		m.mu.Lock()
-		if r := m.runtime; !r.ready {
-			r.closeWaitChs(corev1.PodReasonUnschedulable)
-		}
-		m.mu.Unlock()
-		log.V(1).Info("Pod is unschedulable")
-	}
+	m.runtime.becomeReady(
+		m.ollamaClient.GetAddress(sts.Name),
+		getGPU(&sts),
+		sts.Status.ReadyReplicas,
+	)
+	m.runtime.closeWaitChs("")
+
+	log.Info("Runtime is ready")
+
 	return ctrl.Result{}, nil
 }
 

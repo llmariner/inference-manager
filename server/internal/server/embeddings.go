@@ -96,7 +96,7 @@ func (s *S) CreateEmbedding(
 	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			httpError(w, "Request canceled", http.StatusBadRequest, &usage)
+			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
 			return
 		}
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)

@@ -8,10 +8,4 @@ export class InferenceService {
     static GetInferenceStatus(req, initReq) {
         return fm.fetchReq(`/v1/inference/status?${fm.renderURLSearchParams(req, [])}`, Object.assign(Object.assign({}, initReq), { method: "GET" }));
     }
-    static ActivateModel(req, initReq) {
-        return fm.fetchReq(`/v1/inference/models/${req["id"]}:activate`, Object.assign(Object.assign({}, initReq), { method: "POST" }));
-    }
-    static DeactivateModel(req, initReq) {
-        return fm.fetchReq(`/v1/inference/models/${req["id"]}:deactivate`, Object.assign(Object.assign({}, initReq), { method: "POST" }));
-    }
 }

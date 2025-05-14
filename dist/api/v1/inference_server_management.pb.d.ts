@@ -34,16 +34,6 @@ export type ClusterStatus = {
     gpu_allocated?: number;
 };
 export type GetInferenceStatusRequest = {};
-export type ActivateModelRequest = {
-    id?: string;
-};
-export type ActivateModelResponse = {};
-export type DeactivateModelRequest = {
-    id?: string;
-};
-export type DeactivateModelResponse = {};
 export declare class InferenceService {
     static GetInferenceStatus(req: GetInferenceStatusRequest, initReq?: fm.InitReq): Promise<InferenceStatus>;
-    static ActivateModel(req: ActivateModelRequest, initReq?: fm.InitReq): Promise<ActivateModelResponse>;
-    static DeactivateModel(req: DeactivateModelRequest, initReq?: fm.InitReq): Promise<DeactivateModelResponse>;
 }

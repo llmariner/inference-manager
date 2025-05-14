@@ -16,66 +16,6 @@
     "application/json"
   ],
   "paths": {
-    "/v1/inference/models/{id}:activate": {
-      "post": {
-        "operationId": "InferenceService_ActivateModel",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ActivateModelResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "InferenceService"
-        ]
-      }
-    },
-    "/v1/inference/models/{id}:deactivate": {
-      "post": {
-        "operationId": "InferenceService_DeactivateModel",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1DeactivateModelResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "InferenceService"
-        ]
-      }
-    },
     "/v1/inference/status": {
       "get": {
         "operationId": "InferenceService_GetInferenceStatus",
@@ -158,9 +98,6 @@
         }
       }
     },
-    "v1ActivateModelResponse": {
-      "type": "object"
-    },
     "v1ClusterStatus": {
       "type": "object",
       "properties": {
@@ -190,9 +127,6 @@
           "format": "int32"
         }
       }
-    },
-    "v1DeactivateModelResponse": {
-      "type": "object"
     },
     "v1EngineStatus": {
       "type": "object",

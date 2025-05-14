@@ -342,176 +342,6 @@ func (*GetInferenceStatusRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_inference_server_management_proto_rawDescGZIP(), []int{4}
 }
 
-type ActivateModelRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-}
-
-func (x *ActivateModelRequest) Reset() {
-	*x = ActivateModelRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ActivateModelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ActivateModelRequest) ProtoMessage() {}
-
-func (x *ActivateModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ActivateModelRequest.ProtoReflect.Descriptor instead.
-func (*ActivateModelRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_management_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *ActivateModelRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-type ActivateModelResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *ActivateModelResponse) Reset() {
-	*x = ActivateModelResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[6]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ActivateModelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ActivateModelResponse) ProtoMessage() {}
-
-func (x *ActivateModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[6]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ActivateModelResponse.ProtoReflect.Descriptor instead.
-func (*ActivateModelResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_management_proto_rawDescGZIP(), []int{6}
-}
-
-type DeactivateModelRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-}
-
-func (x *DeactivateModelRequest) Reset() {
-	*x = DeactivateModelRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[7]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeactivateModelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeactivateModelRequest) ProtoMessage() {}
-
-func (x *DeactivateModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[7]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeactivateModelRequest.ProtoReflect.Descriptor instead.
-func (*DeactivateModelRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_management_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *DeactivateModelRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-type DeactivateModelResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *DeactivateModelResponse) Reset() {
-	*x = DeactivateModelResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[8]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeactivateModelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeactivateModelResponse) ProtoMessage() {}
-
-func (x *DeactivateModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[8]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeactivateModelResponse.ProtoReflect.Descriptor instead.
-func (*DeactivateModelResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inference_server_management_proto_rawDescGZIP(), []int{8}
-}
-
 type EngineStatus_SyncStatus struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -524,7 +354,7 @@ type EngineStatus_SyncStatus struct {
 func (x *EngineStatus_SyncStatus) Reset() {
 	*x = EngineStatus_SyncStatus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[9]
+		mi := &file_api_v1_inference_server_management_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -537,7 +367,7 @@ func (x *EngineStatus_SyncStatus) String() string {
 func (*EngineStatus_SyncStatus) ProtoMessage() {}
 
 func (x *EngineStatus_SyncStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[9]
+	mi := &file_api_v1_inference_server_management_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +404,7 @@ type EngineStatus_Model struct {
 func (x *EngineStatus_Model) Reset() {
 	*x = EngineStatus_Model{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_inference_server_management_proto_msgTypes[10]
+		mi := &file_api_v1_inference_server_management_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -587,7 +417,7 @@ func (x *EngineStatus_Model) String() string {
 func (*EngineStatus_Model) ProtoMessage() {}
 
 func (x *EngineStatus_Model) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inference_server_management_proto_msgTypes[10]
+	mi := &file_api_v1_inference_server_management_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,48 +545,18 @@ var file_api_v1_inference_server_management_proto_rawDesc = []byte{
 	0x74, 0x65, 0x64, 0x18, 0x06, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0c, 0x67, 0x70, 0x75, 0x41, 0x6c,
 	0x6c, 0x6f, 0x63, 0x61, 0x74, 0x65, 0x64, 0x22, 0x1b, 0x0a, 0x19, 0x47, 0x65, 0x74, 0x49, 0x6e,
 	0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x22, 0x26, 0x0a, 0x14, 0x41, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65,
-	0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02,
-	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x17, 0x0a, 0x15,
-	0x41, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x28, 0x0a, 0x16, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76,
-	0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
-	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22,
-	0x19, 0x0a, 0x17, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64,
-	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x8b, 0x04, 0x0a, 0x10, 0x49,
-	0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12,
-	0x9c, 0x01, 0x0a, 0x12, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65,
-	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x38, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e,
-	0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65,
-	0x6e, 0x63, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x2e, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66,
+	0x75, 0x65, 0x73, 0x74, 0x32, 0xb1, 0x01, 0x0a, 0x10, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e,
+	0x63, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x9c, 0x01, 0x0a, 0x12, 0x47, 0x65,
+	0x74, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
+	0x12, 0x38, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66,
 	0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31,
-	0x2e, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
-	0x22, 0x1c, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x16, 0x12, 0x14, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e,
-	0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0xa6,
-	0x01, 0x0a, 0x0d, 0x41, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c,
-	0x12, 0x33, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66,
-	0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31,
-	0x2e, 0x41, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x34, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65,
-	0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76,
-	0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x41, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f,
-	0x64, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x2a, 0x82, 0xd3, 0xe4,
-	0x93, 0x02, 0x24, 0x22, 0x22, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e,
-	0x63, 0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x73, 0x2f, 0x7b, 0x69, 0x64, 0x7d, 0x3a, 0x61,
-	0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x12, 0xae, 0x01, 0x0a, 0x0f, 0x44, 0x65, 0x61, 0x63,
-	0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x12, 0x35, 0x2e, 0x6c, 0x6c,
-	0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63,
-	0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x61, 0x63,
-	0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x36, 0x2e, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69,
-	0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e,
-	0x76, 0x31, 0x2e, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x4d, 0x6f, 0x64,
-	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x2c, 0x82, 0xd3, 0xe4, 0x93,
-	0x02, 0x26, 0x22, 0x24, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63,
-	0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x73, 0x2f, 0x7b, 0x69, 0x64, 0x7d, 0x3a, 0x64, 0x65,
-	0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x65, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74, 0x68,
+	0x2e, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2e, 0x2e, 0x6c, 0x6c, 0x6d,
+	0x61, 0x72, 0x69, 0x6e, 0x65, 0x72, 0x2e, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65,
+	0x2e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x49, 0x6e, 0x66, 0x65, 0x72,
+	0x65, 0x6e, 0x63, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x22, 0x1c, 0x82, 0xd3, 0xe4, 0x93,
+	0x02, 0x16, 0x12, 0x14, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63,
+	0x65, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74, 0x68,
 	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x6c, 0x6d, 0x61, 0x72, 0x69, 0x6e, 0x65, 0x72,
 	0x2f, 0x69, 0x6e, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x2d, 0x6d, 0x61, 0x6e, 0x61, 0x67,
 	0x65, 0x72, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
@@ -775,39 +575,31 @@ func file_api_v1_inference_server_management_proto_rawDescGZIP() []byte {
 	return file_api_v1_inference_server_management_proto_rawDescData
 }
 
-var file_api_v1_inference_server_management_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_api_v1_inference_server_management_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_v1_inference_server_management_proto_goTypes = []interface{}{
 	(*EngineStatus)(nil),              // 0: llmariner.inference.server.v1.EngineStatus
 	(*InferenceStatus)(nil),           // 1: llmariner.inference.server.v1.InferenceStatus
 	(*TaskStatus)(nil),                // 2: llmariner.inference.server.v1.TaskStatus
 	(*ClusterStatus)(nil),             // 3: llmariner.inference.server.v1.ClusterStatus
 	(*GetInferenceStatusRequest)(nil), // 4: llmariner.inference.server.v1.GetInferenceStatusRequest
-	(*ActivateModelRequest)(nil),      // 5: llmariner.inference.server.v1.ActivateModelRequest
-	(*ActivateModelResponse)(nil),     // 6: llmariner.inference.server.v1.ActivateModelResponse
-	(*DeactivateModelRequest)(nil),    // 7: llmariner.inference.server.v1.DeactivateModelRequest
-	(*DeactivateModelResponse)(nil),   // 8: llmariner.inference.server.v1.DeactivateModelResponse
-	(*EngineStatus_SyncStatus)(nil),   // 9: llmariner.inference.server.v1.EngineStatus.SyncStatus
-	(*EngineStatus_Model)(nil),        // 10: llmariner.inference.server.v1.EngineStatus.Model
-	nil,                               // 11: llmariner.inference.server.v1.TaskStatus.InProgressTaskCountsEntry
+	(*EngineStatus_SyncStatus)(nil),   // 5: llmariner.inference.server.v1.EngineStatus.SyncStatus
+	(*EngineStatus_Model)(nil),        // 6: llmariner.inference.server.v1.EngineStatus.Model
+	nil,                               // 7: llmariner.inference.server.v1.TaskStatus.InProgressTaskCountsEntry
 }
 var file_api_v1_inference_server_management_proto_depIdxs = []int32{
-	9,  // 0: llmariner.inference.server.v1.EngineStatus.sync_status:type_name -> llmariner.inference.server.v1.EngineStatus.SyncStatus
-	10, // 1: llmariner.inference.server.v1.EngineStatus.models:type_name -> llmariner.inference.server.v1.EngineStatus.Model
-	3,  // 2: llmariner.inference.server.v1.InferenceStatus.cluster_statuses:type_name -> llmariner.inference.server.v1.ClusterStatus
-	2,  // 3: llmariner.inference.server.v1.InferenceStatus.task_status:type_name -> llmariner.inference.server.v1.TaskStatus
-	11, // 4: llmariner.inference.server.v1.TaskStatus.in_progress_task_counts:type_name -> llmariner.inference.server.v1.TaskStatus.InProgressTaskCountsEntry
-	0,  // 5: llmariner.inference.server.v1.ClusterStatus.engine_statuses:type_name -> llmariner.inference.server.v1.EngineStatus
-	4,  // 6: llmariner.inference.server.v1.InferenceService.GetInferenceStatus:input_type -> llmariner.inference.server.v1.GetInferenceStatusRequest
-	5,  // 7: llmariner.inference.server.v1.InferenceService.ActivateModel:input_type -> llmariner.inference.server.v1.ActivateModelRequest
-	7,  // 8: llmariner.inference.server.v1.InferenceService.DeactivateModel:input_type -> llmariner.inference.server.v1.DeactivateModelRequest
-	1,  // 9: llmariner.inference.server.v1.InferenceService.GetInferenceStatus:output_type -> llmariner.inference.server.v1.InferenceStatus
-	6,  // 10: llmariner.inference.server.v1.InferenceService.ActivateModel:output_type -> llmariner.inference.server.v1.ActivateModelResponse
-	8,  // 11: llmariner.inference.server.v1.InferenceService.DeactivateModel:output_type -> llmariner.inference.server.v1.DeactivateModelResponse
-	9,  // [9:12] is the sub-list for method output_type
-	6,  // [6:9] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	5, // 0: llmariner.inference.server.v1.EngineStatus.sync_status:type_name -> llmariner.inference.server.v1.EngineStatus.SyncStatus
+	6, // 1: llmariner.inference.server.v1.EngineStatus.models:type_name -> llmariner.inference.server.v1.EngineStatus.Model
+	3, // 2: llmariner.inference.server.v1.InferenceStatus.cluster_statuses:type_name -> llmariner.inference.server.v1.ClusterStatus
+	2, // 3: llmariner.inference.server.v1.InferenceStatus.task_status:type_name -> llmariner.inference.server.v1.TaskStatus
+	7, // 4: llmariner.inference.server.v1.TaskStatus.in_progress_task_counts:type_name -> llmariner.inference.server.v1.TaskStatus.InProgressTaskCountsEntry
+	0, // 5: llmariner.inference.server.v1.ClusterStatus.engine_statuses:type_name -> llmariner.inference.server.v1.EngineStatus
+	4, // 6: llmariner.inference.server.v1.InferenceService.GetInferenceStatus:input_type -> llmariner.inference.server.v1.GetInferenceStatusRequest
+	1, // 7: llmariner.inference.server.v1.InferenceService.GetInferenceStatus:output_type -> llmariner.inference.server.v1.InferenceStatus
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inference_server_management_proto_init() }
@@ -877,54 +669,6 @@ func file_api_v1_inference_server_management_proto_init() {
 			}
 		}
 		file_api_v1_inference_server_management_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ActivateModelRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_v1_inference_server_management_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ActivateModelResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_v1_inference_server_management_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeactivateModelRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_v1_inference_server_management_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeactivateModelResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_v1_inference_server_management_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*EngineStatus_SyncStatus); i {
 			case 0:
 				return &v.state
@@ -936,7 +680,7 @@ func file_api_v1_inference_server_management_proto_init() {
 				return nil
 			}
 		}
-		file_api_v1_inference_server_management_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_api_v1_inference_server_management_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*EngineStatus_Model); i {
 			case 0:
 				return &v.state
@@ -955,7 +699,7 @@ func file_api_v1_inference_server_management_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_v1_inference_server_management_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

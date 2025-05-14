@@ -21,6 +21,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	// clientClosedRequestStatusCode is the status code for client closed request.
+	// This follows https://developers.google.com/actions-center/verticals/local-services/e2e/reference/booking-server-api-rest/e2e-methods/status-codes.
+	clientClosedRequestStatusCode = 499
+)
+
 // ModelClient is an interface for a model client.
 type ModelClient interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)

@@ -98,10 +98,6 @@ func (t *task) model() string {
 		return req.GetChatCompletion().Model
 	case *v1.TaskRequest_Embedding:
 		return req.GetEmbedding().Model
-	case *v1.TaskRequest_ModelActivation:
-		return req.GetModelActivation().Id
-	case *v1.TaskRequest_ModelDeactivation:
-		return req.GetModelDeactivation().Id
 	default:
 		return ""
 	}

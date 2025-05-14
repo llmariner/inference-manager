@@ -337,10 +337,6 @@ func (p *P) processTask(
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding:
 		return p.sendRequestToRuntime(ctx, stream, t)
-	case *v1.TaskRequest_ModelActivation:
-		return p.activateModel(ctx, stream, t)
-	case *v1.TaskRequest_ModelDeactivation:
-		return p.deactivateModel(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
 		return p.goAway(ctx, stream, t, goAwayCh)
 	case *v1.TaskRequest_Heartbeat:
@@ -572,61 +568,6 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		}
 	}
 	return req, nil
-}
-
-func (p *P) activateModel(
-	ctx context.Context,
-	stream sender,
-	t *v1.Task,
-) error {
-	log := ctrl.LoggerFrom(ctx)
-	req := t.Request.GetModelActivation()
-	log.Info("Activating model", "modelID", req.Id)
-
-	// First return the response to the server so that the server can respond back to the client without
-	// waiting for the model activation to complete.
-	resp := &v1.HttpResponse{
-		StatusCode: int32(http.StatusAccepted),
-	}
-	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
-		return err
-	}
-
-	if err := p.modelSyncer.PullModel(ctx, req.Id); err != nil {
-		return fmt.Errorf("pull model: %s", err)
-	}
-	if err := p.sendEngineStatus(stream, true); err != nil {
-		return fmt.Errorf("send engine status: %s", err)
-	}
-	return nil
-}
-
-func (p *P) deactivateModel(
-	ctx context.Context,
-	stream sender,
-	t *v1.Task,
-) error {
-	log := ctrl.LoggerFrom(ctx)
-	req := t.Request.GetModelDeactivation()
-	log.Info("Deactivating model", "modelID", req.Id)
-
-	// First return the response to the server so that the server can respond back to the client without
-	// waiting for the model deactivation to complete.
-	resp := &v1.HttpResponse{
-		StatusCode: int32(http.StatusAccepted),
-	}
-	if err := p.sendHTTPResponse(stream, t, resp); err != nil {
-		return err
-	}
-
-	if err := p.modelSyncer.DeleteModel(ctx, req.Id); err != nil {
-		return fmt.Errorf("delete model: %s", err)
-	}
-
-	if err := p.sendEngineStatus(stream, true); err != nil {
-		return fmt.Errorf("send engine status: %s", err)
-	}
-	return nil
 }
 
 func (p *P) goAway(

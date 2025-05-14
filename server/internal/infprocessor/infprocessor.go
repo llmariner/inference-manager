@@ -287,52 +287,6 @@ func (p *P) SendEmbeddingTask(
 	return p.sendTask(ctx, t, p.logger.WithName("embedded"))
 }
 
-// SendModelActivationTask sends a model activation task.
-func (p *P) SendModelActivationTask(
-	ctx context.Context,
-	tenantID string,
-	req *v1.ActivateModelRequest,
-) (*http.Response, error) {
-	t, err := newTask(
-		tenantID,
-		&v1.TaskRequest{
-			Request: &v1.TaskRequest_ModelActivation{
-				ModelActivation: req,
-			},
-		},
-		http.Header{},
-		"",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return p.sendTask(ctx, t, p.logger.WithName("modelActivation"))
-}
-
-// SendModelDeactivationTask sends a model deactivation task.
-func (p *P) SendModelDeactivationTask(
-	ctx context.Context,
-	tenantID string,
-	req *v1.DeactivateModelRequest,
-) (*http.Response, error) {
-	t, err := newTask(
-		tenantID,
-		&v1.TaskRequest{
-			Request: &v1.TaskRequest_ModelDeactivation{
-				ModelDeactivation: req,
-			},
-		},
-		http.Header{},
-		"",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return p.sendTask(ctx, t, p.logger.WithName("modelDeactivation"))
-}
-
 // SendGoAwayTaskToLocalEngines sends a go away task to local engines.
 func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 	req := &v1.TaskRequest{

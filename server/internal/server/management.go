@@ -10,7 +10,6 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/config"
 	"github.com/llmariner/inference-manager/server/internal/infprocessor"
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -181,67 +180,6 @@ func (s *IMS) getInferenceStatus(
 			InProgressTaskCounts: tasks,
 		},
 	}, nil
-}
-
-// ActivateModel activates a model.
-func (s *IMS) ActivateModel(ctx context.Context, req *v1.ActivateModelRequest) (*v1.ActivateModelResponse, error) {
-	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "user info not found")
-	}
-
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is empty")
-	}
-
-	if code, err := s.checkModelAvailability(ctx, req.Id); err != nil {
-		return nil, status.Errorf(code, "%s", err)
-	}
-
-	resp, err := s.infProcessor.SendModelActivationTask(ctx, userInfo.TenantID, req)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model activation task: %s", err))
-	}
-	_ = resp.Body.Close()
-
-	return &v1.ActivateModelResponse{}, nil
-}
-
-// DeactivateModel deactivates a model.
-func (s *IMS) DeactivateModel(ctx context.Context, req *v1.DeactivateModelRequest) (*v1.DeactivateModelResponse, error) {
-	userInfo, ok := auth.ExtractUserInfoFromContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "user info not found")
-	}
-
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is empty")
-	}
-
-	if code, err := s.checkModelAvailability(ctx, req.Id); err != nil {
-		return nil, status.Errorf(code, "%s", err)
-	}
-
-	resp, err := s.infProcessor.SendModelDeactivationTask(ctx, userInfo.TenantID, req)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send model deactivation task: %s", err))
-	}
-	_ = resp.Body.Close()
-
-	return &v1.DeactivateModelResponse{}, nil
-}
-
-func (s *IMS) checkModelAvailability(ctx context.Context, modelID string) (codes.Code, error) {
-	ctx = auth.CarryMetadata(ctx)
-	if _, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	}); err != nil {
-		if status.Code(err) == codes.NotFound {
-			return codes.InvalidArgument, fmt.Errorf("model not found: %s", modelID)
-		}
-		return codes.Internal, fmt.Errorf("failed to get model: %s", err)
-	}
-	return codes.OK, nil
 }
 
 // fakeAuthInto sets dummy user info and token into the context.

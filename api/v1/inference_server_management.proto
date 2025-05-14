@@ -51,36 +51,10 @@ message ClusterStatus {
 
 message GetInferenceStatusRequest {}
 
-message ActivateModelRequest {
-  string id = 1;
-}
-
-message ActivateModelResponse {
-}
-
-message DeactivateModelRequest {
-  string id = 1;
-}
-
-message DeactivateModelResponse {
-}
-
 service InferenceService {
   rpc GetInferenceStatus(GetInferenceStatusRequest) returns (InferenceStatus) {
     option (google.api.http) = {
       get: "/v1/inference/status"
-    };
-  }
-
-  rpc ActivateModel(ActivateModelRequest) returns (ActivateModelResponse) {
-    option (google.api.http) = {
-      post: "/v1/inference/models/{id}:activate"
-    };
-  }
-
-  rpc DeactivateModel(DeactivateModelRequest) returns (DeactivateModelResponse) {
-    option (google.api.http) = {
-      post: "/v1/inference/models/{id}:deactivate"
     };
   }
 

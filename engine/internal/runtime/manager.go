@@ -233,6 +233,10 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 				if err := m.processLoRAAdapterStatusUpdateEvent(ctx, e); err != nil {
 					return err
 				}
+			case *loadLoRAAdapterEvent:
+				if err := m.processLoadLoRAAdapterEvent(ctx, e); err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("unknown event type: %T", e)
 			}
@@ -337,9 +341,10 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	go func() {
 		m.eventCh <- &loraAdapterPullStatusCheckEvent{
-			modelID: e.modelID,
-			podIP:   podIP,
-			gpu:     br.gpu,
+			modelID:     e.modelID,
+			podIP:       podIP,
+			gpu:         br.gpu,
+			eventWaitCh: make(chan struct{}),
 		}
 	}()
 
@@ -530,6 +535,9 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 			address:  addr,
 			gpu:      getGPU(&sts),
 			replicas: sts.Status.ReadyReplicas,
+			// Create a new one instead of reusing the one in the event so that
+			// we don't block reconciler until the readiness check is done.
+			eventWaitCh: make(chan struct{}),
 		}
 	}()
 
@@ -555,6 +563,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 		if e.retryCount >= m.readinessCheckMaxRetryCount {
 			log.Info("runtime is not reachable", "modelID", e.modelID, "retryCount", e.retryCount)
 			rt.closeWaitChs(errMsgUnreachableRuntime)
+			close(e.eventWaitCh)
 			// TODO(kenji): Delete the runtime here?
 			return nil
 		}
@@ -568,6 +577,8 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 				gpu:        e.gpu,
 				replicas:   e.replicas,
 				retryCount: e.retryCount + 1,
+
+				eventWaitCh: e.eventWaitCh,
 			}
 		}()
 	}
@@ -587,6 +598,8 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	}(rt.dequeuePendingPullModelRequests())
 
 	rt.closeWaitChs("")
+
+	close(e.eventWaitCh)
 
 	return nil
 }
@@ -631,10 +644,11 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 
 	go func() {
 		m.eventCh <- &readinessCheckEvent{
-			modelID:  e.modelID,
-			address:  vllmAddr,
-			gpu:      e.gpu,
-			replicas: 1,
+			modelID:     e.modelID,
+			address:     vllmAddr,
+			gpu:         e.gpu,
+			replicas:    1,
+			eventWaitCh: e.eventWaitCh,
 		}
 	}()
 
@@ -697,6 +711,28 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		r.closeWaitChs(errMsgDeletedRuntime)
 		delete(m.runtimes, modelID)
 	}
+
+	return nil
+}
+
+func (m *Manager) processLoadLoRAAdapterEvent(ctx context.Context, e *loadLoRAAdapterEvent) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
+
+	log.Info("Pulling LoRA adapter", "modelID", e.modelID, "pullerAddr", pullerAddr)
+	if err := m.loraAdapterLoader.pullModel(ctx, pullerAddr, e.modelID); err != nil {
+		return fmt.Errorf("pull model: %s", err)
+	}
+
+	go func() {
+		m.eventCh <- &loraAdapterPullStatusCheckEvent{
+			modelID:     e.modelID,
+			podIP:       e.podIP,
+			gpu:         0, /* TODO(kenji): Fix */
+			eventWaitCh: e.eventWaitCh,
+		}
+	}()
 
 	return nil
 }
@@ -771,6 +807,26 @@ func (m *Manager) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdap
 	go func() {
 		m.eventCh <- &loraAdapterStatusUpdateEvent{
 			update:      update,
+			eventWaitCh: waitCh,
+		}
+	}()
+
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return nil
+}
+
+// LoadLoRAAdapter loads the LoRA adapter.
+func (m *Manager) loadLoRAAdapter(ctx context.Context, modelID, podIP string) error {
+	waitCh := make(chan struct{})
+	go func() {
+		m.eventCh <- &loadLoRAAdapterEvent{
+			modelID:     modelID,
+			podIP:       podIP,
 			eventWaitCh: waitCh,
 		}
 	}()

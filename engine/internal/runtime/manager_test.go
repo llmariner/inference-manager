@@ -320,7 +320,8 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				mgr.mu.Lock()
 				defer mgr.mu.Unlock()
 				mgr.eventCh <- &readinessCheckEvent{
-					modelID: baseModelID,
+					modelID:     baseModelID,
+					eventWaitCh: make(chan struct{}),
 				}
 			}()
 

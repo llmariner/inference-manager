@@ -205,6 +205,102 @@ func TestConvertChatTemplateKewargs(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestConvertTemperature_Unset(t *testing.T) {
+	body := `{"top_p":1}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTemperature})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[temperatureKey]
+	assert.False(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.False(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTemperature})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[temperatureKey]
+	assert.False(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.False(t, ok)
+}
+
+func TestConvertTemperature_NonZero(t *testing.T) {
+	body := `{"temperature":0.5}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTemperature})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[temperatureKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.True(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTemperature})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[temperatureKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.False(t, ok)
+}
+
+func TestConvertTemperature_Zero(t *testing.T) {
+	body := `{"temperature":0}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTemperature})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[temperatureKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.True(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTemperature})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[temperatureKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTemperatureSetKey]
+	assert.False(t, ok)
+}
+
 func TestConvertContentStringToArray(t *testing.T) {
 	tcs := []struct {
 		name string

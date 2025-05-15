@@ -13,6 +13,9 @@ const (
 	chatTemplateKwargsKey = "chat_template_kwargs"
 	// encodedChatTemplateKwargsKey is the key for the encoded chat template kwargs.
 	encodedChatTemplateKwargsKey = "encoded_chat_template_kwargs"
+
+	temperatureKey      = "temperature"
+	isTemperatureSetKey = "is_temperature_set"
 )
 
 // ConvertCreateChatCompletionRequestToProto converts the request to the protobuf format.
@@ -21,6 +24,7 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 		convertToolChoice,
 		convertFunctionParameters,
 		convertChatTemplateKwargs,
+		convertTemperature,
 		convertContentStringToArray,
 	}
 	return applyConvertFuncs(body, fs)
@@ -33,6 +37,7 @@ func ConvertCreateChatCompletionRequestToOpenAI(body []byte) ([]byte, error) {
 		//
 		// We don't have a function that corresponds to convertContentStringToArray as the convertion
 		// doesn't break the OpenAI API spec.
+		convertEncodedTemperature,
 		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
 		convertToolChoiceObject,
@@ -176,6 +181,43 @@ func convertEncodedChatTemplateKwargs(r map[string]interface{}) error {
 
 	r[chatTemplateKwargsKey] = kw
 	delete(r, encodedChatTemplateKwargsKey)
+	return nil
+}
+
+func convertTemperature(r map[string]interface{}) error {
+	if _, ok := r[temperatureKey]; !ok {
+		return nil
+	}
+
+	r[isTemperatureSetKey] = true
+	return nil
+}
+
+func convertEncodedTemperature(r map[string]interface{}) error {
+	v, ok := r[isTemperatureSetKey]
+	if !ok {
+		return nil
+	}
+
+	set, ok := v.(bool)
+	if !ok {
+		return fmt.Errorf("is_temperature_set should be a boolean")
+	}
+
+	delete(r, isTemperatureSetKey)
+
+	if !set {
+		return nil
+	}
+
+	// If "is_temperature_set" is true, but there is no "temperature" field set in proto,
+	// explicitly set it to 0.0. Otherwise vLLM will set it to 1.0 as that's the default value in the OpenAI API spec.
+	if _, ok := r[temperatureKey]; ok {
+		// Do nothing as the temperature is already set.
+		return nil
+	}
+	r[temperatureKey] = 0.0
+
 	return nil
 }
 

@@ -40,7 +40,6 @@ import (
 
 const (
 	loraReconciliationInterval = 30 * time.Second
-	loraRebalancingInterval    = 30 * time.Second
 )
 
 func runCmd() *cobra.Command {

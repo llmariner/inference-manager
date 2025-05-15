@@ -130,6 +130,11 @@ func (r *taskReceiver) sendServerStatusPeriodically(
 	ctx = ctrl.LoggerInto(ctx, log)
 	defer log.Info("Stopped status reporter")
 
+	// Clear the cache. This is needed as the taskReceiver can retry runInternal().
+	r.mu.Lock()
+	r.engineStatuses = make(map[string]map[string]*v1.EngineStatus)
+	r.mu.Unlock()
+
 	isFirst := true
 	for {
 		if err := r.sendServerStatus(stream, true); err != nil {

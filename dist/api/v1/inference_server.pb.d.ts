@@ -79,6 +79,7 @@ export type CreateChatCompletionRequest = {
     user?: string;
     max_completion_tokens?: number;
     encoded_chat_template_kwargs?: string;
+    is_temperature_set?: boolean;
 };
 export type ToolCallFunction = {
     name?: string;
@@ -182,7 +183,6 @@ export type CreateCompletionRequest = {
     stream_option?: CreateCompletionRequestStreamOption;
     suffix?: string;
     temperature?: number;
-    is_temperature_set?: boolean;
     top_p?: number;
     user?: string;
 };

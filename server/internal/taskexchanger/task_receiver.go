@@ -160,62 +160,13 @@ type senderSrv interface {
 }
 
 func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	statuses, needSend, err := r.buildStatuses(ready)
+	if err != nil {
+		return err
+	}
 
-	var needSend bool
-
-	// Report the status of the local engines. We don't report the status of remote
-	// engines since that will cause a loop.
-	enginesByTenantID := r.infProcessor.LocalEngines()
-
-	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
-
-	// Keep the engine statuses empty if the server is shutting down.
-	// This will prevent new tasks from being scheduled to this server.
-	if !r.isShutdown {
-		for tenantID, es := range enginesByTenantID {
-			cachedEngineStatuses, ok := r.engineStatuses[tenantID]
-			if !ok {
-				needSend = true
-			}
-
-			updatedEngineStatuses := make(map[string]*v1.EngineStatus)
-			for _, e := range es {
-				if !needSend {
-					cachedStatus, ok := cachedEngineStatuses[e.EngineId]
-					if !ok {
-						needSend = true
-					} else {
-						// Check if the engine status is changed.
-						needSend = !sameEngineStatus(cachedStatus, e)
-					}
-				}
-				// Overwrite the ready status based on the status of the server.
-				e.Ready = ready
-				statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
-					EngineStatus: e,
-					TenantId:     tenantID,
-				})
-				updatedEngineStatuses[e.EngineId] = e
-			}
-
-			if !needSend {
-				// Check if there is any deleted engines. If so, set needSend to true.
-				for _, cachedStatus := range cachedEngineStatuses {
-					if _, ok := updatedEngineStatuses[cachedStatus.EngineId]; !ok {
-						needSend = true
-						break
-					}
-				}
-			}
-
-			r.engineStatuses[tenantID] = updatedEngineStatuses
-		}
-
-		if !needSend {
-			return nil
-		}
+	if !needSend {
+		return nil
 	}
 
 	req := &v1.ProcessTasksInternalRequest{
@@ -230,6 +181,91 @@ func (r *taskReceiver) sendServerStatus(stream senderSrv, ready bool) error {
 		return err
 	}
 	return nil
+}
+
+// buildStatuses builds the engine statuses to be sent to the server.
+// Return true if the engine statuses need to be reported.
+//
+// Report the status of the local engines. We don't report the status of remote
+// engines since that will cause a loop.
+func (r *taskReceiver) buildStatuses(ready bool) ([]*v1.ServerStatus_EngineStatusWithTenantID, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.isShutdown {
+		// Keep the engine statuses empty if the server is shutting down.
+		// This will prevent new tasks from being scheduled to this server.
+		return nil, true, nil
+	}
+
+	enginesByTenantID := r.infProcessor.LocalEngines()
+
+	// Overwrite the ready status based on the status of the server.
+	for _, es := range enginesByTenantID {
+		for _, e := range es {
+			e.Ready = ready
+		}
+	}
+
+	var needSend bool
+	for tenantID, es := range enginesByTenantID {
+		if needStatusUpdate(es, r.engineStatuses[tenantID]) {
+			needSend = true
+			break
+		}
+	}
+
+	if !needSend {
+		return nil, false, nil
+	}
+
+	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
+	for tenantID, es := range enginesByTenantID {
+		updated := map[string]*v1.EngineStatus{}
+		for _, e := range es {
+			statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
+				EngineStatus: e,
+				TenantId:     tenantID,
+			})
+
+			updated[e.EngineId] = e
+		}
+
+		r.engineStatuses[tenantID] = updated
+	}
+
+	return statuses, true, nil
+}
+
+func needStatusUpdate(
+	engineStatuses []*v1.EngineStatus,
+	cachedEngineStatuses map[string]*v1.EngineStatus,
+) bool {
+	foundIDs := make(map[string]bool)
+	for _, e := range engineStatuses {
+		foundIDs[e.EngineId] = true
+
+		cachedStatus, ok := cachedEngineStatuses[e.EngineId]
+		if !ok {
+			// No cached status.
+			return true
+		}
+
+		// Check if the engine status is changed.
+		if !sameEngineStatus(cachedStatus, e) {
+			return true
+		}
+	}
+
+	// Check if there is any deleted engines. If so, return true.
+	for _, cachedStatus := range cachedEngineStatuses {
+		if !foundIDs[cachedStatus.EngineId] {
+			// The engine is deleted.
+			return true
+		}
+	}
+
+	return false
 }
 
 func sameEngineStatus(a, b *v1.EngineStatus) bool {

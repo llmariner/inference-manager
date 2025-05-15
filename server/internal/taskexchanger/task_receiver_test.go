@@ -7,6 +7,98 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNeedStatusUpdate(t *testing.T) {
+	tcs := []struct {
+		name                 string
+		engineStatuses       []*v1.EngineStatus
+		cachedEngineStatuses map[string]*v1.EngineStatus
+		want                 bool
+	}{
+		{
+			name:                 "empty",
+			engineStatuses:       []*v1.EngineStatus{},
+			cachedEngineStatuses: map[string]*v1.EngineStatus{},
+			want:                 false,
+		},
+		{
+			name: "new engine",
+			engineStatuses: []*v1.EngineStatus{
+				{
+					EngineId: "e0",
+				},
+			},
+			cachedEngineStatuses: map[string]*v1.EngineStatus{},
+			want:                 true,
+		},
+		{
+			name:           "deleted",
+			engineStatuses: []*v1.EngineStatus{},
+			cachedEngineStatuses: map[string]*v1.EngineStatus{
+				"e0": {
+					EngineId: "e0",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "update",
+			engineStatuses: []*v1.EngineStatus{
+				{
+					EngineId: "e0",
+					Models: []*v1.EngineStatus_Model{
+						{
+							Id: "m0",
+						},
+					},
+				},
+			},
+			cachedEngineStatuses: map[string]*v1.EngineStatus{
+				"e0": {
+					EngineId: "e0",
+					Models: []*v1.EngineStatus_Model{
+						{
+							Id: "m1",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "no update",
+			engineStatuses: []*v1.EngineStatus{
+				{
+					EngineId: "e0",
+					Models: []*v1.EngineStatus_Model{
+						{
+							Id: "m0",
+						},
+					},
+				},
+			},
+			cachedEngineStatuses: map[string]*v1.EngineStatus{
+				"e0": {
+					EngineId: "e0",
+					Models: []*v1.EngineStatus_Model{
+						{
+							Id: "m0",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got := needStatusUpdate(tc.engineStatuses, tc.cachedEngineStatuses)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+}
+
 func TestSameEngineStatus(t *testing.T) {
 	tcs := []struct {
 		name string

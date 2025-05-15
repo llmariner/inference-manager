@@ -16,6 +16,9 @@ const (
 
 	temperatureKey      = "temperature"
 	isTemperatureSetKey = "is_temperature_set"
+
+	topPKey      = "top_p"
+	isTopPSetKey = "is_top_p_set"
 )
 
 // ConvertCreateChatCompletionRequestToProto converts the request to the protobuf format.
@@ -25,6 +28,7 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 		convertFunctionParameters,
 		convertChatTemplateKwargs,
 		convertTemperature,
+		convertTopP,
 		convertContentStringToArray,
 	}
 	return applyConvertFuncs(body, fs)
@@ -37,6 +41,7 @@ func ConvertCreateChatCompletionRequestToOpenAI(body []byte) ([]byte, error) {
 		//
 		// We don't have a function that corresponds to convertContentStringToArray as the convertion
 		// doesn't break the OpenAI API spec.
+		convertEncodedTopP,
 		convertEncodedTemperature,
 		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
@@ -185,38 +190,54 @@ func convertEncodedChatTemplateKwargs(r map[string]interface{}) error {
 }
 
 func convertTemperature(r map[string]interface{}) error {
-	if _, ok := r[temperatureKey]; !ok {
-		return nil
-	}
-
-	r[isTemperatureSetKey] = true
-	return nil
+	return convertNonProtoDefaultValue(r, temperatureKey, isTemperatureSetKey)
 }
 
 func convertEncodedTemperature(r map[string]interface{}) error {
-	v, ok := r[isTemperatureSetKey]
+	return convertEncodedNonProtoDefaultValue(r, temperatureKey, isTemperatureSetKey)
+}
+
+func convertTopP(r map[string]interface{}) error {
+	return convertNonProtoDefaultValue(r, topPKey, isTopPSetKey)
+}
+
+func convertEncodedTopP(r map[string]interface{}) error {
+	return convertEncodedNonProtoDefaultValue(r, topPKey, isTopPSetKey)
+}
+
+func convertNonProtoDefaultValue(r map[string]interface{}, key, setKey string) error {
+	if _, ok := r[key]; !ok {
+		return nil
+	}
+
+	r[setKey] = true
+	return nil
+}
+
+func convertEncodedNonProtoDefaultValue(r map[string]interface{}, key, setKey string) error {
+	v, ok := r[setKey]
 	if !ok {
 		return nil
 	}
 
 	set, ok := v.(bool)
 	if !ok {
-		return fmt.Errorf("is_temperature_set should be a boolean")
+		return fmt.Errorf("%s should be a boolean", setKey)
 	}
 
-	delete(r, isTemperatureSetKey)
+	delete(r, setKey)
 
 	if !set {
 		return nil
 	}
 
-	// If "is_temperature_set" is true, but there is no "temperature" field set in proto,
+	// If the setKey (e.g., "is_temperature_set") is true, but there is no key (e.g., "temperature") field set in proto,
 	// explicitly set it to 0.0. Otherwise vLLM will set it to 1.0 as that's the default value in the OpenAI API spec.
-	if _, ok := r[temperatureKey]; ok {
-		// Do nothing as the temperature is already set.
+	if _, ok := r[key]; ok {
+		// Do nothing as the key (e.g., "temperature") is already set.
 		return nil
 	}
-	r[temperatureKey] = 0.0
+	r[key] = 0.0
 
 	return nil
 }

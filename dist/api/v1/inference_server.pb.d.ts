@@ -80,6 +80,7 @@ export type CreateChatCompletionRequest = {
     max_completion_tokens?: number;
     encoded_chat_template_kwargs?: string;
     is_temperature_set?: boolean;
+    is_top_p_set?: boolean;
 };
 export type ToolCallFunction = {
     name?: string;

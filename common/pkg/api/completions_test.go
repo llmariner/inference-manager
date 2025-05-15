@@ -301,6 +301,102 @@ func TestConvertTemperature_Zero(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestConvertTopP_Unset(t *testing.T) {
+	body := `{"temperature":1}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTopP})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[topPKey]
+	assert.False(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.False(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTopP})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[topPKey]
+	assert.False(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.False(t, ok)
+}
+
+func TestConvertTopP_NonZero(t *testing.T) {
+	body := `{"top_p":0.5}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTopP})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[topPKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.True(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTopP})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[topPKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.False(t, ok)
+}
+
+func TestConvertTopP_Zero(t *testing.T) {
+	body := `{"top_p":0}`
+
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertTopP})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok := r[topPKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.True(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedTopP})
+	assert.NoError(t, err)
+
+	assert.Equal(t, body, string(got))
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	_, ok = r[topPKey]
+	assert.True(t, ok)
+
+	_, ok = r[isTopPSetKey]
+	assert.False(t, ok)
+}
+
 func TestConvertContentStringToArray(t *testing.T) {
 	tcs := []struct {
 		name string

@@ -38,6 +38,9 @@ const (
 	retryInterval = 10 * time.Second
 
 	goAwayDelay = 3 * time.Second
+
+	// Increase the max receive message size to 100MB to support large tasks (e.g., chat completion with image data).
+	maxRecvMsgSize = 100 * 10e6
 )
 
 var errGoAway = errors.New("go away")
@@ -186,7 +189,7 @@ func (p *P) run(ctx context.Context) error {
 	}
 	defer cleanup()
 
-	stream, err := client.ProcessTasks(streamCtx)
+	stream, err := client.ProcessTasks(streamCtx, grpc.MaxCallRecvMsgSize(maxRecvMsgSize))
 	if err != nil {
 		return err
 	}

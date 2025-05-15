@@ -20,6 +20,9 @@ import (
 const (
 	statusReportInterval = 10 * time.Second
 	retryInterval        = 10 * time.Second
+
+	// Increase the max receive message size to 100MB to support large tasks (e.g., chat completion with image data).
+	maxRecvMsgSize = 100 * 10e6
 )
 
 func newTaskReceiver(
@@ -88,7 +91,7 @@ func (r *taskReceiver) runInternal(ctx context.Context) error {
 	}()
 
 	client := v1.NewInferenceInternalServiceClient(conn)
-	stream, err := client.ProcessTasksInternal(streamCtx)
+	stream, err := client.ProcessTasksInternal(streamCtx, grpc.MaxCallRecvMsgSize(maxRecvMsgSize))
 	if err != nil {
 		return err
 	}

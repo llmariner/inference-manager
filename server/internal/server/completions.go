@@ -124,7 +124,8 @@ func (s *S) CreateChatCompletion(
 		}
 	}
 
-	// Include the usage by default. This is a temporary solution as continue.ev does not provide a way to the stream options.
+	// Include the usage by default. This is a temporary solution as continue.dev does not provide a way to configure
+	// the stream options (and we cannot collect usages).
 	if createReq.Stream && createReq.StreamOptions == nil {
 		createReq.StreamOptions = &v1.CreateChatCompletionRequest_StreamOptions{
 			IncludeUsage: true,

@@ -73,12 +73,14 @@ func (is *IS) Stop() {
 
 // ProcessTasksInternal processes tasks.
 func (is *IS) ProcessTasksInternal(srv v1.InferenceInternalService_ProcessTasksInternalServer) error {
+	is.logger.Info("Processing tasks from engine...")
 	var registered bool
 	for {
 		// Check if the context is done with a non-blocking select.
 		ctx := srv.Context()
 		select {
 		case <-ctx.Done():
+			is.logger.Info("Context done, stopping processing tasks from engine", "error", ctx.Err())
 			return ctx.Err()
 		default:
 		}

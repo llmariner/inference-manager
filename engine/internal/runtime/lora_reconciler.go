@@ -46,6 +46,17 @@ type loraAdapterStatusGetter interface {
 func NewLoRAReconciler(
 	k8sClient k8sclient.Client,
 	updateProcessor updateProcessor,
+) *LoRAReconciler {
+	return newLoRAReconciler(
+		k8sClient,
+		updateProcessor,
+		&loraAdapterStatusGetterImpl{},
+	)
+}
+
+func newLoRAReconciler(
+	k8sClient k8sclient.Client,
+	updateProcessor updateProcessor,
 	loraAdapterStatusGetter loraAdapterStatusGetter,
 ) *LoRAReconciler {
 	return &LoRAReconciler{
@@ -136,6 +147,9 @@ func (r *LoRAReconciler) addPod(pod *corev1.Pod) {
 	r.podsByName[pod.Name] = &podStatus{
 		pod: pod,
 	}
+
+	// TODO(kenji): Trigger processLoRAAdapterUpdate here so that
+	// we don't need to wait for the next invocation of Run.
 }
 
 func (r *LoRAReconciler) deletePod(ctx context.Context, name string) error {

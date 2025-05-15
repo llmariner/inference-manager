@@ -107,11 +107,10 @@ func (*loraAdapterLoaderImpl) unload(
 	return nil
 }
 
-// LoRAAdapterStatusGetter is a getter for LoRA adapter status.
-type LoRAAdapterStatusGetter struct {
+type loraAdapterStatusGetterImpl struct {
 }
 
-func (*LoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdapterStatus, error) {
+func (*loraAdapterStatusGetterImpl) get(ctx context.Context, addr string) (*loRAAdapterStatus, error) {
 	vclient := vllm.NewHTTPClient(addr)
 	resp, err := vclient.ListModels(ctx)
 	if err != nil {

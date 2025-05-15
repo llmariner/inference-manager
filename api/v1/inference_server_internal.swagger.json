@@ -320,6 +320,10 @@
         "encodedChatTemplateKwargs": {
           "type": "string",
           "description": "encoded_chat_template_kwargs is encoded value of \"chat_template_kwargs\". This is a special parameter\nthat only vLLM uses.\n\nThe field is converted to the \"chat_template_kwargs\" field when the request is being\nsent to vLLM.\n\nhttps://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#id7"
+        },
+        "isTemperatureSet": {
+          "type": "boolean",
+          "description": "is_temperature_set is used to indicate whether the temperature is set or not.\nThis is required as the OpenAI API spec uses 1.0 as the default value for temperature while\nsetting the temperature to 0.0 in the proto is equivalent to unset."
         }
       }
     },

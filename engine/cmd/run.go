@@ -38,7 +38,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-const loraReconciliationInterval = 30 * time.Second
+const (
+	loraReconciliationInterval = 30 * time.Second
+)
 
 func runCmd() *cobra.Command {
 	var path string
@@ -234,17 +236,16 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}()
 
 		if c.VLLM.DynamicLoRALoading {
-			r := runtime.NewLoRAReconciler(
+			reconciler := runtime.NewLoRAReconciler(
 				mgr.GetClient(),
 				rtManager,
-				&runtime.LoRAAdapterStatusGetter{},
 			)
-			if err := r.SetupWithManager(mgr); err != nil {
+			if err := reconciler.SetupWithManager(mgr); err != nil {
 				return err
 			}
 
 			go func() {
-				if err := r.Run(ctx, loraReconciliationInterval); err != nil {
+				if err := reconciler.Run(ctx, loraReconciliationInterval); err != nil {
 					errCh <- fmt.Errorf("run lora reconciliation: %s", err)
 					return
 				}

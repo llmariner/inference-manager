@@ -111,7 +111,7 @@ func TestLoRAReconciler_Reconcile(t *testing.T) {
 
 			k8sClient := fake.NewFakeClient(objs...)
 			processor := &fakeUpdateProcessor{}
-			r := NewLoRAReconciler(k8sClient, processor, &fakeLoRAAdapterStatusGetter{})
+			r := newLoRAReconciler(k8sClient, processor, &fakeLoRAAdapterStatusGetter{})
 			r.podsByName = tc.podsByName
 
 			_, err := r.Reconcile(context.Background(), tc.req)
@@ -148,7 +148,7 @@ func TestLoRAReconciler_Run(t *testing.T) {
 		},
 	}
 
-	r := NewLoRAReconciler(k8sClient, processor, lister)
+	r := newLoRAReconciler(k8sClient, processor, lister)
 	r.podsByName = map[string]*podStatus{
 		"pod0": {
 			pod: &corev1.Pod{

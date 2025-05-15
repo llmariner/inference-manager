@@ -153,7 +153,11 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 	}
 
 	// Return the first address.
+	//
 	// TODO(kenji): Improve.
+	// - Only pick up ready pods
+	// - Be able to retry if the address is unreachable
+	// - Perform routing that considers KV cache.
 	return r.addresses[0], nil
 }
 
@@ -318,6 +322,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	m.runtimes[e.modelID] = r
 	m.mu.Unlock()
 
+	// TODO(kenji): Consider sending the request to all pods.
 	podIP, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, e.modelID, br.name)
 	if err != nil {
 		return fmt.Errorf("find LoRA adapter loading target pod: %s", err)

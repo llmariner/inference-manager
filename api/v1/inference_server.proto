@@ -257,8 +257,14 @@ message CreateCompletionRequest {
   StreamOption stream_option = 14;
   string suffix = 15;
   double temperature = 16;
+  // is_temperature_set is used to indicate whether the temperature is set or not.
+  // This is required as the OpenAI API spec uses 1.0 as the default value for temperature while
+  // setting the temperature to 0.0 in the proto is equivalent to unset.
+  bool is_temperature_set = 19;
   double top_p = 17;
   string user = 18;
+
+  // Next ID: 20
 }
 
 message Completion {

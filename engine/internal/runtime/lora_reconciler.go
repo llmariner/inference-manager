@@ -92,6 +92,7 @@ func (r *LoRAReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}))
 
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("lora-reconciler").
 		For(&corev1.Pod{}, builder.WithPredicates(filter)).
 		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
 			if req != nil {

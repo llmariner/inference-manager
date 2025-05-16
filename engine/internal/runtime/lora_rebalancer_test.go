@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -166,7 +165,12 @@ func TestBuildStatusMap(t *testing.T) {
 			},
 		},
 	}
-	assert.Truef(t, reflect.DeepEqual(got, want), "wanted %+v, got %+v", want, got)
+	assert.Len(t, got, len(want))
+	for k, g := range got {
+		w, ok := want[k]
+		assert.True(t, ok)
+		assert.ElementsMatch(t, g, w)
+	}
 }
 
 type fakeLoRAAdapterPullAndLoader struct {

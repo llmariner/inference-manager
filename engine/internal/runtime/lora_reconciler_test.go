@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -111,7 +112,9 @@ func TestLoRAReconciler_Reconcile(t *testing.T) {
 
 			k8sClient := fake.NewFakeClient(objs...)
 			processor := &fakeUpdateProcessor{}
-			r := newLoRAReconciler(k8sClient, processor, &fakeLoRAAdapterStatusGetter{})
+			r := newLoRAReconciler(k8sClient, processor, &fakeLoRAAdapterStatusGetter{
+				statuses: map[string]*loRAAdapterStatus{},
+			})
 			r.podsByName = tc.podsByName
 
 			_, err := r.Reconcile(context.Background(), tc.req)
@@ -140,10 +143,12 @@ func TestLoRAReconciler_Run(t *testing.T) {
 	k8sClient := fake.NewFakeClient()
 	processor := &fakeUpdateProcessor{}
 	lister := &fakeLoRAAdapterStatusGetter{
-		s: &loRAAdapterStatus{
-			baseModelID: "base0",
-			adapterIDs: map[string]struct{}{
-				"adapter0": {},
+		statuses: map[string]*loRAAdapterStatus{
+			fmt.Sprintf("ip0:%d", vllmHTTPPort): &loRAAdapterStatus{
+				baseModelID: "base0",
+				adapterIDs: map[string]struct{}{
+					"adapter0": {},
+				},
 			},
 		},
 	}
@@ -155,6 +160,9 @@ func TestLoRAReconciler_Run(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "pod0",
 					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					PodIP: "ip0",
 				},
 			},
 			lstatus: &loRAAdapterStatus{
@@ -308,9 +316,9 @@ func (f *fakeUpdateProcessor) processLoRAAdapterUpdate(ctx context.Context, upda
 }
 
 type fakeLoRAAdapterStatusGetter struct {
-	s *loRAAdapterStatus
+	statuses map[string]*loRAAdapterStatus
 }
 
 func (f *fakeLoRAAdapterStatusGetter) get(ctx context.Context, addr string) (*loRAAdapterStatus, error) {
-	return f.s, nil
+	return f.statuses[addr], nil
 }

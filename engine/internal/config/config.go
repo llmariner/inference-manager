@@ -228,6 +228,9 @@ type ModelConfigItem struct {
 	// (https://kubernetes.io/docs/concepts/containers/runtime-class/) used by model runtime.
 	// This is set the Runtime Class of Nvidia container runtime if it is not a cluster default.
 	ContainerRuntimeClassName string `yaml:"containerRuntimeClassName"`
+
+	// Image is the docker image to use for the model. If empty, use the default runtime image.
+	Image string `yaml:"image"`
 }
 
 func (c *ModelConfigItem) validate() error {

@@ -282,9 +282,15 @@ func (c *commonClient) deployRuntime(
 		pullerArgs = append(pullerArgs, "--daemon-mode")
 	}
 
-	image, ok := c.rconfig.RuntimeImages[mci.RuntimeName]
-	if !ok {
-		return nil, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
+	var image string
+	if mci.Image != "" {
+		image = mci.Image
+	} else {
+		var ok bool
+		image, ok = c.rconfig.RuntimeImages[mci.RuntimeName]
+		if !ok {
+			return nil, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
+		}
 	}
 
 	pullerSpec := corev1apply.Container().

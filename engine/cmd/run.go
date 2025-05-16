@@ -40,6 +40,7 @@ import (
 
 const (
 	loraReconciliationInterval = 30 * time.Second
+	loraRebalancingInterval    = 30 * time.Second
 )
 
 func runCmd() *cobra.Command {
@@ -236,10 +237,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		}()
 
 		if c.VLLM.DynamicLoRALoading {
-			reconciler := runtime.NewLoRAReconciler(
-				mgr.GetClient(),
-				rtManager,
-			)
+			reconciler := runtime.NewLoRAReconciler(mgr.GetClient(), rtManager)
 			if err := reconciler.SetupWithManager(mgr); err != nil {
 				return err
 			}
@@ -247,6 +245,19 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			go func() {
 				if err := reconciler.Run(ctx, loraReconciliationInterval); err != nil {
 					errCh <- fmt.Errorf("run lora reconciliation: %s", err)
+					return
+				}
+				errCh <- nil
+			}()
+
+			rebalancer := runtime.NewLoRARebalancer(mgr.GetClient(), rtManager)
+			if err := rebalancer.SetupWithManager(mgr); err != nil {
+				return err
+			}
+
+			go func() {
+				if err := rebalancer.Run(ctx, loraRebalancingInterval); err != nil {
+					errCh <- fmt.Errorf("run lora rebalancer: %s", err)
 					return
 				}
 				errCh <- nil

@@ -27,6 +27,8 @@ type readinessCheckEvent struct {
 	replicas int32
 
 	retryCount int
+
+	eventWaitCh chan struct{}
 }
 
 type loraAdapterPullStatusCheckEvent struct {
@@ -34,10 +36,19 @@ type loraAdapterPullStatusCheckEvent struct {
 
 	podIP string
 	gpu   int32
+
+	eventWaitCh chan struct{}
 }
 
 type loraAdapterStatusUpdateEvent struct {
 	update *loRAAdapterStatusUpdate
+
+	eventWaitCh chan struct{}
+}
+
+type loadLoRAAdapterEvent struct {
+	modelID string
+	podIP   string
 
 	eventWaitCh chan struct{}
 }

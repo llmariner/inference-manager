@@ -84,6 +84,9 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 		if rc := override.ContainerRuntimeClassName; rc != "" {
 			item.ContainerRuntimeClassName = rc
 		}
+		if i := override.Image; i != "" {
+			item.Image = i
+		}
 	}
 
 	for _, id := range c.preloadedModelIDs {

@@ -218,9 +218,15 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	// so that the VLLM container won't start until the base model is pulled.
 	var initContainerSepc *initContainerSpec
 	if v.vLLMConfig.DynamicLoRALoading {
-		image, ok := v.rconfig.RuntimeImages[config.RuntimeNameVLLM]
-		if !ok {
-			return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
+		var image string
+		if mci.Image != "" {
+			image = mci.Image
+		} else {
+			var ok bool
+			image, ok = v.rconfig.RuntimeImages[config.RuntimeNameVLLM]
+			if !ok {
+				return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
+			}
 		}
 
 		cpath := modeldownloader.CompletionIndicationFilePath(puller.ModelDir(), modelID)

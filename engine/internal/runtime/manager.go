@@ -698,7 +698,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 
 		r.removeAddress(vllmAddr)
 
-		if len(r.addrSet.addresses) != 0 {
+		if len(r.addresses()) != 0 {
 			continue
 		}
 

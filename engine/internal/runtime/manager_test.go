@@ -370,7 +370,7 @@ func TestDeleteModel(t *testing.T) {
 				name:                    name,
 				isDynamicallyLoadedLoRA: true,
 				addrSet: &runtimeAddressSet{
-					addresses: []string{"test"},
+					addresses: map[string]bool{"test": true},
 				},
 			},
 			wantExtra: func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader) {
@@ -762,7 +762,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
 				addrSet: &runtimeAddressSet{
-					addresses: []string{"other_addr"},
+					addresses: map[string]bool{"other_addr": true},
 				},
 			},
 			isReady:   true,
@@ -793,7 +793,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
 				addrSet: &runtimeAddressSet{
-					addresses: []string{podAddr},
+					addresses: map[string]bool{podAddr: true},
 				},
 			},
 			isReady:   false,
@@ -812,7 +812,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
 				addrSet: &runtimeAddressSet{
-					addresses: []string{"other_addr"},
+					addresses: map[string]bool{"other_addr": true},
 				},
 			},
 			isReady:   true,
@@ -1092,7 +1092,7 @@ func newReadyRuntime(name, addr string, replicas int32) *runtime {
 		ready: true,
 		name:  name,
 		addrSet: &runtimeAddressSet{
-			addresses: []string{addr},
+			addresses: map[string]bool{addr: true},
 		},
 		replicas: replicas,
 	}

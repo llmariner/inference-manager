@@ -41,6 +41,8 @@ const (
 
 	// Increase the max receive message size to 100MB to support large tasks (e.g., chat completion with image data).
 	maxRecvMsgSize = 100 * 10e6
+
+	runtimeRequestMaxRetries = 3
 )
 
 var errGoAway = errors.New("go away")
@@ -497,16 +499,27 @@ func (p *P) sendRequestToRuntime(
 }
 
 func (p *P) sendHTTPRequestToRuntime(req *http.Request, log logr.Logger) (*http.Response, int, error) {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return nil, http.StatusServiceUnavailable, err
-		}
-		log.Error(err, "Failed to send request to the LLM server")
-		return nil, http.StatusInternalServerError, err
-	}
+	var attempt int
+	for {
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil, http.StatusServiceUnavailable, err
+			}
+			log.Error(err, "Failed to send request to the LLM server")
 
-	return resp, 0, nil
+			// TODO(kenji): Retry only when there are more than one replica for the model.
+
+			attempt++
+			if attempt >= runtimeRequestMaxRetries {
+				return nil, http.StatusInternalServerError, err
+			}
+			continue
+		}
+
+		// Success.
+		return resp, 0, nil
+	}
 }
 
 func (p *P) buildRequest(ctx context.Context, t *v1.Task, log logr.Logger) (*http.Request, error) {

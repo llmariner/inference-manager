@@ -147,17 +147,12 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 		return "", fmt.Errorf("runtime for model %q is not ready", modelID)
 	}
 
-	if len(r.addresses) == 0 {
+	addr, ok := r.addrSet.get()
+	if !ok {
 		return "", fmt.Errorf("runtime for model %q has no address", modelID)
 	}
 
-	// Return the first address.
-	//
-	// TODO(kenji): Improve.
-	// - Only pick up ready pods
-	// - Be able to retry if the address is unreachable
-	// - Perform routing that considers KV cache.
-	return r.addresses[0], nil
+	return addr, nil
 }
 
 // ModelRuntimeInfo is the info of a model runtime.
@@ -422,7 +417,7 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 
 	if r.isDynamicallyLoadedLoRA {
 		log.Info("Unloading the LoRA adapter from the runtime", "modelID", e.modelID)
-		for _, addr := range r.addresses {
+		for _, addr := range r.addresses() {
 			if err := m.loraAdapterLoader.unload(ctx, addr, e.modelID); err != nil {
 				return fmt.Errorf("unload LoRA adapter: %s", err)
 			}
@@ -703,7 +698,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 
 		r.removeAddress(vllmAddr)
 
-		if len(r.addresses) != 0 {
+		if len(r.addresses()) != 0 {
 			continue
 		}
 

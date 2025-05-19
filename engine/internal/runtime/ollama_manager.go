@@ -124,15 +124,16 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 
 	var runtimeAddr string
 	if m.runtime.ready {
-		if len(m.runtime.addresses) != 1 {
+		addrs := m.runtime.addresses()
+		if len(addrs) != 1 {
 			m.mu.Unlock()
-			return fmt.Errorf("expected only one address: %v", m.runtime.addresses)
+			return fmt.Errorf("expected only one address: %v", addrs)
 		}
-		runtimeAddr = m.runtime.addresses[0]
+		runtimeAddr = addrs[0]
 
 		log.V(2).Info("Runtime is ready", "addresses", runtimeAddr)
 	} else {
-		log.Info("Waiting for the runtime to be ready", "addresses", m.runtime.addresses)
+		log.Info("Waiting for the runtime to be ready")
 		ch := make(chan string)
 		m.runtime.waitChs = append(m.runtime.waitChs, ch)
 
@@ -151,11 +152,12 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 			return err
 		}
 
-		if len(m.runtime.addresses) != 1 {
+		addrs := m.runtime.addresses()
+		if len(addrs) != 1 {
 			m.mu.Unlock()
-			return fmt.Errorf("expected only one address: %v", m.runtime.addresses)
+			return fmt.Errorf("expected only one address: %v", addrs)
 		}
-		runtimeAddr = m.runtime.addresses[0]
+		runtimeAddr = addrs[0]
 
 		log.Info("Runtime is ready", "address", runtimeAddr)
 	}

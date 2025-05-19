@@ -331,3 +331,7 @@ type fixedAddressGetter struct {
 func (g *fixedAddressGetter) GetLLMAddress(modelID string) (string, error) {
 	return g.addr, nil
 }
+
+func (g *fixedAddressGetter) BlacklistLLMAddress(modelID, address string) error {
+	return nil
+}

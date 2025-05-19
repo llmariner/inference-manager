@@ -147,12 +147,28 @@ func (m *Manager) GetLLMAddress(modelID string) (string, error) {
 		return "", fmt.Errorf("runtime for model %q is not ready", modelID)
 	}
 
-	addr, ok := r.addrSet.get()
+	addr, ok := r.addrSet.get(time.Now())
 	if !ok {
 		return "", fmt.Errorf("runtime for model %q has no address", modelID)
 	}
 
 	return addr, nil
+}
+
+// BlacklistLLMAddress blacklists the address of the LLM.
+func (m *Manager) BlacklistLLMAddress(modelID, address string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	r, ok := m.runtimes[modelID]
+	if !ok {
+		return fmt.Errorf("runtime for model %q does not exist", modelID)
+	}
+	if !r.ready {
+		return fmt.Errorf("runtime for model %q is not ready", modelID)
+	}
+	r.addrSet.blacklistAddress(address, time.Now())
+
+	return nil
 }
 
 // ModelRuntimeInfo is the info of a model runtime.

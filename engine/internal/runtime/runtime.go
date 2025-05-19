@@ -2,6 +2,9 @@ package runtime
 
 import (
 	"errors"
+	"sort"
+	"sync"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -10,53 +13,99 @@ import (
 // ErrRequestCanceled is returned when the request is canceled.
 var ErrRequestCanceled = errors.New("request is canceled")
 
+const (
+	defaultBlacklistDuration = 10 * time.Second
+)
+
 func newRuntimeAddressSet() *runtimeAddressSet {
 	return &runtimeAddressSet{
-		addresses: make(map[string]bool),
+		addresses:            make(map[string]bool),
+		blacklistedAddresses: make(map[string]time.Time),
+		blacklistDuration:    defaultBlacklistDuration,
 	}
 }
 
 type runtimeAddressSet struct {
 	// addresses is a set of runtime addresses. Each address is a host and port pair.
 	addresses map[string]bool
+
+	// blacklistedAddresses is a set of blacklisted addresses. The value tracks the time when the address
+	// was blacklisted.
+	blacklistedAddresses map[string]time.Time
+
+	blacklistDuration time.Duration
+
+	nextTarget int
+
+	mu sync.Mutex
 }
 
 func (s *runtimeAddressSet) add(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.addresses[address] = true
 }
 
 func (s *runtimeAddressSet) remove(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.addresses, address)
 }
 
 func (s *runtimeAddressSet) getAll() []string {
-	var addrs []string
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
+	var addrs []string
 	for address := range s.addresses {
 		addrs = append(addrs, address)
 	}
-
 	return addrs
 }
 
-func (s *runtimeAddressSet) get() (string, bool) {
-	if len(s.addresses) == 0 {
+func (s *runtimeAddressSet) get(now time.Time) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// First update the blacklist.
+	for addr, t := range s.blacklistedAddresses {
+		if now.Sub(t) >= s.blacklistDuration {
+			// The address is not blacklisted anymore.
+			delete(s.blacklistedAddresses, addr)
+		}
+	}
+
+	// Find addresses that are not blacklisted.
+	var addrs []string
+	for address := range s.addresses {
+		if _, ok := s.blacklistedAddresses[address]; !ok {
+			addrs = append(addrs, address)
+		}
+	}
+
+	// If there are no addresses, return empty string.
+	if len(addrs) == 0 {
 		return "", false
 	}
 
-	// Return the first address.
-	//
-	// TODO(kenji): Improve.
-	// - Only pick up ready pods
-	// - Be able to retry if the address is unreachable
-	// - Perform routing that considers KV cache.
+	// Sort the addresses for consistency.
+	sort.Strings(addrs)
 
-	for address := range s.addresses {
-		return address, true
-	}
+	// Pick up th address as a round-robin manner.
+	// TODO(kenji): Improve (e.g., perform routing that considers KV cache).
 
-	// This should not happen.
-	return "", false
+	i := s.nextTarget % len(addrs)
+
+	addr := addrs[i]
+	s.nextTarget = (s.nextTarget + 1) % len(addrs)
+
+	return addr, true
+}
+
+func (s *runtimeAddressSet) blacklistAddress(addr string, now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blacklistedAddresses[addr] = now
 }
 
 func newPendingRuntime(name string) *runtime {

@@ -87,7 +87,6 @@ type Manager struct {
 	autoscaler      autoscaler.Registerer
 
 	modelClient modelClient
-	vllmConfig  config.VLLMConfig
 
 	enableDynamicLoRALoading bool
 	pullerPort               int

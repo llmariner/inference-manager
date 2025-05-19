@@ -11,7 +11,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -63,7 +62,7 @@ type LoRARebalancer struct {
 func (r *LoRARebalancer) SetupWithManager(mgr ctrl.Manager) error {
 	r.logger = mgr.GetLogger().WithName("loraRebalancer")
 
-	filter := (predicate.NewPredicateFuncs(func(object client.Object) bool {
+	filter := (predicate.NewPredicateFuncs(func(object k8sclient.Object) bool {
 		return object.GetLabels()["app.kubernetes.io/created-by"] == managerName
 	}))
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -929,14 +928,6 @@ func TestAllChildrenUnschedulable(t *testing.T) {
 			assert.Equal(t, tc.want, unschedulable)
 		})
 	}
-}
-
-type fakeRoundTripper struct {
-	resp func() (*http.Response, error)
-}
-
-func (s *fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	return s.resp()
 }
 
 type fakeClientFactory struct {

@@ -12,7 +12,6 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -87,7 +86,7 @@ type LoRAReconciler struct {
 func (r *LoRAReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.logger = mgr.GetLogger().WithName("loraReconciler")
 
-	filter := (predicate.NewPredicateFuncs(func(object client.Object) bool {
+	filter := (predicate.NewPredicateFuncs(func(object k8sclient.Object) bool {
 		return object.GetLabels()["app.kubernetes.io/created-by"] == managerName
 	}))
 

@@ -474,6 +474,8 @@ func TestReconcile(t *testing.T) {
 
 		readinessCheck error
 
+		readinessCheckMaxRetryCount int
+
 		wantReady     bool
 		wantChClose   bool
 		wantErrReason string
@@ -496,8 +498,26 @@ func TestReconcile(t *testing.T) {
 
 			readinessCheck: errors.New("runtime not reachable"),
 
+			// No retry
+			readinessCheckMaxRetryCount: 0,
+
 			wantChClose:   true,
 			wantErrReason: errMsgUnreachableRuntime,
+		},
+		{
+			name: "transient unreachable",
+			sts: createSts(func(sts *appsv1.StatefulSet) {
+				sts.Status.ReadyReplicas = 1
+				sts.Status.Replicas = 1
+			}),
+			rt: newPendingRuntime(name),
+
+			readinessCheck: errors.New("runtime not reachable"),
+
+			// Enable retry. Readiness check should pass after an initial failure.
+			readinessCheckMaxRetryCount: 1,
+			wantChClose:                 true,
+			wantErrReason:               errMsgUnreachableRuntime,
 		},
 		{
 			name: "to be ready",
@@ -635,8 +655,7 @@ func TestReconcile(t *testing.T) {
 				false,
 				-1,
 			)
-			// Disable the retry.
-			mgr.readinessCheckMaxRetryCount = 0
+			mgr.readinessCheckMaxRetryCount = test.readinessCheckMaxRetryCount
 			mgr.runtimeReadinessChecker = &fakeRuntimeReadinessChecker{
 				err: test.readinessCheck,
 			}
@@ -1018,7 +1037,9 @@ type fakeRuntimeReadinessChecker struct {
 }
 
 func (c *fakeRuntimeReadinessChecker) check(addr string) error {
-	return c.err
+	// Return an error at most once.
+	err := c.err
+	return err
 }
 
 type fakeLoraAdapterLoader struct {

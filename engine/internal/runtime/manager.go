@@ -580,6 +580,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 				eventWaitCh: e.eventWaitCh,
 			}
 		}()
+		return nil
 	}
 
 	m.mu.Lock()

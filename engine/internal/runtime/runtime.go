@@ -10,33 +10,33 @@ import (
 // ErrRequestCanceled is returned when the request is canceled.
 var ErrRequestCanceled = errors.New("request is canceled")
 
+func newRuntimeAddressSet() *runtimeAddressSet {
+	return &runtimeAddressSet{
+		addresses: make(map[string]bool),
+	}
+}
+
 type runtimeAddressSet struct {
 	// addresses is a set of runtime addresses. Each address is a host and port pair.
-	addresses []string
+	addresses map[string]bool
 }
 
 func (s *runtimeAddressSet) add(address string) {
-	for _, a := range s.addresses {
-		if a != address {
-			continue
-		}
-		// No need to add.
-		return
-	}
-
-	s.addresses = append(s.addresses, address)
+	s.addresses[address] = true
 }
 
 func (s *runtimeAddressSet) remove(address string) {
-	for i, a := range s.addresses {
-		if a != address {
-			continue
-		}
+	delete(s.addresses, address)
+}
 
-		// Found the address, remove it.
-		s.addresses = append(s.addresses[:i], s.addresses[i+1:]...)
-		return
+func (s *runtimeAddressSet) getAll() []string {
+	var addrs []string
+
+	for address := range s.addresses {
+		addrs = append(addrs, address)
 	}
+
+	return addrs
 }
 
 func (s *runtimeAddressSet) get() (string, bool) {
@@ -50,7 +50,13 @@ func (s *runtimeAddressSet) get() (string, bool) {
 	// - Only pick up ready pods
 	// - Be able to retry if the address is unreachable
 	// - Perform routing that considers KV cache.
-	return s.addresses[0], true
+
+	for address := range s.addresses {
+		return address, true
+	}
+
+	// This should not happen.
+	return "", false
 }
 
 func newPendingRuntime(name string) *runtime {
@@ -100,7 +106,7 @@ func (r *runtime) addresses() []string {
 	if r.addrSet == nil {
 		return nil
 	}
-	return r.addrSet.addresses
+	return r.addrSet.getAll()
 }
 
 func (r *runtime) addPendingPullModelRequest(e *pullModelEvent) {
@@ -138,11 +144,8 @@ func (r *runtime) becomeReady(
 	replicas int32,
 ) {
 	r.ready = true
-	r.addrSet = &runtimeAddressSet{
-		addresses: []string{
-			address,
-		},
-	}
+	r.addrSet = newRuntimeAddressSet()
+	r.addrSet.add(address)
 	r.gpu = gpu
 	r.replicas = replicas
 }

@@ -58,6 +58,7 @@ type ModelSyncer interface {
 // AddressGetter gets an address of a model.
 type AddressGetter interface {
 	GetLLMAddress(modelID string) (string, error)
+	BlacklistLLMAddress(modelID, address string) error
 }
 
 type stream interface {
@@ -412,7 +413,7 @@ func (p *P) sendRequestToRuntime(
 
 	log.Info("Sending request to the LLM server", "url", req.URL)
 
-	resp, code, err := p.sendHTTPRequestToRuntime(req, log)
+	resp, code, err := p.sendHTTPRequestToRuntime(req, t, log)
 	if err != nil {
 		if stream.Context().Err() != nil {
 			return stream.Context().Err()
@@ -498,7 +499,7 @@ func (p *P) sendRequestToRuntime(
 	return nil
 }
 
-func (p *P) sendHTTPRequestToRuntime(req *http.Request, log logr.Logger) (*http.Response, int, error) {
+func (p *P) sendHTTPRequestToRuntime(req *http.Request, t *v1.Task, log logr.Logger) (*http.Response, int, error) {
 	var attempt int
 	for {
 		resp, err := http.DefaultClient.Do(req)
@@ -509,6 +510,10 @@ func (p *P) sendHTTPRequestToRuntime(req *http.Request, log logr.Logger) (*http.
 			log.Error(err, "Failed to send request to the LLM server")
 
 			// TODO(kenji): Retry only when there are more than one replica for the model.
+
+			if err := p.addrGetter.BlacklistLLMAddress(taskModel(t), req.URL.Host); err != nil {
+				return nil, http.StatusInternalServerError, err
+			}
 
 			attempt++
 			if attempt >= runtimeRequestMaxRetries {

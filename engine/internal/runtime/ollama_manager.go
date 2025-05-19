@@ -115,6 +115,13 @@ func (m *OllamaManager) GetLLMAddress(_ string) (string, error) {
 	return m.ollamaClient.GetAddress(m.ollamaClient.GetName("")), nil
 }
 
+// BlacklistLLMAddress blacklists the address of the LLM for the given model.
+func (m *OllamaManager) BlacklistLLMAddress(modelID, address string) error {
+	// Do nothing
+	// TODO(kenji): fix.
+	return nil
+}
+
 // PullModel pulls the model from the model manager.
 func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)

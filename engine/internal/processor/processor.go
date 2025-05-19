@@ -395,7 +395,7 @@ func (p *P) sendRequestToRuntime(
 		}
 	}()
 
-	req, err := p.buildRequest(taskCtx, t)
+	req, err := p.buildRequest(taskCtx, t, log)
 	if err != nil {
 		err := fmt.Errorf("build request: %s", err)
 		if e := p.sendHTTPResponse(stream, t, &v1.HttpResponse{
@@ -409,30 +409,16 @@ func (p *P) sendRequestToRuntime(
 	}
 
 	log.Info("Sending request to the LLM server", "url", req.URL)
-	switch req := t.Request; req.Request.(type) {
-	case *v1.TaskRequest_ChatCompletion:
-		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetChatCompletion()))
-	case *v1.TaskRequest_Embedding:
-		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetEmbedding()))
-	default:
-		err := fmt.Errorf("unknown request type: %T", req.Request)
-		sendErrResponse(http.StatusInternalServerError, err.Error())
-		return err
-	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, code, err := p.sendHTTPRequestToRuntime(req, log)
 	if err != nil {
 		if stream.Context().Err() != nil {
 			return stream.Context().Err()
 		}
-		code := http.StatusServiceUnavailable
-		if !errors.Is(err, context.Canceled) {
-			log.Error(err, "Failed to send request to the LLM server")
-			code = http.StatusInternalServerError
-		}
 		sendErrResponse(code, fmt.Sprintf("Failed to send request to the LLM server: %s", err))
 		return err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 	done.Store(true)
 	log.Info("Received an initial response from the LLM server", "status", resp.Status)
@@ -510,7 +496,20 @@ func (p *P) sendRequestToRuntime(
 	return nil
 }
 
-func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error) {
+func (p *P) sendHTTPRequestToRuntime(req *http.Request, log logr.Logger) (*http.Response, int, error) {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, http.StatusServiceUnavailable, err
+		}
+		log.Error(err, "Failed to send request to the LLM server")
+		return nil, http.StatusInternalServerError, err
+	}
+
+	return resp, 0, nil
+}
+
+func (p *P) buildRequest(ctx context.Context, t *v1.Task, log logr.Logger) (*http.Request, error) {
 	addr, err := p.addrGetter.GetLLMAddress(taskModel(t))
 	if err != nil {
 		return nil, err
@@ -525,6 +524,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 	var reqBody []byte
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
+		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetChatCompletion()))
 		r := req.GetChatCompletion()
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
@@ -542,6 +542,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task) (*http.Request, error)
 		path = completionPath
 
 	case *v1.TaskRequest_Embedding:
+		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetEmbedding()))
+
 		r := req.GetEmbedding()
 
 		reqBody, err = json.Marshal(r)

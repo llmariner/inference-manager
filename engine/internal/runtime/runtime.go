@@ -10,6 +10,49 @@ import (
 // ErrRequestCanceled is returned when the request is canceled.
 var ErrRequestCanceled = errors.New("request is canceled")
 
+type runtimeAddressSet struct {
+	// addresses is a set of runtime addresses. Each address is a host and port pair.
+	addresses []string
+}
+
+func (s *runtimeAddressSet) add(address string) {
+	for _, a := range s.addresses {
+		if a != address {
+			continue
+		}
+		// No need to add.
+		return
+	}
+
+	s.addresses = append(s.addresses, address)
+}
+
+func (s *runtimeAddressSet) remove(address string) {
+	for i, a := range s.addresses {
+		if a != address {
+			continue
+		}
+
+		// Found the address, remove it.
+		s.addresses = append(s.addresses[:i], s.addresses[i+1:]...)
+		return
+	}
+}
+
+func (s *runtimeAddressSet) get() (string, bool) {
+	if len(s.addresses) == 0 {
+		return "", false
+	}
+
+	// Return the first address.
+	//
+	// TODO(kenji): Improve.
+	// - Only pick up ready pods
+	// - Be able to retry if the address is unreachable
+	// - Perform routing that considers KV cache.
+	return s.addresses[0], true
+}
+
 func newPendingRuntime(name string) *runtime {
 	return &runtime{
 		name:  name,
@@ -37,8 +80,8 @@ type runtime struct {
 
 	// The following fields are only used when the runtime is ready.
 
-	// addresses is a set of runtime addresses. Each address is a host and port pair.
-	addresses []string
+	addrSet *runtimeAddressSet
+
 	// replicas is the number of ready replicas.
 	replicas int32
 	// gpu is the GPU limit of the runtime.
@@ -46,27 +89,18 @@ type runtime struct {
 }
 
 func (r *runtime) addAddress(address string) {
-	for _, a := range r.addresses {
-		if a != address {
-			continue
-		}
-		// No need to add.
-		return
-	}
-
-	r.addresses = append(r.addresses, address)
+	r.addrSet.add(address)
 }
 
 func (r *runtime) removeAddress(address string) {
-	for i, a := range r.addresses {
-		if a != address {
-			continue
-		}
+	r.addrSet.remove(address)
+}
 
-		// Found the address, remove it.
-		r.addresses = append(r.addresses[:i], r.addresses[i+1:]...)
-		return
+func (r *runtime) addresses() []string {
+	if r.addrSet == nil {
+		return nil
 	}
+	return r.addrSet.addresses
 }
 
 func (r *runtime) addPendingPullModelRequest(e *pullModelEvent) {
@@ -104,7 +138,11 @@ func (r *runtime) becomeReady(
 	replicas int32,
 ) {
 	r.ready = true
-	r.addresses = []string{address}
+	r.addrSet = &runtimeAddressSet{
+		addresses: []string{
+			address,
+		},
+	}
 	r.gpu = gpu
 	r.replicas = replicas
 }

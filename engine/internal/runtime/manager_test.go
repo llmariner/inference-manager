@@ -369,7 +369,9 @@ func TestDeleteModel(t *testing.T) {
 				ready:                   true,
 				name:                    name,
 				isDynamicallyLoadedLoRA: true,
-				addresses:               []string{"test"},
+				addrSet: &runtimeAddressSet{
+					addresses: []string{"test"},
+				},
 			},
 			wantExtra: func(t *testing.T, c *fakeClient, l *fakeLoraAdapterLoader) {
 				assert.True(t, l.unloaded[testModelID])
@@ -759,7 +761,9 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				ready:                   true,
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
-				addresses:               []string{"other_addr"},
+				addrSet: &runtimeAddressSet{
+					addresses: []string{"other_addr"},
+				},
 			},
 			isReady:   true,
 			wantAddrs: []string{"other_addr", podAddr},
@@ -788,7 +792,9 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				ready:                   true,
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
-				addresses:               []string{podAddr},
+				addrSet: &runtimeAddressSet{
+					addresses: []string{podAddr},
+				},
 			},
 			isReady:   false,
 			wantAddrs: []string{},
@@ -805,7 +811,9 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				ready:                   true,
 				isDynamicallyLoadedLoRA: true,
 				name:                    modelName,
-				addresses:               []string{podAddr, "other_addr"},
+				addrSet: &runtimeAddressSet{
+					addresses: []string{"other_addr"},
+				},
 			},
 			isReady:   true,
 			wantAddrs: []string{"other_addr"},
@@ -852,7 +860,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				assert.True(t, rt.isDynamicallyLoadedLoRA)
 			}
 			if test.isReady {
-				assert.ElementsMatch(t, test.wantAddrs, rt.addresses)
+				assert.ElementsMatch(t, test.wantAddrs, rt.addresses())
 			}
 		})
 	}
@@ -1081,9 +1089,11 @@ func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context,
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {
 	return &runtime{
-		ready:     true,
-		name:      name,
-		addresses: []string{addr},
-		replicas:  replicas,
+		ready: true,
+		name:  name,
+		addrSet: &runtimeAddressSet{
+			addresses: []string{addr},
+		},
+		replicas: replicas,
 	}
 }

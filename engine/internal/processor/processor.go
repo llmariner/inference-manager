@@ -398,16 +398,17 @@ func (p *P) sendRequestToRuntime(
 		}
 	}()
 
-	req, err := p.buildRequest(taskCtx, t, log)
+	addr, err := p.addrGetter.GetLLMAddress(taskModel(t))
+	if err != nil {
+		err := fmt.Errorf("get llm address: %s", err)
+		sendErrResponse(http.StatusInternalServerError, err.Error())
+		return err
+	}
+
+	req, err := p.buildRequest(taskCtx, t, addr, log)
 	if err != nil {
 		err := fmt.Errorf("build request: %s", err)
-		if e := p.sendHTTPResponse(stream, t, &v1.HttpResponse{
-			StatusCode: http.StatusInternalServerError,
-			Status:     http.StatusText(http.StatusInternalServerError),
-			Body:       []byte(err.Error()),
-		}); e != nil {
-			log.Error(e, "Failed to parse the request type")
-		}
+		sendErrResponse(http.StatusInternalServerError, err.Error())
 		return err
 	}
 
@@ -527,12 +528,7 @@ func (p *P) sendHTTPRequestToRuntime(req *http.Request, t *v1.Task, log logr.Log
 	}
 }
 
-func (p *P) buildRequest(ctx context.Context, t *v1.Task, log logr.Logger) (*http.Request, error) {
-	addr, err := p.addrGetter.GetLLMAddress(taskModel(t))
-	if err != nil {
-		return nil, err
-	}
-
+func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.Logger) (*http.Request, error) {
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   addr,
@@ -547,7 +543,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, log logr.Logger) (*htt
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
-		reqBody, err = json.Marshal(r)
+		reqBody, err := json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}
@@ -564,7 +560,7 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, log logr.Logger) (*htt
 
 		r := req.GetEmbedding()
 
-		reqBody, err = json.Marshal(r)
+		reqBody, err := json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}

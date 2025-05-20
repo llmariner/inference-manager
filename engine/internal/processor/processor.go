@@ -398,23 +398,7 @@ func (p *P) sendRequestToRuntime(
 		}
 	}()
 
-	addr, err := p.addrGetter.GetLLMAddress(taskModel(t))
-	if err != nil {
-		err := fmt.Errorf("get llm address: %s", err)
-		sendErrResponse(http.StatusInternalServerError, err.Error())
-		return err
-	}
-
-	req, err := p.buildRequest(taskCtx, t, addr, log)
-	if err != nil {
-		err := fmt.Errorf("build request: %s", err)
-		sendErrResponse(http.StatusInternalServerError, err.Error())
-		return err
-	}
-
-	log.Info("Sending request to the LLM server", "url", req.URL)
-
-	resp, code, err := p.sendHTTPRequestToRuntime(req, t, log)
+	resp, code, err := p.sendHTTPRequestToRuntime(taskCtx, stream, t, log)
 	if err != nil {
 		if stream.Context().Err() != nil {
 			return stream.Context().Err()
@@ -500,23 +484,41 @@ func (p *P) sendRequestToRuntime(
 	return nil
 }
 
-func (p *P) sendHTTPRequestToRuntime(req *http.Request, t *v1.Task, log logr.Logger) (*http.Response, int, error) {
+func (p *P) sendHTTPRequestToRuntime(
+	ctx context.Context,
+	stream sender,
+	t *v1.Task,
+	log logr.Logger,
+) (*http.Response, int, error) {
 	var attempt int
 	for {
+		model := taskModel(t)
+		addr, err := p.addrGetter.GetLLMAddress(model)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+
+		req, err := p.buildRequest(ctx, t, addr, log)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+
+		log.Info("Sending request to the LLM server", "url", req.URL)
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return nil, http.StatusServiceUnavailable, err
 			}
-			log.Error(err, "Failed to send request to the LLM server")
+
+			attempt++
+			log.Error(err, "Failed to send request to the LLM server. Blacklisting", "attempt", attempt, "addr", addr)
 
 			// TODO(kenji): Retry only when there are more than one replica for the model.
 
-			if err := p.addrGetter.BlacklistLLMAddress(taskModel(t), req.URL.Host); err != nil {
+			if err := p.addrGetter.BlacklistLLMAddress(model, addr); err != nil {
 				return nil, http.StatusInternalServerError, err
 			}
-
-			attempt++
 			if attempt >= runtimeRequestMaxRetries {
 				return nil, http.StatusInternalServerError, err
 			}

@@ -540,8 +540,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.
 	var reqBody []byte
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
-		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetChatCompletion()))
 		r := req.GetChatCompletion()
+		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
@@ -558,9 +558,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.
 		path = completionPath
 
 	case *v1.TaskRequest_Embedding:
-		log.V(1).Info(fmt.Sprintf("Request: %+v", req.GetEmbedding()))
-
 		r := req.GetEmbedding()
+		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
 
 		reqBody, err := json.Marshal(r)
 		if err != nil {

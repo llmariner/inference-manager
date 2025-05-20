@@ -491,14 +491,14 @@ func (p *P) sendHTTPRequestToRuntime(
 	log logr.Logger,
 ) (*http.Response, int, error) {
 	var attempt int
+	model := taskModel(t)
 	for {
-		model := taskModel(t)
 		addr, err := p.addrGetter.GetLLMAddress(model)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
 
-		req, err := p.buildRequest(ctx, t, addr, log)
+		req, err := buildRequest(ctx, t, addr, log)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
@@ -530,7 +530,7 @@ func (p *P) sendHTTPRequestToRuntime(
 	}
 }
 
-func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.Logger) (*http.Request, error) {
+func buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.Logger) (*http.Request, error) {
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   addr,
@@ -545,7 +545,8 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
-		reqBody, err := json.Marshal(r)
+		var err error
+		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}
@@ -556,12 +557,12 @@ func (p *P) buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.
 		}
 
 		path = completionPath
-
 	case *v1.TaskRequest_Embedding:
 		r := req.GetEmbedding()
 		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
 
-		reqBody, err := json.Marshal(r)
+		var err error
+		reqBody, err = json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}

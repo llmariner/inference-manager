@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -154,9 +155,20 @@ func newFakeOllamaServer() (*fakeOllamaServer, error) {
 	m := http.NewServeMux()
 
 	f := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("ok"))
+		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		defer func() {
+			_ = r.Body.Close()
+		}()
+		if len(reqBody) == 0 {
+			http.Error(w, "empty request body", http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("ok")); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -196,7 +208,7 @@ func (s *fakeOllamaServer) isReady() bool {
 		Host:   fmt.Sprintf("localhost:%d", s.port()),
 	}
 	requestURL := baseURL.JoinPath(completionPath).String()
-	freq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(nil))
+	freq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader([]byte("dummy")))
 	if err != nil {
 		return false
 	}

@@ -218,18 +218,24 @@ func (r *taskReceiver) buildStatuses(ready bool) ([]*v1.ServerStatus_EngineStatu
 
 	var statuses []*v1.ServerStatus_EngineStatusWithTenantID
 	for tenantID, es := range enginesByTenantID {
-		updated := map[string]*v1.EngineStatus{}
 		for _, e := range es {
 			statuses = append(statuses, &v1.ServerStatus_EngineStatusWithTenantID{
 				EngineStatus: e,
 				TenantId:     tenantID,
 			})
-
-			updated[e.EngineId] = e
 		}
-
-		r.engineStatuses[tenantID] = updated
 	}
+
+	// Update the cached engine statuses.
+	newMap := make(map[string]map[string]*v1.EngineStatus)
+	for tenantID, es := range enginesByTenantID {
+		m := map[string]*v1.EngineStatus{}
+		for _, e := range es {
+			m[e.EngineId] = e
+		}
+		newMap[tenantID] = m
+	}
+	r.engineStatuses = newMap
 
 	return statuses, true, nil
 }

@@ -84,8 +84,9 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 
 	resp, err := a.modelLister.ListModels(ctx, &mv1.ListModelsRequest{})
 	if err != nil {
-		// TODO(kenji): Consider add retry.
-		return fmt.Errorf("list models: %s", err)
+		// Gracefully handle the error so that engine won't crash due to transient error.
+		a.logger.Error(err, "Failed to list models. Retrying...")
+		return nil
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -127,7 +128,7 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 	}
 
 	if err := g.Wait(); err != nil {
-		return fmt.Errorf("preloading: %s", err)
+		return fmt.Errorf("reconcile: %s", err)
 	}
 
 	a.logger.Info("Model activation reconciled", "modelCount", len(resp.Data))

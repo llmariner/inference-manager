@@ -291,7 +291,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	log.Info("Runtime is not ready. Checking if LoRA adapter loading is applicable", "modelID", e.modelID)
 
 	// TODO(kenji): Revisit the locking if this takes a long time.
-	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRARloadingApplicable(ctx, e.modelID)
+	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(ctx, e.modelID)
 	if err != nil {
 		return err
 	}
@@ -388,7 +388,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 	return nil
 }
 
-func (m *Manager) isDynamicLoRARloadingApplicable(ctx context.Context, modelID string) (bool, string, error) {
+func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID string) (bool, string, error) {
 	if !m.enableDynamicLoRALoading {
 		return false, "", nil
 	}

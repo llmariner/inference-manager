@@ -7,6 +7,100 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNeedStatusUpdateForAllTenants(t *testing.T) {
+	tcs := []struct {
+		name                           string
+		engineStatusesByTenantID       map[string][]*v1.EngineStatus
+		cachedEngineStatusesByTenantID map[string]map[string]*v1.EngineStatus
+		want                           bool
+	}{
+		{
+			name: "no update",
+			engineStatusesByTenantID: map[string][]*v1.EngineStatus{
+				"tenant0": {
+					{
+						EngineId: "e0",
+					},
+				},
+			},
+			cachedEngineStatusesByTenantID: map[string]map[string]*v1.EngineStatus{
+				"tenant0": {
+					"e0": {
+						EngineId: "e0",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "new engine",
+			engineStatusesByTenantID: map[string][]*v1.EngineStatus{
+				"tenant0": {
+					{
+						EngineId: "e0",
+					},
+					{
+						EngineId: "e1",
+					},
+				},
+			},
+			cachedEngineStatusesByTenantID: map[string]map[string]*v1.EngineStatus{
+				"tenant0": {
+					"e0": {
+						EngineId: "e0",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "new tenant",
+			engineStatusesByTenantID: map[string][]*v1.EngineStatus{
+				"tenant0": {
+					{
+						EngineId: "e0",
+					},
+					{
+						EngineId: "e1",
+					},
+				},
+			},
+			cachedEngineStatusesByTenantID: map[string]map[string]*v1.EngineStatus{},
+			want:                           true,
+		},
+		{
+			name: "tenant deleted",
+			engineStatusesByTenantID: map[string][]*v1.EngineStatus{
+				"tenant0": {
+					{
+						EngineId: "e0",
+					},
+				},
+			},
+			cachedEngineStatusesByTenantID: map[string]map[string]*v1.EngineStatus{
+				"tenant0": {
+					"e0": {
+						EngineId: "e0",
+					},
+				},
+				"tenant1": {
+					"e1": {
+						EngineId: "e1",
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got := needStatusUpdateForAllTenants(tc.engineStatusesByTenantID, tc.cachedEngineStatusesByTenantID)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestNeedStatusUpdate(t *testing.T) {
 	tcs := []struct {
 		name                 string
@@ -96,7 +190,6 @@ func TestNeedStatusUpdate(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
-
 }
 
 func TestSameEngineStatus(t *testing.T) {

@@ -212,15 +212,7 @@ func (r *taskReceiver) buildStatuses(ready bool) ([]*v1.ServerStatus_EngineStatu
 		}
 	}
 
-	var needSend bool
-	for tenantID, es := range enginesByTenantID {
-		if needStatusUpdate(es, r.engineStatuses[tenantID]) {
-			needSend = true
-			break
-		}
-	}
-
-	if !needSend {
+	if !needStatusUpdateForAllTenants(enginesByTenantID, r.engineStatuses) {
 		return nil, false, nil
 	}
 
@@ -240,6 +232,26 @@ func (r *taskReceiver) buildStatuses(ready bool) ([]*v1.ServerStatus_EngineStatu
 	}
 
 	return statuses, true, nil
+}
+
+func needStatusUpdateForAllTenants(
+	engineStatusesByTenantID map[string][]*v1.EngineStatus,
+	cachedEngineStatusesByTenantID map[string]map[string]*v1.EngineStatus,
+) bool {
+	for tenantID, es := range engineStatusesByTenantID {
+		if needStatusUpdate(es, cachedEngineStatusesByTenantID[tenantID]) {
+			return true
+		}
+	}
+
+	// Check if there is a tenant in the cache that no longer exists.
+	for tenantID := range cachedEngineStatusesByTenantID {
+		if _, ok := engineStatusesByTenantID[tenantID]; !ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 func needStatusUpdate(

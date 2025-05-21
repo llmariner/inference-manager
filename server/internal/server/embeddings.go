@@ -34,9 +34,11 @@ func (s *S) CreateEmbedding(
 	}
 
 	usage := newUsageRecord(userInfo, st, "CreateEmbedding")
+	var modelID string
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
+		s.metricsMonitor.ObserveRequestCount(modelID, userInfo.TenantID, usage.StatusCode)
 	}()
 
 	if !userInfo.ExcludedFromRateLimiting {
@@ -80,6 +82,7 @@ func (s *S) CreateEmbedding(
 		httpError(w, "Model is required", http.StatusBadRequest, &usage)
 		return
 	}
+	modelID = createReq.Model
 
 	s.metricsMonitor.UpdateEmbeddingRequest(createReq.Model, 1)
 	defer func() {

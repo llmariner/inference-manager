@@ -63,6 +63,7 @@ func (s *S) CreateChatCompletion(
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
+		s.metricsMonitor.ObserveRequestCount(details.ModelId, userInfo.TenantID, usage.StatusCode)
 	}()
 
 	if !userInfo.ExcludedFromRateLimiting {
@@ -219,6 +220,7 @@ func (s *S) CreateChatCompletion(
 			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}
+
 		return
 	}
 

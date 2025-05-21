@@ -112,6 +112,7 @@ type metricsMonitoring interface {
 	UpdateCompletionRequest(modelID string, c int)
 	ObserveEmbeddingLatency(modelID string, latency time.Duration)
 	UpdateEmbeddingRequest(modelID string, c int)
+	ObserveRequestCount(modelID, tenantID string, statusCode int32)
 }
 
 type taskSender interface {
@@ -134,7 +135,7 @@ func New(
 		metricsMonitor: m,
 		usageSetter:    usage,
 		ratelimiter:    rate,
-		modelClient:    modelClient,
+		modelClient:    newModelCache(modelClient),
 		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
 		taskSender:     taskSender,

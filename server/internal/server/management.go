@@ -26,12 +26,10 @@ const (
 // NewInferenceManagementServer creates a new inference management server.
 func NewInferenceManagementServer(
 	infProcessor *infprocessor.P,
-	modelClient ModelClient,
 	logger logr.Logger,
 ) *IMS {
 	return &IMS{
 		infProcessor: infProcessor,
-		modelClient:  modelClient,
 		logger:       logger.WithName("inference status server"),
 	}
 }
@@ -41,7 +39,6 @@ type IMS struct {
 	v1.UnimplementedInferenceServiceServer
 
 	infProcessor *infprocessor.P
-	modelClient  ModelClient
 	logger       logr.Logger
 
 	srv *grpc.Server

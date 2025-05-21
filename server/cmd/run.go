@@ -307,7 +307,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		return err
 	}
 
-	ims := server.NewInferenceManagementServer(infProcessor, mclient, logger)
+	ims := server.NewInferenceManagementServer(infProcessor, logger)
 	go func() {
 		log := logger.WithName("inference management server")
 		log.Info("Starting inference management server...", "port", c.ManagementPort)

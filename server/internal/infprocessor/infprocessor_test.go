@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -163,6 +164,49 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
 	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
+
+	assert.Empty(t, iprocessor.inProgressTasksByID)
+}
+
+func TestProcessTaskTimeout(t *testing.T) {
+	const (
+		modelID = "m0"
+	)
+
+	iprocessor := NewP(
+		router.New(true),
+		testutil.NewTestLogger(t),
+	)
+	iprocessor.taskTimeout = 0
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	comm := newFakeEngineCommunicator(t)
+	go comm.run(ctx)
+
+	iprocessor.AddOrUpdateEngineStatus(
+		comm,
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+			ModelIds: []string{modelID},
+			Ready:    true,
+		},
+		"tenant0",
+		true,
+	)
+
+	go func(ctx context.Context) {
+		_ = iprocessor.Run(ctx)
+	}(ctx)
+
+	ctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+
+	req := &v1.CreateChatCompletionRequest{Model: modelID}
+	_, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	assert.Empty(t, iprocessor.inProgressTasksByID)
 }

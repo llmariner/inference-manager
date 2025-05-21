@@ -458,6 +458,7 @@ func (p *P) enqueueAndProcessTask(
 	for {
 		select {
 		case <-ctx.Done():
+			log.Error(ctx.Err(), "Task completed due to context cancel")
 			return ctx.Err()
 		case r := <-task.resultCh:
 			var err error
@@ -470,6 +471,7 @@ func (p *P) enqueueAndProcessTask(
 			if err != nil {
 				// Retry if possible.
 				if !p.canRetry(task, err) {
+					log.Error(err, "Failed to process the task")
 					return err
 				}
 				task.retryCount++

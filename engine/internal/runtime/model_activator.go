@@ -14,7 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-const modelListInterval = 10 * time.Second
+const modelListInterval = 30 * time.Second
 
 // ModelManager is an interface for managing models.
 type ModelManager interface {
@@ -84,6 +84,7 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 
 	resp, err := a.modelLister.ListModels(ctx, &mv1.ListModelsRequest{})
 	if err != nil {
+		// TODO(kenji): Consider add retry.
 		return fmt.Errorf("list models: %s", err)
 	}
 

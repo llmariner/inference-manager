@@ -12,6 +12,11 @@ import (
 )
 
 func TestModelCache(t *testing.T) {
+	const (
+		tenantID = "tenant1"
+		modelID  = "model1"
+	)
+
 	modelClient := &fakeModelClient{
 		models: map[string]*mv1.Model{},
 	}
@@ -19,45 +24,36 @@ func TestModelCache(t *testing.T) {
 	c := newModelCache(modelClient)
 
 	ctx := context.Background()
-	_, err := c.GetModel(ctx, &mv1.GetModelRequest{
-		Id: "model1",
-	})
+	_, err := c.GetModel(ctx, tenantID, &mv1.GetModelRequest{Id: modelID})
 	assert.Error(t, err)
 	assert.Equal(t, codes.NotFound, status.Code(err))
 	// No cache.
-	assert.Empty(t, c.models)
+	assert.Empty(t, c.modelsByTenantID[tenantID])
 
-	modelClient.models["model1"] = &mv1.Model{
-		Id: "model1",
+	modelClient.models[modelID] = &mv1.Model{
+		Id: modelID,
 	}
 
-	_, err = c.GetModel(ctx, &mv1.GetModelRequest{
-		Id: "model1",
-	})
+	_, err = c.GetModel(ctx, tenantID, &mv1.GetModelRequest{Id: modelID})
 	assert.NoError(t, err)
 	// Cached.
-	assert.Contains(t, c.models, "model1")
+	models := c.modelsByTenantID[tenantID]
+	assert.Contains(t, models, modelID)
 
-	_, err = c.ActivateModel(ctx, &mv1.ActivateModelRequest{
-		Id: "model1",
-	})
+	_, err = c.ActivateModel(ctx, tenantID, &mv1.ActivateModelRequest{Id: modelID})
 	assert.NoError(t, err)
 	// Cache will be invalidated.
-	assert.Empty(t, c.models)
+	assert.Empty(t, models)
 
 	// Cache again.
-	_, err = c.GetModel(ctx, &mv1.GetModelRequest{
-		Id: "model1",
-	})
+	_, err = c.GetModel(ctx, tenantID, &mv1.GetModelRequest{Id: modelID})
 	assert.NoError(t, err)
 
-	c.models["model1"].lastUpdated = time.Now().Add(-2 * c.cacheInvalidationPeriod)
+	models[modelID].lastUpdated = time.Now().Add(-2 * c.cacheInvalidationPeriod)
 
 	now := time.Now()
-	_, err = c.GetModel(ctx, &mv1.GetModelRequest{
-		Id: "model1",
-	})
+	_, err = c.GetModel(ctx, tenantID, &mv1.GetModelRequest{Id: modelID})
 	assert.NoError(t, err)
 	// Cache was updated.
-	assert.Greater(t, c.models["model1"].lastUpdated, now)
+	assert.Greater(t, models[modelID].lastUpdated, now)
 }

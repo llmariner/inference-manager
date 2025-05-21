@@ -152,7 +152,7 @@ func (s *S) CreateChatCompletion(
 
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
-	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
+	if code, err := s.checkModelAvailability(ctx, userInfo.TenantID, createReq.Model); err != nil {
 		httpError(w, err.Error(), code, &usage)
 		return
 	}
@@ -334,8 +334,8 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 	return http.StatusOK, nil
 }
 
-func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, error) {
-	m, err := s.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+func (s *S) checkModelAvailability(ctx context.Context, tenantID, modelID string) (int, error) {
+	m, err := s.modelClient.GetModel(ctx, tenantID, &mv1.GetModelRequest{
 		Id: modelID,
 	})
 
@@ -351,7 +351,7 @@ func (s *S) checkModelAvailability(ctx context.Context, modelID string) (int, er
 	}
 
 	s.logger.Info("Activating model", "modelID", modelID, "activationStatus", m.ActivationStatus)
-	if _, err := s.modelClient.ActivateModel(ctx, &mv1.ActivateModelRequest{
+	if _, err := s.modelClient.ActivateModel(ctx, tenantID, &mv1.ActivateModelRequest{
 		Id: modelID,
 	}); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("activate model: %s", err)

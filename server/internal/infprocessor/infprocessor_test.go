@@ -60,6 +60,8 @@ func TestP(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
 
+	assert.Empty(t, iprocessor.inProgressTasksByID)
+
 	engines := iprocessor.LocalEngines()
 	assert.Len(t, engines, 1)
 	assert.Len(t, engines["tenant0"], 1)
@@ -116,6 +118,8 @@ func TestEmbedding(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
+
+	assert.Empty(t, iprocessor.inProgressTasksByID)
 }
 
 func TestRemoveEngineWithInProgressTask(t *testing.T) {
@@ -159,6 +163,8 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
 	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
+
+	assert.Empty(t, iprocessor.inProgressTasksByID)
 }
 
 func TestProcessTaskResultAfterContextCancel(t *testing.T) {
@@ -198,6 +204,8 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
 	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
+
+	assert.Empty(t, iprocessor.inProgressTasksByID)
 
 	// Simulate a case where the task result is received after the context is canceled.
 	resp, err := comm.Recv()
@@ -270,6 +278,8 @@ func TestSendAndProcessTask(t *testing.T) {
 
 	// Wait for the task completion.
 	<-done
+
+	assert.Empty(t, iprocessor.inProgressTasksByID)
 }
 
 func TestFindMostPreferredtEngine(t *testing.T) {

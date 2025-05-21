@@ -544,6 +544,8 @@ func (p *P) AddOrUpdateEngineStatus(
 	if s := engineStatus.SyncStatus; s != nil {
 		e.inProgressModelIDs = s.InProgressModelIds
 	}
+	e.taskSender = taskSender
+	e.isLocal = isLocal
 	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
 	if engineStatus.Ready {

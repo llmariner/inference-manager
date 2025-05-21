@@ -602,6 +602,69 @@ func TestDumpStatus(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(want, got), "want: %v, got: %v", want, got)
 }
 
+func TestAddOrUpdateEngineStatus(t *testing.T) {
+	iprocessor := NewP(
+		router.New(true),
+		testutil.NewTestLogger(t),
+	)
+
+	iprocessor.AddOrUpdateEngineStatus(
+		newFakeEngineCommunicator(t),
+		&v1.EngineStatus{
+			EngineId: "engine_id0",
+			ModelIds: []string{"m0", "m1"},
+			Ready:    true,
+		},
+		"tenant0",
+		true,
+	)
+
+	assert.Equal(t, 1, len(iprocessor.engines))
+	ess := iprocessor.engines["tenant0"]
+	assert.Equal(t, 1, len(ess))
+	es := ess["engine_id0"]
+	assert.ElementsMatch(t, []string{"m0", "m1"}, es.modelIDs)
+	assert.True(t, es.isLocal)
+
+	// Add new engine.
+	iprocessor.AddOrUpdateEngineStatus(
+		newFakeEngineCommunicator(t),
+		&v1.EngineStatus{
+			EngineId: "engine_id1",
+			ModelIds: []string{"m2"},
+			Ready:    true,
+		},
+		"tenant0",
+		false,
+	)
+
+	assert.Equal(t, 1, len(iprocessor.engines))
+	ess = iprocessor.engines["tenant0"]
+	assert.Equal(t, 2, len(ess))
+	es = ess["engine_id1"]
+	assert.ElementsMatch(t, []string{"m2"}, es.modelIDs)
+	assert.False(t, es.isLocal)
+
+	// Update the engine.
+	iprocessor.AddOrUpdateEngineStatus(
+		newFakeEngineCommunicator(t),
+		&v1.EngineStatus{
+			EngineId: "engine_id1",
+			ModelIds: []string{"m3"},
+			Ready:    true,
+		},
+		"tenant0",
+		true,
+	)
+	assert.Equal(t, 1, len(iprocessor.engines))
+	ess = iprocessor.engines["tenant0"]
+	assert.Equal(t, 2, len(ess))
+	es = ess["engine_id1"]
+	assert.ElementsMatch(t, []string{"m3"}, es.modelIDs)
+	assert.True(t, es.isLocal)
+
+}
+
 func newFakeEngineCommunicator(t *testing.T) *fakeEngineCommunicator {
 	return &fakeEngineCommunicator{
 		t:        t,

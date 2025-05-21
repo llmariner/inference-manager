@@ -33,6 +33,11 @@ type ModelClient interface {
 	ActivateModel(ctx context.Context, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error)
 }
 
+type modelClientWithCache interface {
+	GetModel(ctx context.Context, tenantID string, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+	ActivateModel(ctx context.Context, tenantID string, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error)
+}
+
 // NoopModelClient is a no-op model client.
 type NoopModelClient struct {
 }
@@ -154,7 +159,7 @@ type S struct {
 	metricsMonitor metricsMonitoring
 	usageSetter    sender.UsageSetter
 
-	modelClient ModelClient
+	modelClient modelClientWithCache
 
 	vsClient VectorStoreClient
 

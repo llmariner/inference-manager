@@ -91,7 +91,7 @@ func (s *S) CreateEmbedding(
 
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
-	if code, err := s.checkModelAvailability(ctx, createReq.Model); err != nil {
+	if code, err := s.checkModelAvailability(ctx, userInfo.TenantID, createReq.Model); err != nil {
 		httpError(w, err.Error(), code, &usage)
 		return
 	}

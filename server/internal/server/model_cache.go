@@ -16,7 +16,7 @@ func newModelCache(
 ) *modelCache {
 	return &modelCache{
 		modelClient:             modelClient,
-		models:                  make(map[string]*cacheEntry),
+		modelsByTenantID:        make(map[string]map[string]*cacheEntry),
 		cacheInvalidationPeriod: defaultCacheInvalidationPeriod,
 	}
 }
@@ -30,17 +30,22 @@ type cacheEntry struct {
 type modelCache struct {
 	modelClient ModelClient
 
-	models map[string]*cacheEntry
-	mu     sync.Mutex
+	modelsByTenantID map[string]map[string]*cacheEntry
+	mu               sync.Mutex
 
 	cacheInvalidationPeriod time.Duration
 }
 
-func (c *modelCache) getModelFromCache(id string) (*mv1.Model, bool) {
+func (c *modelCache) getModelFromCache(tenantID, modelID string) (*mv1.Model, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	entry, ok := c.models[id]
+	models, ok := c.modelsByTenantID[tenantID]
+	if !ok {
+		return nil, false
+	}
+
+	entry, ok := models[modelID]
 	if !ok {
 		return nil, false
 	}
@@ -49,29 +54,44 @@ func (c *modelCache) getModelFromCache(id string) (*mv1.Model, bool) {
 		return entry.model, true
 	}
 
-	delete(c.models, id)
+	delete(models, modelID)
 	return nil, false
 }
 
-func (c *modelCache) addModelToCache(model *mv1.Model) {
+func (c *modelCache) addModelToCache(tenantID string, model *mv1.Model) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.models[model.Id] = &cacheEntry{
+	models, ok := c.modelsByTenantID[tenantID]
+	if !ok {
+		models = make(map[string]*cacheEntry)
+		c.modelsByTenantID[tenantID] = models
+	}
+
+	models[model.Id] = &cacheEntry{
 		model:       model,
 		lastUpdated: time.Now(),
 	}
 }
 
-func (c *modelCache) removeModelFromCache(id string) {
+func (c *modelCache) removeModelFromCache(tenantID, modelID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	delete(c.models, id)
+	models, ok := c.modelsByTenantID[tenantID]
+	if !ok {
+		return
+	}
+	delete(models, modelID)
 }
 
-func (c *modelCache) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
-	m, ok := c.getModelFromCache(in.Id)
+func (c *modelCache) GetModel(
+	ctx context.Context,
+	tenantID string,
+	in *mv1.GetModelRequest,
+	opts ...grpc.CallOption,
+) (*mv1.Model, error) {
+	m, ok := c.getModelFromCache(tenantID, in.Id)
 	if ok {
 		return m, nil
 	}
@@ -81,12 +101,17 @@ func (c *modelCache) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts
 		return nil, err
 	}
 
-	c.addModelToCache(m)
+	c.addModelToCache(tenantID, m)
 
 	return m, nil
 }
 
-func (c *modelCache) ActivateModel(ctx context.Context, in *mv1.ActivateModelRequest, opts ...grpc.CallOption) (*mv1.ActivateModelResponse, error) {
+func (c *modelCache) ActivateModel(
+	ctx context.Context,
+	tenantID string,
+	in *mv1.ActivateModelRequest,
+	opts ...grpc.CallOption,
+) (*mv1.ActivateModelResponse, error) {
 	resp, err := c.modelClient.ActivateModel(ctx, in, opts...)
 	if err != nil {
 		return nil, err
@@ -94,7 +119,7 @@ func (c *modelCache) ActivateModel(ctx context.Context, in *mv1.ActivateModelReq
 
 	// Invalidate the cache.
 	// TODO(kenji): This should invalidate the cache of other server instances.
-	c.removeModelFromCache(in.Id)
+	c.removeModelFromCache(tenantID, in.Id)
 
 	return resp, nil
 }

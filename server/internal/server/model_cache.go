@@ -37,9 +37,6 @@ type modelCache struct {
 }
 
 func (c *modelCache) getModelFromCache(tenantID, modelID string) (*mv1.Model, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	models, ok := c.modelsByTenantID[tenantID]
 	if !ok {
 		return nil, false
@@ -54,14 +51,12 @@ func (c *modelCache) getModelFromCache(tenantID, modelID string) (*mv1.Model, bo
 		return entry.model, true
 	}
 
+	// Stale cache. Remove and return false.
 	delete(models, modelID)
 	return nil, false
 }
 
 func (c *modelCache) addModelToCache(tenantID string, model *mv1.Model) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	models, ok := c.modelsByTenantID[tenantID]
 	if !ok {
 		models = make(map[string]*cacheEntry)
@@ -75,9 +70,6 @@ func (c *modelCache) addModelToCache(tenantID string, model *mv1.Model) {
 }
 
 func (c *modelCache) removeModelFromCache(tenantID, modelID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	models, ok := c.modelsByTenantID[tenantID]
 	if !ok {
 		return
@@ -91,6 +83,10 @@ func (c *modelCache) GetModel(
 	in *mv1.GetModelRequest,
 	opts ...grpc.CallOption,
 ) (*mv1.Model, error) {
+	// Lock the entire function so that at most one goroutine will make an RPC call when cache miss happens.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	m, ok := c.getModelFromCache(tenantID, in.Id)
 	if ok {
 		return m, nil
@@ -116,6 +112,9 @@ func (c *modelCache) ActivateModel(
 	if err != nil {
 		return nil, err
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// Invalidate the cache.
 	// TODO(kenji): This should invalidate the cache of other server instances.

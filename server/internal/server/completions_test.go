@@ -551,6 +551,9 @@ func (m *fakeMetricsMonitor) ObserveEmbeddingLatency(modelID string, latency tim
 func (m *fakeMetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
 }
 
+func (m *fakeMetricsMonitor) ObserveRequestCount(modelID, tenantID string, statusCode int32) {
+}
+
 type fakeVectorStoreClient struct {
 	vs *vsv1.VectorStore
 }

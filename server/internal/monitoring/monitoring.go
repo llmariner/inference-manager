@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -21,6 +22,7 @@ const (
 	metricsNameMaxInProgressTaskDuration = "inference_manager_server_max_in_progress_task_duration"
 	metricsNameNumEngines                = "inference_manager_server_num_engines"
 	metricsNameNumLocalEngines           = "inference_manager_server_num_local_engines"
+	metricsNameRequestCount              = "inference_manager_server_request_count"
 
 	metricsNameSinceLastEngineHeartbeat = "inference_manager_server_since_last_engine_heartbeat"
 
@@ -29,6 +31,8 @@ const (
 	metricLabelEngineID = "engine_id"
 
 	metricLabelTenantID = "tenant_id"
+
+	metricLabelStatusCode = "status_code"
 )
 
 // MetricsMonitor holds and updates Prometheus metrics.
@@ -45,6 +49,7 @@ type MetricsMonitor struct {
 	maxInProgressTaskDurationGauge prometheus.Gauge
 	numEnginesGaugeVec             *prometheus.GaugeVec
 	numLocalEnginesGaugeVec        *prometheus.GaugeVec
+	requestCounterVec              *prometheus.CounterVec
 
 	sinceLastEngineHeartbeatGaugeVec *prometheus.GaugeVec
 }
@@ -139,6 +144,18 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		},
 	)
 
+	requestCounterVec := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameRequestCount,
+		},
+		[]string{
+			metricLabelModelID,
+			metricLabelTenantID,
+			metricLabelStatusCode,
+		},
+	)
+
 	sinceLastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
@@ -162,6 +179,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		maxInProgressTaskDurationGauge:   maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec:               numEnginesGaugeVec,
 		numLocalEnginesGaugeVec:          numLocalEnginesGaugeVec,
+		requestCounterVec:                requestCounterVec,
 		sinceLastEngineHeartbeatGaugeVec: sinceLastEngineHeartbeatGaugeVec,
 	}
 
@@ -175,6 +193,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		maxInProgressTaskDurationGauge,
 		numEnginesGaugeVec,
 		numLocalEnginesGaugeVec,
+		requestCounterVec,
 		sinceLastEngineHeartbeatGaugeVec,
 	)
 
@@ -215,6 +234,12 @@ func (m *MetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
 	m.embeddingRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
 }
 
+// ObserveRequestCount observes a new request count for a model and tenant.
+func (m *MetricsMonitor) ObserveRequestCount(modelID, tenantID string, statusCode int32) {
+	code := strconv.Itoa(int(statusCode))
+	m.requestCounterVec.WithLabelValues(modelID, tenantID, code).Add(float64(1))
+}
+
 func (m *MetricsMonitor) updatePeriodicMetrics() {
 	m.numQueuedTasksGauge.Set(float64(m.p.NumQueuedTasks()))
 	m.numInProgressTasksGauge.Set(float64(m.p.NumInProgressTasks()))
@@ -248,5 +273,6 @@ func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.maxInProgressTaskDurationGauge)
 	prometheus.Unregister(m.numEnginesGaugeVec)
 	prometheus.Unregister(m.numLocalEnginesGaugeVec)
+	prometheus.Unregister(m.requestCounterVec)
 	prometheus.Unregister(m.sinceLastEngineHeartbeatGaugeVec)
 }

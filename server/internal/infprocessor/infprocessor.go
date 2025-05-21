@@ -109,12 +109,20 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	for k, vs := range t.header {
 		header[k] = &v1.HeaderValue{Values: vs}
 	}
+	var timeoutSeconds int32
+	deadline, ok := ctx.Deadline()
+	if ok {
+		timeoutSeconds = int32(time.Until(deadline).Seconds())
+	}
+
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
 			Id:       t.id,
 			Request:  t.request,
 			Header:   header,
 			EngineId: engine.id,
+
+			TimeoutSeconds: timeoutSeconds,
 		},
 	}); err != nil {
 		return fmt.Errorf("send the task: %s", err)

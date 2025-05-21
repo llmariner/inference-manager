@@ -67,7 +67,9 @@ message Task {
 
   string engine_id = 5;
 
-  // Next ID: 6
+  int32 timeout_seconds = 6;
+
+  // Next ID: 7
 }
 
 message ProcessTasksResponse {

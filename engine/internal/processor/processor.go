@@ -303,6 +303,7 @@ func (p *P) processTasks(
 
 				log := log.WithValues("taskID", resp.NewTask.Id)
 				log.Info("Started processing task")
+				// TODO(kenji): Consider set the context timeout based on the task's deadline.
 				if err := p.processTask(ctrl.LoggerInto(ctx, log), stream, resp.NewTask, goAwayCh); errors.Is(err, context.Canceled) {
 					log.Info("Canceled task", "reason", err)
 				} else if err != nil {

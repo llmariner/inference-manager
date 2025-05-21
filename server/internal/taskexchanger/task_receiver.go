@@ -390,6 +390,12 @@ func (r *taskReceiver) processTask(
 	t *v1.Task,
 	tenantID string,
 ) error {
+	if t.TimeoutSeconds > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(t.TimeoutSeconds)*time.Second)
+		defer cancel()
+	}
+
 	return r.infProcessor.SendAndProcessTask(ctx, t, tenantID, func(result *v1.TaskResult) error {
 		r.logger.V(1).Info("Sending task result", "taskID", t.Id)
 		return stream.Send(&v1.ProcessTasksInternalRequest{

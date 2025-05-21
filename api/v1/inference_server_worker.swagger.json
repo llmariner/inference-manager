@@ -480,6 +480,10 @@
         },
         "engineId": {
           "type": "string"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

@@ -52,6 +52,7 @@ export type Task = {
         [key: string]: HeaderValue;
     };
     engine_id?: string;
+    timeout_seconds?: number;
 };
 export type ProcessTasksResponse = {
     new_task?: Task;

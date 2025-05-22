@@ -324,7 +324,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 	case sig := <-sigCh:
 		// Wait until the endpoints are updated. Once the endpoints are updated,
 		// engines will not reconnect to this server. Also new tasks will not be
-		// directly coming to this server. (Tasks will still come from other servers.)
+		// directly coming to this server. (Tasks will still come from other servers via task exchanger.)
 		log.Info("Got signal. Waiting for graceful shutdown", "signal", sig, "delay", c.GracefulShutdownDelay)
 		time.Sleep(c.GracefulShutdownDelay)
 

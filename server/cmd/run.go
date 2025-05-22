@@ -328,7 +328,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		log.Info("Got signal. Waiting for graceful shutdown", "signal", sig, "delay", c.GracefulShutdownDelay)
 		time.Sleep(c.GracefulShutdownDelay)
 
-		log.Info("Sending GoAway task to local engines")
+		log.Info("Sending GoAway task to local engines", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		cctx, cancel := context.WithTimeout(ctx, c.GracefulShutdownDelay)
 		defer cancel()
 
@@ -337,16 +337,16 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		}
 
 		// Wait until the engine successfully reconnects to the other servers.
-		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
+		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay, "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		time.Sleep(c.GracefulShutdownDelay)
 
-		log.Info("Starting graceful shutdown of task exchanger")
+		log.Info("Starting graceful shutdown of task exchanger", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		te.StartGracefulShutdown()
 
-		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay)
+		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay, "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		time.Sleep(c.GracefulShutdownDelay)
 
-		log.Info("Starting graceful shutdown of gRPC servers")
+		log.Info("Starting graceful shutdown of gRPC servers", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		grpcSrv.GracefulStop()
 		wsSrv.GracefulStop()
 

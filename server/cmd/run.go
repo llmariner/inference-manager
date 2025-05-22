@@ -328,23 +328,35 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		log.Info("Got signal. Waiting for graceful shutdown", "signal", sig, "delay", c.GracefulShutdownDelay)
 		time.Sleep(c.GracefulShutdownDelay)
 
+		// Make local engines connect to other serves. Engines continue to accept new tasks and
+		// send task results until all inflight tasks complete.
 		log.Info("Sending GoAway task to local engines", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		cctx, cancel := context.WithTimeout(ctx, c.GracefulShutdownDelay)
 		defer cancel()
-
 		if err := infProcessor.SendGoAwayTaskToLocalEngines(cctx); err != nil {
 			log.Error(err, "Failed to send go away task to local engines")
 		}
-
 		// Wait until the engine successfully reconnects to the other servers.
 		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay, "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		time.Sleep(c.GracefulShutdownDelay)
 
+		// Make the task exchanger stop accepting new requests.
 		log.Info("Starting graceful shutdown of task exchanger", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		te.StartGracefulShutdown()
 
 		log.Info("Waiting for graceful shutdown", "delay", c.GracefulShutdownDelay, "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		time.Sleep(c.GracefulShutdownDelay)
+
+		// Wait until all in-flight tasks complete.
+		for {
+			n := infProcessor.NumInProgressTasks()
+			if n == 0 {
+				log.Info("No in-flight task")
+				break
+			}
+			log.Info("Waiting for all in-flight tasks to complete", "inProgressTaskCount", n)
+			time.Sleep(100 * time.Millisecond)
+		}
 
 		log.Info("Starting graceful shutdown of gRPC servers", "inProgressTaskCount", infProcessor.NumInProgressTasks())
 		grpcSrv.GracefulStop()

@@ -24,6 +24,7 @@ func newTaskID() (string, error) {
 }
 
 func newTask(
+	ctx context.Context,
 	tenantID string,
 	request *v1.TaskRequest,
 	header http.Header,
@@ -35,6 +36,7 @@ func newTask(
 	}
 
 	return newTaskWithID(
+		ctx,
 		id,
 		tenantID,
 		request,
@@ -44,18 +46,30 @@ func newTask(
 }
 
 func newTaskWithID(
+	ctx context.Context,
 	id string,
 	tenantID string,
 	request *v1.TaskRequest,
 	header http.Header,
 	targetEngineID string,
 ) *task {
+	var timeoutSeconds int32
+	deadline, ok := ctx.Deadline()
+	if ok {
+		// Set timeoutSeconds. Set to 1 if deadline is less than 1 second.
+		timeoutSeconds = int32(time.Until(deadline).Seconds())
+		if timeoutSeconds <= 0 {
+			timeoutSeconds = 1
+		}
+	}
+
 	return &task{
 		id:             id,
 		tenantID:       tenantID,
 		request:        request,
 		header:         header,
 		targetEngineID: targetEngineID,
+		timeoutSeconds: timeoutSeconds,
 		createdAt:      time.Now(),
 		resultCh:       make(chan *resultOrError),
 	}
@@ -82,6 +96,9 @@ type task struct {
 
 	// targetEngineID is set if the task must be sent to this engine.
 	targetEngineID string
+
+	// timeoutSeconds is the timeout in seconds for the task (if non-zero).
+	timeoutSeconds int32
 
 	createdAt time.Time
 

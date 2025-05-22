@@ -109,20 +109,14 @@ func (p *P) scheduleTask(ctx context.Context, t *task) error {
 	for k, vs := range t.header {
 		header[k] = &v1.HeaderValue{Values: vs}
 	}
-	var timeoutSeconds int32
-	deadline, ok := ctx.Deadline()
-	if ok {
-		timeoutSeconds = int32(time.Until(deadline).Seconds())
-	}
 
 	if err := engine.taskSender.Send(&v1.ProcessTasksResponse{
 		NewTask: &v1.Task{
-			Id:       t.id,
-			Request:  t.request,
-			Header:   header,
-			EngineId: engine.id,
-
-			TimeoutSeconds: timeoutSeconds,
+			Id:             t.id,
+			Request:        t.request,
+			Header:         header,
+			EngineId:       engine.id,
+			TimeoutSeconds: t.timeoutSeconds,
 		},
 	}); err != nil {
 		return fmt.Errorf("send the task: %s", err)
@@ -237,6 +231,7 @@ func (p *P) SendAndProcessTask(
 	}
 
 	task := newTaskWithID(
+		ctx,
 		origTask.Id,
 		tenantID,
 		origTask.Request,
@@ -255,6 +250,7 @@ func (p *P) SendChatCompletionTask(
 	header http.Header,
 ) (*http.Response, error) {
 	t, err := newTask(
+		ctx,
 		tenantID,
 		&v1.TaskRequest{
 			Request: &v1.TaskRequest_ChatCompletion{
@@ -279,6 +275,7 @@ func (p *P) SendEmbeddingTask(
 	header http.Header,
 ) (*http.Response, error) {
 	t, err := newTask(
+		ctx,
 		tenantID,
 		&v1.TaskRequest{
 			Request: &v1.TaskRequest_Embedding{
@@ -367,6 +364,7 @@ func (p *P) sendTaskToEngines(
 				p.logger.Info("Sending task to engine", "taskName", taskName, "engineID", eid, "tenantID", tid)
 
 				t, err := newTask(
+					ctx,
 					tenantID,
 					req,
 					http.Header{},

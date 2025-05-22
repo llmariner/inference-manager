@@ -243,7 +243,9 @@ func (p *P) runInternal(ctx context.Context, engineID string) error {
 	// Wait for the first error from either sendEngineStatusPeriodically or processTasks.
 	// Then cancel the context to stop both goroutines.
 	err = <-errCh
-	p.logger.Error(err, "Processor error")
+	if err != nil {
+		p.logger.Error(err, "Processor error")
+	}
 	cancel()
 	<-errCh
 	return err

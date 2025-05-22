@@ -71,7 +71,11 @@ func newTaskWithID(
 		targetEngineID: targetEngineID,
 		timeoutSeconds: timeoutSeconds,
 		createdAt:      time.Now(),
-		resultCh:       make(chan *resultOrError),
+		// Use the buffered channel. Otherwise when processing a task result
+		// gets stuck, the processor won't be able to process another task result
+		// for the same task. As this can block ProcessTaskResult, we would
+		// like to avoid that.
+		resultCh: make(chan *resultOrError, 1),
 	}
 }
 

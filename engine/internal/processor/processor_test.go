@@ -145,10 +145,18 @@ func TestGoAwayTask(t *testing.T) {
 		&metrics.NoopCollector{},
 		time.Second,
 	)
+	processor.goAwayDelay = 0
 
-	err = processor.run(ctx)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, errGoAway)
+	done := make(chan struct{})
+	go func() {
+		err := processor.runInternal(ctx, "engine0")
+		assert.NoError(t, err)
+		close(done)
+	}()
+
+	<-processor.runnerCreationCh
+	<-done
+	assert.Empty(t, processor.activeEngines)
 }
 
 func newFakeOllamaServer() (*fakeOllamaServer, error) {

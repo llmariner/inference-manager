@@ -38,15 +38,13 @@ const (
 
 	retryInterval = 10 * time.Second
 
-	goAwayDelay = 3 * time.Second
+	defaultGoAwayDelay = 5 * time.Second
 
 	// Increase the max receive message size to 100MB to support large tasks (e.g., chat completion with image data).
 	maxRecvMsgSize = 100 * 10e6
 
 	runtimeRequestMaxRetries = 3
 )
-
-var errGoAway = errors.New("go away")
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
@@ -95,12 +93,20 @@ func NewP(
 		modelSyncer: modelSyncer,
 		logger:      logger,
 		metrics:     collector,
+
+		runnerCreationCh: make(chan struct{}),
+		activeEngines:    map[string]*engineStatus{},
 		// taskGracePeriod is the grace period to wait for all tasks to complete.
 		// Grace period is shorter than the graceful shutdown timeout of 3s for safety.
 		// If tasks are not completed within the grace period, the processor forcibly
 		// cancels the tasks processing and stops.
 		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
+		goAwayDelay:     defaultGoAwayDelay,
 	}
+}
+
+type engineStatus struct {
+	connected bool
 }
 
 // P processes tasks.
@@ -111,13 +117,17 @@ type P struct {
 	modelSyncer ModelSyncer
 	metrics     metrics.Collector
 
+	logger logr.Logger
+
+	runnerCreationCh chan struct{}
+
+	activeEngines map[string]*engineStatus
 	// lastErr is the last error from run().
-	// It is cleared when the registration succeeds.
 	lastErr error
 	mu      sync.Mutex
-	logger  logr.Logger
 
 	taskGracePeriod time.Duration
+	goAwayDelay     time.Duration
 
 	leaderElection bool
 }
@@ -148,36 +158,56 @@ func (p *P) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, p.logger)
 	ctx = auth.AppendWorkerAuthorization(ctx)
 
-	for {
-		if err := p.run(ctx); err != nil {
-			p.logger.Error(err, "Processor error")
-			p.mu.Lock()
-			p.lastErr = err
-			p.mu.Unlock()
+	go func() {
+		// Trigger the creation of the first runner.
+		p.runnerCreationCh <- struct{}{}
+	}()
 
-			if errors.Is(err, errGoAway) {
-				p.logger.Info("Processor stopped due to go away. Reconnecting immediately")
+	for {
+		select {
+		case <-p.runnerCreationCh:
+			if p.numActiveEngines() >= 1 {
+				// No need to create a new runner.
 				continue
 			}
-		}
-
-		select {
+			go p.run(ctx)
 		case <-ctx.Done():
 			p.logger.Info("Stopped processor", "ctx", ctx.Err())
 			return nil
-		case <-time.After(retryInterval):
-			p.logger.Info("Retrying processor", "retry-interval", retryInterval)
 		}
 	}
 }
 
-func (p *P) run(ctx context.Context) error {
+func (p *P) run(ctx context.Context) {
 	engineID, err := id.GenerateID("engine_", 24)
 	if err != nil {
-		return err
+		panic(fmt.Sprintf("failed to generate engine ID: %s", err))
 	}
+
+	p.logger.Info("Starting new runner", "engineID", engineID)
 	ctx = ctrl.LoggerInto(ctx, p.logger.WithValues("engineID", engineID))
 
+	p.addActiveEngine(engineID)
+
+	if err := p.runInternal(ctx, engineID); err != nil {
+		p.logger.Error(err, "Processor error")
+	}
+
+	p.logger.Info("Stopping runner", "engineID", engineID)
+	p.removeActiveEngine(engineID, err)
+
+	select {
+	case <-ctx.Done():
+		p.logger.Info("Stopped processor", "ctx", ctx.Err())
+		return
+	case <-time.After(retryInterval):
+		p.logger.Info("Retrying processor", "retry-interval", retryInterval)
+		// Retry the processor.
+		p.runnerCreationCh <- struct{}{}
+	}
+}
+
+func (p *P) runInternal(ctx context.Context, engineID string) error {
 	// Use separate context for the stream to gracefully handle the task requests.
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
@@ -207,7 +237,7 @@ func (p *P) run(ctx context.Context) error {
 		errCh <- p.sendEngineStatusPeriodically(ctx, engineID, stream)
 	}()
 	go func() {
-		errCh <- p.processTasks(ctx, stream)
+		errCh <- p.processTasks(ctx, engineID, stream)
 	}()
 
 	// Wait for the first error from either sendEngineStatusPeriodically or processTasks.
@@ -239,11 +269,7 @@ func (p *P) sendEngineStatusPeriodically(
 			log.Info("Successfully registered engine")
 		}
 
-		// Clear the last error.
-		// TODO(kenji): Revisit. This might hide an error in the process task.
-		p.mu.Lock()
-		p.lastErr = nil
-		p.mu.Unlock()
+		p.updateActiveEngine(engineID, true)
 
 		select {
 		case <-stream.Context().Done():
@@ -260,6 +286,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 func (p *P) processTasks(
 	ctx context.Context,
+	engineID string,
 	stream stream,
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("task")
@@ -325,13 +352,18 @@ func (p *P) processTasks(
 		case err := <-errCh:
 			return err
 		case <-goAwayCh:
-			log.Info("Received the go-away request")
-			// Add delay for tasks that might be just scheduled to this engine.
-			time.Sleep(goAwayDelay)
-			log.Info("Stopping and waiting for all tasks to complete for the go-away request", "taskCount", taskCount.Load())
+			log.Info("Received the go-away request. Creating a new runner.")
+			// Remove the engine ID from the active engine IDs here so that a new runner is created
+			// before the completion of this run.
+			p.removeActiveEngine(engineID, nil)
+			p.runnerCreationCh <- struct{}{}
+
+			log.Info("Waiting for all tasks to complete for the go-away request", "taskCount", taskCount.Load())
+			// Add some delay as new tasks might be still coming.
+			time.Sleep(p.goAwayDelay)
 			wg.Wait()
 			close(doneCh)
-			return errGoAway
+			return nil
 		case <-ctx.Done():
 			log.Info("Stopping and waiting for all tasks to complete", "grace-period", p.taskGracePeriod)
 			wg.Wait()
@@ -757,10 +789,53 @@ func (p *P) sendTaskResult(
 func (p *P) IsReady() (bool, string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.lastErr != nil {
-		return false, p.lastErr.Error()
+	for _, e := range p.activeEngines {
+		if e.connected {
+			return true, ""
+		}
+	}
+
+	if err := p.lastErr; err != nil {
+		return false, err.Error()
 	}
 	return true, ""
+}
+
+func (p *P) addActiveEngine(engineID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.activeEngines[engineID] = &engineStatus{
+		connected: false,
+	}
+}
+
+func (p *P) updateActiveEngine(engineID string, connected bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e, ok := p.activeEngines[engineID]
+	if !ok {
+		// The engine has been removed. Do nothing.
+		return
+	}
+	e.connected = connected
+
+	// Clear the last error if the engine is connected.
+	if connected {
+		p.lastErr = nil
+	}
+}
+
+func (p *P) removeActiveEngine(engineID string, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.activeEngines, engineID)
+	p.lastErr = err
+}
+
+func (p *P) numActiveEngines() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.activeEngines)
 }
 
 func taskModel(t *v1.Task) string {

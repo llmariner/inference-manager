@@ -398,7 +398,7 @@ func (p *P) sendTask(
 	logger logr.Logger,
 ) (*http.Response, error) {
 	log := logger.WithValues("id", t.id)
-	log.V(1).Info("Waiting to receive an initial response to the task")
+	log.V(1).Info("Waiting for an initial response to the task")
 
 	respCh := make(chan *http.Response)
 	// Keep a buffer an error might happen after the message is respCh is written

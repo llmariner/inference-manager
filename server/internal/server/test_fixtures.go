@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/base64"
+
 	v1 "github.com/llmariner/inference-manager/api/v1"
 )
 

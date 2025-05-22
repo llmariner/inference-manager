@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/llmariner/common/pkg/id"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
@@ -88,8 +89,6 @@ func NewP(
 	gracefulShutdownTimeout time.Duration,
 ) *P {
 	return &P{
-		engineID: engineID,
-
 		clientFactory: clientFactory,
 
 		addrGetter:  addrGetter,
@@ -106,8 +105,6 @@ func NewP(
 
 // P processes tasks.
 type P struct {
-	engineID string
-
 	clientFactory processTasksClientFactory
 
 	addrGetter  AddressGetter
@@ -147,35 +144,40 @@ func (p *P) NeedLeaderElection() bool {
 //
 // TODO(kenji): Gracefully handle an error from the server.
 func (p *P) Start(ctx context.Context) error {
-	log := p.logger.WithValues("engineID", p.engineID)
-	log.Info("Starting processor")
-	ctx = ctrl.LoggerInto(ctx, log)
+	p.logger.Info("Starting processor")
+	ctx = ctrl.LoggerInto(ctx, p.logger)
 	ctx = auth.AppendWorkerAuthorization(ctx)
 
 	for {
 		if err := p.run(ctx); err != nil {
-			log.Error(err, "Processor error")
+			p.logger.Error(err, "Processor error")
 			p.mu.Lock()
 			p.lastErr = err
 			p.mu.Unlock()
 
 			if errors.Is(err, errGoAway) {
-				log.Info("Processor stopped due to go away. Reconnecting immediately")
+				p.logger.Info("Processor stopped due to go away. Reconnecting immediately")
 				continue
 			}
 		}
 
 		select {
 		case <-ctx.Done():
-			log.Info("Stopped processor", "ctx", ctx.Err())
+			p.logger.Info("Stopped processor", "ctx", ctx.Err())
 			return nil
 		case <-time.After(retryInterval):
-			log.Info("Retrying processor", "retry-interval", retryInterval)
+			p.logger.Info("Retrying processor", "retry-interval", retryInterval)
 		}
 	}
 }
 
 func (p *P) run(ctx context.Context) error {
+	engineID, err := id.GenerateID("engine_", 24)
+	if err != nil {
+		return err
+	}
+	ctx = ctrl.LoggerInto(ctx, p.logger.WithValues("engineID", engineID))
+
 	// Use separate context for the stream to gracefully handle the task requests.
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
@@ -202,7 +204,7 @@ func (p *P) run(ctx context.Context) error {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- p.sendEngineStatusPeriodically(ctx, stream)
+		errCh <- p.sendEngineStatusPeriodically(ctx, engineID, stream)
 	}()
 	go func() {
 		errCh <- p.processTasks(ctx, stream)
@@ -219,6 +221,7 @@ func (p *P) run(ctx context.Context) error {
 
 func (p *P) sendEngineStatusPeriodically(
 	ctx context.Context,
+	engineID string,
 	stream stream,
 ) error {
 	log := ctrl.LoggerFrom(ctx).WithName("status")
@@ -227,7 +230,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 	isFirst := true
 	for {
-		if err := p.sendEngineStatus(stream, true); err != nil {
+		if err := p.sendEngineStatus(stream, engineID, true); err != nil {
 			return err
 		}
 
@@ -246,7 +249,7 @@ func (p *P) sendEngineStatusPeriodically(
 		case <-stream.Context().Done():
 			return nil
 		case <-ctx.Done():
-			if err := p.sendEngineStatus(stream, false); err != nil {
+			if err := p.sendEngineStatus(stream, engineID, false); err != nil {
 				return err
 			}
 			return ctx.Err()
@@ -659,7 +662,7 @@ func (p *P) handleUnimplemented(
 	return nil
 }
 
-func (p *P) sendEngineStatus(stream sender, ready bool) error {
+func (p *P) sendEngineStatus(stream sender, engineID string, ready bool) error {
 	var models []*v1.EngineStatus_Model
 	var syncedModels []string
 	ms := p.modelSyncer.ListSyncedModels()
@@ -684,7 +687,7 @@ func (p *P) sendEngineStatus(stream sender, ready bool) error {
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
-				EngineId: p.engineID,
+				EngineId: engineID,
 				ModelIds: syncedModels,
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: inProgressModels,

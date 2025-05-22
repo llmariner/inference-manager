@@ -288,7 +288,10 @@ func (p *P) processTasks(
 		}
 	}()
 
-	var wg sync.WaitGroup
+	var (
+		wg        sync.WaitGroup
+		taskCount atomic.Int32
+	)
 	goAwayCh := make(chan struct{})
 	for {
 		select {
@@ -297,9 +300,13 @@ func (p *P) processTasks(
 			// next task. llm then might process requests in parallel.
 			wg.Add(1)
 			go func() {
-				defer wg.Done()
 				p.metrics.Add(taskModel(resp.NewTask), 1)
-				defer p.metrics.Add(taskModel(resp.NewTask), -1)
+				taskCount.Add(1)
+				defer func() {
+					taskCount.Add(-1)
+					p.metrics.Add(taskModel(resp.NewTask), -1)
+					wg.Done()
+				}()
 
 				log := log.WithValues("taskID", resp.NewTask.Id)
 				log.Info("Started processing task")
@@ -316,8 +323,9 @@ func (p *P) processTasks(
 			return err
 		case <-goAwayCh:
 			log.Info("Received the go-away request")
+			// Add delay for tasks that might be just scheduled to this engine.
 			time.Sleep(goAwayDelay)
-			log.Info("Stopping and waiting for all tasks to complete for the go-away request")
+			log.Info("Stopping and waiting for all tasks to complete for the go-away request", "taskCount", taskCount.Load())
 			wg.Wait()
 			close(doneCh)
 			return errGoAway

@@ -149,15 +149,16 @@ func (ws *WS) processTasks(srv v1.InferenceWorkerService_ProcessTasksServer) err
 		default:
 		}
 
+		var engineID string
+
 		req, err := srv.Recv()
 		if err != nil {
 			if err != io.EOF {
-				ws.logger.Error(err, "processMessagesFromEngine error")
+				ws.logger.Error(err, "processMessagesFromEngine error", "engineID", engineID)
 			}
 			return err
 		}
 
-		var engineID string
 		switch msg := req.Message.(type) {
 		case *v1.ProcessTasksRequest_EngineStatus:
 			ws.logger.Info("Received engine status", "engineID", msg.EngineStatus.EngineId)

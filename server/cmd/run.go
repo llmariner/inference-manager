@@ -42,7 +42,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-const monitoringRunnerInterval = 10 * time.Second
+const (
+	monitoringRunnerInterval                = 10 * time.Second
+	taskExchangerServerStatusUpdateInterval = 10 * time.Second
+)
 
 func runCmd() *cobra.Command {
 	var path string
@@ -264,6 +267,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 		podName,
 		c.ServerPodLabelKey,
 		c.ServerPodLabelValue,
+		taskExchangerServerStatusUpdateInterval,
 		logger,
 	)
 	if err := te.SetupWithManager(mgr); err != nil {

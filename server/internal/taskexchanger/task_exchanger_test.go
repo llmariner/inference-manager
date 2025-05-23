@@ -50,6 +50,7 @@ func TestE_Reconcile(t *testing.T) {
 		"localPodName",
 		"podLabelKey",
 		"podLabelValue",
+		10*time.Millisecond,
 		testutil.NewTestLogger(t),
 	)
 
@@ -103,6 +104,7 @@ func TestE_AddUpdateRemoveServer(t *testing.T) {
 		"localPodName",
 		"podLabelKey",
 		"podLabelValue",
+		10*time.Millisecond,
 		testutil.NewTestLogger(t),
 	)
 

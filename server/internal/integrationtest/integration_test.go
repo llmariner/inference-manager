@@ -203,11 +203,73 @@ func TestIntegration(t *testing.T) {
 	httpResp := <-respCh
 	assert.Equal(t, 200, httpResp.StatusCode)
 
+	// Test a gracefull shutdown.
+
+	assert.Equal(t, 0, servers[1].infProcessor.NumInProgressTasks())
+
+	// First create a task.
+	respCh = make(chan *http.Response)
+	eg.Go(func() error {
+		resp, err := servers[0].infProcessor.SendChatCompletionTask(
+			ctx,
+			tenantID,
+			&v1.CreateChatCompletionRequest{
+				Model: "m1",
+			},
+			http.Header{},
+		)
+		assert.NoError(t, err)
+		respCh <- resp
+		return nil
+	})
+
+	// The fake client that connects to the other server receives the task.
+	resp, err = servers[1].fakeEngineClient.Recv()
+	assert.NoError(t, err)
+	task = resp.NewTask
+	assert.Equal(t, "m1", task.Request.GetChatCompletion().Model)
+
+	// Start the graceful shutdown.
+	servers[1].taskExchanger.StartGracefulShutdown()
+	// Wait until the server[0] gets the status update and the remote engine becomes
+	// unready.
+	assert.Eventually(t, func() bool {
+		status := servers[0].infProcessor.DumpStatus()
+		tenant, ok := status.Tenants[tenantID]
+		assert.True(t, ok)
+		for _, e := range tenant.Engines {
+			if !e.IsLocal && !e.Ready {
+				return true
+			}
+		}
+		return false
+	}, 1*time.Second, 10*time.Millisecond, "engine not unready")
+
+	// Send the task result.
+	err = servers[1].fakeEngineClient.Send(&v1.ProcessTasksRequest{
+		Message: &v1.ProcessTasksRequest_TaskResult{
+			TaskResult: &v1.TaskResult{
+				TaskId: task.Id,
+				Message: &v1.TaskResult_HttpResponse{
+					HttpResponse: &v1.HttpResponse{
+						StatusCode: 200,
+					},
+				},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Receive the HTTP response.
+	httpResp = <-respCh
+	assert.Equal(t, 200, httpResp.StatusCode)
+
+	// Tear down the test.
+
+	servers[0].taskExchanger.StartGracefulShutdown()
+
 	cancel()
 
-	for _, s := range servers {
-		s.taskExchanger.StartGracefulShutdown()
-	}
 	for _, s := range servers {
 		s.internalServer.Stop()
 		s.wsServer.Stop()
@@ -252,6 +314,7 @@ func createServer(
 		selfPod.Name,
 		"labelKey",
 		"labelValue",
+		10*time.Millisecond,
 		logger,
 	)
 

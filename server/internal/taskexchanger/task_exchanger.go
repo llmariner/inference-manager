@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -26,18 +27,20 @@ func NewE(
 	localPodName string,
 	podLabelKey string,
 	podLabelValue string,
+	statusReportInterval time.Duration,
 	logger logr.Logger,
 ) *E {
 	return &E{
-		infProcessor:  infProcessor,
-		k8sClient:     k8sClient,
-		gRPCPort:      gRPCPort,
-		localPodName:  localPodName,
-		podLabelKey:   podLabelKey,
-		podLabelValue: podLabelValue,
-		logger:        logger.WithName("taskexchanger"),
-		taskReceivers: map[string]*taskReceiver{},
-		taskSenders:   map[string]*taskSender{},
+		infProcessor:         infProcessor,
+		k8sClient:            k8sClient,
+		gRPCPort:             gRPCPort,
+		localPodName:         localPodName,
+		podLabelKey:          podLabelKey,
+		podLabelValue:        podLabelValue,
+		statusReportInterval: statusReportInterval,
+		logger:               logger.WithName("taskexchanger"),
+		taskReceivers:        map[string]*taskReceiver{},
+		taskSenders:          map[string]*taskSender{},
 	}
 }
 
@@ -91,6 +94,8 @@ type E struct {
 
 	podLabelKey   string
 	podLabelValue string
+
+	statusReportInterval time.Duration
 
 	logger logr.Logger
 
@@ -180,6 +185,7 @@ func (e *E) createTaskReceiver(ctx context.Context, pod *corev1.Pod) {
 		e.infProcessor,
 		e.localPodName,
 		fmt.Sprintf("%s:%d", pod.Status.PodIP, e.gRPCPort),
+		e.statusReportInterval,
 		cancel,
 		log,
 	)

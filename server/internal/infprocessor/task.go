@@ -13,6 +13,10 @@ import (
 
 const (
 	taskQueueSize = 100
+
+	// taskResultBufferSize is the size of the task result buffer.
+	// When the buffer is full, the task result will be dropped.
+	taskResultBufferSize = 100
 )
 
 func newTaskID() (string, error) {
@@ -75,7 +79,7 @@ func newTaskWithID(
 		// gets stuck, the processor won't be able to process another task result
 		// for the same task. As this can block ProcessTaskResult, we would
 		// like to avoid that.
-		resultCh: make(chan *resultOrError, 1),
+		resultCh: make(chan *resultOrError, taskResultBufferSize),
 	}
 }
 

@@ -85,15 +85,16 @@ func (is *IS) ProcessTasksInternal(srv v1.InferenceInternalService_ProcessTasksI
 		default:
 		}
 
+		var serverPodName string
+
 		req, err := srv.Recv()
 		if err != nil {
 			if err != io.EOF {
-				is.logger.Error(err, "processMessagesFromEngine error")
+				is.logger.Error(err, "processMessagesFromEngine error", "serverPodName", serverPodName)
 			}
 			return err
 		}
 
-		var serverPodName string
 		switch msg := req.Message.(type) {
 		case *v1.ProcessTasksInternalRequest_ServerStatus:
 			is.logger.Info("Received server status", "serverPodName", msg.ServerStatus.PodName)

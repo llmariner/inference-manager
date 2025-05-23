@@ -462,6 +462,7 @@ func (p *P) enqueueAndProcessTask(
 	p.queue.Enqueue(task)
 
 	for {
+		var hasReceivedResult bool
 		select {
 		case <-ctx.Done():
 			log.Error(ctx.Err(), "Task completed due to context cancel")
@@ -475,8 +476,8 @@ func (p *P) enqueueAndProcessTask(
 			}
 
 			if err != nil {
-				// Retry if possible.
-				if !p.canRetry(task, err) {
+				// Retry if possible. Do not retry once the task has received a result.
+				if hasReceivedResult || !p.canRetry(task, err) {
 					log.Error(err, "Failed to process the task")
 					return err
 				}
@@ -496,6 +497,8 @@ func (p *P) enqueueAndProcessTask(
 				log.V(2).Info("Requeued the task", "reason", err, "delay", p.retryDelay)
 				continue
 			}
+
+			hasReceivedResult = true
 
 			// Check if the task is completed.
 			completed, err := isTaskCompleted(task, r.result)

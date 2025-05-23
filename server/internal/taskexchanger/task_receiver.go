@@ -198,9 +198,9 @@ func (r *taskReceiver) buildStatuses(ready bool) ([]*v1.ServerStatus_EngineStatu
 	defer r.mu.Unlock()
 
 	if r.isShutdown {
-		// Keep the engine statuses empty if the server is shutting down.
+		// Keep the engine statuses unready if the server is shutting down.
 		// This will prevent new tasks from being scheduled to this server.
-		return nil, true, nil
+		ready = false
 	}
 
 	enginesByTenantID := r.infProcessor.LocalEngines()

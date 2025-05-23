@@ -54,6 +54,7 @@ type engine struct {
 
 	// isLocal indicates whether the engine is connected to this local server or not.
 	isLocal bool
+	ready   bool
 
 	lastHeartbeat time.Time
 }
@@ -543,7 +544,6 @@ func (p *P) AddOrUpdateEngineStatus(
 		e = &engine{
 			id:         engineStatus.EngineId,
 			taskSender: taskSender,
-			isLocal:    isLocal,
 			clusterID:  engineStatus.ClusterId,
 		}
 		engines[engineStatus.EngineId] = e
@@ -557,6 +557,7 @@ func (p *P) AddOrUpdateEngineStatus(
 	}
 	e.taskSender = taskSender
 	e.isLocal = isLocal
+	e.ready = engineStatus.Ready
 	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
 
 	if engineStatus.Ready {
@@ -635,10 +636,21 @@ func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 				continue
 			}
 
+			// Copy the model to avoid race.
+			var models []*v1.EngineStatus_Model
+			for _, m := range e.models {
+				models = append(models, &v1.EngineStatus_Model{
+					Id:                  m.Id,
+					IsReady:             m.IsReady,
+					InProgressTaskCount: m.InProgressTaskCount,
+					GpuAllocated:        m.GpuAllocated,
+				})
+			}
+
 			engines = append(engines, &v1.EngineStatus{
 				EngineId: e.id,
 				ModelIds: e.modelIDs,
-				Models:   e.models,
+				Models:   models,
 				SyncStatus: &v1.EngineStatus_SyncStatus{
 					InProgressModelIds: e.inProgressModelIDs,
 				},
@@ -754,17 +766,30 @@ type EngineStatus struct {
 	InProgressModelIDs []string      `json:"inProgressModelIds"`
 	Tasks              []*TaskStatus `json:"tasks"`
 	IsLocal            bool          `json:"isLocal"`
+	Ready              bool          `json:"ready"`
 
 	Models    []*v1.EngineStatus_Model `json:"models"`
 	ClusterID string                   `json:"clusterId"`
 }
 
 func newEngineStatus(e *engine) *EngineStatus {
+	// Copy the model to avoid race.
+	var models []*v1.EngineStatus_Model
+	for _, m := range e.models {
+		models = append(models, &v1.EngineStatus_Model{
+			Id:                  m.Id,
+			IsReady:             m.IsReady,
+			InProgressTaskCount: m.InProgressTaskCount,
+			GpuAllocated:        m.GpuAllocated,
+		})
+	}
+
 	return &EngineStatus{
 		RegisteredModelIDs: e.modelIDs,
 		InProgressModelIDs: e.inProgressModelIDs,
-		Models:             e.models,
+		Models:             models,
 		IsLocal:            e.isLocal,
+		Ready:              e.ready,
 		ClusterID:          e.clusterID,
 	}
 }

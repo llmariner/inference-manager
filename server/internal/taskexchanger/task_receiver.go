@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	statusReportInterval = 10 * time.Second
-	retryInterval        = 10 * time.Second
+	retryInterval = 10 * time.Second
 
 	// Increase the max receive message size to 100MB to support large tasks (e.g., chat completion with image data).
 	maxRecvMsgSize = 100 * 10e6
@@ -29,16 +28,18 @@ func newTaskReceiver(
 	infProcessor *infprocessor.P,
 	localPodName string,
 	serverAddr string,
+	statusReportInterval time.Duration,
 	cancelF context.CancelFunc,
 	logger logr.Logger,
 ) *taskReceiver {
 	return &taskReceiver{
-		infProcessor:   infProcessor,
-		localPodName:   localPodName,
-		serverAddr:     serverAddr,
-		cancelF:        cancelF,
-		logger:         logger,
-		engineStatuses: make(map[string]map[string]*v1.EngineStatus),
+		infProcessor:         infProcessor,
+		localPodName:         localPodName,
+		serverAddr:           serverAddr,
+		statusReportInterval: statusReportInterval,
+		cancelF:              cancelF,
+		logger:               logger,
+		engineStatuses:       make(map[string]map[string]*v1.EngineStatus),
 	}
 }
 
@@ -46,8 +47,11 @@ type taskReceiver struct {
 	infProcessor *infprocessor.P
 	localPodName string
 	serverAddr   string
-	cancelF      context.CancelFunc
-	logger       logr.Logger
+
+	statusReportInterval time.Duration
+
+	cancelF context.CancelFunc
+	logger  logr.Logger
 
 	// engineStatuses is mapped by tenant ID and engine ID.
 	engineStatuses map[string]map[string]*v1.EngineStatus
@@ -154,7 +158,7 @@ func (r *taskReceiver) sendServerStatusPeriodically(
 				return err
 			}
 			return ctx.Err()
-		case <-time.After(statusReportInterval):
+		case <-time.After(r.statusReportInterval):
 		}
 	}
 }

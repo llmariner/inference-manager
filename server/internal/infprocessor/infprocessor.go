@@ -607,7 +607,16 @@ func (p *P) writeResultToTask(taskID string, r *resultOrError) {
 		return
 	}
 
-	t.resultCh <- r
+	// Write the result to the task's result channel. if the buffer is full, discard the result.
+	// This is to avoid blocking the task processing.
+	// TODO(kenji): Revisit. Discarindg results should be ok in most cases as there should be some issue
+	// with a task processing side (e.g., client gets disconnected), but there might be some cases that the
+	// buffer is just temporarily full.
+	select {
+	case t.resultCh <- r:
+	default:
+		p.logger.Error(fmt.Errorf("result buffer full"), "Discarded the result", "taskID", taskID)
+	}
 }
 
 // LocalEngines returns the local engine statuses grouped by tenant ID.

@@ -451,6 +451,10 @@ func (p *P) enqueueAndProcessTask(
 
 		// Drain the result channel as a result might have been written just before
 		// the task is deleted from the in-progress tasks map.
+		//
+		// TODO(kenji): Revisit. There can still be a race as a result might be
+		// written just after this. We should be fine as the channel
+		// has a sufficient buffer though.
 		for {
 			select {
 			case <-task.resultCh:
@@ -516,6 +520,11 @@ func (p *P) enqueueAndProcessTask(
 
 func (p *P) canRetry(t *task, err error) bool {
 	if !errors.As(err, &retriableError{}) {
+		return false
+	}
+
+	if t.targetEngineID != "" {
+		// Do not retry if the target engine is specified as the task is likely to fail again.
 		return false
 	}
 

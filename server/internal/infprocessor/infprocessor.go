@@ -301,9 +301,13 @@ func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 		},
 	}
 
+	pred := func(e *engine) bool {
+		return e.isLocal
+	}
+
 	noopCallback := func(engineID string) {}
 
-	if err := p.sendTaskToEngines(ctx, req, "goAway", noopCallback, func(*engine) bool { return true }, 0); err != nil {
+	if err := p.sendTaskToEngines(ctx, req, "goAway", noopCallback, pred, 0); err != nil {
 		return fmt.Errorf("send go away task to local engines: %s", err)
 	}
 
@@ -324,9 +328,8 @@ func (p *P) SendHeartbeatTaskToEngines(ctx context.Context, timeout time.Duratio
 		}
 	}
 
-	// send only to the ready local engines.
 	pred := func(e *engine) bool {
-		return e.isLocal && e.ready
+		return e.ready
 	}
 
 	if err := p.sendTaskToEngines(ctx, req, "heartbeat", callback, pred, timeout); err != nil {

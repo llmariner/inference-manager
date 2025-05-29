@@ -35,6 +35,7 @@ export type ServerSentEvent = {
 
 type BaseTaskResult = {
   task_id?: string
+  result_index?: number
 }
 
 export type TaskResult = BaseTaskResult

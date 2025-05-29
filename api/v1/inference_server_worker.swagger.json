@@ -516,6 +516,11 @@
         },
         "serverSentEvent": {
           "$ref": "#/definitions/v1ServerSentEvent"
+        },
+        "resultIndex": {
+          "type": "integer",
+          "format": "int32",
+          "description": "result_index is used to identify the index of the result and make sure results are processed in order."
         }
       }
     }

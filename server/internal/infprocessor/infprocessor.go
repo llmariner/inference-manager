@@ -303,7 +303,7 @@ func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 
 	noopCallback := func(engineID string) {}
 
-	if err := p.sendTaskToEngines(ctx, req, "goAway", noopCallback, true, 0); err != nil {
+	if err := p.sendTaskToEngines(ctx, req, "goAway", noopCallback, func(*engine) bool { return true }, 0); err != nil {
 		return fmt.Errorf("send go away task to local engines: %s", err)
 	}
 
@@ -324,7 +324,12 @@ func (p *P) SendHeartbeatTaskToEngines(ctx context.Context, timeout time.Duratio
 		}
 	}
 
-	if err := p.sendTaskToEngines(ctx, req, "heartbeat", callback, false, timeout); err != nil {
+	// send only to the ready local engines.
+	pred := func(e *engine) bool {
+		return e.isLocal && e.ready
+	}
+
+	if err := p.sendTaskToEngines(ctx, req, "heartbeat", callback, pred, timeout); err != nil {
 		return fmt.Errorf("send heartbeat task to engines: %s", err)
 	}
 
@@ -336,14 +341,14 @@ func (p *P) sendTaskToEngines(
 	req *v1.TaskRequest,
 	taskName string,
 	callback func(engineID string),
-	localOnly bool,
+	targetEnginePredicate func(*engine) bool,
 	timeout time.Duration,
 ) error {
 	p.mu.Lock()
 	engineIDsByTenant := map[string][]string{}
 	for tenantID, es := range p.engines {
 		for _, e := range es {
-			if localOnly && !e.isLocal {
+			if !targetEnginePredicate(e) {
 				continue
 			}
 			engineIDsByTenant[tenantID] = append(engineIDsByTenant[tenantID], e.id)

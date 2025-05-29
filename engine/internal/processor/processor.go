@@ -504,15 +504,18 @@ func (p *P) sendRequestToRuntime(
 		return nil
 	}
 
+	var resultIndex int32 = 1
+
 	scanner := sse.NewScanner(resp.Body)
 	for scanner.Scan() {
 		b := scanner.Text()
 		e := &v1.ServerSentEvent{
 			Data: []byte(b + sse.DoubleNewline),
 		}
-		if err := p.sendServerSentEvent(stream, t, e); err != nil {
+		if err := p.sendServerSentEvent(stream, t, e, resultIndex); err != nil {
 			return err
 		}
+		resultIndex++
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -523,7 +526,7 @@ func (p *P) sendRequestToRuntime(
 	e := &v1.ServerSentEvent{
 		IsLastEvent: true,
 	}
-	if err := p.sendServerSentEvent(stream, t, e); err != nil {
+	if err := p.sendServerSentEvent(stream, t, e, resultIndex); err != nil {
 		return err
 	}
 
@@ -747,6 +750,7 @@ func (p *P) sendHTTPResponse(
 		Message: &v1.TaskResult_HttpResponse{
 			HttpResponse: resp,
 		},
+		ResultIndex: 0,
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
 		return fmt.Errorf("send http response: %s", err)
@@ -758,12 +762,14 @@ func (p *P) sendServerSentEvent(
 	stream sender,
 	t *v1.Task,
 	e *v1.ServerSentEvent,
+	resultIndex int32,
 ) error {
 	result := &v1.TaskResult{
 		TaskId: t.Id,
 		Message: &v1.TaskResult_ServerSentEvent{
 			ServerSentEvent: e,
 		},
+		ResultIndex: resultIndex,
 	}
 	if err := p.sendTaskResult(stream, result); err != nil {
 		return fmt.Errorf("send server sent event: %s", err)

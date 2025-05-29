@@ -31,6 +31,9 @@ message TaskResult {
     HttpResponse http_response = 2;
     ServerSentEvent server_sent_event = 3;
   }
+
+  // result_index is used to identify the index of the result and make sure results are processed in order.
+  int32 result_index = 4;
 }
 
 message ProcessTasksRequest {

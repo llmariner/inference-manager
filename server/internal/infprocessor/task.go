@@ -115,6 +115,8 @@ type task struct {
 	preferredIgnoredEngines map[string]bool
 
 	retryCount int
+
+	nextResultIndex int
 }
 
 func (t *task) model() string {

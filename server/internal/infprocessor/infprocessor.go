@@ -485,7 +485,15 @@ func (p *P) enqueueAndProcessTask(
 			if r.err != nil {
 				err = retriableError{error: r.err}
 			} else {
-				err = processResult(r.result)
+				// Check if the task result came in the correct order. Handle the case where the result index is set to 0 specially
+				// for backward compatibility.
+				if want, got := task.nextResultIndex, int(r.result.ResultIndex); got != 0 && want != got {
+					err = fmt.Errorf("unexpected result index: wanted %d, but got %d", want, got)
+					log.Error(err, "Received unexpected result")
+				} else {
+					err = processResult(r.result)
+					task.nextResultIndex++
+				}
 			}
 
 			if err != nil {

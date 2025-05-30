@@ -411,7 +411,7 @@ func (p *P) sendTask(
 	log := logger.WithValues("id", t.id)
 	val, ok := t.header[http.CanonicalHeaderKey(requestIDHeader)]
 	if ok {
-		log = logger.WithValues("requestID", val)
+		log = log.WithValues("requestID", val)
 	}
 
 	log.V(1).Info("Waiting for an initial response to the task")

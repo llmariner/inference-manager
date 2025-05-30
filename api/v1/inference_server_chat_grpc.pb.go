@@ -57,5 +57,5 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ChatServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams:     []grpc.StreamDesc{},
-	Metadata:    "api/v1/inference_server.proto",
+	Metadata:    "api/v1/inference_server_chat.proto",
 }

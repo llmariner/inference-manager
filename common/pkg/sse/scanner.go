@@ -51,5 +51,10 @@ func split(data []byte, atEOF bool) (int, []byte, error) {
 		return pos + dlen, data[0:pos], nil
 	}
 
+	if !atEOF {
+		// Request more data.
+		return 0, nil, nil
+	}
+
 	return len(data), data, nil
 }

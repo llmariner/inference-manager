@@ -76,6 +76,70 @@ func (c VLLMConfig) validate() error {
 	return nil
 }
 
+// NimModelConfig is the model configuration.
+type NimModelConfig struct {
+	LogLevel        string    `yaml:"logLevel"`
+	Image           string    `yaml:"image"`
+	ImagePullPolicy string    `yaml:"imagePullPolicy"`
+	ModelName       string    `yaml:"modelName"`
+	ModelVersion    string    `yaml:"modelVersion"`
+	OpenaiPort      int       `yaml:"openaiPort"`
+	Resources       Resources `yaml:"resources"`
+}
+
+func (c *NimModelConfig) validate() error {
+	levels := []string{
+		"DEBUG",
+		"INFO",
+		"WARNING",
+		"ERROR",
+	}
+	levelsMap := map[string]bool{}
+	for _, level := range levels {
+		levelsMap[level] = true
+	}
+	if c.LogLevel == "" {
+		c.LogLevel = "INFO"
+	}
+	if !levelsMap[c.LogLevel] {
+		return fmt.Errorf("invalid logLevel: %q, must be one of %v", c.LogLevel, levels)
+	}
+	if c.Image == "" {
+		return fmt.Errorf("image must be set")
+	}
+	if c.ImagePullPolicy == "" {
+		return fmt.Errorf("imagePullPolicy must be set")
+	}
+	if c.ModelName == "" {
+		return fmt.Errorf("modelName must be set")
+	}
+	if c.ModelVersion == "" {
+		return fmt.Errorf("modelVersion must be set")
+	}
+	if c.OpenaiPort <= 0 {
+		return fmt.Errorf("OpenaiPort must be greater than 0")
+	}
+	return nil
+}
+
+// NimConfig is the NIM configuration.
+type NimConfig struct {
+	NGCAPIKey string                    `yaml:"ngcApiKey"`
+	Models    map[string]NimModelConfig `yaml:"models"`
+}
+
+func (c *NimConfig) validate() error {
+	if c.NGCAPIKey == "" {
+		return fmt.Errorf("ngcApiKey must be set")
+	}
+	for _, model := range c.Models {
+		if err := model.validate(); err != nil {
+			return fmt.Errorf("model %q: %s", model.ModelName, err)
+		}
+	}
+	return nil
+}
+
 // TolerationConfig is the toleration configuration.
 type TolerationConfig struct {
 	Key               string `yaml:"key"`
@@ -92,6 +156,8 @@ const (
 	RuntimeNameVLLM string = "vllm"
 	// RuntimeNameTriton is the runtime name for Nvidia Triton Inference Server.
 	RuntimeNameTriton string = "triton"
+	// RuntimeNameNim is the NIM runtime name.
+	RuntimeNameNim string = "nim"
 )
 
 // RuntimeConfig is the runtime configuration.
@@ -371,6 +437,7 @@ type Config struct {
 	Runtime RuntimeConfig `yaml:"runtime"`
 	Ollama  OllamaConfig  `yaml:"ollama"`
 	VLLM    VLLMConfig    `yaml:"vllm"`
+	Nim     NimConfig     `yaml:"nim"`
 	Model   ModelConfig   `yaml:"model"`
 
 	HealthPort  int `yaml:"healthPort"`
@@ -443,6 +510,10 @@ func (c *Config) Validate() error {
 
 	if err := c.VLLM.validate(); err != nil {
 		return fmt.Errorf("vllm: %s", err)
+	}
+
+	if err := c.Nim.validate(); err != nil {
+		return fmt.Errorf("nim: %s", err)
 	}
 
 	if err := c.Model.validate(); err != nil {

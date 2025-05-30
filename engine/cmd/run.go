@@ -173,6 +173,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelManager runtime.ModelManager
 	)
 
+	nimModels := make(map[string]bool)
 	errCh := make(chan error)
 	if c.Ollama.DynamicModelLoading {
 		pullerAddr := fmt.Sprintf("%s:%d", ollamaClient.GetName(""), c.Runtime.PullerPort)
@@ -185,27 +186,40 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelManager = ollamaManager
 
 	} else {
+		clients := make(map[string]runtime.Client)
+		clients[config.RuntimeNameOllama] = ollamaClient
+		clients[config.RuntimeNameVLLM] = runtime.NewVLLMClient(
+			mgr.GetClient(),
+			ns,
+			owner,
+			&c.Runtime,
+			processedConfig,
+			modelClient,
+			&c.VLLM,
+		)
+		clients[config.RuntimeNameTriton] = runtime.NewTritonClient(
+			mgr.GetClient(),
+			ns,
+			owner,
+			&c.Runtime,
+			processedConfig,
+		)
+		for _, model := range c.Nim.Models {
+			clients[model.ModelName] = runtime.NewNimClient(
+				mgr.GetClient(),
+				ns,
+				owner,
+				&c.Runtime,
+				processedConfig,
+				&c.Nim,
+				&model,
+			)
+			nimModels[model.ModelName] = true
+		}
+
 		rtClientFactory := &clientFactory{
-			config: c,
-			clients: map[string]runtime.Client{
-				config.RuntimeNameOllama: ollamaClient,
-				config.RuntimeNameVLLM: runtime.NewVLLMClient(
-					mgr.GetClient(),
-					ns,
-					owner,
-					&c.Runtime,
-					processedConfig,
-					modelClient,
-					&c.VLLM,
-				),
-				config.RuntimeNameTriton: runtime.NewTritonClient(
-					mgr.GetClient(),
-					ns,
-					owner,
-					&c.Runtime,
-					processedConfig,
-				),
-			},
+			config:  c,
+			clients: clients,
 		}
 
 		rtManager := runtime.NewManager(
@@ -215,6 +229,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			modelClient,
 			c.VLLM.DynamicLoRALoading,
 			c.Runtime.PullerPort,
+			nimModels,
 		)
 		if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {
 			return err
@@ -278,6 +293,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		logger,
 		collector,
 		c.GracefulShutdownTimeout,
+		nimModels,
 	)
 	if err := p.SetupWithManager(mgr, leaderElection); err != nil {
 		return err
@@ -328,6 +344,11 @@ type clientFactory struct {
 }
 
 func (f *clientFactory) New(modelID string) (runtime.Client, error) {
+	// skip processing model config if the model is served by NIM runtime.
+	if _, ok := f.config.Nim.Models[modelID]; ok {
+		return f.clients[modelID], nil
+	}
+
 	mci := config.NewProcessedModelConfig(f.config).ModelConfigItem(modelID)
 	c, ok := f.clients[mci.RuntimeName]
 	if !ok {

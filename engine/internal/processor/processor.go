@@ -85,6 +85,7 @@ func NewP(
 	logger logr.Logger,
 	collector metrics.Collector,
 	gracefulShutdownTimeout time.Duration,
+	nimModels map[string]bool,
 ) *P {
 	return &P{
 		clientFactory: clientFactory,
@@ -102,6 +103,7 @@ func NewP(
 		// cancels the tasks processing and stops.
 		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
 		goAwayDelay:     defaultGoAwayDelay,
+		nimModels:       nimModels,
 	}
 }
 
@@ -130,6 +132,9 @@ type P struct {
 	goAwayDelay     time.Duration
 
 	leaderElection bool
+
+	// nimModels is a map of models that use NIM as backend.
+	nimModels map[string]bool
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -417,6 +422,7 @@ func (p *P) sendRequestToRuntime(
 		}
 	}
 
+	//if !p.nimModels[taskModel(t)] {
 	// First pull the model if it is not yet pulled.
 	if err := p.modelSyncer.PullModel(ctx, taskModel(t)); err != nil {
 		code := http.StatusInternalServerError
@@ -427,6 +433,9 @@ func (p *P) sendRequestToRuntime(
 		sendErrResponse(code, err.Error())
 		return fmt.Errorf("pull model: %s", err)
 	}
+	//} else {
+	// TODO(guangrui)
+	//}
 
 	var done atomic.Bool
 	taskCtx, cancel := context.WithCancel(context.Background())
@@ -721,6 +730,9 @@ func (p *P) sendEngineStatus(stream sender, engineID string, ready bool) error {
 		})
 		inProgressModels = append(inProgressModels, m.ID)
 	}
+
+	// TODO(guangrui): handle NIM engine status.
+
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{

@@ -203,7 +203,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 
 	ratelimiter := rate.NewLimiter(c.RateLimit, logger)
 
-	grpcSrv := server.New(m, usageSetter, ratelimiter, mclient, vsClient, rwt, infProcessor, logger)
+	grpcSrv := server.New(m, usageSetter, ratelimiter, mclient, vsClient, rwt, infProcessor, c.NimModels, logger)
 
 	pat := runtime.MustPattern(
 		runtime.NewPattern(

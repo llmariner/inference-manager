@@ -277,6 +277,11 @@ vllm:
   # Logging level of VLLM.
   loggingLevel: ERROR
 
+# nim is a map of model names to model settings.
+nim:
+  ngcApiKey: ""
+  models: {}
+  
 autoscaler:
   # If set to true, the request base autoscaler will be enabled.
   # NOTE: In ollama dynamic-model-loading mode, volume sharing is required.

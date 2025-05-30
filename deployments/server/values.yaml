@@ -89,6 +89,7 @@ vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 # The address of the vector-store-manager-server to call internal vector-store APIs.
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
+nimModels: []
 
 engineHeartbeat:
   # Set to true to enable heartbeats from the server to engines.

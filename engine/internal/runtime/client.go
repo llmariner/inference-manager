@@ -518,7 +518,7 @@ func resourceName(runtime, modelID string) string {
 	// Avoid using llegal characters like "." or capital letters in the model names
 	// TODO(kenji): Have a better way.
 	m := strings.ToLower(modelID)
-	for _, r := range []string{".", "_", ":"} {
+	for _, r := range []string{".", "_", ":", "/"} {
 		m = strings.ReplaceAll(m, r, "-")
 	}
 

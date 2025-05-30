@@ -134,13 +134,19 @@ func New(
 	vsClient VectorStoreClient,
 	r Rewriter,
 	taskSender taskSender,
+	nims []string,
 	logger logr.Logger,
 ) *S {
+	nimModels := make(map[string]bool)
+	for _, model := range nims {
+		nimModels[model] = true
+	}
 	return &S{
 		metricsMonitor: m,
 		usageSetter:    usage,
 		ratelimiter:    rate,
 		modelClient:    newModelCache(modelClient),
+		nimModels:      nimModels,
 		vsClient:       vsClient,
 		reqIntercepter: noopReqIntercepter{},
 		taskSender:     taskSender,
@@ -160,6 +166,8 @@ type S struct {
 	usageSetter    sender.UsageSetter
 
 	modelClient modelClientWithCache
+
+	nimModels map[string]bool
 
 	vsClient VectorStoreClient
 

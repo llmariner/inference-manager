@@ -40,6 +40,7 @@ func NewManager(
 	modelClient modelClient,
 	enableDynamicLoRALoading bool,
 	pullerPort int,
+	nimModels map[string]bool,
 ) *Manager {
 	return &Manager{
 		k8sClient:       k8sClient,
@@ -62,6 +63,8 @@ func NewManager(
 
 		readinessCheckMaxRetryCount: 3,
 		readinessCheckRetryInterval: 500 * time.Millisecond,
+
+		nimModels: nimModels,
 	}
 }
 
@@ -106,6 +109,9 @@ type Manager struct {
 	readinessCheckMaxRetryCount int
 	// readinessCheckRetryInterval is the interval for the readiness check.
 	readinessCheckRetryInterval time.Duration
+
+	// nimModels is a map of models that use NIM as backend.
+	nimModels map[string]bool
 }
 
 func (m *Manager) deleteRuntimeByName(name string) {

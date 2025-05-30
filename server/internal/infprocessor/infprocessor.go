@@ -409,7 +409,7 @@ func (p *P) sendTask(
 	logger logr.Logger,
 ) (*http.Response, error) {
 	log := logger.WithValues("id", t.id)
-	val, ok := t.header[requestIDHeader]
+	val, ok := t.header[http.CanonicalHeaderKey(requestIDHeader)]
 	if ok {
 		log = logger.WithValues("requestID", val)
 	}

@@ -1,4 +1,4 @@
-import * as LlmarinerChatServerV1Inference_server from "./inference_server.pb";
+import * as LlmarinerChatServerV1Inference_server_chat from "./inference_server_chat.pb";
 import * as LlmarinerEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb";
 import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb";
 type Absent<T, K extends keyof T> = {
@@ -41,7 +41,7 @@ export type GoAwayRequest = {};
 export type HeartbeatRequest = {};
 type BaseTaskRequest = {};
 export type TaskRequest = BaseTaskRequest & OneOf<{
-    chat_completion: LlmarinerChatServerV1Inference_server.CreateChatCompletionRequest;
+    chat_completion: LlmarinerChatServerV1Inference_server_chat.CreateChatCompletionRequest;
     embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest;
     go_away: GoAwayRequest;
     heartbeat: HeartbeatRequest;

@@ -23,6 +23,7 @@ const (
 	metricsNameNumEngines                = "inference_manager_server_num_engines"
 	metricsNameNumLocalEngines           = "inference_manager_server_num_local_engines"
 	metricsNameRequestCount              = "inference_manager_server_request_count"
+	metricsNameTaskErrorCount            = "inference_manager_server_task_error_count"
 
 	metricsNameSinceLastEngineHeartbeat = "inference_manager_server_since_last_engine_heartbeat"
 
@@ -50,6 +51,7 @@ type MetricsMonitor struct {
 	numEnginesGaugeVec             *prometheus.GaugeVec
 	numLocalEnginesGaugeVec        *prometheus.GaugeVec
 	requestCounterVec              *prometheus.CounterVec
+	taskErrorCounter               prometheus.Counter
 
 	sinceLastEngineHeartbeatGaugeVec *prometheus.GaugeVec
 }
@@ -156,6 +158,13 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		},
 	)
 
+	taskErrorCounter := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameTaskErrorCount,
+		},
+	)
+
 	sinceLastEngineHeartbeatGaugeVec := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
@@ -180,6 +189,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numEnginesGaugeVec:               numEnginesGaugeVec,
 		numLocalEnginesGaugeVec:          numLocalEnginesGaugeVec,
 		requestCounterVec:                requestCounterVec,
+		taskErrorCounter:                 taskErrorCounter,
 		sinceLastEngineHeartbeatGaugeVec: sinceLastEngineHeartbeatGaugeVec,
 	}
 
@@ -194,6 +204,7 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		numEnginesGaugeVec,
 		numLocalEnginesGaugeVec,
 		requestCounterVec,
+		taskErrorCounter,
 		sinceLastEngineHeartbeatGaugeVec,
 	)
 
@@ -238,6 +249,11 @@ func (m *MetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
 func (m *MetricsMonitor) ObserveRequestCount(modelID, tenantID string, statusCode int32) {
 	code := strconv.Itoa(int(statusCode))
 	m.requestCounterVec.WithLabelValues(modelID, tenantID, code).Add(float64(1))
+}
+
+// ObserveTaskErrorCount increments the task error counter.
+func (m *MetricsMonitor) ObserveTaskErrorCount() {
+	m.taskErrorCounter.Add(float64(1))
 }
 
 func (m *MetricsMonitor) updatePeriodicMetrics() {

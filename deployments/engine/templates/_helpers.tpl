@@ -59,6 +59,15 @@ Create the name of the service account to use
 {{- end -}}
 
 {{/*
+For inline NGC key, create image pull secret
+*/}}
+{{- define "inference-manager-engine.generatedImagePullSecret" -}}
+{{- if .Values.nim.ngcApiKey }}
+{{- printf "{\"auths\":{\"nvcr.io\":{\"username\":\"$oauthtoken\",\"password\":\"%s\"}}}" .Values.nim.ngcApiKey | b64enc }}
+{{- end }}
+{{- end }}
+
+{{/*
 Do nothing, just for validation.
 */}}
 {{ .Values.enable }}

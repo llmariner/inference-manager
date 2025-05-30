@@ -89,6 +89,12 @@ vectorStoreManagerServerAddr: vector-store-manager-server-grpc:8081
 # The address of the vector-store-manager-server to call internal vector-store APIs.
 vectorStoreManagerInternalServerAddr: vector-store-manager-server-internal-grpc:8083
 
+# The array of model names to be served by NIM backend.
+# For example:
+# nimModels:
+# - meta/llama-3.1-8b-instruct
+# +docs:type=property
+nimModels: []
 
 engineHeartbeat:
   # Set to true to enable heartbeats from the server to engines.

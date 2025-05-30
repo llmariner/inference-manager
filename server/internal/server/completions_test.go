@@ -47,6 +47,7 @@ func TestCreateChatCompletion(t *testing.T) {
 		},
 		&fakeRewriter{},
 		capturingTaskSender,
+		nil,
 		logger,
 	)
 	srv.enableAuth = true

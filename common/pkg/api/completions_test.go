@@ -544,3 +544,77 @@ func TestConvertContentStringToArray(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertContentArrayToString(t *testing.T) {
+	tcs := []struct {
+		name    string
+		body    string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "no messages field",
+			body: `{"model": "gpt-4"}`,
+			want: `{"model": "gpt-4"}`,
+		},
+		{
+			name: "content already string",
+			body: `{"messages": [{"role": "user", "content": "Hello, world!"}]}`,
+			want: `{"messages": [{"role": "user", "content": "Hello, world!"}]}`,
+		},
+		{
+			name: "no content field",
+			body: `{"messages": [{"role": "user"}]}`,
+			want: `{"messages": [{"role": "user"}]}`,
+		},
+		{
+			name: "single text content in array",
+			body: `{"messages": [{"role": "user", "content": [{"type": "text", "text": "Hello, world!"}]}]}`,
+			want: `{"messages": [{"role": "user", "content": "Hello, world!"}]}`,
+		},
+		{
+			name: "multiple messages mixed formats",
+			body: `{"messages": [
+				{"role": "system", "content": "You are a helpful assistant."},
+				{"role": "user", "content": [{"type": "text", "text": "What's the weather?"}]}
+			]}`,
+			want: `{"messages": [
+				{"role": "system", "content": "You are a helpful assistant."},
+				{"role": "user", "content": "What's the weather?"}
+			]}`,
+		},
+		{
+			name:    "non-text content type",
+			body:    `{"messages": [{"role": "user", "content": [{"type": "image", "image_url": {"url": "https://example.com/image.jpg"}}]}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "multiple content items",
+			body:    `{"messages": [{"role": "user", "content": [{"type": "text", "text": "Hello"}, {"type": "text", "text": "world"}]}]}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := applyConvertFuncs([]byte(tc.body), []convertF{convertContentArrayToString})
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			// Compare as parsed JSON to ignore formatting differences
+			var gotJSON, wantJSON map[string]interface{}
+			err = json.Unmarshal(got, &gotJSON)
+			assert.NoError(t, err)
+
+			err = json.Unmarshal([]byte(tc.want), &wantJSON)
+			assert.NoError(t, err)
+
+			assert.Equal(t, wantJSON, gotJSON)
+		})
+	}
+}

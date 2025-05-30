@@ -35,17 +35,22 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 }
 
 // ConvertCreateChatCompletionRequestToOpenAI converts the request to the OpenAI format.
-func ConvertCreateChatCompletionRequestToOpenAI(body []byte) ([]byte, error) {
+func ConvertCreateChatCompletionRequestToOpenAI(body []byte, needStringFormat bool) ([]byte, error) {
 	fs := []convertF{
 		// The order of the functions is the opposite of the ConvertCreateChatCompletionRequestToProto.
 		//
 		// We don't have a function that corresponds to convertContentStringToArray as the convertion
 		// doesn't break the OpenAI API spec.
 		convertEncodedTopP,
+		convertEncodedTopP,
 		convertEncodedTemperature,
 		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
 		convertToolChoiceObject,
+	}
+	if needStringFormat {
+		// NIM expects the content field to be a string.
+		fs = append([]convertF{convertContentArrayToString}, fs...)
 	}
 	return applyConvertFuncs(body, fs)
 }
@@ -260,6 +265,49 @@ func convertContentStringToArray(r map[string]interface{}) error {
 					"type": contentTypeText,
 					"text": cs,
 				},
+			}
+		}
+	}
+	return nil
+}
+
+// convertContentArrayToString converts the content array back to a string for OpenAI format compatibility.
+func convertContentArrayToString(r map[string]interface{}) error {
+	msgs, ok := r["messages"]
+	if !ok {
+		return nil
+	}
+
+	for _, msg := range msgs.([]interface{}) {
+		m := msg.(map[string]interface{})
+		content, ok := m["content"]
+		if !ok {
+			continue
+		}
+
+		// If content is already a string, no conversion needed
+		if _, ok := content.(string); ok {
+			continue
+		}
+
+		// If content is an array, convert it to a string format OpenAI expects
+		if contentArr, ok := content.([]interface{}); ok && len(contentArr) > 0 {
+			// For text-only content, extract just the text
+			if len(contentArr) == 1 {
+				if contentItem, ok := contentArr[0].(map[string]interface{}); ok {
+					if contentType, ok := contentItem["type"].(string); ok && contentType == contentTypeText {
+						if text, ok := contentItem["text"].(string); ok {
+							m["content"] = text
+							continue
+						}
+					} else {
+						// TODO(guangrui): Handle non-text content.
+						return fmt.Errorf("unsupported content type: %s", contentType)
+					}
+				}
+			} else {
+				// TODO(guangrui): Handle more complex content arrays.
+				return fmt.Errorf("content array with multiple items is not supported")
 			}
 		}
 	}

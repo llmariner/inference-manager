@@ -37,7 +37,7 @@ type Client interface {
 	GetName(modelID string) string
 	GetAddress(name string) string
 	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
-	DeleteRuntime(ctx context.Context, modelID string) error
+	DeleteRuntime(ctx context.Context, name, modelID string) error
 
 	RuntimeName() string
 	Namespace() string
@@ -488,9 +488,7 @@ func (c *commonClient) deployRuntime(
 }
 
 // DeleteRuntime deletes the runtime for the given model.
-func (c *commonClient) DeleteRuntime(ctx context.Context, modelID string) error {
-	name := c.GetName(modelID)
-
+func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) error {
 	log := ctrl.LoggerFrom(ctx).WithValues("name", name)
 	log.Info("Deleting runtime", "model", modelID)
 
@@ -518,7 +516,7 @@ func resourceName(runtime, modelID string) string {
 	// Avoid using illegal characters like "." or capital letters in the model names
 	// TODO(kenji): Have a better way.
 	m := strings.ToLower(modelID)
-	for _, r := range []string{".", "_", ":"} {
+	for _, r := range []string{".", "_", ":", "/"} {
 		m = strings.ReplaceAll(m, r, "-")
 	}
 

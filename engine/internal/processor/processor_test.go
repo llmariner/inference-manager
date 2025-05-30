@@ -42,6 +42,7 @@ func TestP(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		make(map[string]bool),
 	)
 
 	fakeSender := &fakeSender{ctx: ctx}
@@ -84,6 +85,7 @@ func TestEmbedding(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		make(map[string]bool),
 	)
 
 	fakeSender := &fakeSender{ctx: ctx}
@@ -144,6 +146,7 @@ func TestGoAwayTask(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		make(map[string]bool),
 	)
 	processor.goAwayDelay = 0
 

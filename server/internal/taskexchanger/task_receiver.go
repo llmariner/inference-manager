@@ -401,7 +401,7 @@ func (r *taskReceiver) processTask(
 	}
 
 	return r.infProcessor.SendAndProcessTask(ctx, t, tenantID, func(result *v1.TaskResult) error {
-		r.logger.V(1).Info("Sending task result", "taskID", t.Id)
+		r.logger.V(1).Info("Sending task result", "taskID", t.Id, "resultIndex", result.ResultIndex)
 		return stream.Send(&v1.ProcessTasksInternalRequest{
 			Message: &v1.ProcessTasksInternalRequest_TaskResult{
 				TaskResult: result,

@@ -16,6 +16,8 @@ import (
 
 const (
 	maxRetryCount = 3
+
+	requestIDHeader string = "X-Request-ID"
 )
 
 type engineRouter interface {
@@ -407,6 +409,11 @@ func (p *P) sendTask(
 	logger logr.Logger,
 ) (*http.Response, error) {
 	log := logger.WithValues("id", t.id)
+	val, ok := t.header[requestIDHeader]
+	if ok {
+		log = logger.WithValues("requestID", val)
+	}
+
 	log.V(1).Info("Waiting for an initial response to the task")
 
 	respCh := make(chan *http.Response)

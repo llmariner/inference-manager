@@ -26,6 +26,10 @@ type engineRouter interface {
 	GetEnginesForModel(ctx context.Context, modelID, tenantID string, ignores map[string]bool) ([]string, error)
 }
 
+type metricsMonitor interface {
+	ObserveTaskErrorCount()
+}
+
 // NewP creates a new processor.
 func NewP(engineRouter engineRouter, logger logr.Logger) *P {
 	return &P{
@@ -65,7 +69,8 @@ type engine struct {
 type P struct {
 	queue *taskQueue
 
-	engineRouter engineRouter
+	engineRouter   engineRouter
+	metricsMonitor metricsMonitor
 
 	// engines is a map from tenant ID and engine ID to engine.
 	engines             map[string]map[string]*engine
@@ -76,6 +81,11 @@ type P struct {
 
 	taskTimeout time.Duration
 	retryDelay  time.Duration
+}
+
+// SetMetricsMonitor sets the metrics monitor for the processor.
+func (p *P) SetMetricsMonitor(metrisMonitor metricsMonitor) {
+	p.metricsMonitor = metrisMonitor
 }
 
 // Run runs the processor.
@@ -481,6 +491,7 @@ func (p *P) enqueueAndProcessTask(
 
 	p.queue.Enqueue(task)
 
+	// Process the task results.
 	for {
 		var hasReceivedResult bool
 		select {
@@ -497,13 +508,18 @@ func (p *P) enqueueAndProcessTask(
 				if want, got := task.nextResultIndex, int(r.result.ResultIndex); got != 0 && want != got {
 					err = fmt.Errorf("unexpected result index: wanted %d, but got %d", want, got)
 					log.Error(err, "Received unexpected result")
-				} else {
-					err = processResult(r.result)
-					task.nextResultIndex++
+					return err
 				}
+
+				err = processResult(r.result)
+				task.nextResultIndex++
 			}
 
 			if err != nil {
+				if p.metricsMonitor != nil {
+					p.metricsMonitor.ObserveTaskErrorCount()
+				}
+
 				// Retry if possible. Do not retry once the task has received a result.
 				if hasReceivedResult || !p.canRetry(task, err) {
 					log.Error(err, "Failed to process the task")

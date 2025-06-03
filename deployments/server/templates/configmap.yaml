@@ -47,3 +47,8 @@ data:
     gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout }}
     serverPodLabelKey: app.kubernetes.io/name
     serverPodLabelValue: {{ include "inference-manager-server.name" . }}
+    {{- with .Values.nimModels }}
+    nimModels:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+

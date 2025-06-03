@@ -147,6 +147,7 @@ func TestPullModel(t *testing.T) {
 				nil,
 				false,
 				-1,
+				make(map[string]bool),
 			)
 			if test.rt != nil {
 				mgr.runtimes[testModelID] = test.rt
@@ -277,6 +278,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				},
 				true,
 				9090,
+				make(map[string]bool),
 			)
 			loader := &fakeLoraAdapterLoader{
 				pulled:   map[string]bool{},
@@ -404,6 +406,7 @@ func TestDeleteModel(t *testing.T) {
 				nil,
 				false,
 				-1,
+				make(map[string]bool),
 			)
 			loader := &fakeLoraAdapterLoader{
 				pulled:   map[string]bool{},
@@ -656,6 +659,7 @@ func TestReconcile(t *testing.T) {
 				nil,
 				false,
 				-1,
+				make(map[string]bool),
 			)
 			mgr.readinessCheckMaxRetryCount = test.readinessCheckMaxRetryCount
 			mgr.runtimeReadinessChecker = &fakeRuntimeReadinessChecker{
@@ -835,6 +839,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				&fakeModelClient{},
 				true,
 				9090,
+				make(map[string]bool),
 			)
 			if test.rt != nil {
 				mgr.runtimes[modelID] = test.rt
@@ -1003,12 +1008,12 @@ func (c *fakeClient) DeployRuntime(ctx context.Context, modelID string, update b
 	return sts, nil
 }
 
-func (c *fakeClient) DeleteRuntime(ctx context.Context, modelID string) error {
+func (c *fakeClient) DeleteRuntime(ctx context.Context, name, modelID string) error {
 	c.deployed[modelID] = false
 	if c.k8sClient != nil {
 		if err := c.k8sClient.Delete(ctx, &appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.GetName(modelID),
+				Name:      name,
 				Namespace: c.namespace,
 			},
 		}); err != nil {

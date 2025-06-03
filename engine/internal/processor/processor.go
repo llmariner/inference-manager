@@ -85,6 +85,7 @@ func NewP(
 	logger logr.Logger,
 	collector metrics.Collector,
 	gracefulShutdownTimeout time.Duration,
+	nimModels map[string]bool,
 ) *P {
 	return &P{
 		clientFactory: clientFactory,
@@ -102,6 +103,7 @@ func NewP(
 		// cancels the tasks processing and stops.
 		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
 		goAwayDelay:     defaultGoAwayDelay,
+		nimModels:       nimModels,
 	}
 }
 
@@ -130,6 +132,9 @@ type P struct {
 	goAwayDelay     time.Duration
 
 	leaderElection bool
+
+	// nimModels is a map of models that use NIM as backend.
+	nimModels map[string]bool
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -547,7 +552,7 @@ func (p *P) sendHTTPRequestToRuntime(
 			return nil, http.StatusInternalServerError, err
 		}
 
-		req, err := buildRequest(ctx, t, addr, log)
+		req, err := buildRequest(ctx, t, addr, p.nimModels[model], log)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
@@ -579,7 +584,7 @@ func (p *P) sendHTTPRequestToRuntime(
 	}
 }
 
-func buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.Logger) (*http.Request, error) {
+func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat bool, log logr.Logger) (*http.Request, error) {
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   addr,
@@ -600,7 +605,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, log logr.Logger)
 			return nil, err
 		}
 
-		reqBody, err = api.ConvertCreateChatCompletionRequestToOpenAI(reqBody)
+		reqBody, err = api.ConvertCreateChatCompletionRequestToOpenAI(reqBody, needStringFormat)
 		if err != nil {
 			return nil, err
 		}

@@ -335,6 +335,13 @@ func (s *S) handleToolsForRAG(ctx context.Context, req *v1.CreateChatCompletionR
 }
 
 func (s *S) checkModelAvailability(ctx context.Context, tenantID, modelID string) (int, error) {
+	// Skip checking model availability if it is served by nim.
+	// NIM container images contain model already, so we don't need to check with model manager
+	// and we can skip the activation.
+	if _, ok := s.nimModels[modelID]; ok {
+		return http.StatusOK, nil
+	}
+
 	m, err := s.modelClient.GetModel(ctx, tenantID, &mv1.GetModelRequest{
 		Id: modelID,
 	})

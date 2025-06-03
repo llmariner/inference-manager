@@ -52,6 +52,8 @@ type Config struct {
 	ServerPodLabelValue string `yaml:"serverPodLabelValue"`
 
 	Debug DebugConfig `yaml:"debug"`
+
+	NIMModels []string `yaml:"nimModels"`
 }
 
 // AuthConfig is the authentication configuration.

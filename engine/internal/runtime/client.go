@@ -515,7 +515,7 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, modelID string) error 
 }
 
 func resourceName(runtime, modelID string) string {
-	// Avoid using llegal characters like "." or capital letters in the model names
+	// Avoid using illegal characters like "." or capital letters in the model names
 	// TODO(kenji): Have a better way.
 	m := strings.ToLower(modelID)
 	for _, r := range []string{".", "_", ":"} {

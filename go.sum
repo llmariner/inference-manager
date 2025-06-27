@@ -124,8 +124,8 @@ github.com/llmariner/api-usage v1.2.0 h1:edjwOYqaZcbQN+wuvXwhdpbyrfLSjFlLhV7RNMV
 github.com/llmariner/api-usage v1.2.0/go.mod h1:3Vw2URGxzgjacdmdCpP3ouqi7SzpQHWYKYXDCIglFyg=
 github.com/llmariner/cluster-manager v1.5.1 h1:dy1/FLdQ0iSsUo1w2dGUaUlqA3vgilt0Omey05emJPw=
 github.com/llmariner/cluster-manager v1.5.1/go.mod h1:A6DRmn8lVZ36Et4sGtX9mmLvFaLkJOU9cc8eqWZA2QE=
-github.com/llmariner/common v0.15.0 h1:KkDDKXcFPMlCNOZG1vK1nKd05FYagf7CRmPtRO42htg=
-github.com/llmariner/common v0.15.0/go.mod h1:nt793i6mCLc3tpIA223EvxHLuHa/8Ft+oa4h8m5EWKE=
+github.com/llmariner/common v0.19.0 h1:wO1NZ9sFrtjJnh3v9X9eh2xaO4ZMasJiwjkpw/5wIG0=
+github.com/llmariner/common v0.19.0/go.mod h1:DtGoaW1OSshm2W3qCINlpnNay+gDHnJJYzHBbupgcB0=
 github.com/llmariner/model-manager v1.18.0 h1:J2aRFTQeCn+ELbUpLvL2DHHxDnhRjfusxE/TgdfFW3g=
 github.com/llmariner/model-manager v1.18.0/go.mod h1:IbbSLHi25WnKDedgdsZ3bv8N18bm2bYT+pXK3VW0J10=
 github.com/llmariner/rbac-manager v1.14.0 h1:wbUyTNNyRMNzJUj9E6S3Ss15r+Yain8aZHkZAZRvmfk=

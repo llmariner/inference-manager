@@ -175,6 +175,7 @@ data:
       s3:
         endpointUrl: {{ .Values.global.objectStore.s3.endpointUrl }}
         region: {{ .Values.global.objectStore.s3.region }}
+        insecureSkipVerify: {{ .Values.global.objectStore.s3.insecureSkipVerify }}
         bucket: {{ .Values.global.objectStore.s3.bucket }}
         {{- with .Values.global.objectStore.s3.assumeRole }}
         {{- if .roleArn }}

@@ -16,7 +16,7 @@ require (
 	github.com/kedacore/keda/v2 v2.16.0
 	github.com/llmariner/api-usage v1.2.0
 	github.com/llmariner/cluster-manager v1.5.1
-	github.com/llmariner/common v0.15.0
+	github.com/llmariner/common v0.19.0
 	github.com/llmariner/model-manager v1.18.0
 	github.com/llmariner/rbac-manager v1.14.0
 	github.com/llmariner/vector-store-manager v0.50.0

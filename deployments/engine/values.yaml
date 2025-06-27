@@ -22,6 +22,9 @@ global:
       # +docs:property
       # endpointUrl: ""
 
+      # Specify whether SSL certificate verification is disabled.
+      insecureSkipVerify: false
+
       # Optional AssumeRole.
       # For more information, see [AssumeRole](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html).
       # +docs:property

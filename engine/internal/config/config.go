@@ -130,11 +130,16 @@ type NIMConfig struct {
 
 func (c *NIMConfig) validate() error {
 	if c.NGCAPIKey == "" {
-		return fmt.Errorf("ngcApiKey must be set")
+		if len(c.Models) > 0 {
+			return fmt.Errorf("models must not be set when ngcApiKey is unset")
+		}
+		return nil
 	}
+
 	if len(c.Models) == 0 {
 		return fmt.Errorf("models must be set")
 	}
+
 	for _, model := range c.Models {
 		if err := model.validate(); err != nil {
 			return fmt.Errorf("model %q: %s", model.ModelName, err)

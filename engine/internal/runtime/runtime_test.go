@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -80,7 +81,7 @@ func TestRuntimeAddressSet(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			s := newRuntimeAddressSet()
+			s := newRuntimeAddressSet(testutil.NewTestLogger(t))
 			if tc.setup != nil {
 				tc.setup(s)
 			}

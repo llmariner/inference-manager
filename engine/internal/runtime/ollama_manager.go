@@ -296,6 +296,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		m.ollamaClient.GetAddress(sts.Name),
 		getGPU(&sts),
 		sts.Status.ReadyReplicas,
+		log,
 	)
 	m.runtime.closeWaitChs("")
 

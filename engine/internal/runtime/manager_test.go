@@ -173,7 +173,7 @@ func TestPullModel(t *testing.T) {
 						mgr.mu.Lock()
 						rt, ok := mgr.runtimes[testModelID]
 						if ok {
-							rt.becomeReady("test", 1, 1)
+							rt.becomeReady("test", 1, 1, testutil.NewTestLogger(t))
 							rt.closeWaitChs("")
 						}
 					}

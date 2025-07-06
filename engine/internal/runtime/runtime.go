@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -17,11 +18,12 @@ const (
 	defaultBlacklistDuration = 10 * time.Second
 )
 
-func newRuntimeAddressSet() *runtimeAddressSet {
+func newRuntimeAddressSet(logger logr.Logger) *runtimeAddressSet {
 	return &runtimeAddressSet{
 		addresses:            make(map[string]bool),
 		blacklistedAddresses: make(map[string]time.Time),
 		blacklistDuration:    defaultBlacklistDuration,
+		logger:               logger.WithName("runtimeAddressSet"),
 	}
 }
 
@@ -38,6 +40,8 @@ type runtimeAddressSet struct {
 	nextTarget int
 
 	mu sync.Mutex
+
+	logger logr.Logger
 }
 
 func (s *runtimeAddressSet) add(address string) {
@@ -75,6 +79,16 @@ func (s *runtimeAddressSet) get(now time.Time) (string, bool) {
 		}
 	}
 
+	s.logger.Info("Get runtime address", "addresses", s.addresses, "blacklistedAddresses", s.blacklistedAddresses)
+
+	if len(s.addresses) == 1 {
+		// If there is only one address, return it directly.
+		for addr := range s.addresses {
+			s.logger.Info("Selected runtime address", "address", addr)
+			return addr, true
+		}
+	}
+
 	// Find addresses that are not blacklisted.
 	var addrs []string
 	for address := range s.addresses {
@@ -98,6 +112,8 @@ func (s *runtimeAddressSet) get(now time.Time) (string, bool) {
 
 	addr := addrs[i]
 	s.nextTarget = (s.nextTarget + 1) % len(addrs)
+
+	s.logger.Info("Selected runtime address", "address", addr)
 
 	return addr, true
 }
@@ -191,9 +207,10 @@ func (r *runtime) becomeReady(
 	address string,
 	gpu,
 	replicas int32,
+	logger logr.Logger,
 ) {
 	r.ready = true
-	r.addrSet = newRuntimeAddressSet()
+	r.addrSet = newRuntimeAddressSet(logger)
 	r.addrSet.add(address)
 	r.gpu = gpu
 	r.replicas = replicas

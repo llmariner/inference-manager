@@ -603,7 +603,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	rt.becomeReady(e.address, e.gpu, e.replicas)
+	rt.becomeReady(e.address, e.gpu, e.replicas, log)
 
 	log.Info("Runtime is ready", "modelID", e.modelID)
 
@@ -698,7 +698,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 			log.Info("Creating a new runtime", "modelID", modelID)
 			r = newPendingRuntime(modelID)
 			r.isDynamicallyLoadedLoRA = true
-			r.becomeReady(vllmAddr, e.update.gpu, 1)
+			r.becomeReady(vllmAddr, e.update.gpu, 1, log)
 			m.runtimes[modelID] = r
 		}
 

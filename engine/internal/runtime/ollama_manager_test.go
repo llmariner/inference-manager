@@ -78,7 +78,7 @@ func TestOllamaPullModel(t *testing.T) {
 						return
 					case <-time.After(300 * time.Millisecond):
 						mgr.mu.Lock()
-						mgr.runtime.becomeReady(addr, 1, 1)
+						mgr.runtime.becomeReady(addr, 1, 1, testutil.NewTestLogger(t))
 						mgr.runtime.closeWaitChs("")
 						mgr.mu.Unlock()
 					}

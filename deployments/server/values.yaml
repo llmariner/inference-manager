@@ -17,6 +17,10 @@ global:
     # +docs:property
     # annotations: {}
 
+    # If provided, this value will be added to each rule of every Ingress
+    # +docs:property
+    # host: ""
+
     # If specified, the API accessed via Ingress will be enabled for TLS.
     # For more information, see [Enable TLS](https://llmariner.ai/docs/setup/install/single_cluster_production/#optional-enable-tls).
     #

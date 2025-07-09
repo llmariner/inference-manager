@@ -206,32 +206,7 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 
 	grpcSrv := server.New(m, usageSetter, ratelimiter, mclient, vsClient, rwt, infProcessor, c.NIMModels, logger)
 
-	pat := runtime.MustPattern(
-		runtime.NewPattern(
-			1,
-			[]int{2, 0, 2, 1, 2, 2},
-			[]string{"v1", "chat", "completions"},
-			"",
-		))
-	mux.Handle("POST", pat, grpcSrv.CreateChatCompletion)
-
-	pat = runtime.MustPattern(
-		runtime.NewPattern(
-			1,
-			[]int{2, 0, 2, 1},
-			[]string{"v1", "completions"},
-			"",
-		))
-	mux.Handle("POST", pat, grpcSrv.CreateCompletion)
-
-	pat = runtime.MustPattern(
-		runtime.NewPattern(
-			1,
-			[]int{2, 0, 2, 1},
-			[]string{"v1", "embeddings"},
-			"",
-		))
-	mux.Handle("POST", pat, grpcSrv.CreateEmbedding)
+	registerHTTPHandlers(grpcSrv, mux)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -369,4 +344,42 @@ func run(ctx context.Context, c *config.Config, podName, ns string, lv int) erro
 
 		return nil
 	}
+}
+
+func registerHTTPHandlers(s *server.S, mux *runtime.ServeMux) {
+	pat := runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1, 2, 2},
+			[]string{"v1", "chat", "completions"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateChatCompletion)
+
+	pat = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1},
+			[]string{"v1", "completions"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateCompletion)
+
+	pat = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1},
+			[]string{"v1", "embeddings"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateEmbedding)
+
+	pat = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1, 2, 2},
+			[]string{"v1", "audio", "transcriptions"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateAudioTranscription)
 }

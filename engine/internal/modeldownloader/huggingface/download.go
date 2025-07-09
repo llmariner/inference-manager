@@ -79,6 +79,7 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.
 		{name: "tokenizer.json", isOptional: false},
 		{name: "tokenizer_config.json", isOptional: false},
 		{name: "preprocessor_config.json", isOptional: true},
+		{name: "vocab.json", isOptional: true},
 	}
 	for _, sa := range safetensorFiles {
 		files = append(files, file{name: sa, isOptional: false})

@@ -42,7 +42,7 @@ build-docker-triton-proxy:
 
 .PHONY: build-docker-vllm
 build-docker-vllm:
-	docker build --build-arg TARGETARCH=amd64 -t llmariner/vllm-openai:0.6.2 -f build/vllm/Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t llmariner/vllm-openai:0.9.2 -f build/vllm/Dockerfile .
 
 .PHONY: check-helm-tool
 check-helm-tool:

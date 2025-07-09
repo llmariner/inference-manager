@@ -125,6 +125,8 @@ func (t *task) model() string {
 		return req.GetChatCompletion().Model
 	case *v1.TaskRequest_Embedding:
 		return req.GetEmbedding().Model
+	case *v1.TaskRequest_AudioTranscription:
+		return req.GetAudioTranscription().Model
 	default:
 		return ""
 	}

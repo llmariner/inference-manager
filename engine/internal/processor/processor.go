@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -28,8 +29,9 @@ import (
 )
 
 const (
-	completionPath = "/v1/chat/completions"
-	embeddingPath  = "/v1/embeddings"
+	completionPath         = "/v1/chat/completions"
+	embeddingPath          = "/v1/embeddings"
+	audioTranscriptionPath = "/v1/audio/transcriptions"
 
 	// statusReportInterval is the interval to report engine status.
 	// This needs to be shorter than an idle connection timeout period of
@@ -591,7 +593,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 	}
 
 	var path string
-	var reqBody []byte
+	var reqBody io.Reader
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
 		r := req.GetChatCompletion()
@@ -599,40 +601,52 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
-		var err error
-		reqBody, err = json.Marshal(r)
+		b, err := json.Marshal(r)
 		if err != nil {
 			return nil, err
 		}
 
-		reqBody, err = api.ConvertCreateChatCompletionRequestToOpenAI(reqBody, needStringFormat)
+		b, err = api.ConvertCreateChatCompletionRequestToOpenAI(b, needStringFormat)
 		if err != nil {
 			return nil, err
 		}
 
+		reqBody = bytes.NewReader(b)
 		path = completionPath
 	case *v1.TaskRequest_Embedding:
 		r := req.GetEmbedding()
 		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
 
-		var err error
-		reqBody, err = json.Marshal(r)
+		b, err := json.Marshal(r)
+		if err != nil {
+			return nil, err
+		}
+		b, err = api.ConvertCreateEmbeddingRequestToOpenAI(b)
 		if err != nil {
 			return nil, err
 		}
 
-		reqBody, err = api.ConvertCreateEmbeddingRequestToOpenAI(reqBody)
-		if err != nil {
-			return nil, err
-		}
-
+		reqBody = bytes.NewReader(b)
 		path = embeddingPath
+	case *v1.TaskRequest_AudioTranscription:
+		r := req.GetAudioTranscription()
+		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
+		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
+		r.Model = ollama.ModelName(r.Model)
+
+		var err error
+		reqBody, err = audioTranscriptionBody(r)
+		if err != nil {
+			return nil, err
+		}
+
+		path = audioTranscriptionPath
 	default:
 		return nil, fmt.Errorf("unknown request type: %T", req.Request)
 	}
 
 	requestURL := baseURL.JoinPath(path).String()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -851,12 +865,50 @@ func (p *P) numActiveEngines() int {
 	return len(p.activeEngines)
 }
 
+func audioTranscriptionBody(req *v1.CreateAudioTranscriptionRequest) (io.Reader, error) {
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	defer func() {
+		_ = w.Close()
+	}()
+
+	fw, err := w.CreateFormField("model")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fw.Write([]byte(req.Model)); err != nil {
+		return nil, err
+	}
+
+	if req.Prompt != "" {
+		fw, err := w.CreateFormField("prompt")
+		if err != nil {
+			return nil, err
+		}
+		if _, err := fw.Write([]byte(req.Prompt)); err != nil {
+			return nil, err
+		}
+	}
+
+	fw, err = w.CreateFormFile("file", req.Filename)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fw.Write(req.File); err != nil {
+		return nil, err
+	}
+
+	return &b, nil
+}
+
 func taskModel(t *v1.Task) string {
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
 		return req.GetChatCompletion().Model
 	case *v1.TaskRequest_Embedding:
 		return req.GetEmbedding().Model
+	case *v1.TaskRequest_AudioTranscription:
+		return req.GetAudioTranscription().Model
 	default:
 		return "n/a"
 	}

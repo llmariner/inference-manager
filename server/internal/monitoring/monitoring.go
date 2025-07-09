@@ -15,6 +15,8 @@ const (
 
 	metricsNameCompletionLatency         = "inference_manager_server_completion_latency"
 	metricsNameCompletionRequest         = "inference_manager_server_completion_num_active_requests"
+	metricsNameTranscriptionLatency      = "inference_manager_server_transcription_latency"
+	metricsNameTranscriptionRequest      = "inference_manager_server_transcription_num_active_requests"
 	metricsNameEmbeddingLatency          = "inference_manager_server_embedding_latency"
 	metricsNameEmbeddingRequest          = "inference_manager_server_embedding_num_active_requests"
 	metricsNameNumQueuedTasks            = "inference_manager_server_num_queued_tasks"
@@ -43,6 +45,8 @@ type MetricsMonitor struct {
 
 	completionLatencyHistVec       *prometheus.HistogramVec
 	completionRequestGaugeVec      *prometheus.GaugeVec
+	transcriptionLatencyHistVec    *prometheus.HistogramVec
+	transcriptionRequestGaugeVec   *prometheus.GaugeVec
 	embeddingLatencyHistVec        *prometheus.HistogramVec
 	embeddingRequestGaugeVec       *prometheus.GaugeVec
 	numQueuedTasksGauge            prometheus.Gauge
@@ -78,6 +82,27 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
 			Name:      metricsNameCompletionRequest,
+		},
+		[]string{
+			metricLabelModelID,
+		},
+	)
+
+	transcriptionLatencyHistVec := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameTranscriptionLatency,
+			Buckets:   latencyBuckets,
+		},
+		[]string{
+			metricLabelModelID,
+		},
+	)
+
+	transcriptionRequestGaugeVec := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNamespace,
+			Name:      metricsNameTranscriptionRequest,
 		},
 		[]string{
 			metricLabelModelID,
@@ -181,6 +206,8 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 
 		completionLatencyHistVec:         completionLatencyHistVec,
 		completionRequestGaugeVec:        completionRequestGaugeVec,
+		transcriptionLatencyHistVec:      transcriptionLatencyHistVec,
+		transcriptionRequestGaugeVec:     transcriptionRequestGaugeVec,
 		embeddingLatencyHistVec:          embeddingLatencyHistVec,
 		embeddingRequestGaugeVec:         embeddingRequestGaugeVec,
 		numQueuedTasksGauge:              numQueuedTasksGauge,
@@ -196,6 +223,8 @@ func NewMetricsMonitor(p *infprocessor.P, logger logr.Logger) *MetricsMonitor {
 	prometheus.MustRegister(
 		completionLatencyHistVec,
 		completionRequestGaugeVec,
+		transcriptionLatencyHistVec,
+		transcriptionRequestGaugeVec,
 		embeddingLatencyHistVec,
 		embeddingRequestGaugeVec,
 		numQueuedTasksGauge,
@@ -233,6 +262,16 @@ func (m *MetricsMonitor) ObserveCompletionLatency(modelID string, latency time.D
 // UpdateCompletionRequest updates the number of completion requests.
 func (m *MetricsMonitor) UpdateCompletionRequest(modelID string, c int) {
 	m.completionRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
+}
+
+// ObserveAudioTranscriptionLatency observes a new latency data for a transcription request.
+func (m *MetricsMonitor) ObserveAudioTranscriptionLatency(modelID string, latency time.Duration) {
+	m.transcriptionLatencyHistVec.WithLabelValues(modelID).Observe(float64(latency) / float64(time.Second))
+}
+
+// UpdateAudioTranscriptionRequest updates the number of transcription requests.
+func (m *MetricsMonitor) UpdateAudioTranscriptionRequest(modelID string, c int) {
+	m.transcriptionRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
 }
 
 // ObserveEmbeddingLatency observes a new latency data for an embedding request.
@@ -282,6 +321,8 @@ func (m *MetricsMonitor) updatePeriodicMetrics() {
 func (m *MetricsMonitor) UnregisterAllCollectors() {
 	prometheus.Unregister(m.completionLatencyHistVec)
 	prometheus.Unregister(m.completionRequestGaugeVec)
+	prometheus.Unregister(m.transcriptionLatencyHistVec)
+	prometheus.Unregister(m.transcriptionRequestGaugeVec)
 	prometheus.Unregister(m.embeddingLatencyHistVec)
 	prometheus.Unregister(m.embeddingRequestGaugeVec)
 	prometheus.Unregister(m.numQueuedTasksGauge)

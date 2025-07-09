@@ -17,7 +17,7 @@ global:
     # +docs:property
     # annotations: {}
 
-    If provided, this value will be added to each rule of every Ingress
+    # If provided, this value will be added to each rule of every Ingress
     # +docs:property
     # host: ""
 

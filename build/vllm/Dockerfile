@@ -9,4 +9,7 @@ ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install librosa soundfile
 
+# Workaround for https://github.com/vllm-project/vllm/issues/19538
+RUN pip install transformers==4.52.4
+
 ENTRYPOINT ["python3", "-m", "vllm.entrypoints.openai.api_server"]

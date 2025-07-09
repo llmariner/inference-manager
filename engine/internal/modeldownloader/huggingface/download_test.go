@@ -26,6 +26,7 @@ func TestDownloadModelFiles(t *testing.T) {
 		"/src/tokenizer.json",
 		"/src/tokenizer_config.json",
 		"/src/preprocessor_config.json",
+		"/src/vocab.json",
 		"/src/model.safetensors",
 	}
 	fs2 := []string{
@@ -36,6 +37,7 @@ func TestDownloadModelFiles(t *testing.T) {
 		"/src/tokenizer.json",
 		"/src/tokenizer_config.json",
 		"/src/preprocessor_config.json",
+		"/src/vocab.json",
 		"/src/model-00001-of-00002.safetensors",
 		"/src/model-00002-of-00002.safetensors",
 	}
@@ -46,6 +48,7 @@ func TestDownloadModelFiles(t *testing.T) {
 		"/src/tokenizer.json",
 		"/src/tokenizer_config.json",
 		"/src/preprocessor_config.json",
+		"/src/vocab.json",
 		"/src/model-00001-of-00002.safetensors",
 		"/src/model-00002-of-00002.safetensors",
 	}

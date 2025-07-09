@@ -4,6 +4,7 @@
 * This file is a generated Typescript file for GRPC Gateway, DO NOT MODIFY
 */
 
+import * as LlmarinerAudioServerV1Inference_server_audio from "./inference_server_audio.pb"
 import * as LlmarinerChatServerV1Inference_server_chat from "./inference_server_chat.pb"
 import * as LlmarinerEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb"
 import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb"
@@ -59,7 +60,7 @@ type BaseTaskRequest = {
 }
 
 export type TaskRequest = BaseTaskRequest
-  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server_chat.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; go_away: GoAwayRequest; heartbeat: HeartbeatRequest }>
+  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server_chat.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; audio_transcription: LlmarinerAudioServerV1Inference_server_audio.CreateAudioTranscriptionRequest; go_away: GoAwayRequest; heartbeat: HeartbeatRequest }>
 
 export type Task = {
   id?: string

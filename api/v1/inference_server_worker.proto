@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package llmariner.inference.server.v1;
 
+import "api/v1/inference_server_audio.proto";
 import "api/v1/inference_server_chat.proto";
 import "api/v1/inference_server_embeddings.proto";
 import "api/v1/inference_server_management.proto";
@@ -53,12 +54,14 @@ message TaskRequest {
   oneof request {
     llmariner.chat.server.v1.CreateChatCompletionRequest chat_completion = 1;
     llmariner.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
+    llmariner.audio.server.v1.CreateAudioTranscriptionRequest audio_transcription = 7;
+
     // go_away is used to signal the worker to disconnect and
     // reconnect to other server.
     GoAwayRequest go_away = 5;
     HeartbeatRequest heartbeat = 6;
 
-    // Next ID: 7
+    // Next ID: 8
   }
 }
 

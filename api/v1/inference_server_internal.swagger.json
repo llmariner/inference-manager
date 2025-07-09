@@ -224,6 +224,25 @@
         }
       }
     },
+    "v1CreateAudioTranscriptionRequest": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "format": "byte"
+        },
+        "filename": {
+          "type": "string",
+          "description": "filename is not in the OpenAI API, but it is useful to reserve the filename\nin the original form request."
+        },
+        "model": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        }
+      }
+    },
     "v1CreateChatCompletionRequest": {
       "type": "object",
       "properties": {
@@ -523,6 +542,9 @@
         },
         "embedding": {
           "$ref": "#/definitions/v1CreateEmbeddingRequest"
+        },
+        "audioTranscription": {
+          "$ref": "#/definitions/v1CreateAudioTranscriptionRequest"
         },
         "goAway": {
           "$ref": "#/definitions/v1GoAwayRequest",

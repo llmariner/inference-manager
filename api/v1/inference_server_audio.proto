@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package llmariner.audio.server.v1;
+
+option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+// The API specification follows
+// https://platform.openai.com/docs/api-reference/audio/createTranscription
+// except that the fields are defined as proto messages instead of HTTP form fields.
+
+message CreateAudioTranscriptionRequest {
+  bytes file = 1;
+
+  // filename is not in the OpenAI API, but it is useful to reserve the filename
+  // in the original form request.
+  string filename = 2;
+
+  string model = 3;
+  string prompt = 4;
+
+  // TODO(kenji): Support more fields.
+}
+
+message Transcription {
+  string text = 1;
+
+  // TODO(kenji): Support more fields.
+}

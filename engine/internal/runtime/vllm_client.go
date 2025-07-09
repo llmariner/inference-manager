@@ -129,9 +129,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			"--served-model-name", oModelID,
 			"--model", mPath,
 		)
-		if v.vLLMConfig.DynamicLoRALoading {
-			args = append(args, "--enable-lora")
-		}
 	} else {
 		attr, err := v.modelClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
 			Id: modelID,

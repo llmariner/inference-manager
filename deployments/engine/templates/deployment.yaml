@@ -60,6 +60,13 @@ spec:
               key: {{ .key }}
         {{- end }}
         {{- end }}
+        {{- with .Values.inferenceManagerEngine.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.inferenceManagerEngine.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - name: config
           mountPath: /etc/config

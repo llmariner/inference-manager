@@ -60,7 +60,17 @@ func (s *S) CreateAudioTranscription(
 		}
 	}
 
-	// TODO(kenji): Support "Stream"
+	if t := req.FormValue("stream"); t != "" {
+		if t != "true" && t != "false" {
+			httpError(w, "stream must be true or false", http.StatusBadRequest, &usage)
+			return
+		}
+		// TODO(kenji): Support "Stream"
+		if t == "true" {
+			httpError(w, "streaming is not supported yet", http.StatusNotImplemented, &usage)
+			return
+		}
+	}
 
 	file, header, err := req.FormFile("file")
 	if err != nil {

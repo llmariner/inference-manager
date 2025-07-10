@@ -638,7 +638,7 @@ persistentVolume:
 
 # Additional environment variables for the inference-manager-engine container.
 # +docs:property
-# inferenceManagerEngine:
+# inference-manager-engine:
 #   env: []
 #   envFrom: []
 

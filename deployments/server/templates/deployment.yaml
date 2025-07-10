@@ -105,12 +105,14 @@ spec:
               key: key
         {{- end }}
         {{- end }}
-        {{- with .Values.inferenceManagerServer.env }}
+        {{- with index .Values "inference-manager-server" }}
+          {{- with .env }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.inferenceManagerServer.envFrom }}
+          {{- end }}
+          {{- with .envFrom }}
         envFrom:
         {{- toYaml . | nindent 8 }}
+          {{- end }}
         {{- end }}
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:

@@ -419,7 +419,7 @@ securityContext:
 
 # Additional environment variables for the inference-manager-server container.
 # +docs:property
-# inferenceManagerServer:
+# inference-manager-server:
 #   env: []
 #   envFrom: []
 

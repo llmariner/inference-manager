@@ -64,6 +64,7 @@ func (s *S) CreateAudioTranscription(
 		}
 		if !validFormats[rf] {
 			httpError(w, fmt.Sprintf("invalid response_format: %s", rf), http.StatusBadRequest, &usage)
+			return
 		}
 		createReq.ResponseFormat = rf
 	}

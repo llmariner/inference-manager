@@ -878,25 +878,49 @@ func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, 
 		_ = w.Close()
 	}()
 
-	fw, err := w.CreateFormField("model")
-	if err != nil {
-		return nil, err
+	setField := func(fieldName, val string) error {
+		fw, err := w.CreateFormField(fieldName)
+		if err != nil {
+			return err
+		}
+		if _, err := fw.Write([]byte(val)); err != nil {
+			return err
+		}
+		return nil
 	}
-	if _, err := fw.Write([]byte(req.Model)); err != nil {
+
+	setFieldOptional := func(fieldName, val string) error {
+		if val == "" {
+			return nil
+		}
+		return setField(fieldName, val)
+	}
+
+	if err := setField("model", req.Model); err != nil {
 		return nil, err
 	}
 
-	if req.Prompt != "" {
-		fw, err := w.CreateFormField("prompt")
+	if err := setFieldOptional("language", req.Language); err != nil {
+		return nil, err
+	}
+	if err := setFieldOptional("prompt", req.Prompt); err != nil {
+		return nil, err
+	}
+	if err := setFieldOptional("response_format", req.ResponseFormat); err != nil {
+		return nil, err
+	}
+
+	if v := req.Temperature; v != 0.0 {
+		fw, err := w.CreateFormField("temperature")
 		if err != nil {
 			return nil, err
 		}
-		if _, err := fw.Write([]byte(req.Prompt)); err != nil {
+		if _, err := fw.Write([]byte(fmt.Sprintf("%f", v))); err != nil {
 			return nil, err
 		}
 	}
 
-	fw, err = w.CreateFormFile("file", req.Filename)
+	fw, err := w.CreateFormFile("file", req.Filename)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
@@ -48,7 +49,18 @@ func (s *S) CreateAudioTranscription(
 		return
 	}
 
+	createReq.Language = req.FormValue("language")
 	createReq.Prompt = req.FormValue("prompt")
+	createReq.ResponseFormat = req.FormValue("response_format")
+	if t := req.FormValue("temperature"); t != "" {
+		createReq.Temperature, err = strconv.ParseFloat(t, 64)
+		if err != nil {
+			httpError(w, fmt.Sprintf("invalid temperature value: %s", err), http.StatusBadRequest, &usage)
+			return
+		}
+	}
+
+	// TODO(kenji): Support "Stream"
 
 	file, header, err := req.FormFile("file")
 	if err != nil {

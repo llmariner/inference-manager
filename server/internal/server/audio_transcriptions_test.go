@@ -59,6 +59,11 @@ func TestCreateAuditoTranscription(t *testing.T) {
 	_, err = fw.Write([]byte(modelID))
 	assert.NoError(t, err)
 
+	fw, err = w.CreateFormField("temperature")
+	assert.NoError(t, err)
+	_, err = fw.Write([]byte("0.5"))
+	assert.NoError(t, err)
+
 	err = w.Close()
 	assert.NoError(t, err)
 
@@ -75,6 +80,7 @@ func TestCreateAuditoTranscription(t *testing.T) {
 	assert.Equal(t, modelID, creq.Model)
 	assert.Equal(t, "test-file.wav", creq.Filename)
 	assert.Equal(t, []byte("hello"), creq.File)
+	assert.InDelta(t, creq.Temperature, 0.5, 0.001)
 }
 
 type captureAudioTranscriptionTaskSender struct {

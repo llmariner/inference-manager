@@ -249,8 +249,21 @@
         "model": {
           "type": "string"
         },
+        "language": {
+          "type": "string"
+        },
         "prompt": {
           "type": "string"
+        },
+        "responseFormat": {
+          "type": "string"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

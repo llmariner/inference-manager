@@ -7,9 +7,9 @@ export type CreateAudioTranscriptionRequest = {
   file?: Uint8Array
   filename?: string
   model?: string
+  language?: string
   prompt?: string
-}
-
-export type Transcription = {
-  text?: string
+  response_format?: string
+  stream?: boolean
+  temperature?: number
 }

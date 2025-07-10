@@ -16,13 +16,19 @@ message CreateAudioTranscriptionRequest {
   string filename = 2;
 
   string model = 3;
+
+  // TODO(kenji): Support "chunking_strategy"
+  // TODO(kenji): Support "include"
+
+  string language = 5;
+
   string prompt = 4;
 
-  // TODO(kenji): Support more fields.
-}
+  string response_format = 6;
 
-message Transcription {
-  string text = 1;
+  bool stream = 7;
 
-  // TODO(kenji): Support more fields.
+  double temperature = 8;
+
+  // TODO(kenji): Support "timestamp_granularities"
 }

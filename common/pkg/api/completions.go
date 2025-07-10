@@ -341,7 +341,12 @@ func convertEncodedResponseFormat(r map[string]interface{}) error {
 			return fmt.Errorf("response_format.json_schema.%s is required for type 'json_schema'", encodedSchemaKey)
 		}
 
-		s, err := base64.URLEncoding.DecodeString(es.(string))
+		esStr, ok := es.(string)
+		if !ok {
+			return fmt.Errorf("response_format.encoded_schema should be a base64 string, got %T", es)
+		}
+
+		s, err := base64.URLEncoding.DecodeString(esStr)
 		if err != nil {
 			return err
 		}

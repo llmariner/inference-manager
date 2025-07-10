@@ -287,7 +287,10 @@ func convertResponseFormat(r map[string]interface{}) error {
 		if !ok {
 			return fmt.Errorf("response_format.json_schema.%s is required for type 'json_schema'", schemaKey)
 		}
-		t := v.(map[string]interface{})
+		t, ok := v.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("response_format.json_schema.%s should be a map, got %T", schemaKey, v)
+		}
 		marshalled, err := json.Marshal(t)
 		if err != nil {
 			return err

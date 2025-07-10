@@ -636,6 +636,12 @@ persistentVolume:
 # +docs:property
 # volumeMounts: []
 
+# Additional environment variables for the inference-manager-engine container.
+# +docs:property
+# inferenceManagerEngine:
+#   env: []
+#   envFrom: []
+
 # This field can be used as a condition when using it as a dependency.
 # This definition is only here as a placeholder such that it is
 # included in the json schema.

@@ -26,7 +26,7 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-      - name: inference-manager-engine
+      - name: inferenceManagerEngine
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
@@ -59,6 +59,15 @@ spec:
               name: {{ .name }}
               key: {{ .key }}
         {{- end }}
+        {{- end }}
+        {{- with .Values.inferenceManagerEngine }}
+          {{- with .env }}
+        {{- toYaml . | nindent 8 }}
+          {{- end }}
+          {{- with .envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+          {{- end }}
         {{- end }}
         volumeMounts:
         - name: config

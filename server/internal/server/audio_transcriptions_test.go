@@ -167,7 +167,7 @@ func TestCreateAuditoTranscription(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run("", func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			var b bytes.Buffer
 			w := multipart.NewWriter(&b)
 			tc.input(t, w)

@@ -26,7 +26,7 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-      - name: inference-manager-server
+      - name: inferenceManagerServer
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.image.repository }}:{{ default .Chart.Version .Values.version }}"
@@ -105,7 +105,7 @@ spec:
               key: key
         {{- end }}
         {{- end }}
-        {{- with index .Values "inference-manager-server" }}
+        {{- with .Values.inferenceManagerServer }}
           {{- with .env }}
         {{- toYaml . | nindent 8 }}
           {{- end }}

@@ -274,9 +274,18 @@ func convertResponseFormat(r map[string]interface{}) error {
 	case "text", "json_object":
 		// Do nothing.
 	case "json_schema":
-		v, ok := m[schemaKey]
+		js, ok := m["json_schema"]
 		if !ok {
-			return fmt.Errorf("response_format.schema is required for type 'json_schema'")
+			return fmt.Errorf("response_format.json_schema is required for type 'json_schema'")
+		}
+		jsm, ok := js.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("response_format.json_schema should be a map, got %T", js)
+		}
+
+		v, ok := jsm[schemaKey]
+		if !ok {
+			return fmt.Errorf("response_format.json_schema.%s is required for type 'json_schema'", schemaKey)
 		}
 		t := v.(map[string]interface{})
 		marshalled, err := json.Marshal(t)
@@ -284,8 +293,8 @@ func convertResponseFormat(r map[string]interface{}) error {
 			return err
 		}
 
-		m[encodedSchemaKey] = base64.URLEncoding.EncodeToString(marshalled)
-		delete(m, schemaKey)
+		jsm[encodedSchemaKey] = base64.URLEncoding.EncodeToString(marshalled)
+		delete(jsm, schemaKey)
 	default:
 		return fmt.Errorf("unsupported response_format.type: %s", typeVString)
 	}
@@ -315,23 +324,32 @@ func convertEncodedResponseFormat(r map[string]interface{}) error {
 	case "text", "json_object":
 		// Do nothing.
 	case "json_schema":
-		v, ok := m[encodedSchemaKey]
+		js, ok := m["json_schema"]
+		if !ok {
+			return fmt.Errorf("response_format.json_schema is required for type 'json_schema'")
+		}
+		jsm, ok := js.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("response_format.json_schema should be a map, got %T", js)
+		}
+
+		es, ok := jsm[encodedSchemaKey]
 		if !ok {
 			return fmt.Errorf("response_format.encoded_schema is required for type 'json_schema'")
 		}
 
-		b, err := base64.URLEncoding.DecodeString(v.(string))
+		s, err := base64.URLEncoding.DecodeString(es.(string))
 		if err != nil {
 			return err
 		}
 
-		jm := map[string]interface{}{}
-		if err := json.Unmarshal(b, &jm); err != nil {
+		sMap := map[string]interface{}{}
+		if err := json.Unmarshal(s, &sMap); err != nil {
 			return err
 		}
 
-		m[schemaKey] = jm
-		delete(m, encodedSchemaKey)
+		jsm[schemaKey] = sMap
+		delete(jsm, encodedSchemaKey)
 
 	default:
 		return fmt.Errorf("unsupported response_format.type: %s", typeVString)

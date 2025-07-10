@@ -77,6 +77,7 @@ func (s *S) CreateAudioTranscription(
 		}
 		if tmp < 0 || tmp > 1 {
 			httpError(w, fmt.Sprintf("temperature must be between 0 and 1, but got %v", tmp), http.StatusBadRequest, &usage)
+			return
 		}
 
 		createReq.Temperature = tmp

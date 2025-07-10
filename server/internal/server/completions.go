@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -216,7 +215,7 @@ func (s *S) CreateChatCompletion(
 			details.CompletionTokens = u.CompletionTokens
 		}
 
-		if _, err := io.Copy(w, bytes.NewBuffer(respBody)); err != nil {
+		if _, err := w.Write(respBody); err != nil {
 			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}

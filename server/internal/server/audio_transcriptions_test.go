@@ -138,7 +138,7 @@ func TestCreateAuditoTranscription(t *testing.T) {
 				err = w.Close()
 				assert.NoError(t, err)
 			},
-			// TODO(kenji): Updatae once streaming is supported.
+			// TODO(kenji): Update once streaming is supported.
 			wantErr: true,
 		},
 		{

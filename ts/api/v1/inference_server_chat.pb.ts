@@ -53,8 +53,16 @@ export type CreateChatCompletionRequestToolChoice = {
   function?: CreateChatCompletionRequestToolChoiceFunction
 }
 
+export type CreateChatCompletionRequestResponseFormatJsonSchema = {
+  name?: string
+  description?: string
+  encoded_schema?: string
+  strict?: boolean
+}
+
 export type CreateChatCompletionRequestResponseFormat = {
   type?: string
+  json_schema?: CreateChatCompletionRequestResponseFormatJsonSchema
 }
 
 export type CreateChatCompletionRequestToolFunction = {

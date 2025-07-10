@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 )
@@ -36,11 +37,16 @@ func (s *S) CreateAudioTranscription(
 	}
 
 	usage := newUsageRecord(userInfo, st, "CreateAudioTranscription")
-	// TODO(kenji): Set usage details.
+	details := &auv1.CreateAudioTranscription{}
+	usage.Details = &auv1.UsageDetails{
+		Message: &auv1.UsageDetails_CreateAudioTranscription{
+			CreateAudioTranscription: details,
+		},
+	}
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
-		s.metricsMonitor.ObserveRequestCount(createReq.Model, userInfo.TenantID, usage.StatusCode)
+		s.metricsMonitor.ObserveRequestCount(details.ModelId, userInfo.TenantID, usage.StatusCode)
 	}()
 
 	createReq.Model = req.FormValue("model")
@@ -48,6 +54,7 @@ func (s *S) CreateAudioTranscription(
 		httpError(w, "model is required", http.StatusBadRequest, &usage)
 		return
 	}
+	details.ModelId = createReq.Model
 
 	// TODO(kenji): Validate the value of "language" parameter.
 	createReq.Language = req.FormValue("language")
@@ -142,6 +149,8 @@ func (s *S) CreateAudioTranscription(
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)

@@ -398,7 +398,15 @@ func TestConvertTopP_Zero(t *testing.T) {
 }
 
 func TestConvertResponseFormat(t *testing.T) {
-	body := `{"response_format": {"type": "json_schema", "schema": {"key": "value"}}}`
+	body := `
+{
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "schema": {"key": "value"}
+    }
+  }
+}`
 	got, err := applyConvertFuncs([]byte(body), []convertF{convertResponseFormat})
 	assert.NoError(t, err)
 
@@ -413,9 +421,16 @@ func TestConvertResponseFormat(t *testing.T) {
 
 	_, ok = rfMap["type"]
 	assert.True(t, ok)
-	_, ok = rfMap[encodedSchemaKey]
+
+	js, ok := rfMap["json_schema"]
 	assert.True(t, ok)
-	_, ok = rfMap[schemaKey]
+
+	jsMap, ok := js.(map[string]interface{})
+	assert.True(t, ok)
+
+	_, ok = jsMap[encodedSchemaKey]
+	assert.True(t, ok)
+	_, ok = jsMap[schemaKey]
 	assert.False(t, ok)
 
 	got, err = applyConvertFuncs(got, []convertF{convertEncodedResponseFormat})
@@ -432,8 +447,18 @@ func TestConvertResponseFormat(t *testing.T) {
 
 	_, ok = rfMap["type"]
 	assert.True(t, ok)
-	_, ok = rfMap[encodedSchemaKey]
+
+	js, ok = rfMap["json_schema"]
+	assert.True(t, ok)
+
+	jsMap, ok = js.(map[string]interface{})
+	assert.True(t, ok)
+
+	_, ok = jsMap[encodedSchemaKey]
 	assert.False(t, ok)
+
+	_, ok = jsMap[schemaKey]
+	assert.True(t, ok)
 }
 
 func TestConvertResponseFormat_Text(t *testing.T) {

@@ -394,7 +394,7 @@ func (p *P) processTask(
 	goAwayCh chan struct{},
 ) error {
 	switch req := t.Request; req.Request.(type) {
-	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding:
+	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding, *v1.TaskRequest_AudioTranscription:
 		return p.sendRequestToRuntime(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
 		return p.goAway(ctx, stream, t, goAwayCh)

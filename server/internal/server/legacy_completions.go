@@ -155,13 +155,7 @@ func (s *S) CreateCompletion(
 			details.CompletionTokens = u.CompletionTokens
 		}
 
-		b, err := json.Marshal(&c)
-		if err != nil {
-			httpError(w, err.Error(), http.StatusInternalServerError, &usage)
-			return
-		}
-
-		if _, err := io.Copy(w, bytes.NewBuffer(b)); err != nil {
+		if _, err := io.Copy(w, bytes.NewBuffer(respBody)); err != nil {
 			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}

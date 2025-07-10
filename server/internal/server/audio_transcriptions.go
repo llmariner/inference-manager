@@ -49,15 +49,36 @@ func (s *S) CreateAudioTranscription(
 		return
 	}
 
+	// TODO(kenji): Validate the value of "language" parameter.
 	createReq.Language = req.FormValue("language")
+
 	createReq.Prompt = req.FormValue("prompt")
-	createReq.ResponseFormat = req.FormValue("response_format")
+
+	if rf := req.FormValue("response_format"); rf != "" {
+		validFormats := map[string]bool{
+			"json":         true,
+			"text":         true,
+			"srt":          true,
+			"verbose_json": true,
+			"vtt":          true,
+		}
+		if !validFormats[rf] {
+			httpError(w, fmt.Sprintf("invalid response_format: %s", rf), http.StatusBadRequest, &usage)
+		}
+		createReq.ResponseFormat = rf
+	}
+
 	if t := req.FormValue("temperature"); t != "" {
-		createReq.Temperature, err = strconv.ParseFloat(t, 64)
+		tmp, err := strconv.ParseFloat(t, 64)
 		if err != nil {
 			httpError(w, fmt.Sprintf("invalid temperature value: %s", err), http.StatusBadRequest, &usage)
 			return
 		}
+		if tmp < 0 || tmp > 1 {
+			httpError(w, fmt.Sprintf("temperature must be between 0 and 1, but got %v", tmp), http.StatusBadRequest, &usage)
+		}
+
+		createReq.Temperature = tmp
 	}
 
 	if t := req.FormValue("stream"); t != "" {

@@ -46,41 +46,148 @@ func TestCreateAuditoTranscription(t *testing.T) {
 	)
 	srv.enableAuth = true
 
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
+	tcs := []struct {
+		name     string
+		input    func(*testing.T, *multipart.Writer)
+		validate func(*testing.T, *httptest.ResponseRecorder)
+		wantErr  bool
+	}{
+		{
+			name: "success",
+			input: func(t *testing.T, w *multipart.Writer) {
+				fw, err := w.CreateFormFile("file", "test-file.wav")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("hello"))
+				assert.NoError(t, err)
 
-	fw, err := w.CreateFormFile("file", "test-file.wav")
-	assert.NoError(t, err)
-	_, err = fw.Write([]byte("hello"))
-	assert.NoError(t, err)
+				fw, err = w.CreateFormField("model")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte(modelID))
+				assert.NoError(t, err)
 
-	fw, err = w.CreateFormField("model")
-	assert.NoError(t, err)
-	_, err = fw.Write([]byte(modelID))
-	assert.NoError(t, err)
+				fw, err = w.CreateFormField("temperature")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("0.5"))
+				assert.NoError(t, err)
 
-	fw, err = w.CreateFormField("temperature")
-	assert.NoError(t, err)
-	_, err = fw.Write([]byte("0.5"))
-	assert.NoError(t, err)
+				err = w.Close()
+				assert.NoError(t, err)
+			},
+			validate: func(t *testing.T, rw *httptest.ResponseRecorder) {
+				creq := capturingTaskSender.capturedReq
+				assert.Equal(t, modelID, creq.Model)
+				assert.Equal(t, "test-file.wav", creq.Filename)
+				assert.Equal(t, []byte("hello"), creq.File)
+				assert.InDelta(t, creq.Temperature, 0.5, 0.001)
+			},
+		},
+		{
+			name: "missing file",
+			input: func(t *testing.T, w *multipart.Writer) {
+				fw, err := w.CreateFormField("model")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte(modelID))
+				assert.NoError(t, err)
 
-	err = w.Close()
-	assert.NoError(t, err)
+				err = w.Close()
+				assert.NoError(t, err)
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid temperature",
+			input: func(t *testing.T, w *multipart.Writer) {
+				fw, err := w.CreateFormFile("file", "test-file.wav")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("hello"))
+				assert.NoError(t, err)
 
-	req, err := http.NewRequest("POST", "v1/audio/transcriptions", &b)
-	assert.NoError(t, err)
-	req.Header.Set("Content-Type", w.FormDataContentType())
+				fw, err = w.CreateFormField("model")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte(modelID))
+				assert.NoError(t, err)
 
-	rw := &httptest.ResponseRecorder{}
-	pathParams := map[string]string{}
-	srv.CreateAudioTranscription(rw, req, pathParams)
-	assert.Equal(t, http.StatusOK, rw.Code)
+				fw, err = w.CreateFormField("temperature")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("INVALID"))
+				assert.NoError(t, err)
 
-	creq := capturingTaskSender.capturedReq
-	assert.Equal(t, modelID, creq.Model)
-	assert.Equal(t, "test-file.wav", creq.Filename)
-	assert.Equal(t, []byte("hello"), creq.File)
-	assert.InDelta(t, creq.Temperature, 0.5, 0.001)
+				err = w.Close()
+				assert.NoError(t, err)
+			},
+			wantErr: true,
+		},
+		{
+			name: "stream",
+			input: func(t *testing.T, w *multipart.Writer) {
+				fw, err := w.CreateFormFile("file", "test-file.wav")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("hello"))
+				assert.NoError(t, err)
+
+				fw, err = w.CreateFormField("model")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte(modelID))
+				assert.NoError(t, err)
+
+				fw, err = w.CreateFormField("stream")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("stream"))
+				assert.NoError(t, err)
+
+				err = w.Close()
+				assert.NoError(t, err)
+			},
+			// TODO(kenji): Updatae once streaming is supported.
+			wantErr: true,
+		},
+		{
+			name: "invalid response_format",
+			input: func(t *testing.T, w *multipart.Writer) {
+				fw, err := w.CreateFormFile("file", "test-file.wav")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("hello"))
+				assert.NoError(t, err)
+
+				fw, err = w.CreateFormField("model")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte(modelID))
+				assert.NoError(t, err)
+
+				fw, err = w.CreateFormField("response_format")
+				assert.NoError(t, err)
+				_, err = fw.Write([]byte("INVALID"))
+				assert.NoError(t, err)
+
+				err = w.Close()
+				assert.NoError(t, err)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run("", func(t *testing.T) {
+			var b bytes.Buffer
+			w := multipart.NewWriter(&b)
+			tc.input(t, w)
+			req, err := http.NewRequest("POST", "v1/audio/transcriptions", &b)
+			assert.NoError(t, err)
+			req.Header.Set("Content-Type", w.FormDataContentType())
+
+			rw := &httptest.ResponseRecorder{}
+			pathParams := map[string]string{}
+			srv.CreateAudioTranscription(rw, req, pathParams)
+
+			if tc.wantErr {
+				assert.NotEqual(t, http.StatusOK, rw.Code)
+				return
+			}
+
+			assert.Equal(t, http.StatusOK, rw.Code)
+			tc.validate(t, rw)
+		})
+	}
 }
 
 type captureAudioTranscriptionTaskSender struct {

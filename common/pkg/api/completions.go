@@ -326,7 +326,7 @@ func convertEncodedResponseFormat(r map[string]interface{}) error {
 		}
 
 		jm := map[string]interface{}{}
-		if err := json.Unmarshal(b, &m); err != nil {
+		if err := json.Unmarshal(b, &jm); err != nil {
 			return err
 		}
 

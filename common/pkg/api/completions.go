@@ -14,6 +14,9 @@ const (
 	// encodedChatTemplateKwargsKey is the key for the encoded chat template kwargs.
 	encodedChatTemplateKwargsKey = "encoded_chat_template_kwargs"
 
+	schemaKey        = "schema"
+	encodedSchemaKey = "encoded_schema"
+
 	temperatureKey      = "temperature"
 	isTemperatureSetKey = "is_temperature_set"
 
@@ -29,6 +32,7 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 		convertChatTemplateKwargs,
 		convertTemperature,
 		convertTopP,
+		convertResponseFormat,
 		convertContentStringToArray,
 	}
 	return applyConvertFuncs(body, fs)
@@ -46,6 +50,7 @@ func ConvertCreateChatCompletionRequestToOpenAI(body []byte, needStringFormat bo
 		convertEncodedTemperature,
 		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
+		convertEncodedResponseFormat,
 		convertToolChoiceObject,
 	}
 	if needStringFormat {
@@ -243,6 +248,94 @@ func convertEncodedNonProtoDefaultValue(r map[string]interface{}, key, setKey st
 		return nil
 	}
 	r[key] = 0.0
+
+	return nil
+}
+
+func convertResponseFormat(r map[string]interface{}) error {
+	responseFormat, ok := r["response_format"]
+	if !ok {
+		return nil
+	}
+	m, ok := responseFormat.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("response_format should be a map")
+	}
+
+	typeV, ok := m["type"]
+	if !ok {
+		return fmt.Errorf("response_format.type is required")
+	}
+	typeVString, ok := typeV.(string)
+	if !ok {
+		return fmt.Errorf("response_format.type should be a string, got %T", typeV)
+	}
+	switch typeVString {
+	case "text", "json_object":
+		// Do nothing.
+	case "json_schema":
+		v, ok := m[schemaKey]
+		if !ok {
+			return fmt.Errorf("response_format.schema is required for type 'json_schema'")
+		}
+		t := v.(map[string]interface{})
+		marshalled, err := json.Marshal(t)
+		if err != nil {
+			return err
+		}
+
+		m[encodedSchemaKey] = base64.URLEncoding.EncodeToString(marshalled)
+		delete(m, schemaKey)
+	default:
+		return fmt.Errorf("unsupported response_format.type: %s", typeVString)
+	}
+
+	return nil
+}
+
+func convertEncodedResponseFormat(r map[string]interface{}) error {
+	responseFormat, ok := r["response_format"]
+	if !ok {
+		return nil
+	}
+	m, ok := responseFormat.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("response_format should be a map")
+	}
+
+	typeV, ok := m["type"]
+	if !ok {
+		return fmt.Errorf("response_format.type is required")
+	}
+	typeVString, ok := typeV.(string)
+	if !ok {
+		return fmt.Errorf("response_format.type should be a string, got %T", typeV)
+	}
+	switch typeVString {
+	case "text", "json_object":
+		// Do nothing.
+	case "json_schema":
+		v, ok := m[encodedSchemaKey]
+		if !ok {
+			return fmt.Errorf("response_format.encoded_schema is required for type 'json_schema'")
+		}
+
+		b, err := base64.URLEncoding.DecodeString(v.(string))
+		if err != nil {
+			return err
+		}
+
+		jm := map[string]interface{}{}
+		if err := json.Unmarshal(b, &m); err != nil {
+			return err
+		}
+
+		m[schemaKey] = jm
+		delete(m, encodedSchemaKey)
+
+	default:
+		return fmt.Errorf("unsupported response_format.type: %s", typeVString)
+	}
 
 	return nil
 }

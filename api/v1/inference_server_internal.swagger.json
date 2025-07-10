@@ -98,7 +98,11 @@
       "type": "object",
       "properties": {
         "type": {
-          "type": "string"
+          "type": "string",
+          "description": "type is one of 'text', 'json_schema', or 'json_object'."
+        },
+        "jsonSchema": {
+          "$ref": "#/definitions/ResponseFormatJsonSchema"
         }
       }
     },
@@ -183,6 +187,24 @@
             "type": "string"
           },
           "description": "in_progress_model_ids is a list of model ids that are currently being synced."
+        }
+      }
+    },
+    "ResponseFormatJsonSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "encodedSchema": {
+          "type": "string",
+          "description": "encoded_schema is a base64 encoded JSON Schema object.\n\nThe original value in the \"schema\" field is stripped by the server and converted\nto \"encoded_schema\".\n\nThe value of the field is converted back to the \"schema\" field when the request is being\nsent to vLLM."
+        },
+        "strict": {
+          "type": "boolean"
         }
       }
     },

@@ -66,7 +66,23 @@ message CreateChatCompletionRequest {
   }
 
   message ResponseFormat {
+    message JsonSchema {
+      string name = 1;
+      string description = 2;
+      // encoded_schema is a base64 encoded JSON Schema object.
+      //
+      // The original value in the "schema" field is stripped by the server and converted
+      // to "encoded_schema".
+      //
+      // The value of the field is converted back to the "schema" field when the request is being
+      // sent to vLLM.
+      string encoded_schema = 3;
+      bool strict = 4;
+    }
+
+    // type is one of 'text', 'json_schema', or 'json_object'.
     string type = 1;
+    JsonSchema json_schema = 2;
   }
 
   message Tool {

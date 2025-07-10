@@ -397,6 +397,65 @@ func TestConvertTopP_Zero(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestConvertResponseFormat(t *testing.T) {
+	body := `{"response_format": {"type": "json_schema", "schema": {"key": "value"}}}`
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertResponseFormat})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	rf, ok := r["response_format"]
+	assert.True(t, ok)
+	rfMap, ok := rf.(map[string]interface{})
+	assert.True(t, ok)
+
+	_, ok = rfMap["type"]
+	assert.True(t, ok)
+	_, ok = rfMap[encodedSchemaKey]
+	assert.True(t, ok)
+	_, ok = rfMap[schemaKey]
+	assert.False(t, ok)
+
+	got, err = applyConvertFuncs(got, []convertF{convertEncodedResponseFormat})
+	assert.NoError(t, err)
+
+	r = map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	rf, ok = r["response_format"]
+	assert.True(t, ok)
+	rfMap, ok = rf.(map[string]interface{})
+	assert.True(t, ok)
+
+	_, ok = rfMap["type"]
+	assert.True(t, ok)
+	_, ok = rfMap[encodedSchemaKey]
+	assert.False(t, ok)
+}
+
+func TestConvertResponseFormat_Text(t *testing.T) {
+	body := `{"response_format": {"type": "text"}}`
+	got, err := applyConvertFuncs([]byte(body), []convertF{convertResponseFormat})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal([]byte(got), &r)
+	assert.NoError(t, err)
+
+	rf, ok := r["response_format"]
+	assert.True(t, ok)
+	rfMap, ok := rf.(map[string]interface{})
+	assert.True(t, ok)
+
+	_, ok = rfMap["type"]
+	assert.True(t, ok)
+	_, ok = rfMap[encodedSchemaKey]
+	assert.False(t, ok)
+}
+
 func TestConvertContentStringToArray(t *testing.T) {
 	tcs := []struct {
 		name string

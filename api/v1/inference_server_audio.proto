@@ -32,3 +32,29 @@ message CreateAudioTranscriptionRequest {
 
   // TODO(kenji): Support "timestamp_granularities"
 }
+
+message Transcription {
+  message Usage {
+    message InputTokenDetails {
+      int32 audio_tokens = 1;
+      int32 text_tokens = 2;
+    }
+
+    string type = 1;
+
+    // The following fields are for TokenUsage.
+    int32 input_tokens = 2;
+    int32 output_tokens = 3;
+    int32 total_tokens = 4;
+    InputTokenDetails input_token_details = 5;
+
+    // The following field is for DurationUsage.
+    double seconds = 6;
+  }
+
+  string text = 1;
+
+  Usage usage = 2;
+
+  // TODO(kenji): Define "logprobs".
+}

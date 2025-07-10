@@ -594,6 +594,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 
 	var path string
 	var reqBody io.Reader
+	var contentTypeHeader string
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
 		r := req.GetChatCompletion()
@@ -629,17 +630,20 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 		reqBody = bytes.NewReader(b)
 		path = embeddingPath
 	case *v1.TaskRequest_AudioTranscription:
+		var b bytes.Buffer
+
 		r := req.GetAudioTranscription()
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
 		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
 
-		var err error
-		reqBody, err = audioTranscriptionBody(r)
+		w, err := createWriterForAudioTranscription(r, &b)
 		if err != nil {
 			return nil, err
 		}
+		contentTypeHeader = w.FormDataContentType()
 
+		reqBody = &b
 		path = audioTranscriptionPath
 	default:
 		return nil, fmt.Errorf("unknown request type: %T", req.Request)
@@ -655,6 +659,9 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 		for _, v := range vs.Values {
 			req.Header.Add(k, v)
 		}
+	}
+	if contentTypeHeader != "" {
+		req.Header.Set("Content-Type", contentTypeHeader)
 	}
 	return req, nil
 }
@@ -865,9 +872,8 @@ func (p *P) numActiveEngines() int {
 	return len(p.activeEngines)
 }
 
-func audioTranscriptionBody(req *v1.CreateAudioTranscriptionRequest) (io.Reader, error) {
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
+func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, b *bytes.Buffer) (*multipart.Writer, error) {
+	w := multipart.NewWriter(b)
 	defer func() {
 		_ = w.Close()
 	}()
@@ -897,8 +903,7 @@ func audioTranscriptionBody(req *v1.CreateAudioTranscriptionRequest) (io.Reader,
 	if _, err := fw.Write(req.File); err != nil {
 		return nil, err
 	}
-
-	return &b, nil
+	return w, nil
 }
 
 func taskModel(t *v1.Task) string {

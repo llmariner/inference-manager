@@ -124,9 +124,9 @@ func TestBuildAffinityApplyConfig(t *testing.T) {
 
 func TestConvertEnvVarsToApplyConfig(t *testing.T) {
 	tests := []struct {
-		name     string
-		envVars  []corev1.EnvVar
-		want     []*corev1apply.EnvVarApplyConfiguration
+		name    string
+		envVars []corev1.EnvVar
+		want    []*corev1apply.EnvVarApplyConfiguration
 	}{
 		{
 			name:    "empty slice",
@@ -242,7 +242,7 @@ func TestConvertEnvVarsToApplyConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := convertEnvVarsToApplyConfig(tt.envVars)
+			got := convertEnvToApplyConfig(tt.envVars)
 			require.Equal(t, tt.want, got)
 		})
 	}

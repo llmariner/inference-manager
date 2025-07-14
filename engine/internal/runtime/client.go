@@ -60,8 +60,8 @@ type commonClient struct {
 	mconfig *config.ProcessedModelConfig
 }
 
-// convertEnvVarsToApplyConfig converts a slice of corev1.EnvVar to apply configuration format
-func convertEnvVarsToApplyConfig(envVars []corev1.EnvVar) []*corev1apply.EnvVarApplyConfiguration {
+// convertEnvToApplyConfig converts a slice of corev1.EnvVar to apply configuration format
+func convertEnvToApplyConfig(envVars []corev1.EnvVar) []*corev1apply.EnvVarApplyConfiguration {
 	var result []*corev1apply.EnvVarApplyConfiguration
 	for _, env := range envVars {
 		envVar := corev1apply.EnvVar().WithName(env.Name)
@@ -136,7 +136,7 @@ func convertEnvFromToApplyConfig(envFromSources []corev1.EnvFromSource) []*corev
 func mergeEnvVars(existingEnvs []*corev1apply.EnvVarApplyConfiguration, runtimeConfigEnvs []corev1.EnvVar) []*corev1apply.EnvVarApplyConfiguration {
 	allEnvs := make([]*corev1apply.EnvVarApplyConfiguration, 0, len(existingEnvs)+len(runtimeConfigEnvs))
 	allEnvs = append(allEnvs, existingEnvs...)
-	allEnvs = append(allEnvs, convertEnvVarsToApplyConfig(runtimeConfigEnvs)...)
+	allEnvs = append(allEnvs, convertEnvToApplyConfig(runtimeConfigEnvs)...)
 	return allEnvs
 }
 

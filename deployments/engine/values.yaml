@@ -113,6 +113,16 @@ runtime:
   # +docs:type=number
   pullerPort: 8080
 
+  # Optional list of environment variables to inject into all runtime containers.
+  # These environment variables will be added to both init containers and runtime containers.
+  # +docs:property
+  # env: []
+
+  # Optional list of environment variable sources to inject into all runtime containers.
+  # These will be added to both init containers and runtime containers.
+  # +docs:property
+  # envFrom: []
+
   # Use this for the regular shutdown of all inference runtimes.
   # e.g., during weekends or nighttime.
   # NOTE: This feature runs once for each given scheduled time. Hence,

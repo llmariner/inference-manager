@@ -60,6 +60,86 @@ type commonClient struct {
 	mconfig *config.ProcessedModelConfig
 }
 
+// convertEnvToApplyConfig converts a slice of corev1.EnvVar to apply configuration format
+func convertEnvToApplyConfig(envVars []corev1.EnvVar) []*corev1apply.EnvVarApplyConfiguration {
+	var result []*corev1apply.EnvVarApplyConfiguration
+	for _, env := range envVars {
+		envVar := corev1apply.EnvVar().WithName(env.Name)
+		if env.Value != "" {
+			envVar = envVar.WithValue(env.Value)
+		}
+		if env.ValueFrom != nil {
+			// Convert corev1.EnvVarSource to apply configuration
+			valueFromApply := corev1apply.EnvVarSource()
+			if fr := env.ValueFrom.FieldRef; fr != nil {
+				valueFromApply = valueFromApply.WithFieldRef(corev1apply.ObjectFieldSelector().
+					WithAPIVersion(fr.APIVersion).
+					WithFieldPath(fr.FieldPath))
+			}
+			if rfr := env.ValueFrom.ResourceFieldRef; rfr != nil {
+				valueFromApply = valueFromApply.WithResourceFieldRef(corev1apply.ResourceFieldSelector().
+					WithContainerName(rfr.ContainerName).
+					WithResource(rfr.Resource).
+					WithDivisor(rfr.Divisor))
+			}
+			if cmkr := env.ValueFrom.ConfigMapKeyRef; cmkr != nil {
+				configMapKeyRef := corev1apply.ConfigMapKeySelector().
+					WithName(cmkr.Name).
+					WithKey(cmkr.Key)
+				if cmkr.Optional != nil {
+					configMapKeyRef = configMapKeyRef.WithOptional(*cmkr.Optional)
+				}
+				valueFromApply = valueFromApply.WithConfigMapKeyRef(configMapKeyRef)
+			}
+			if skr := env.ValueFrom.SecretKeyRef; skr != nil {
+				secretKeyRef := corev1apply.SecretKeySelector().
+					WithName(skr.Name).
+					WithKey(skr.Key)
+				if skr.Optional != nil {
+					secretKeyRef = secretKeyRef.WithOptional(*skr.Optional)
+				}
+				valueFromApply = valueFromApply.WithSecretKeyRef(secretKeyRef)
+			}
+			envVar = envVar.WithValueFrom(valueFromApply)
+		}
+		result = append(result, envVar)
+	}
+	return result
+}
+
+// convertEnvFromToApplyConfig converts a slice of corev1.EnvFromSource to apply configuration format
+func convertEnvFromToApplyConfig(envFromSources []corev1.EnvFromSource) []*corev1apply.EnvFromSourceApplyConfiguration {
+	var result []*corev1apply.EnvFromSourceApplyConfiguration
+	for _, envFrom := range envFromSources {
+		envFromApply := corev1apply.EnvFromSource().
+			WithPrefix(envFrom.Prefix)
+		if cfr := envFrom.ConfigMapRef; cfr != nil {
+			configMapEnvSource := corev1apply.ConfigMapEnvSource().WithName(cfr.Name)
+			if cfr.Optional != nil {
+				configMapEnvSource = configMapEnvSource.WithOptional(*cfr.Optional)
+			}
+			envFromApply = envFromApply.WithConfigMapRef(configMapEnvSource)
+		}
+		if sr := envFrom.SecretRef; sr != nil {
+			secretEnvSource := corev1apply.SecretEnvSource().WithName(sr.Name)
+			if sr.Optional != nil {
+				secretEnvSource = secretEnvSource.WithOptional(*sr.Optional)
+			}
+			envFromApply = envFromApply.WithSecretRef(secretEnvSource)
+		}
+		result = append(result, envFromApply)
+	}
+	return result
+}
+
+// mergeEnvVars merges existing environment variables with runtime config environment variables
+func mergeEnvVars(existingEnvs []*corev1apply.EnvVarApplyConfiguration, runtimeConfigEnvs []corev1.EnvVar) []*corev1apply.EnvVarApplyConfiguration {
+	allEnvs := make([]*corev1apply.EnvVarApplyConfiguration, 0, len(existingEnvs)+len(runtimeConfigEnvs))
+	allEnvs = append(allEnvs, existingEnvs...)
+	allEnvs = append(allEnvs, convertEnvToApplyConfig(runtimeConfigEnvs)...)
+	return allEnvs
+}
+
 // Namespace returns the namespace of the runtime.
 func (c *commonClient) Namespace() string {
 	return c.namespace
@@ -293,12 +373,19 @@ func (c *commonClient) deployRuntime(
 		}
 	}
 
+	// Merge init environment variables with runtime config env
+	allInitEnvs := mergeEnvVars(initEnvs, c.rconfig.Env)
+
+	// Convert runtime config envFrom to apply configurations
+	initEnvFroms := convertEnvFromToApplyConfig(c.rconfig.EnvFrom)
+
 	pullerSpec := corev1apply.Container().
 		WithName("puller").
 		WithImage(c.rconfig.PullerImage).
 		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.PullerImagePullPolicy)).
 		WithArgs(pullerArgs...).
-		WithEnv(initEnvs...).
+		WithEnv(allInitEnvs...).
+		WithEnvFrom(initEnvFroms...).
 		WithVolumeMounts(initVolumeMounts...)
 	if params.pullerDaemonMode {
 		pullerSpec = pullerSpec.WithPorts(corev1apply.ContainerPort().
@@ -318,9 +405,16 @@ func (c *commonClient) deployRuntime(
 			WithImagePullPolicy(ic.imagePullPolicy).
 			WithCommand(ic.command...).
 			WithArgs(ic.args...).
-			WithEnv(initEnvs...).
+			WithEnv(allInitEnvs...).
+			WithEnvFrom(initEnvFroms...).
 			WithVolumeMounts(initVolumeMounts...))
 	}
+
+	// Merge runtime environment variables with runtime config env
+	allRuntimeEnvs := mergeEnvVars(params.envs, c.rconfig.Env)
+
+	// Convert runtime config envFrom to apply configurations for runtime container
+	runtimeEnvFroms := convertEnvFromToApplyConfig(c.rconfig.EnvFrom)
 
 	cport := c.servingPort
 	if p := params.runtimePort; p != 0 {
@@ -337,7 +431,8 @@ func (c *commonClient) deployRuntime(
 				WithName("http").
 				WithContainerPort(int32(cport)).
 				WithProtocol(corev1.ProtocolTCP)).
-			WithEnv(params.envs...).
+			WithEnv(allRuntimeEnvs...).
+			WithEnvFrom(runtimeEnvFroms...).
 			WithVolumeMounts(volumeMounts...).
 			WithResources(runtimeResources).
 			WithReadinessProbe(params.readinessProbe))

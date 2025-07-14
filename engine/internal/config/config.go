@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -197,6 +198,12 @@ type RuntimeConfig struct {
 	// PullerPort is the port for the puller. This is only used when
 	// Ollama's DynamicModelLoading or vLLM's DynamicLoRALoading is enabled.
 	PullerPort int `yaml:"pullerPort"`
+
+	// Env and EnvFrom are lists of environment variables or env sources to set in runtime containers.
+	UnstructuredEnv     any                    `yaml:"env"`
+	Env                 []corev1.EnvVar        `yaml:"-"`
+	UnstructuredEnvFrom any                    `yaml:"envFrom"`
+	EnvFrom             []corev1.EnvFromSource `yaml:"-"`
 }
 
 func (c *RuntimeConfig) validate() error {
@@ -237,6 +244,34 @@ func (c *RuntimeConfig) validate() error {
 	}
 	if c.LLMOKeyEnvKey == "" {
 		return fmt.Errorf("llmoKeyEnvKey must be set")
+	}
+
+	// Validate env variables
+	reservedNames := []string{"INDEX", "LLMO_CLUSTER_REGISTRATION_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}
+	for i, env := range c.Env {
+		if env.Name == "" {
+			return fmt.Errorf("runtime.env[%d].name must be set", i)
+		}
+		// Check for reserved environment variable names that might conflict with system vars
+		if slices.Contains(reservedNames, env.Name) {
+			return fmt.Errorf("name '%s' is reserved and cannot be overridden", env.Name)
+		}
+	}
+
+	// Validate envFrom sources
+	for i, envFrom := range c.EnvFrom {
+		if envFrom.ConfigMapRef == nil && envFrom.SecretRef == nil {
+			return fmt.Errorf("runtime.envFrom[%d] must specify either configMapRef or secretRef", i)
+		}
+		if envFrom.ConfigMapRef != nil && envFrom.SecretRef != nil {
+			return fmt.Errorf("runtime.envFrom[%d] cannot specify both configMapRef and secretRef", i)
+		}
+		if envFrom.ConfigMapRef != nil && envFrom.ConfigMapRef.Name == "" {
+			return fmt.Errorf("runtime.envFrom[%d].configMapRef.name must be set", i)
+		}
+		if envFrom.SecretRef != nil && envFrom.SecretRef.Name == "" {
+			return fmt.Errorf("runtime.envFrom[%d].secretRef.name must be set", i)
+		}
 	}
 
 	return nil
@@ -584,6 +619,30 @@ func Parse(path string) (*Config, error) {
 			return nil, fmt.Errorf("config: unmarshal affinity: %s", err)
 		}
 		config.Runtime.Affinity = &affinity
+	}
+
+	if config.Runtime.UnstructuredEnv != nil {
+		data, err := yaml.Marshal(config.Runtime.UnstructuredEnv)
+		if err != nil {
+			return nil, fmt.Errorf("config: marshal env: %s", err)
+		}
+		var env []corev1.EnvVar
+		if err := kyaml.Unmarshal(data, &env); err != nil {
+			return nil, fmt.Errorf("config: unmarshal env: %s", err)
+		}
+		config.Runtime.Env = env
+	}
+
+	if config.Runtime.UnstructuredEnvFrom != nil {
+		data, err := yaml.Marshal(config.Runtime.UnstructuredEnvFrom)
+		if err != nil {
+			return nil, fmt.Errorf("config: marshal envFrom: %s", err)
+		}
+		var envFrom []corev1.EnvFromSource
+		if err := kyaml.Unmarshal(data, &envFrom); err != nil {
+			return nil, fmt.Errorf("config: unmarshal envFrom: %s", err)
+		}
+		config.Runtime.EnvFrom = envFrom
 	}
 
 	if val := os.Getenv(preloadedModelIDsEnv); val != "" {

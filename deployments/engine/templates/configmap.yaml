@@ -50,6 +50,14 @@ data:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       pullerPort: {{ .Values.runtime.pullerPort }}
+      {{- with .Values.runtime.env }}
+      env:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.runtime.envFrom }}
+      envFrom:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.ollama.maxConcurrentRequests }}

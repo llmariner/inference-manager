@@ -644,13 +644,16 @@ func TestParseWithEnvironmentVariable(t *testing.T) {
 	original := os.Getenv("PRELOADED_MODEL_IDS")
 	defer func() {
 		if original == "" {
-			os.Unsetenv("PRELOADED_MODEL_IDS")
+			err := os.Unsetenv("PRELOADED_MODEL_IDS")
+			assert.NoError(t, err)
 		} else {
-			os.Setenv("PRELOADED_MODEL_IDS", original)
+			err := os.Setenv("PRELOADED_MODEL_IDS", original)
+			assert.NoError(t, err)
 		}
 	}()
 
-	os.Setenv("PRELOADED_MODEL_IDS", "model1,model2,model3")
+	err = os.Setenv("PRELOADED_MODEL_IDS", "model1,model2,model3")
+	assert.NoError(t, err)
 
 	config, err := Parse(configPath)
 	require.NoError(t, err)

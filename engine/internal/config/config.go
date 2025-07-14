@@ -1,9 +1,9 @@
 package config
 
 import (
-	"slices"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 

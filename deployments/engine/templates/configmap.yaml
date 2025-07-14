@@ -58,7 +58,7 @@ data:
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-   ollama:
+    ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.ollama.maxConcurrentRequests }}
       forceSpreading: {{ .Values.ollama.forceSpreading }}

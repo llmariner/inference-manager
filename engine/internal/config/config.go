@@ -247,12 +247,12 @@ func (c *RuntimeConfig) validate() error {
 	}
 
 	// Validate env variables
+	reservedNames := []string{"INDEX", "LLMO_CLUSTER_REGISTRATION_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}
 	for i, env := range c.Env {
 		if env.Name == "" {
 			return fmt.Errorf("runtime.env[%d].name must be set", i)
 		}
 		// Check for reserved environment variable names that might conflict with system vars
-		reservedNames := []string{"INDEX", "LLMO_CLUSTER_REGISTRATION_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}
 		if slices.Contains(reservedNames, env.Name) {
 			return fmt.Errorf("name '%s' is reserved and cannot be overridden", env.Name)
 		}

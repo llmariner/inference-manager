@@ -71,32 +71,32 @@ func convertEnvToApplyConfig(envVars []corev1.EnvVar) []*corev1apply.EnvVarApply
 		if env.ValueFrom != nil {
 			// Convert corev1.EnvVarSource to apply configuration
 			valueFromApply := corev1apply.EnvVarSource()
-			if env.ValueFrom.FieldRef != nil {
+			if fr := env.ValueFrom.FieldRef; fr != nil {
 				valueFromApply = valueFromApply.WithFieldRef(corev1apply.ObjectFieldSelector().
-					WithAPIVersion(env.ValueFrom.FieldRef.APIVersion).
-					WithFieldPath(env.ValueFrom.FieldRef.FieldPath))
+					WithAPIVersion(fr.APIVersion).
+					WithFieldPath(fr.FieldPath))
 			}
-			if env.ValueFrom.ResourceFieldRef != nil {
+			if rfr := env.ValueFrom.ResourceFieldRef; rfr != nil {
 				valueFromApply = valueFromApply.WithResourceFieldRef(corev1apply.ResourceFieldSelector().
-					WithContainerName(env.ValueFrom.ResourceFieldRef.ContainerName).
-					WithResource(env.ValueFrom.ResourceFieldRef.Resource).
-					WithDivisor(env.ValueFrom.ResourceFieldRef.Divisor))
+					WithContainerName(rfr.ContainerName).
+					WithResource(rfr.Resource).
+					WithDivisor(rfr.Divisor))
 			}
-			if env.ValueFrom.ConfigMapKeyRef != nil {
+			if cmkr := env.ValueFrom.ConfigMapKeyRef; cmkr != nil {
 				configMapKeyRef := corev1apply.ConfigMapKeySelector().
-					WithName(env.ValueFrom.ConfigMapKeyRef.Name).
-					WithKey(env.ValueFrom.ConfigMapKeyRef.Key)
-				if env.ValueFrom.ConfigMapKeyRef.Optional != nil {
-					configMapKeyRef = configMapKeyRef.WithOptional(*env.ValueFrom.ConfigMapKeyRef.Optional)
+					WithName(cmkr.Name).
+					WithKey(cmkr.Key)
+				if cmkr.Optional != nil {
+					configMapKeyRef = configMapKeyRef.WithOptional(*cmkr.Optional)
 				}
 				valueFromApply = valueFromApply.WithConfigMapKeyRef(configMapKeyRef)
 			}
-			if env.ValueFrom.SecretKeyRef != nil {
+			if skr := env.ValueFrom.SecretKeyRef; skr != nil {
 				secretKeyRef := corev1apply.SecretKeySelector().
-					WithName(env.ValueFrom.SecretKeyRef.Name).
-					WithKey(env.ValueFrom.SecretKeyRef.Key)
-				if env.ValueFrom.SecretKeyRef.Optional != nil {
-					secretKeyRef = secretKeyRef.WithOptional(*env.ValueFrom.SecretKeyRef.Optional)
+					WithName(skr.Name).
+					WithKey(skr.Key)
+				if skr.Optional != nil {
+					secretKeyRef = secretKeyRef.WithOptional(*skr.Optional)
 				}
 				valueFromApply = valueFromApply.WithSecretKeyRef(secretKeyRef)
 			}
@@ -113,17 +113,17 @@ func convertEnvFromToApplyConfig(envFromSources []corev1.EnvFromSource) []*corev
 	for _, envFrom := range envFromSources {
 		envFromApply := corev1apply.EnvFromSource().
 			WithPrefix(envFrom.Prefix)
-		if envFrom.ConfigMapRef != nil {
-			configMapEnvSource := corev1apply.ConfigMapEnvSource().WithName(envFrom.ConfigMapRef.Name)
-			if envFrom.ConfigMapRef.Optional != nil {
-				configMapEnvSource = configMapEnvSource.WithOptional(*envFrom.ConfigMapRef.Optional)
+		if cfr := envFrom.ConfigMapRef; cfr != nil {
+			configMapEnvSource := corev1apply.ConfigMapEnvSource().WithName(cfr.Name)
+			if cfr.Optional != nil {
+				configMapEnvSource = configMapEnvSource.WithOptional(*cfr.Optional)
 			}
 			envFromApply = envFromApply.WithConfigMapRef(configMapEnvSource)
 		}
-		if envFrom.SecretRef != nil {
-			secretEnvSource := corev1apply.SecretEnvSource().WithName(envFrom.SecretRef.Name)
-			if envFrom.SecretRef.Optional != nil {
-				secretEnvSource = secretEnvSource.WithOptional(*envFrom.SecretRef.Optional)
+		if sr := envFrom.SecretRef; sr != nil {
+			secretEnvSource := corev1apply.SecretEnvSource().WithName(sr.Name)
+			if sr.Optional != nil {
+				secretEnvSource = secretEnvSource.WithOptional(*sr.Optional)
 			}
 			envFromApply = envFromApply.WithSecretRef(secretEnvSource)
 		}

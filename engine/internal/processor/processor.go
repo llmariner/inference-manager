@@ -915,7 +915,7 @@ func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, 
 		if err != nil {
 			return nil, err
 		}
-		if _, err := fw.Write([]byte(fmt.Sprintf("%f", v))); err != nil {
+		if _, err := fmt.Fprintf(fw, "%f", v); err != nil {
 			return nil, err
 		}
 	}

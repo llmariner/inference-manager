@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -17,8 +16,8 @@ import (
 const modelListInterval = 30 * time.Second
 
 // ModelManager is an interface for managing models.
-type ModelManager interface {
-	PullModel(ctx context.Context, modelID string) error
+type modelManager interface {
+	PullModelUnblocked(ctx context.Context, modelID string) error
 	DeleteModel(ctx context.Context, modelID string) error
 }
 
@@ -27,7 +26,7 @@ type modelLister interface {
 }
 
 // NewModelActivator creates a new ModelActivator.
-func NewModelActivator(preloadedModelIDs []string, mmanager ModelManager, modelLister modelLister) *ModelActivator {
+func NewModelActivator(preloadedModelIDs []string, mmanager modelManager, modelLister modelLister) *ModelActivator {
 	m := map[string]bool{}
 	for _, id := range preloadedModelIDs {
 		m[id] = true
@@ -46,7 +45,7 @@ func NewModelActivator(preloadedModelIDs []string, mmanager ModelManager, modelL
 type ModelActivator struct {
 	preloadedModelIDs map[string]bool
 
-	mmanager ModelManager
+	mmanager modelManager
 
 	modelLister modelLister
 
@@ -98,15 +97,8 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 			// Do nothing for backward compatibility.
 		case mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE:
 			g.Go(func() error {
-				if err := a.mmanager.PullModel(ctx, mid); err != nil {
-					// Ignore ErrRequestCanceled as it returns when a pod is unschedulable. Returning
-					// an error from here will make the preloading fails, but an unschedulable pod is
-					// expected when a cluster is being autoscaled.
-					if errors.Is(err, ErrRequestCanceled) {
-						a.logger.Error(err, "pull model canceled", "modelID", mid)
-					} else {
-						return fmt.Errorf("pull model %s: %s", mid, err)
-					}
+				if err := a.mmanager.PullModelUnblocked(ctx, mid); err != nil {
+					return fmt.Errorf("pull model %s: %s", mid, err)
 				}
 				return nil
 			})

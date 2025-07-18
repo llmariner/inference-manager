@@ -48,7 +48,7 @@ type fakeModelManager struct {
 	deleted []string
 }
 
-func (f *fakeModelManager) PullModel(ctx context.Context, modelID string) error {
+func (f *fakeModelManager) PullModelUnblocked(ctx context.Context, modelID string) error {
 	f.pulled = append(f.pulled, modelID)
 	return nil
 }

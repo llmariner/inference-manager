@@ -167,10 +167,16 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelClient,
 	)
 
+	type modelManagerI interface {
+		PullModel(ctx context.Context, modelID string) error
+		PullModelUnblocked(ctx context.Context, modelID string) error
+		DeleteModel(ctx context.Context, modelID string) error
+	}
+
 	var (
 		addrGetter   processor.AddressGetter
 		modelSyncer  processor.ModelSyncer
-		modelManager runtime.ModelManager
+		modelManager modelManagerI
 	)
 
 	nimModels := make(map[string]bool)

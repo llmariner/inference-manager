@@ -230,6 +230,12 @@ func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+// PullModelUnblocked pulls the model from the model manager without waiting for its completion.
+func (m *OllamaManager) PullModelUnblocked(ctx context.Context, modelID string) error {
+	// TODO(kenji): Implement the true non-blocking behavior.
+	return m.PullModel(ctx, modelID)
+}
+
 // DeleteModel deletes the model from the model manager.
 func (m *OllamaManager) DeleteModel(ctx context.Context, modelID string) error {
 	return fmt.Errorf("unsupported operation in ollama manager: delete model %s", modelID)

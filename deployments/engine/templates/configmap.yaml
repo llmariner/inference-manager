@@ -35,7 +35,7 @@ data:
       serviceAccountName: {{ include "inference-manager-engine.serviceAccountName" . }}
       {{- with .Values.podAnnotations }}
       podAnnotations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}R
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -58,6 +58,7 @@ data:
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      useMemoryMediumForModelVolume: {{ .Values.runtime.useMemoryMediumForModelVolume }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.ollama.maxConcurrentRequests }}

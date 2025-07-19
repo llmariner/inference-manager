@@ -123,6 +123,9 @@ runtime:
   # +docs:property
   # envFrom: []
 
+  # Set to true to create a volume for model files with medium=Memory.
+  useMemoryMediumForModelVolume: false
+
   # Use this for the regular shutdown of all inference runtimes.
   # e.g., during weekends or nighttime.
   # NOTE: This feature runs once for each given scheduled time. Hence,

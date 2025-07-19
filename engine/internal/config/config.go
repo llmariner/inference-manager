@@ -204,6 +204,8 @@ type RuntimeConfig struct {
 	Env                 []corev1.EnvVar        `yaml:"-"`
 	UnstructuredEnvFrom any                    `yaml:"envFrom"`
 	EnvFrom             []corev1.EnvFromSource `yaml:"-"`
+
+	UseMemoryMediumForModelVolume bool `yaml:"useMemoryMediumForModelVolume"`
 }
 
 func (c *RuntimeConfig) validate() error {

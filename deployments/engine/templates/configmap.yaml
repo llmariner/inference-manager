@@ -58,6 +58,7 @@ data:
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      useMemoryMediumForModelVolume: {{ .Values.runtime.useMemoryMediumForModelVolume }}
     ollama:
       keepAlive: {{ .Values.ollama.keepAlive }}
       numParallel: {{ .Values.ollama.maxConcurrentRequests }}

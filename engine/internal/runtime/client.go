@@ -278,8 +278,12 @@ func (c *commonClient) deployRuntime(
 			WithLabels(labels).
 			WithSpec(spec)
 	} else {
+		v := corev1apply.EmptyDirVolumeSource()
+		if c.rconfig.UseMemoryMediumForModelVolume {
+			v = v.WithMedium(corev1.StorageMediumMemory)
+		}
 		volumes = append(volumes, corev1apply.Volume().WithName(volName).
-			WithEmptyDir(corev1apply.EmptyDirVolumeSource()))
+			WithEmptyDir(v))
 		// Make every pod pull the model on startup as they don't share the volume.
 		forcePull = true
 	}

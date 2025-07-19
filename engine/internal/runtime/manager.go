@@ -275,20 +275,26 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		// The runtime is ready, or the pull is already in progress.
 		if r.ready {
 			log.V(1).Info("Runtime is ready. No need to pull the model", "modelID", e.modelID)
-			close(e.readyWaitCh)
+			if e.readyWaitCh != nil {
+				close(e.readyWaitCh)
+			}
 			return nil
 		}
 
 		if r.lastErrReason != "" {
 			log.Info("Runtime is not ready. Closing the wait channel", "modelID", e.modelID)
-			e.readyWaitCh <- r.lastErrReason
-			close(e.readyWaitCh)
+			if e.readyWaitCh != nil {
+				e.readyWaitCh <- r.lastErrReason
+				close(e.readyWaitCh)
+			}
 			return nil
 		}
 
 		log.Info("Pull is in progress. Waiting for the runtime to be ready", "modelID", e.modelID)
 
-		r.waitChs = append(r.waitChs, e.readyWaitCh)
+		if e.readyWaitCh != nil {
+			r.waitChs = append(r.waitChs, e.readyWaitCh)
+		}
 
 		return nil
 	}
@@ -305,7 +311,9 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	if !isDynamicLoRAApplicable {
 		log.Info("Creating a new pending runtime", "modelID", e.modelID)
 		r := newPendingRuntime(client.GetName(e.modelID))
-		r.waitChs = append(r.waitChs, e.readyWaitCh)
+		if e.readyWaitCh != nil {
+			r.waitChs = append(r.waitChs, e.readyWaitCh)
+		}
 		m.runtimes[e.modelID] = r
 		m.mu.Unlock()
 
@@ -337,7 +345,9 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	log.Info("Base model is ready. Load LoRA adapter", "baseModelID", baseModelID, "modelID", e.modelID)
 
 	r := newPendingRuntime(client.GetName(e.modelID))
-	r.waitChs = append(r.waitChs, e.readyWaitCh)
+	if e.readyWaitCh != nil {
+		r.waitChs = append(r.waitChs, e.readyWaitCh)
+	}
 	r.isDynamicallyLoadedLoRA = true
 	m.runtimes[e.modelID] = r
 	m.mu.Unlock()
@@ -650,6 +660,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	}
 	vllmAddr := client.GetAddress(e.podIP)
 	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
+		// The loading fails if the pod no longer exists or the pod is crashing.
 		// TODO(kenji): Revisit. We should stop retry if the pod no longer exists.
 		log.Error(err, "Failed to load LoRA adapter. Retrying...", "modelID", e.modelID)
 		time.Sleep(m.readinessCheckRetryInterval)
@@ -773,6 +784,15 @@ func (m *Manager) PullModel(ctx context.Context, modelID string) error {
 		return ctx.Err()
 	}
 
+	return nil
+}
+
+// PullModelUnblocked pulls the model from the model manager without waiting for its completion.
+func (m *Manager) PullModelUnblocked(ctx context.Context, modelID string) error {
+	m.eventCh <- &pullModelEvent{
+		modelID:     modelID,
+		readyWaitCh: nil,
+	}
 	return nil
 }
 

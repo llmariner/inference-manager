@@ -12,6 +12,7 @@ import (
 
 	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
+	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
 	"github.com/llmariner/inference-manager/server/internal/rate"
 	"github.com/llmariner/rbac-manager/pkg/auth"
@@ -72,6 +73,12 @@ func (s *S) CreateCompletion(
 		return
 	}
 
+	reqBody, err = api.ConvertCreateCompletionRequestToProto(reqBody)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusBadRequest, &usage)
+		return
+	}
+
 	// TODO(kenji): Use runtime.JSONPb from github.com/grpc-ecosystem/grpc-gateway/v2.
 	// That one correctly handles the JSON field names of the snake case.
 	if err := json.Unmarshal(reqBody, &createReq); err != nil {
@@ -99,7 +106,8 @@ func (s *S) CreateCompletion(
 		return
 	}
 
-	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, toCreateChatCompletionRequest(&createReq), dropUnnecessaryHeaders(req.Header))
+	convertedReq := toCreateChatCompletionRequest(&createReq)
+	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, convertedReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -261,8 +269,10 @@ func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateCh
 		Stream:        req.Stream,
 		StreamOptions: streamOptions,
 		// No Suffix in the non-legacy request.
-		Temperature: req.Temperature,
-		TopP:        req.TopP,
+		Temperature:      req.Temperature,
+		IsTemperatureSet: req.IsTemperatureSet,
+		TopP:             req.TopP,
+		IsTopPSet:        req.IsTopPSet,
 		// No Tools and ToolChoice in the legacy request.
 		User: req.User,
 	}

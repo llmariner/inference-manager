@@ -225,6 +225,8 @@ export type CreateCompletionRequest = {
   temperature?: number
   top_p?: number
   user?: string
+  is_temperature_set?: boolean
+  is_top_p_set?: boolean
 }
 
 export type CompletionChoiceLogprobs = {

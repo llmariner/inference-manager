@@ -38,6 +38,15 @@ func ConvertCreateChatCompletionRequestToProto(body []byte) ([]byte, error) {
 	return applyConvertFuncs(body, fs)
 }
 
+// ConvertCreateCompletionRequestToProto converts the legacy completion request to the protobuf format.
+func ConvertCreateCompletionRequestToProto(body []byte) ([]byte, error) {
+	fs := []convertF{
+		convertTemperature,
+		convertTopP,
+	}
+	return applyConvertFuncs(body, fs)
+}
+
 // ConvertCreateChatCompletionRequestToOpenAI converts the request to the OpenAI format.
 func ConvertCreateChatCompletionRequestToOpenAI(body []byte, needStringFormat bool) ([]byte, error) {
 	fs := []convertF{

@@ -289,6 +289,20 @@ message CreateCompletionRequest {
   double temperature = 16;
   double top_p = 17;
   string user = 18;
+
+  // is_temperature_set is used to indicate whether the temperature is set or not.
+  // This is required as the OpenAI API spec uses 1.0 as the default value for temperature while
+  // setting temperature to 0.0 in the proto is equivalent to unset. If the user sets temperature to 0.0,
+  // it becomes unset when the request is sent to the engine (and then the inference runtime sets temperature to 1.0
+  // as that's the default value).
+  bool is_temperature_set = 19;
+
+  // is_top_p_set is used to indicate whether the top_p is set or not.
+  // This is required as the OpenAI API spec uses 1.0 as the default value for top_p while
+  // setting top_p to 0.0 in the proto is equivalent to unset. If the user sets top_p to 0.0,
+  // it becomes unset when the request is sent to the engine (and then the inference runtime sets top_p to 1.0
+  // as that's the default value).
+  bool is_top_p_set = 20;
 }
 
 message Completion {

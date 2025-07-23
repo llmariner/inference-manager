@@ -10,5 +10,5 @@ spec:
     matchLabels:
       app.kubernetes.io/name: runtime
   endpoints:
-  - port: http
+  - port: runtime
 {{- end }}

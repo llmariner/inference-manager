@@ -356,6 +356,12 @@ func (s *S) checkModelAvailability(ctx context.Context, tenantID, modelID string
 		return http.StatusOK, nil
 	}
 
+	if c := m.Config; c != nil {
+		if !c.ClusterAllocationPolicy.EnableOnDemandAllocation {
+			return http.StatusBadRequest, fmt.Errorf("model %s is not activated", modelID)
+		}
+	}
+
 	s.logger.Info("Activating model", "modelID", modelID, "activationStatus", m.ActivationStatus)
 	if _, err := s.modelClient.ActivateModel(ctx, tenantID, &mv1.ActivateModelRequest{
 		Id: modelID,

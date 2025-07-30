@@ -22,7 +22,7 @@ func ConvertCreateEmbeddingRequestToOpenAI(body []byte) ([]byte, error) {
 }
 
 // convertInput checks if the value of the "input" is string, and
-// takes the following convertion if it is not a strong.
+// takes the following convertion if it is not a string.
 // 1. Eencoded the value and store it in the "encoded_input" field.
 // 2. Remove the "input" field.
 func convertInput(r map[string]interface{}) error {

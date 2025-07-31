@@ -50,10 +50,10 @@ const (
 
 // ModelSyncer syncs models.
 type ModelSyncer interface {
-	ListSyncedModels() []runtime.ModelRuntimeInfo
 	PullModel(ctx context.Context, modelID string) error
-	ListInProgressModels() []runtime.ModelRuntimeInfo
 	DeleteModel(ctx context.Context, modelID string) error
+
+	ListModels() []runtime.ModelRuntimeInfo
 }
 
 // AddressGetter gets an address of a model.
@@ -727,36 +727,20 @@ func (p *P) handleUnimplemented(
 
 func (p *P) sendEngineStatus(stream sender, engineID string, ready bool) error {
 	var models []*v1.EngineStatus_Model
-	var syncedModels []string
-	ms := p.modelSyncer.ListSyncedModels()
+	ms := p.modelSyncer.ListModels()
 	for _, m := range ms {
 		models = append(models, &v1.EngineStatus_Model{
 			Id:           m.ID,
 			IsReady:      m.Ready,
 			GpuAllocated: m.GPU,
 		})
-		syncedModels = append(syncedModels, m.ID)
-	}
-	var inProgressModels []string
-	ms = p.modelSyncer.ListInProgressModels()
-	for _, m := range ms {
-		models = append(models, &v1.EngineStatus_Model{
-			Id:           m.ID,
-			IsReady:      m.Ready,
-			GpuAllocated: m.GPU,
-		})
-		inProgressModels = append(inProgressModels, m.ID)
 	}
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: engineID,
-				ModelIds: syncedModels,
-				SyncStatus: &v1.EngineStatus_SyncStatus{
-					InProgressModelIds: inProgressModels,
-				},
-				Models: models,
-				Ready:  ready,
+				Models:   models,
+				Ready:    ready,
 			},
 		},
 	}

@@ -48,7 +48,7 @@ func TestGetLLMAddress(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestListSyncedModels(t *testing.T) {
+func TestListModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", 1),
@@ -56,28 +56,8 @@ func TestListSyncedModels(t *testing.T) {
 			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
 	}
-	models := mgr.ListSyncedModels()
-	assert.Len(t, models, 2)
-	for _, m := range models {
-		contains := m.ID == "model-0" || m.ID == "model-2"
-		assert.True(t, contains)
-	}
-}
-
-func TestListInProgressModels(t *testing.T) {
-	mgr := &Manager{
-		runtimes: map[string]*runtime{
-			"model-0": newPendingRuntime("rt-model-0"),
-			"model-1": newReadyRuntime("rt-model-1", "test", 1),
-			"model-2": newPendingRuntime("rt-model-2"),
-		},
-	}
-	models := mgr.ListInProgressModels()
-	assert.Len(t, models, 2)
-	for _, m := range models {
-		contains := m.ID == "model-0" || m.ID == "model-2"
-		assert.True(t, contains)
-	}
+	models := mgr.ListModels()
+	assert.Len(t, models, 3)
 }
 
 func TestPullModel(t *testing.T) {

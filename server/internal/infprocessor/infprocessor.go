@@ -53,10 +53,8 @@ type engine struct {
 
 	taskSender TaskSender
 
-	clusterID          string
-	models             []*v1.EngineStatus_Model
-	modelIDs           []string
-	inProgressModelIDs []string
+	clusterID string
+	models    []*v1.EngineStatus_Model
 
 	// isLocal indicates whether the engine is connected to this local server or not.
 	isLocal bool
@@ -621,19 +619,21 @@ func (p *P) AddOrUpdateEngineStatus(
 		engines[engineStatus.EngineId] = e
 		log.Info("Registered new engine", "isLocal", isLocal)
 	}
-	e.modelIDs = engineStatus.ModelIds
 	e.models = engineStatus.Models
-	// Check if the sync status is set for backward compatibility.
-	if s := engineStatus.SyncStatus; s != nil {
-		e.inProgressModelIDs = s.InProgressModelIds
-	}
 	e.taskSender = taskSender
 	e.isLocal = isLocal
 	e.ready = engineStatus.Ready
-	log.V(5).Info("Updated engine status", "models", e.modelIDs, "in-progress", e.inProgressModelIDs, "ready", engineStatus.Ready)
+
+	var modelIDs []string
+	for _, m := range e.models {
+		if m.IsReady {
+			modelIDs = append(modelIDs, m.Id)
+		}
+	}
+	log.V(5).Info("Updated engine status", "models", modelIDs, "ready", engineStatus.Ready)
 
 	if engineStatus.Ready {
-		p.engineRouter.AddOrUpdateEngine(e.id, tenantID, e.modelIDs)
+		p.engineRouter.AddOrUpdateEngine(e.id, tenantID, modelIDs)
 	} else {
 		p.engineRouter.DeleteEngine(engineStatus.EngineId, tenantID)
 		log.Info("Removed engine from the router", "reason", "engine not ready")
@@ -720,12 +720,8 @@ func (p *P) LocalEngines() map[string][]*v1.EngineStatus {
 			}
 
 			engines = append(engines, &v1.EngineStatus{
-				EngineId: e.id,
-				ModelIds: e.modelIDs,
-				Models:   models,
-				SyncStatus: &v1.EngineStatus_SyncStatus{
-					InProgressModelIds: e.inProgressModelIDs,
-				},
+				EngineId:  e.id,
+				Models:    models,
 				Ready:     true,
 				ClusterId: e.clusterID,
 			})
@@ -834,11 +830,9 @@ type TaskStatus struct {
 
 // EngineStatus is the status of an engine.
 type EngineStatus struct {
-	RegisteredModelIDs []string      `json:"registeredModelIds"`
-	InProgressModelIDs []string      `json:"inProgressModelIds"`
-	Tasks              []*TaskStatus `json:"tasks"`
-	IsLocal            bool          `json:"isLocal"`
-	Ready              bool          `json:"ready"`
+	Tasks   []*TaskStatus `json:"tasks"`
+	IsLocal bool          `json:"isLocal"`
+	Ready   bool          `json:"ready"`
 
 	Models    []*v1.EngineStatus_Model `json:"models"`
 	ClusterID string                   `json:"clusterId"`
@@ -857,12 +851,10 @@ func newEngineStatus(e *engine) *EngineStatus {
 	}
 
 	return &EngineStatus{
-		RegisteredModelIDs: e.modelIDs,
-		InProgressModelIDs: e.inProgressModelIDs,
-		Models:             models,
-		IsLocal:            e.isLocal,
-		Ready:              e.ready,
-		ClusterID:          e.clusterID,
+		Models:    models,
+		IsLocal:   e.isLocal,
+		Ready:     e.ready,
+		ClusterID: e.clusterID,
 	}
 }
 
@@ -913,8 +905,6 @@ func (p *P) DumpTenantStatus(tenantID string) *TenantStatus {
 
 	// Sort the modelIDs and task IDs for deterministic output.
 	for eid, e := range t.Engines {
-		sort.Strings(e.RegisteredModelIDs)
-		sort.Strings(e.InProgressModelIDs)
 		sort.Slice(e.Models, func(i, j int) bool {
 			return e.Models[i].Id < e.Models[j].Id
 		})
@@ -982,8 +972,6 @@ func (p *P) DumpStatus() *Status {
 	// Sort the modelIDs and task IDs for deterministic output.
 	for _, engines := range status.Tenants {
 		for eid, e := range engines.Engines {
-			sort.Strings(e.RegisteredModelIDs)
-			sort.Strings(e.InProgressModelIDs)
 			sort.Slice(e.Models, func(i, j int) bool {
 				return e.Models[i].Id < e.Models[j].Id
 			})

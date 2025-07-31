@@ -118,10 +118,8 @@ func TestIntegration(t *testing.T) {
 		req := &v1.ProcessTasksRequest{
 			Message: &v1.ProcessTasksRequest_EngineStatus{
 				EngineStatus: &v1.EngineStatus{
-					EngineId:   fmt.Sprintf("e%d", i),
-					ModelIds:   []string{fmt.Sprintf("m%d", i)},
-					SyncStatus: &v1.EngineStatus_SyncStatus{},
-					Ready:      true,
+					EngineId: fmt.Sprintf("e%d", i),
+					Ready:    true,
 					Models: []*v1.EngineStatus_Model{
 						{
 							Id:                  fmt.Sprintf("m%d", i),

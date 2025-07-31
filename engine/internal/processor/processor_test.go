@@ -247,16 +247,12 @@ type fakeModelSyncer struct {
 	deletedModels map[string]bool
 }
 
-func (f *fakeModelSyncer) ListSyncedModels() []runtime.ModelRuntimeInfo {
+func (f *fakeModelSyncer) ListModels() []runtime.ModelRuntimeInfo {
 	return nil
 }
 
 func (f *fakeModelSyncer) PullModel(ctx context.Context, modelID string) error {
 	f.pulledModels[modelID] = true
-	return nil
-}
-
-func (f *fakeModelSyncer) ListInProgressModels() []runtime.ModelRuntimeInfo {
 	return nil
 }
 

@@ -186,26 +186,13 @@ type ModelRuntimeInfo struct {
 	Ready bool
 }
 
-// ListSyncedModels returns the list of models that are synced.
-func (m *Manager) ListSyncedModels() []ModelRuntimeInfo {
-	return m.listModels(true)
-}
-
-// ListInProgressModels returns the list of models that are in progress.
-func (m *Manager) ListInProgressModels() []ModelRuntimeInfo {
-	return m.listModels(false)
-}
-
-func (m *Manager) listModels(ready bool) []ModelRuntimeInfo {
+// ListModels returns the list of models.
+func (m *Manager) ListModels() []ModelRuntimeInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var ms []ModelRuntimeInfo
 	for id, r := range m.runtimes {
-		if r.ready != ready {
-			continue
-		}
-
 		ms = append(ms, ModelRuntimeInfo{
 			ID:    id,
 			GPU:   r.gpu * r.replicas,

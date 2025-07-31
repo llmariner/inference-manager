@@ -8,7 +8,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
-	"github.com/llmariner/inference-manager/engine/internal/vllm"
+	"github.com/llmariner/inference-manager/engine/internal/runtime/vllm"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

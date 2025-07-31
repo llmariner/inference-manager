@@ -10,6 +10,7 @@ export type EngineStatusModel = {
   is_ready?: boolean
   in_progress_task_count?: number
   gpu_allocated?: number
+  is_dynamically_loaded_lora?: boolean
 }
 
 export type EngineStatus = {

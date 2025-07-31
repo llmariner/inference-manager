@@ -14,7 +14,6 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
-	"github.com/llmariner/inference-manager/engine/internal/runtime"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -247,7 +246,7 @@ type fakeModelSyncer struct {
 	deletedModels map[string]bool
 }
 
-func (f *fakeModelSyncer) ListModels() []runtime.ModelRuntimeInfo {
+func (f *fakeModelSyncer) ListModels() []*v1.EngineStatus_Model {
 	return nil
 }
 

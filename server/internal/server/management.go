@@ -154,6 +154,10 @@ func (s *IMS) getInferenceStatus(
 		}
 		var ga int32
 		for _, m := range modelsByID {
+			// Exclude dynamically loaded LoRA as GPUs are shared with their base models.
+			if m.IsDynamicallyLoadedLora {
+				continue
+			}
 			ga += m.GpuAllocated
 		}
 

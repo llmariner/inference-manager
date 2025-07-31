@@ -12,6 +12,10 @@ message EngineStatus {
     bool is_ready = 2;
     int32 in_progress_task_count = 3;
     int32 gpu_allocated = 4;
+
+    // is_dynamically_loaded_lora indicates whether the model is a LoRA
+    // that is dynamically loaded onto its base model.
+    bool is_dynamically_loaded_lora = 5;
   }
 
   string engine_id = 1;

@@ -186,9 +186,10 @@ func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
 		ms = append(ms, &iv1.EngineStatus_Model{
-			Id:           id,
-			IsReady:      r.ready,
-			GpuAllocated: r.gpu * r.replicas,
+			Id:                      id,
+			IsReady:                 r.ready,
+			GpuAllocated:            r.gpu * r.replicas,
+			IsDynamicallyLoadedLora: r.isDynamicallyLoadedLoRA,
 		})
 	}
 	return ms

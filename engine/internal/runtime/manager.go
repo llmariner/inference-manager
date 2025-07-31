@@ -185,11 +185,13 @@ func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 
 	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
+		fmt.Printf("KK: Listing model: %s, ready: %t, gpu: %d, replicas: %d, isDynamicallyLoadedLoRA: %t\n",
+			id, r.ready, r.gpu, r.replicas, r.isDynamicallyLoadedLoRA)
 		ms = append(ms, &iv1.EngineStatus_Model{
 			Id:                      id,
 			IsReady:                 r.ready,
 			GpuAllocated:            r.gpu * r.replicas,
-			IsDynamicallyLoadedLora: r.isDynamicallyLoadedLoRA,
+			IsDynamicallyLoadedLora: true,
 		})
 	}
 	return ms
@@ -596,6 +598,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	rt.becomeReady(e.address, e.gpu, e.replicas, log)
 
 	log.Info("Runtime is ready", "modelID", e.modelID)
+	log.Info("KK: Dynamic lora", "modelID", e.modelID, "dynamic", rt.isDynamicallyLoadedLoRA)
 
 	go func(es []*pullModelEvent) {
 		for _, e := range es {

@@ -620,6 +620,11 @@ func (p *P) AddOrUpdateEngineStatus(
 		log.Info("Registered new engine", "isLocal", isLocal)
 	}
 	e.models = engineStatus.Models
+	p.logger.Info("Received engine status", "engineID", e.id, "models", len(e.models), "isLocal", isLocal)
+	for _, m := range e.models {
+		p.logger.Info("model", "id", m.Id, "lora", m.IsDynamicallyLoadedLora)
+	}
+
 	e.taskSender = taskSender
 	e.isLocal = isLocal
 	e.ready = engineStatus.Ready
@@ -843,10 +848,11 @@ func newEngineStatus(e *engine) *EngineStatus {
 	var models []*v1.EngineStatus_Model
 	for _, m := range e.models {
 		models = append(models, &v1.EngineStatus_Model{
-			Id:                  m.Id,
-			IsReady:             m.IsReady,
-			InProgressTaskCount: m.InProgressTaskCount,
-			GpuAllocated:        m.GpuAllocated,
+			Id:                      m.Id,
+			IsReady:                 m.IsReady,
+			InProgressTaskCount:     m.InProgressTaskCount,
+			GpuAllocated:            m.GpuAllocated,
+			IsDynamicallyLoadedLora: m.IsDynamicallyLoadedLora,
 		})
 	}
 

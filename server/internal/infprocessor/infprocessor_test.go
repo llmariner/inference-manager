@@ -680,7 +680,6 @@ func TestDumpStatus(t *testing.T) {
 								Id: "m1",
 							},
 						},
-						//RegisteredModelIDs: []string{"m0", "m1"},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task0",

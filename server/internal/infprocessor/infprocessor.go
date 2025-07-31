@@ -843,10 +843,11 @@ func newEngineStatus(e *engine) *EngineStatus {
 	var models []*v1.EngineStatus_Model
 	for _, m := range e.models {
 		models = append(models, &v1.EngineStatus_Model{
-			Id:                  m.Id,
-			IsReady:             m.IsReady,
-			InProgressTaskCount: m.InProgressTaskCount,
-			GpuAllocated:        m.GpuAllocated,
+			Id:                      m.Id,
+			IsReady:                 m.IsReady,
+			InProgressTaskCount:     m.InProgressTaskCount,
+			GpuAllocated:            m.GpuAllocated,
+			IsDynamicallyLoadedLora: m.IsDynamicallyLoadedLora,
 		})
 	}
 

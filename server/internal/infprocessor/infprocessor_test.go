@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +35,6 @@ func TestP(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
-			ModelIds: []string{modelID},
 			Ready:    true,
 		},
 		"tenant0",
@@ -189,7 +187,6 @@ func TestProcessTaskTimeout(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
-			ModelIds: []string{modelID},
 			Ready:    true,
 		},
 		"tenant0",
@@ -279,7 +276,6 @@ func TestSendAndProcessTask(t *testing.T) {
 		comm,
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
-			ModelIds: []string{modelID},
 			Ready:    true,
 		},
 		"tenant0",
@@ -470,11 +466,21 @@ func TestDumpTenantStatus(t *testing.T) {
 		engines: map[string]map[string]*engine{
 			"tenant0": {
 				"e0": {
-					modelIDs: []string{"m0", "m1"},
+					models: []*v1.EngineStatus_Model{
+						{
+							Id: "m1",
+						},
+					},
 				},
 				"e1": {
-					modelIDs:           []string{"m2"},
-					inProgressModelIDs: []string{"m3"},
+					models: []*v1.EngineStatus_Model{
+						{
+							Id: "m2",
+						},
+						{
+							Id: "m3",
+						},
+					},
 				},
 			},
 		},
@@ -527,7 +533,11 @@ func TestDumpTenantStatus(t *testing.T) {
 			want: &TenantStatus{
 				Engines: map[string]*EngineStatus{
 					"e0": {
-						RegisteredModelIDs: []string{"m0", "m1"},
+						Models: []*v1.EngineStatus_Model{
+							{
+								Id: "m1",
+							},
+						},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task0",
@@ -540,8 +550,14 @@ func TestDumpTenantStatus(t *testing.T) {
 						},
 					},
 					"e1": {
-						RegisteredModelIDs: []string{"m2"},
-						InProgressModelIDs: []string{"m3"},
+						Models: []*v1.EngineStatus_Model{
+							{
+								Id: "m2",
+							},
+							{
+								Id: "m3",
+							},
+						},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task2",
@@ -563,7 +579,23 @@ func TestDumpTenantStatus(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.tenantID, func(t *testing.T) {
 			got := iprocessor.DumpTenantStatus(tc.tenantID)
-			assert.True(t, reflect.DeepEqual(tc.want, got), "want: %v, got: %v", tc.want, got)
+			assert.Len(t, got.Engines, len(tc.want.Engines))
+			for engineID, ge := range got.Engines {
+				we, ok := tc.want.Engines[engineID]
+				assert.True(t, ok)
+
+				assert.Len(t, ge.Models, len(we.Models))
+				for i, gm := range ge.Models {
+					wm := we.Models[i]
+					assert.Equal(t, wm.Id, gm.Id)
+				}
+				assert.Len(t, ge.Tasks, len(we.Tasks))
+				for i, gt := range ge.Tasks {
+					wt := we.Tasks[i]
+					assert.Equal(t, wt.ID, gt.ID)
+					assert.Equal(t, wt.ModelID, gt.ModelID)
+				}
+			}
 		})
 	}
 }
@@ -573,11 +605,24 @@ func TestDumpStatus(t *testing.T) {
 		engines: map[string]map[string]*engine{
 			"tenant0": {
 				"e0": {
-					modelIDs: []string{"m0", "m1"},
+					models: []*v1.EngineStatus_Model{
+						{
+							Id: "m0",
+						},
+						{
+							Id: "m1",
+						},
+					},
 				},
 				"e1": {
-					modelIDs:           []string{"m2"},
-					inProgressModelIDs: []string{"m3"},
+					models: []*v1.EngineStatus_Model{
+						{
+							Id: "m2",
+						},
+						{
+							Id: "m3",
+						},
+					},
 				},
 			},
 		},
@@ -627,7 +672,14 @@ func TestDumpStatus(t *testing.T) {
 			"tenant0": {
 				Engines: map[string]*EngineStatus{
 					"e0": {
-						RegisteredModelIDs: []string{"m0", "m1"},
+						Models: []*v1.EngineStatus_Model{
+							{
+								Id: "m0",
+							},
+							{
+								Id: "m1",
+							},
+						},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task0",
@@ -640,8 +692,14 @@ func TestDumpStatus(t *testing.T) {
 						},
 					},
 					"e1": {
-						RegisteredModelIDs: []string{"m2"},
-						InProgressModelIDs: []string{"m3"},
+						Models: []*v1.EngineStatus_Model{
+							{
+								Id: "m2",
+							},
+							{
+								Id: "m3",
+							},
+						},
 						Tasks: []*TaskStatus{
 							{
 								ID:      "task2",
@@ -653,7 +711,28 @@ func TestDumpStatus(t *testing.T) {
 			},
 		},
 	}
-	assert.True(t, reflect.DeepEqual(want, got), "want: %v, got: %v", want, got)
+
+	for tenant, gt := range got.Tenants {
+		wt, ok := want.Tenants[tenant]
+		assert.True(t, ok)
+		assert.Len(t, gt.Engines, len(wt.Engines))
+		for engineID, ge := range gt.Engines {
+			we, ok := wt.Engines[engineID]
+			assert.True(t, ok)
+
+			assert.Len(t, ge.Models, len(we.Models))
+			for i, gm := range ge.Models {
+				wm := we.Models[i]
+				assert.Equal(t, wm.Id, gm.Id)
+			}
+			assert.Len(t, ge.Tasks, len(we.Tasks))
+			for i, gt := range ge.Tasks {
+				wt := we.Tasks[i]
+				assert.Equal(t, wt.ID, gt.ID)
+				assert.Equal(t, wt.ModelID, gt.ModelID)
+			}
+		}
+	}
 }
 
 func TestAddOrUpdateEngineStatus(t *testing.T) {
@@ -666,18 +745,35 @@ func TestAddOrUpdateEngineStatus(t *testing.T) {
 		newFakeEngineCommunicator(t),
 		&v1.EngineStatus{
 			EngineId: "engine_id0",
-			ModelIds: []string{"m0", "m1"},
-			Ready:    true,
+			Models: []*v1.EngineStatus_Model{
+				{
+					Id:      "m0",
+					IsReady: true,
+				},
+				{
+					Id:      "m1",
+					IsReady: true,
+				},
+			},
+			Ready: true,
 		},
 		"tenant0",
 		true,
 	)
 
+	assertModelIDs := func(t *testing.T, wantIDs []string, es *engine) {
+		var gotIDs []string
+		for _, m := range es.models {
+			gotIDs = append(gotIDs, m.Id)
+		}
+		assert.ElementsMatch(t, wantIDs, gotIDs)
+	}
+
 	assert.Equal(t, 1, len(iprocessor.engines))
 	ess := iprocessor.engines["tenant0"]
 	assert.Equal(t, 1, len(ess))
 	es := ess["engine_id0"]
-	assert.ElementsMatch(t, []string{"m0", "m1"}, es.modelIDs)
+	assertModelIDs(t, []string{"m0", "m1"}, es)
 	assert.True(t, es.isLocal)
 
 	// Add new engine.
@@ -685,8 +781,13 @@ func TestAddOrUpdateEngineStatus(t *testing.T) {
 		newFakeEngineCommunicator(t),
 		&v1.EngineStatus{
 			EngineId: "engine_id1",
-			ModelIds: []string{"m2"},
-			Ready:    true,
+			Models: []*v1.EngineStatus_Model{
+				{
+					Id:      "m2",
+					IsReady: true,
+				},
+			},
+			Ready: true,
 		},
 		"tenant0",
 		false,
@@ -696,7 +797,7 @@ func TestAddOrUpdateEngineStatus(t *testing.T) {
 	ess = iprocessor.engines["tenant0"]
 	assert.Equal(t, 2, len(ess))
 	es = ess["engine_id1"]
-	assert.ElementsMatch(t, []string{"m2"}, es.modelIDs)
+	assertModelIDs(t, []string{"m2"}, es)
 	assert.False(t, es.isLocal)
 
 	// Update the engine.
@@ -704,8 +805,13 @@ func TestAddOrUpdateEngineStatus(t *testing.T) {
 		newFakeEngineCommunicator(t),
 		&v1.EngineStatus{
 			EngineId: "engine_id1",
-			ModelIds: []string{"m3"},
-			Ready:    true,
+			Models: []*v1.EngineStatus_Model{
+				{
+					Id:      "m3",
+					IsReady: true,
+				},
+			},
+			Ready: true,
 		},
 		"tenant0",
 		true,
@@ -714,7 +820,7 @@ func TestAddOrUpdateEngineStatus(t *testing.T) {
 	ess = iprocessor.engines["tenant0"]
 	assert.Equal(t, 2, len(ess))
 	es = ess["engine_id1"]
-	assert.ElementsMatch(t, []string{"m3"}, es.modelIDs)
+	assertModelIDs(t, []string{"m3"}, es)
 	assert.True(t, es.isLocal)
 
 }

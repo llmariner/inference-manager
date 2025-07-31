@@ -5,10 +5,6 @@
 */
 
 import * as fm from "../../fetch.pb"
-export type EngineStatusSyncStatus = {
-  in_progress_model_ids?: string[]
-}
-
 export type EngineStatusModel = {
   id?: string
   is_ready?: boolean
@@ -18,8 +14,6 @@ export type EngineStatusModel = {
 
 export type EngineStatus = {
   engine_id?: string
-  model_ids?: string[]
-  sync_status?: EngineStatusSyncStatus
   ready?: boolean
   models?: EngineStatusModel[]
   cluster_id?: string

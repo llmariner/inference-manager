@@ -7,11 +7,6 @@ import "google/api/annotations.proto";
 option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 message EngineStatus {
-  message SyncStatus {
-    // in_progress_model_ids is a list of model ids that are currently being synced.
-    repeated string in_progress_model_ids = 1;
-  }
-
   message Model {
     string id = 1;
     bool is_ready = 2;
@@ -20,8 +15,6 @@ message EngineStatus {
   }
 
   string engine_id = 1;
-  repeated string model_ids = 2 [deprecated = true];
-  SyncStatus sync_status = 3 [deprecated = true];
   bool ready = 4;
   repeated Model models = 5;
   string cluster_id = 6;

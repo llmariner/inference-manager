@@ -55,32 +55,19 @@ type ollamaModel struct {
 	waitChs []chan struct{}
 }
 
-// ListSyncedModels returns the list of models that are synced.
-func (m *OllamaManager) ListSyncedModels() []ModelRuntimeInfo {
-	return m.listModels(true)
-}
-
-// ListInProgressModels returns the list of models that are in progress.
-func (m *OllamaManager) ListInProgressModels() []ModelRuntimeInfo {
-	return m.listModels(false)
-}
-
-func (m *OllamaManager) listModels(ready bool) []ModelRuntimeInfo {
+// ListModels returns the list of models.
+func (m *OllamaManager) ListModels() []ModelRuntimeInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var ms []ModelRuntimeInfo
-	if ready && !m.runtime.ready {
-		return ms
+	for id, model := range m.models {
+		ms = append(ms, ModelRuntimeInfo{
+			ID:    id,
+			Ready: m.runtime.ready && model.ready,
+		})
 	}
-	for id, m := range m.models {
-		if m.ready == ready {
-			ms = append(ms, ModelRuntimeInfo{
-				ID:    id,
-				Ready: m.ready,
-			})
-		}
-	}
+
 	return ms
 }
 

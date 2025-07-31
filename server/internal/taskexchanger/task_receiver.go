@@ -316,7 +316,8 @@ func sameEngineStatus(a, b *v1.EngineStatus) bool {
 		}
 		if am.IsReady != m.IsReady ||
 			am.InProgressTaskCount != m.InProgressTaskCount ||
-			am.GpuAllocated != m.GpuAllocated {
+			am.GpuAllocated != m.GpuAllocated ||
+			am.IsDynamicallyLoadedLora != m.IsDynamicallyLoadedLora {
 			return false
 		}
 	}

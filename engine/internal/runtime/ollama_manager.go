@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	iv1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
@@ -56,15 +57,15 @@ type ollamaModel struct {
 }
 
 // ListModels returns the list of models.
-func (m *OllamaManager) ListModels() []ModelRuntimeInfo {
+func (m *OllamaManager) ListModels() []*iv1.EngineStatus_Model {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var ms []ModelRuntimeInfo
+	var ms []*iv1.EngineStatus_Model
 	for id, model := range m.models {
-		ms = append(ms, ModelRuntimeInfo{
-			ID:    id,
-			Ready: m.runtime.ready && model.ready,
+		ms = append(ms, &iv1.EngineStatus_Model{
+			Id:      id,
+			IsReady: m.runtime.ready && model.ready,
 		})
 	}
 

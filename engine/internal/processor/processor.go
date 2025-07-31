@@ -53,7 +53,7 @@ type ModelSyncer interface {
 	PullModel(ctx context.Context, modelID string) error
 	DeleteModel(ctx context.Context, modelID string) error
 
-	ListModels() []runtime.ModelRuntimeInfo
+	ListModels() []*v1.EngineStatus_Model
 }
 
 // AddressGetter gets an address of a model.
@@ -726,20 +726,11 @@ func (p *P) handleUnimplemented(
 }
 
 func (p *P) sendEngineStatus(stream sender, engineID string, ready bool) error {
-	var models []*v1.EngineStatus_Model
-	ms := p.modelSyncer.ListModels()
-	for _, m := range ms {
-		models = append(models, &v1.EngineStatus_Model{
-			Id:           m.ID,
-			IsReady:      m.Ready,
-			GpuAllocated: m.GPU,
-		})
-	}
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: engineID,
-				Models:   models,
+				Models:   p.modelSyncer.ListModels(),
 				Ready:    ready,
 			},
 		},

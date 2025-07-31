@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	iv1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -177,26 +178,17 @@ func (m *Manager) BlacklistLLMAddress(modelID, address string) error {
 	return nil
 }
 
-// ModelRuntimeInfo is the info of a model runtime.
-type ModelRuntimeInfo struct {
-	// ID is model ID.
-	ID string
-	// GPU is the total GPU allocated for the model.
-	GPU   int32
-	Ready bool
-}
-
 // ListModels returns the list of models.
-func (m *Manager) ListModels() []ModelRuntimeInfo {
+func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var ms []ModelRuntimeInfo
+	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
-		ms = append(ms, ModelRuntimeInfo{
-			ID:    id,
-			GPU:   r.gpu * r.replicas,
-			Ready: r.ready,
+		ms = append(ms, &iv1.EngineStatus_Model{
+			Id:           id,
+			IsReady:      r.ready,
+			GpuAllocated: r.gpu * r.replicas,
 		})
 	}
 	return ms
@@ -662,7 +654,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 			modelID:     e.modelID,
 			address:     vllmAddr,
 			gpu:         e.gpu,
-			replicas:    1,
+			replicas:    1, // TODO(kenji): Fix this.
 			eventWaitCh: e.eventWaitCh,
 		}
 	}()

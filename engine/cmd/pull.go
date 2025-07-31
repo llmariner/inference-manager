@@ -8,8 +8,8 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/modeldownloader"
+	"github.com/llmariner/inference-manager/engine/internal/modeldownloader/s3"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
-	"github.com/llmariner/inference-manager/engine/internal/s3"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"

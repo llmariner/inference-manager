@@ -137,6 +137,8 @@ type P struct {
 
 	// nimModels is a map of models that use NIM as backend.
 	nimModels map[string]bool
+
+	lastHeartbeatTime time.Time
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -173,6 +175,8 @@ func (p *P) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-p.runnerCreationCh:
+			// TODO(kenji): There is a potentail race as we increment the number of active engines later.
+			// It's possible that numActiveEngines() returns zero while run() is already called by other goroutine.
 			if p.numActiveEngines() >= 1 {
 				// No need to create a new runner.
 				continue
@@ -696,6 +700,8 @@ func (p *P) heartbeat(
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Processing a Heartbeat request")
 
+	p.updateLastHeartbeatTime(time.Now())
+
 	// Just return the response to the server.
 	resp := &v1.HttpResponse{
 		StatusCode: int32(http.StatusOK),
@@ -845,6 +851,12 @@ func (p *P) numActiveEngines() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.activeEngines)
+}
+
+func (p *P) updateLastHeartbeatTime(t time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.lastHeartbeatTime = t
 }
 
 func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, b *bytes.Buffer) (*multipart.Writer, error) {

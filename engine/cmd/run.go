@@ -302,6 +302,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		logger,
 		collector,
 		c.GracefulShutdownTimeout,
+		c.EngineHeartbeat,
 		nimModels,
 	)
 	if err := p.SetupWithManager(mgr, leaderElection); err != nil {

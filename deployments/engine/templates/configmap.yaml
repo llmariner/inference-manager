@@ -169,6 +169,11 @@ data:
     modelContextLengths:
       {{- toYaml . | nindent 6 }}
     {{- end }}
+    {{- with .Values.engineHeartbeat }}
+    engineHeartbeat:
+      reconnectOnNoHeartbeat: {{ .reconnectOnNoHeartbeat }}
+      heartbeatTimeout: {{ .heartbeatTimeout }}
+    {{- end }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
     componentStatusSender:

@@ -20,6 +20,7 @@ import (
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/common/pkg/sse"
+	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/runtime"
@@ -87,6 +88,7 @@ func NewP(
 	logger logr.Logger,
 	collector metrics.Collector,
 	gracefulShutdownTimeout time.Duration,
+	engineHeartbeatConfig config.EngineHeartbeatConfig,
 	nimModels map[string]bool,
 ) *P {
 	return &P{
@@ -103,9 +105,11 @@ func NewP(
 		// Grace period is shorter than the graceful shutdown timeout of 3s for safety.
 		// If tasks are not completed within the grace period, the processor forcibly
 		// cancels the tasks processing and stops.
-		taskGracePeriod: gracefulShutdownTimeout - 3*time.Second,
-		goAwayDelay:     defaultGoAwayDelay,
-		nimModels:       nimModels,
+		taskGracePeriod:       gracefulShutdownTimeout - 3*time.Second,
+		goAwayDelay:           defaultGoAwayDelay,
+		nimModels:             nimModels,
+		engineHeartbeatConfig: engineHeartbeatConfig,
+		lastHeartbeatTime:     time.Now(),
 	}
 }
 
@@ -138,7 +142,8 @@ type P struct {
 	// nimModels is a map of models that use NIM as backend.
 	nimModels map[string]bool
 
-	lastHeartbeatTime time.Time
+	engineHeartbeatConfig config.EngineHeartbeatConfig
+	lastHeartbeatTime     time.Time
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -291,6 +296,16 @@ func (p *P) sendEngineStatusPeriodically(
 			if err := p.sendEngineStatus(stream, engineID, false); err != nil {
 				return err
 			}
+
+			// There is a case where the engine and the server are disconnected but sendEngineStatus() does not return an error.
+			// We need to find a better way to detect the disconnection, but so far we rely on the last heartbeat time. If we do not receive
+			// a heartbeat for a while, we assume the engine is disconnected from the server.
+			if c := p.engineHeartbeatConfig; c.ReconnectOnNoHeartbeat && time.Since(p.getLastHeartbeatTime()) > c.HeartbeatTimeout {
+				log.Info("No heartbeat received for a while, reconnecting...", "lastHeartbeatTime", p.getLastHeartbeatTime(), "timeout", c.HeartbeatTimeout)
+				// Reconnect by returning the error.
+				return fmt.Errorf("no heartbeat received for %s, reconnecting", time.Since(p.getLastHeartbeatTime()))
+			}
+
 			return ctx.Err()
 		case <-time.After(statusReportInterval):
 		}
@@ -857,6 +872,12 @@ func (p *P) updateLastHeartbeatTime(t time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.lastHeartbeatTime = t
+}
+
+func (p *P) getLastHeartbeatTime() time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.lastHeartbeatTime
 }
 
 func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, b *bytes.Buffer) (*multipart.Writer, error) {

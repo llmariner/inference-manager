@@ -423,8 +423,7 @@ type ObjectStoreConfig struct {
 	S3 S3Config `yaml:"s3"`
 }
 
-// Validate validates the object store configuration.
-func (c *ObjectStoreConfig) Validate() error {
+func (c *ObjectStoreConfig) validate() error {
 	if c.S3.Region == "" {
 		return fmt.Errorf("s3 region must be set")
 	}
@@ -436,6 +435,23 @@ func (c *ObjectStoreConfig) Validate() error {
 			return fmt.Errorf("assumeRole: %s", err)
 		}
 	}
+	return nil
+}
+
+type EngineHeartbeatConfig struct {
+	ReconnectOnNoHeartbeat bool          `yaml:"reconnectOnNoHeartbeat"`
+	HeartbeatTimeout       time.Duration `yaml:"heartbeatTimeout"`
+}
+
+func (c *EngineHeartbeatConfig) validate() error {
+	if !c.ReconnectOnNoHeartbeat {
+		return nil
+	}
+
+	if c.HeartbeatTimeout <= 0 {
+		return fmt.Errorf("heartbeatTimeout must be greater than 0 when reconnectOnNoHeartbeat is true")
+	}
+
 	return nil
 }
 
@@ -509,6 +525,8 @@ type Config struct {
 	// TODO(kenji):Remove once every env uses ModelConfig.
 	ModelContextLengths map[string]int `yaml:"modelContextLengths"`
 
+	EngineHeartbeat EngineHeartbeatConfig `yaml:"engineHeartbeat"`
+
 	Debug DebugConfig `yaml:"debug"`
 
 	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`
@@ -534,7 +552,7 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("model manager server worker service address must be set")
 		}
 
-		if err := c.ObjectStore.Validate(); err != nil {
+		if err := c.ObjectStore.validate(); err != nil {
 			return fmt.Errorf("object store: %s", err)
 		}
 	}
@@ -578,6 +596,10 @@ func (c *Config) Validate() error {
 
 	if err := c.Autoscaler.Validate(); err != nil {
 		return fmt.Errorf("autoscaler: %s", err)
+	}
+
+	if err := c.EngineHeartbeat.validate(); err != nil {
+		return fmt.Errorf("engineHeartbeat: %s", err)
 	}
 
 	if err := c.LeaderElection.validate(); err != nil {

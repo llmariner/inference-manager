@@ -301,7 +301,7 @@ func (p *P) sendEngineStatusPeriodically(
 			// We need to find a better way to detect the disconnection, but so far we rely on the last heartbeat time. If we do not receive
 			// a heartbeat for a while, we assume the engine is disconnected from the server.
 			if c := p.engineHeartbeatConfig; c.ReconnectOnNoHeartbeat && time.Since(p.getLastHeartbeatTime()) > c.HeartbeatTimeout {
-				log.Info("No heartbeat received for a while, reconnecting...", "lastHeartbeatTime", p.getLastHeartbeatTime(), "timeout", c.HeartbeatTimeout)
+				p.logger.Info("No heartbeat received for a while, reconnecting...", "lastHeartbeatTime", p.getLastHeartbeatTime(), "timeout", c.HeartbeatTimeout)
 				// Reconnect by returning the error.
 				return fmt.Errorf("no heartbeat received for %s, reconnecting", time.Since(p.getLastHeartbeatTime()))
 			}

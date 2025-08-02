@@ -438,6 +438,7 @@ func (c *ObjectStoreConfig) validate() error {
 	return nil
 }
 
+// EngineHeartbeatConfig is the configuration for the engine heartbeat.
 type EngineHeartbeatConfig struct {
 	ReconnectOnNoHeartbeat bool          `yaml:"reconnectOnNoHeartbeat"`
 	HeartbeatTimeout       time.Duration `yaml:"heartbeatTimeout"`

@@ -425,6 +425,12 @@ autoscaler:
       # +docs:type=number
       # activationThreshold: 0
 
+engineHeartbeat:
+  # Set this to true to reconnect when heartbeat requests are not sent from the server.
+  reconnectOnNoHeartbeat: false
+  # Reconnect is triggered when heartbeat requests do not come for this period.
+  heartbeatTimeout: 120s
+
 leaderElection:
   # LeaseDuration is the duration that non-leader candidates will
   # wait to force acquire leadership. This is measured against time of

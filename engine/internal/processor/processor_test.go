@@ -13,6 +13,7 @@ import (
 
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/metrics"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -41,6 +42,7 @@ func TestP(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		config.EngineHeartbeatConfig{},
 		make(map[string]bool),
 	)
 
@@ -84,6 +86,7 @@ func TestEmbedding(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		config.EngineHeartbeatConfig{},
 		make(map[string]bool),
 	)
 
@@ -145,6 +148,7 @@ func TestGoAwayTask(t *testing.T) {
 		logger,
 		&metrics.NoopCollector{},
 		time.Second,
+		config.EngineHeartbeatConfig{},
 		make(map[string]bool),
 	)
 	processor.goAwayDelay = 0

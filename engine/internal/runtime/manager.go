@@ -872,7 +872,7 @@ func (m *Manager) SetupWithManager(mgr ctrl.Manager, leaderElection bool) error 
 }
 
 func setupWithManager(mgr ctrl.Manager, leaderElection bool, r reconcile.Reconciler, predicates predicate.Predicate) error {
-	constructer := func(r *reconcile.Request) logr.Logger {
+	ctor := func(r *reconcile.Request) logr.Logger {
 		if r != nil {
 			return mgr.GetLogger().WithValues("runtime", r.NamespacedName)
 		}
@@ -883,7 +883,7 @@ func setupWithManager(mgr ctrl.Manager, leaderElection bool, r reconcile.Reconci
 		Watches(&corev1.Pod{},
 			handler.TypedEnqueueRequestForOwner[client.Object](mgr.GetScheme(), mgr.GetRESTMapper(), &appsv1.StatefulSet{}, handler.OnlyControllerOwner()),
 			builder.WithPredicates(predicates)).
-		WithLogConstructor(constructer).
+		WithLogConstructor(ctor).
 		// To share the runtime deletion event, disable the leader election
 		// for this controller if the processor disables the leader election.
 		WithOptions(controller.Options{NeedLeaderElection: ptr.To(leaderElection)}).

@@ -1076,6 +1076,10 @@ func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context,
 	return s.pod, nil
 }
 
+func (s *fakeLoRAAdapterLoadingTargetSelector) targetExists(ctx context.Context, modelID string, pod *corev1.Pod) (bool, error) {
+	return true, nil
+}
+
 func newReadyRuntime(name, addr string, replicas int32) *runtime {
 	return &runtime{
 		ready: true,

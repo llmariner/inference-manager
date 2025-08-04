@@ -151,12 +151,7 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 	modelID string,
 	stsName string,
 ) (*corev1.Pod, error) {
-	client, err := s.rtClientFactory.New(modelID)
-	if err != nil {
-		return nil, err
-	}
-
-	pods, err := listPods(ctx, s.k8sClient, client.Namespace(), stsName)
+	pods, err := s.listPods(ctx, modelID, stsName)
 	if err != nil {
 		return nil, err
 	}
@@ -176,4 +171,49 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 	}
 
 	return found, nil
+}
+
+func (s *loraAdapterLoadingTargetSelectorImpl) targetExists(
+	ctx context.Context,
+	modelID string,
+	pod *corev1.Pod,
+) (bool, error) {
+	stsName, ok := pod.Labels["app.kubernetes.io/instance"]
+	if !ok {
+		return false, fmt.Errorf("pod %s does not have app.kubernetes.io/instance label", pod.Name)
+	}
+
+	pods, err := s.listPods(ctx, modelID, stsName)
+	if err != nil {
+		return false, err
+	}
+
+	var found bool
+	// TODO(kenji): Pick up the least-loaded ready pod.
+	for _, p := range pods {
+		if p.UID == pod.UID {
+			found = true
+			break
+		}
+	}
+
+	return found, nil
+}
+
+func (s *loraAdapterLoadingTargetSelectorImpl) listPods(
+	ctx context.Context,
+	modelID string,
+	stsName string,
+) ([]corev1.Pod, error) {
+	client, err := s.rtClientFactory.New(modelID)
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := listPods(ctx, s.k8sClient, client.Namespace(), stsName)
+	if err != nil {
+		return nil, err
+	}
+
+	return pods, nil
 }

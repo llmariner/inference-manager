@@ -75,6 +75,7 @@ type runtimeReadinessChecker interface {
 
 type loraAdapterLoadingTargetSelector interface {
 	selectTarget(ctx context.Context, modelID string, stsName string) (*corev1.Pod, error)
+	targetExists(ctx context.Context, modelID string, pod *corev1.Pod) (bool, error)
 }
 
 type loraAdapterLoader interface {
@@ -614,7 +615,12 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e *loraAdapterPullStatusCheckEvent) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	// TODO(kenji): Check if the pod still exists. If not, we should stop retrying.
+	if ok, err := m.loraAdapterLoadingTargetSelector.targetExists(ctx, e.modelID, e.pod); err != nil {
+		return fmt.Errorf("check if LoRA adapter loading target pod exists: %s", err)
+	} else if !ok {
+		log.Info("LoRA adapter loading target pod no longer exists", "modelID", e.modelID, "podIP", e.pod.Status.PodIP)
+		return fmt.Errorf("lora adapter loading target pod %s no longer exists", e.pod.Name)
+	}
 
 	pullerAddr := fmt.Sprintf("%s:%d", e.pod.Status.PodIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)

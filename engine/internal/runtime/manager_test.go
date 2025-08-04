@@ -190,12 +190,15 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 	)
 
 	var tests = []struct {
-		name    string
-		baseRT  *runtime
-		baseSTS *appsv1.StatefulSet
+		name             string
+		baseRT           *runtime
+		baseSTS          *appsv1.StatefulSet
+		targetExistsResp bool
+		wantErr          bool
 	}{
 		{
-			name: "no base model",
+			name:             "no base model",
+			targetExistsResp: true,
 		},
 		{
 			name: "base model ready",
@@ -212,6 +215,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 					},
 				},
 			},
+			targetExistsResp: true,
 		},
 		{
 			name: "base model pending",
@@ -228,6 +232,12 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 					},
 				},
 			},
+			targetExistsResp: true,
+		},
+		{
+			name:             "no target",
+			targetExistsResp: false,
+			wantErr:          true,
 		},
 	}
 	for _, test := range tests {
@@ -275,6 +285,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 						PodIP: "fake-pod-ip",
 					},
 				},
+				targetExistsResp: test.targetExistsResp,
 			}
 
 			if test.baseRT != nil {
@@ -285,6 +296,10 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 
 			go func() {
 				if err := mgr.RunStateMachine(ctx); err != nil {
+					if test.wantErr {
+						assert.Error(t, err)
+						return
+					}
 					assert.ErrorIs(t, err, context.Canceled)
 				}
 			}()
@@ -311,6 +326,10 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 			}()
 
 			err := mgr.PullModel(ctx, fineTunedModelID)
+			if test.wantErr {
+				assert.Error(t, err)
+				return
+			}
 			assert.NoError(t, err)
 
 			assert.True(t, loader.loaded[fineTunedModelID])
@@ -1066,7 +1085,8 @@ func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr, modelID st
 }
 
 type fakeLoRAAdapterLoadingTargetSelector struct {
-	pod *corev1.Pod
+	pod              *corev1.Pod
+	targetExistsResp bool
 }
 
 func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, modelID, stsName string) (*corev1.Pod, error) {
@@ -1077,7 +1097,7 @@ func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context,
 }
 
 func (s *fakeLoRAAdapterLoadingTargetSelector) targetExists(ctx context.Context, modelID string, pod *corev1.Pod) (bool, error) {
-	return true, nil
+	return s.targetExistsResp, nil
 }
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {

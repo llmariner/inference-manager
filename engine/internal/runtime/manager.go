@@ -74,7 +74,7 @@ type runtimeReadinessChecker interface {
 }
 
 type loraAdapterLoadingTargetSelector interface {
-	selectTarget(ctx context.Context, modelID string, stsName string) (string, error)
+	selectTarget(ctx context.Context, modelID string, stsName string) (*corev1.Pod, error)
 }
 
 type loraAdapterLoader interface {
@@ -333,14 +333,14 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	m.mu.Unlock()
 
 	// TODO(kenji): Consider sending the request to all pods.
-	podIP, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, e.modelID, br.name)
+	pod, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, e.modelID, br.name)
 	if err != nil {
 		return fmt.Errorf("find LoRA adapter loading target pod: %s", err)
 	}
 
-	log.Info("Found pod for LoRA adapter loading", "podIP", podIP)
+	log.Info("Found pod for LoRA adapter loading", "podIP", pod.Status.PodIP)
 
-	pullerAddr := fmt.Sprintf("%s:%d", podIP, m.pullerPort)
+	pullerAddr := fmt.Sprintf("%s:%d", pod.Status.PodIP, m.pullerPort)
 	if err := m.loraAdapterLoader.pullModel(ctx, pullerAddr, e.modelID); err != nil {
 		return fmt.Errorf("pull model: %s", err)
 	}
@@ -348,7 +348,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	go func() {
 		m.eventCh <- &loraAdapterPullStatusCheckEvent{
 			modelID:     e.modelID,
-			podIP:       podIP,
+			pod:         pod,
 			gpu:         br.gpu,
 			eventWaitCh: make(chan struct{}),
 		}
@@ -616,7 +616,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 
 	// TODO(kenji): Check if the pod still exists. If not, we should stop retrying.
 
-	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
+	pullerAddr := fmt.Sprintf("%s:%d", e.pod.Status.PodIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
 	if err != nil {
 		return fmt.Errorf("check model pull status: %s", err)
@@ -638,7 +638,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	if err != nil {
 		return err
 	}
-	vllmAddr := client.GetAddress(e.podIP)
+	vllmAddr := client.GetAddress(e.pod.Status.PodIP)
 	if err := m.loraAdapterLoader.load(ctx, vllmAddr, e.modelID); err != nil {
 		// The loading fails if the pod no longer exists or the pod is crashing.
 		// TODO(kenji): Revisit. We should stop retry if the pod no longer exists.
@@ -726,7 +726,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 func (m *Manager) processLoadLoRAAdapterEvent(ctx context.Context, e *loadLoRAAdapterEvent) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	pullerAddr := fmt.Sprintf("%s:%d", e.podIP, m.pullerPort)
+	pullerAddr := fmt.Sprintf("%s:%d", e.pod.Status.PodIP, m.pullerPort)
 
 	log.Info("Pulling LoRA adapter", "modelID", e.modelID, "pullerAddr", pullerAddr)
 	if err := m.loraAdapterLoader.pullModel(ctx, pullerAddr, e.modelID); err != nil {
@@ -736,7 +736,7 @@ func (m *Manager) processLoadLoRAAdapterEvent(ctx context.Context, e *loadLoRAAd
 	go func() {
 		m.eventCh <- &loraAdapterPullStatusCheckEvent{
 			modelID:     e.modelID,
-			podIP:       e.podIP,
+			pod:         e.pod,
 			gpu:         0, /* TODO(kenji): Fix */
 			eventWaitCh: e.eventWaitCh,
 		}
@@ -838,12 +838,12 @@ func (m *Manager) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdap
 }
 
 // LoadLoRAAdapter loads the LoRA adapter.
-func (m *Manager) loadLoRAAdapter(ctx context.Context, modelID, podIP string) error {
+func (m *Manager) loadLoRAAdapter(ctx context.Context, modelID string, pod *corev1.Pod) error {
 	waitCh := make(chan struct{})
 	go func() {
 		m.eventCh <- &loadLoRAAdapterEvent{
 			modelID:     modelID,
-			podIP:       podIP,
+			pod:         pod,
 			eventWaitCh: waitCh,
 		}
 	}()

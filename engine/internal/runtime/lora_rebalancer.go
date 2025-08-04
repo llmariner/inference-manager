@@ -17,7 +17,7 @@ import (
 )
 
 type loraAdapterPullAndLoader interface {
-	loadLoRAAdapter(ctx context.Context, modelID, podIP string) error
+	loadLoRAAdapter(ctx context.Context, modelID string, pod *corev1.Pod) error
 }
 
 // NewLoRARebalancer creates a new LoRARebalancer.
@@ -191,7 +191,7 @@ func (r *LoRARebalancer) rebalance(
 			if err := r.loraAdapterPullAndLoader.loadLoRAAdapter(
 				ctx,
 				adapterID,
-				ps.pod.Status.PodIP,
+				ps.pod,
 			); err != nil {
 				// Gracefully handle the error as vLLM might not be ready yet.
 				r.logger.Error(err, "Failed to load LoRA adapter", "adapterID", adapterID, "podName", name)

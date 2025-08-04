@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -34,8 +35,8 @@ type readinessCheckEvent struct {
 type loraAdapterPullStatusCheckEvent struct {
 	modelID string
 
-	podIP string
-	gpu   int32
+	pod *corev1.Pod
+	gpu int32
 
 	eventWaitCh chan struct{}
 }
@@ -48,7 +49,7 @@ type loraAdapterStatusUpdateEvent struct {
 
 type loadLoRAAdapterEvent struct {
 	modelID string
-	podIP   string
+	pod     *corev1.Pod
 
 	eventWaitCh chan struct{}
 }

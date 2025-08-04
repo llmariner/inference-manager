@@ -10,6 +10,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	"github.com/llmariner/inference-manager/engine/internal/runtime/vllm"
 	mv1 "github.com/llmariner/model-manager/api/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -149,30 +150,30 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 	ctx context.Context,
 	modelID string,
 	stsName string,
-) (string, error) {
+) (*corev1.Pod, error) {
 	client, err := s.rtClientFactory.New(modelID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	pods, err := listPods(ctx, s.k8sClient, client.Namespace(), stsName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var podIP string
+	var found *corev1.Pod
 	// TODO(kenji): Pick up the least-loaded ready pod.
 	for _, pod := range pods {
 		if ip := pod.Status.PodIP; ip != "" {
-			podIP = ip
+			found = &pod
 			break
 		}
 	}
 
-	if podIP == "" {
+	if found == nil {
 		// TODO(kenji): Add a retry or gracefully handle.
-		return "", fmt.Errorf("no ready pod found")
+		return nil, fmt.Errorf("no ready pod found")
 	}
 
-	return podIP, nil
+	return found, nil
 }

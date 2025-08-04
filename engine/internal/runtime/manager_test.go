@@ -270,7 +270,11 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				err: nil,
 			}
 			mgr.loraAdapterLoadingTargetSelector = &fakeLoRAAdapterLoadingTargetSelector{
-				podIP: "fake-pod-ip",
+				pod: &corev1.Pod{
+					Status: corev1.PodStatus{
+						PodIP: "fake-pod-ip",
+					},
+				},
 			}
 
 			if test.baseRT != nil {
@@ -1062,14 +1066,14 @@ func (l *fakeLoraAdapterLoader) unload(ctx context.Context, vllmAddr, modelID st
 }
 
 type fakeLoRAAdapterLoadingTargetSelector struct {
-	podIP string
+	pod *corev1.Pod
 }
 
-func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, modelID, stsName string) (string, error) {
-	if s.podIP == "" {
-		return "", errors.New("no pod")
+func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, modelID, stsName string) (*corev1.Pod, error) {
+	if s.pod == nil {
+		return nil, errors.New("no pod")
 	}
-	return s.podIP, nil
+	return s.pod, nil
 }
 
 func newReadyRuntime(name, addr string, replicas int32) *runtime {

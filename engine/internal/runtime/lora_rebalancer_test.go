@@ -72,7 +72,11 @@ func TestRebalance(t *testing.T) {
 	r.rebalance(context.Background(), podStatuses)
 
 	assert.ElementsMatch(t, []string{"adapter0"}, loader.pulledModelIDs)
-	assert.ElementsMatch(t, []string{"ip1"}, loader.pulledPodIPs)
+	var ips []string
+	for _, pod := range loader.pulledPods {
+		ips = append(ips, pod.Status.PodIP)
+	}
+	assert.ElementsMatch(t, []string{"ip1"}, ips)
 }
 
 func TestBuildStatusMap(t *testing.T) {
@@ -175,11 +179,11 @@ func TestBuildStatusMap(t *testing.T) {
 
 type fakeLoRAAdapterPullAndLoader struct {
 	pulledModelIDs []string
-	pulledPodIPs   []string
+	pulledPods     []*corev1.Pod
 }
 
-func (f *fakeLoRAAdapterPullAndLoader) loadLoRAAdapter(ctx context.Context, modelID, podIP string) error {
+func (f *fakeLoRAAdapterPullAndLoader) loadLoRAAdapter(ctx context.Context, modelID string, pod *corev1.Pod) error {
 	f.pulledModelIDs = append(f.pulledModelIDs, modelID)
-	f.pulledPodIPs = append(f.pulledPodIPs, podIP)
+	f.pulledPods = append(f.pulledPods, pod)
 	return nil
 }

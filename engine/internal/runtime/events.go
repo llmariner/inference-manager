@@ -12,12 +12,12 @@ type pullModelEvent struct {
 
 type deleteModelEvent struct {
 	modelID     string
-	eventWaitCh chan struct{}
+	eventWaitCh chan error
 }
 
 type reconcileStatefulSetEvent struct {
 	namespacedName types.NamespacedName
-	eventWaitCh    chan struct{}
+	eventWaitCh    chan error
 }
 
 type readinessCheckEvent struct {
@@ -29,7 +29,7 @@ type readinessCheckEvent struct {
 
 	retryCount int
 
-	eventWaitCh chan struct{}
+	eventWaitCh chan error
 }
 
 type loraAdapterPullStatusCheckEvent struct {
@@ -38,18 +38,18 @@ type loraAdapterPullStatusCheckEvent struct {
 	pod *corev1.Pod
 	gpu int32
 
-	eventWaitCh chan struct{}
+	eventWaitCh chan error
 }
 
 type loraAdapterStatusUpdateEvent struct {
 	update *loRAAdapterStatusUpdate
 
-	eventWaitCh chan struct{}
+	eventWaitCh chan error
 }
 
 type loadLoRAAdapterEvent struct {
 	modelID string
 	pod     *corev1.Pod
 
-	eventWaitCh chan struct{}
+	eventWaitCh chan error
 }

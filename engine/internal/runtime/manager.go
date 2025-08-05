@@ -618,6 +618,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	if ok, err := m.loraAdapterLoadingTargetSelector.targetExists(ctx, e.modelID, e.pod); err != nil {
 		return fmt.Errorf("check if LoRA adapter loading target pod exists: %s", err)
 	} else if !ok {
+		// TODO(kenji): Reselect the target pod and retry.
 		log.Info("LoRA adapter loading target pod no longer exists", "modelID", e.modelID, "podIP", e.pod.Status.PodIP)
 		return fmt.Errorf("lora adapter loading target pod %s no longer exists", e.pod.Name)
 	}

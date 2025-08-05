@@ -351,7 +351,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 			modelID:     e.modelID,
 			pod:         pod,
 			gpu:         br.gpu,
-			eventWaitCh: make(chan struct{}),
+			eventWaitCh: make(chan error),
 		}
 	}()
 
@@ -379,7 +379,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 				Name:      sts.Name,
 				Namespace: sts.Namespace,
 			},
-			eventWaitCh: make(chan struct{}),
+			eventWaitCh: make(chan error),
 		}
 	}()
 	return nil
@@ -544,7 +544,7 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 			replicas: sts.Status.ReadyReplicas,
 			// Create a new one instead of reusing the one in the event so that
 			// we don't block reconciler until the readiness check is done.
-			eventWaitCh: make(chan struct{}),
+			eventWaitCh: make(chan error),
 		}
 	}()
 
@@ -785,7 +785,7 @@ func (m *Manager) PullModelUnblocked(ctx context.Context, modelID string) error 
 
 // DeleteModel deletes the model from the model manager.
 func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
-	waitCh := make(chan struct{})
+	waitCh := make(chan error)
 
 	m.eventCh <- &deleteModelEvent{
 		modelID:     modelID,
@@ -793,29 +793,27 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	}
 
 	select {
-	case <-waitCh:
+	case err := <-waitCh:
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	return nil
 }
 
 // Reconcile reconciles the runtime.
 func (m *Manager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	waitCh := make(chan struct{})
+	waitCh := make(chan error)
 	m.eventCh <- &reconcileStatefulSetEvent{
 		namespacedName: req.NamespacedName,
 		eventWaitCh:    waitCh,
 	}
 
 	select {
-	case <-waitCh:
+	case err := <-waitCh:
+		return ctrl.Result{}, err
 	case <-ctx.Done():
 		return ctrl.Result{}, ctx.Err()
 	}
-
-	return ctrl.Result{}, nil
 }
 
 func (m *Manager) getAddress(modelID, stsName string) (string, error) {
@@ -827,7 +825,7 @@ func (m *Manager) getAddress(modelID, stsName string) (string, error) {
 }
 
 func (m *Manager) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdapterStatusUpdate) error {
-	waitCh := make(chan struct{})
+	waitCh := make(chan error)
 	go func() {
 		m.eventCh <- &loraAdapterStatusUpdateEvent{
 			update:      update,
@@ -836,17 +834,16 @@ func (m *Manager) processLoRAAdapterUpdate(ctx context.Context, update *loRAAdap
 	}()
 
 	select {
-	case <-waitCh:
+	case err := <-waitCh:
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	return nil
 }
 
 // LoadLoRAAdapter loads the LoRA adapter.
 func (m *Manager) loadLoRAAdapter(ctx context.Context, modelID string, pod *corev1.Pod) error {
-	waitCh := make(chan struct{})
+	waitCh := make(chan error)
 	go func() {
 		m.eventCh <- &loadLoRAAdapterEvent{
 			modelID:     modelID,
@@ -856,12 +853,11 @@ func (m *Manager) loadLoRAAdapter(ctx context.Context, modelID string, pod *core
 	}()
 
 	select {
-	case <-waitCh:
+	case err := <-waitCh:
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	return nil
 }
 
 // SetupWithManager sets up the runtime manager with the given controller manager.

@@ -296,10 +296,6 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 
 			go func() {
 				if err := mgr.RunStateMachine(ctx); err != nil {
-					if test.wantErr {
-						assert.Error(t, err)
-						return
-					}
 					assert.ErrorIs(t, err, context.Canceled)
 				}
 			}()

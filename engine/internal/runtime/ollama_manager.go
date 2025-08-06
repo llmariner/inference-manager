@@ -10,6 +10,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
+	"github.com/llmariner/rbac-manager/pkg/auth"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,16 +22,16 @@ import (
 // NewOllamaManager creates a new ollama runtime manager.
 func NewOllamaManager(
 	k8sClient client.Client,
-	client Client,
+	ollamaClient Client,
 	autoscaler autoscaler.Registerer,
 	pullerAddr string,
 ) *OllamaManager {
 	return &OllamaManager{
 		k8sClient:    k8sClient,
-		ollamaClient: client,
+		ollamaClient: ollamaClient,
 		autoscaler:   autoscaler,
 		pullerAddr:   pullerAddr,
-		runtime:      newPendingRuntime(client.GetName("")),
+		runtime:      newPendingRuntime(ollamaClient.GetName("")),
 		models:       make(map[string]*ollamaModel),
 	}
 }
@@ -83,6 +84,7 @@ func (m *OllamaManager) cleanupModels() {
 
 // Start deploys the ollama runtime.
 func (m *OllamaManager) Start(ctx context.Context) error {
+	ctx = auth.AppendWorkerAuthorization(ctx)
 	sts, err := m.ollamaClient.DeployRuntime(ctx, "", true)
 	if err != nil {
 		return fmt.Errorf("deploy runtime: %s", err)

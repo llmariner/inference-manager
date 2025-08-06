@@ -51,4 +51,3 @@ data:
     nimModels:
     {{- toYaml . | nindent 4 }}
     {{- end }}
-

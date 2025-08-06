@@ -28,6 +28,7 @@ func NewTritonClient(
 	owner *metav1apply.OwnerReferenceApplyConfiguration,
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
+	modelGetter modelGetter,
 ) Client {
 	return &tritonClient{
 		commonClient: &commonClient{
@@ -38,6 +39,7 @@ func NewTritonClient(
 			servingPort: proxyHTTPPort,
 			rconfig:     rconfig,
 			mconfig:     mconfig,
+			modelGetter: modelGetter,
 		},
 	}
 }

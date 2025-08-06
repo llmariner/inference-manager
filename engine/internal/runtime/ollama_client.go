@@ -10,7 +10,6 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/ollama"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	mv1 "github.com/llmariner/model-manager/api/v1"
-	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -25,10 +24,6 @@ const (
 	daemonModeSuffix = "dynamic"
 )
 
-type modelGetter interface {
-	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
-}
-
 // NewOllamaClient creates a new Ollama runtime client.a
 func NewOllamaClient(
 	k8sClient client.Client,
@@ -37,7 +32,7 @@ func NewOllamaClient(
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
 	oconfig config.OllamaConfig,
-	modelClient modelGetter,
+	modelGetter modelGetter,
 ) Client {
 	return &ollamaClient{
 		commonClient: &commonClient{
@@ -47,9 +42,10 @@ func NewOllamaClient(
 			servingPort: ollamaHTTPPort,
 			rconfig:     rconfig,
 			mconfig:     mconfig,
+			modelGetter: modelGetter,
 		},
 		config:      oconfig,
-		modelClient: modelClient,
+		modelGetter: modelGetter,
 	}
 }
 
@@ -57,7 +53,7 @@ type ollamaClient struct {
 	*commonClient
 
 	config      config.OllamaConfig
-	modelClient modelGetter
+	modelGetter modelGetter
 }
 
 // GetName returns a resource name of the runtime.
@@ -154,7 +150,7 @@ ollama serve
 		}, update)
 	}
 
-	modelProto, err := o.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+	modelProto, err := o.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})
 	if err != nil {

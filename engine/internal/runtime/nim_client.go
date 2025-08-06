@@ -38,6 +38,7 @@ func NewNIMClient(
 	rconfig *config.RuntimeConfig,
 	nconfig *config.NIMConfig,
 	nmconfig *config.NIMModelConfig,
+	modelGetter modelGetter,
 ) Client {
 	return &nimClient{
 		commonClient: &commonClient{
@@ -46,6 +47,7 @@ func NewNIMClient(
 			owner:       owner,
 			servingPort: nimHTTPPort,
 			rconfig:     rconfig,
+			modelGetter: modelGetter,
 		},
 		config:      nconfig,
 		modelConfig: nmconfig,

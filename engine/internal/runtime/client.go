@@ -7,6 +7,8 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
+	mv1 "github.com/llmariner/model-manager/api/v1"
+	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -48,6 +50,10 @@ type ClientFactory interface {
 	New(modelID string) (Client, error)
 }
 
+type modelGetter interface {
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+}
+
 type commonClient struct {
 	k8sClient client.Client
 
@@ -58,6 +64,8 @@ type commonClient struct {
 
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
+
+	modelGetter modelGetter
 }
 
 // convertEnvToApplyConfig converts a slice of corev1.EnvVar to apply configuration format
@@ -461,9 +469,15 @@ func (c *commonClient) deployRuntime(
 	if c.rconfig.Affinity != nil {
 		podSpec = podSpec.WithAffinity(buildAffinityApplyConfig(c.rconfig.Affinity))
 	}
-	if len(c.rconfig.NodeSelector) > 0 {
-		podSpec = podSpec.WithNodeSelector(c.rconfig.NodeSelector)
+
+	nodeSelector, err := c.nodeSelectorForModel(ctx, params.modelID)
+	if err != nil {
+		return nil, err
 	}
+	if len(nodeSelector) > 0 {
+		podSpec = podSpec.WithNodeSelector(nodeSelector)
+	}
+
 	for _, tc := range c.rconfig.Tolerations {
 		t := corev1apply.Toleration()
 		if tc.Key != "" {
@@ -609,6 +623,33 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 	log.Info("Deleted runtime", "model", modelID)
 
 	return nil
+}
+
+func (c *commonClient) nodeSelectorForModel(ctx context.Context, modelID string) (map[string]string, error) {
+	nodeSelector := map[string]string{}
+
+	for k, v := range c.rconfig.NodeSelector {
+		nodeSelector[k] = v
+	}
+
+	// Set node selector from the model config.
+	modelProto, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get model %q: %s", modelID, err)
+	}
+
+	if p := modelProto.Project; p != nil {
+		// TODO(kenji): Only apply node selector effective for this cluster.
+		for _, a := range p.Assignments {
+			for _, n := range a.NodeSelector {
+				nodeSelector[n.Key] = n.Value
+			}
+		}
+	}
+
+	return nodeSelector, nil
 }
 
 func resourceName(runtime, modelID string) string {

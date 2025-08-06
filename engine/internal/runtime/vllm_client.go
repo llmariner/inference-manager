@@ -53,6 +53,7 @@ func NewVLLMClient(
 			servingPort: vllmHTTPPort,
 			rconfig:     rconfig,
 			mconfig:     mconfig,
+			modelGetter: modelClient,
 		},
 		modelClient: modelClient,
 		vLLMConfig:  vLLMConfg,

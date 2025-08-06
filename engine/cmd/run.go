@@ -209,6 +209,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				owner,
 				&c.Runtime,
 				processedConfig,
+				modelClient,
 			),
 		}
 
@@ -221,6 +222,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				&c.Runtime,
 				&c.NIM,
 				&model,
+				modelClient,
 			)
 			nimModels[model.ModelName] = true
 		}

@@ -632,6 +632,11 @@ func (c *commonClient) nodeSelectorForModel(ctx context.Context, modelID string)
 		nodeSelector[k] = v
 	}
 
+	if modelID == "" {
+		// modelID is empty for the dynamic Ollama model loading. Do not call GetModel.
+		return nodeSelector, nil
+	}
+
 	// Set node selector from the model config.
 	modelProto, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,

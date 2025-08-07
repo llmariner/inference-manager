@@ -28,7 +28,7 @@ an LoRA for base model `M` on every vLLM pod that serves `M`.
 
 `Manager.loadLoRAAdapter()` is called.
 
-### LoRA reconciliating
+### LoRA reconciliation
 
 The reconciler monitors currently loaded LoRAs in each vLLM pod.
 

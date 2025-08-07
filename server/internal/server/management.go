@@ -150,6 +150,14 @@ func (s *IMS) getInferenceStatus(
 				// Simply overrride if there is an existing value as every engine in the same cluster
 				// should have the same info.
 				modelsByID[m.Id] = m
+
+				// TODO(kenji): Currently do not report the GPU allocated for the dynamically loaded LoRA
+				// as we don't have a correct accounting. Also the frontend needs a special handling
+				// to report the GPU allocated for the dynamically loaded LoRA. (If we simply summing up all,
+				// it will be larger than the actual GPU allocated.)
+				if m.IsDynamicallyLoadedLora {
+					m.GpuAllocated = 0
+				}
 			}
 		}
 		var ga int32

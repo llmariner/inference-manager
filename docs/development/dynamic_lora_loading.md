@@ -33,6 +33,6 @@ an LoRA for base model `M` on every vLLM pod that serves `M`.
 The reconciler monitors currently loaded LoRAs in each vLLM pod.
 
 - If there is an LoRA loaded into a vLLM pod without corresponding a `runtime` struct, the reconciler creates a new `runtime` struct.
-- When a pod is deleted, it updates the loRA loading status of `runtime` structs.
+- When a pod is deleted, it updates the LoRA loading status of `runtime` structs.
 
 `Manager.processLoRAAdapterUpdate()` is called.

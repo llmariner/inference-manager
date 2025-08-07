@@ -165,7 +165,7 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 		}
 
 		if found == nil {
-			// only the first pod is considered as a target.
+			// Set the first available pod as fallback target.
 			found = &p
 		}
 

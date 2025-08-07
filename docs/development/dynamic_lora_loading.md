@@ -1,6 +1,6 @@
 # Dynamic LoRA Loading
 
-Dyyamic LoRA loading is a mechanism that loads LoRAs into a vLLM pod that serves their base models. This achieves
+Dynamic LoRA loading is a mechanism that loads LoRAs into a vLLM pod that serves their base models. This achieves
 more efficient GPU utilization by avoiding a separate inference runtime pod per LoRA.
 
 The code is located at the `engine/internal/runtime` package.

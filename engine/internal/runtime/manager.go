@@ -186,19 +186,10 @@ func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 
 	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
-		// TODO(kenji): Currently do not report the GPU allocated for the dynamically loaded LoRA
-		// as we don't have a correct accounting. Also the frontend needs a special handling
-		// to report the GPU allocated for the dynamically loaded LoRA. (If we simply summing up all,
-		// it will be larger than the actual GPU allocated.)
-		var gpu int32
-		if !r.isDynamicallyLoadedLoRA {
-			gpu = r.gpu * r.replicas
-		}
-
 		ms = append(ms, &iv1.EngineStatus_Model{
 			Id:                      id,
 			IsReady:                 r.ready,
-			GpuAllocated:            gpu,
+			GpuAllocated:            r.gpu * r.replicas,
 			IsDynamicallyLoadedLora: r.isDynamicallyLoadedLoRA,
 		})
 	}

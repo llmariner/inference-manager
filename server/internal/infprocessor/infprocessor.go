@@ -842,11 +842,19 @@ func newEngineStatus(e *engine) *EngineStatus {
 	// Copy the model to avoid race.
 	var models []*v1.EngineStatus_Model
 	for _, m := range e.models {
+		// TODO(kenji): Currently do not report the GPU allocated for the dynamically loaded LoRA
+		// as we don't have a correct accounting. Also the frontend needs a special handling
+		// to report the GPU allocated for the dynamically loaded LoRA. (If we simply summing up all,
+		// it will be larger than the actual GPU allocated.)
+		var gpu int32
+		if !m.IsDynamicallyLoadedLora {
+			gpu = m.GpuAllocated
+		}
 		models = append(models, &v1.EngineStatus_Model{
 			Id:                      m.Id,
 			IsReady:                 m.IsReady,
 			InProgressTaskCount:     m.InProgressTaskCount,
-			GpuAllocated:            m.GpuAllocated,
+			GpuAllocated:            gpu,
 			IsDynamicallyLoadedLora: m.IsDynamicallyLoadedLora,
 		})
 	}

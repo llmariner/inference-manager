@@ -184,7 +184,7 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 
 	if found == nil {
 		// TODO(kenji): Add a retry or gracefully handle.
-		return nil, fmt.Errorf("no pod found")
+		return nil, fmt.Errorf("no pod with IP address found")
 	}
 
 	if foundReady != nil {

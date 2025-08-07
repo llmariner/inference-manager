@@ -156,18 +156,40 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 		return nil, err
 	}
 
-	var found *corev1.Pod
+	var found, foundReady *corev1.Pod
 	// TODO(kenji): Pick up the least-loaded ready pod.
 	for _, pod := range pods {
-		if ip := pod.Status.PodIP; ip != "" {
-			found = &pod
+		p := pod
+		if p.Status.PodIP == "" {
+			continue
+		}
+
+		if found == nil {
+			// only the first pod is considered as a target.
+			found = &p
+		}
+
+		// Check if the pod is ready
+		for _, cond := range p.Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				foundReady = &p
+				break
+			}
+		}
+
+		if foundReady != nil {
 			break
 		}
 	}
 
 	if found == nil {
 		// TODO(kenji): Add a retry or gracefully handle.
-		return nil, fmt.Errorf("no ready pod found")
+		return nil, fmt.Errorf("no pod found")
+	}
+
+	if foundReady != nil {
+		// Prefer a ready pod.
+		return foundReady, nil
 	}
 
 	return found, nil

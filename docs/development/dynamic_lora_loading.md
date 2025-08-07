@@ -11,7 +11,7 @@ Inference Manager Engine has the following three ways to load an LoRA into a vLL
 
 ### Model Activation
 
-If a specified model is a fine-tuned model, the adapter is loaded   into the base model.
+If a specified model is a fine-tuned model, the adapter is loaded into the base model.
 
 If there is no runtime that servers a base model, a vLLM pod is first created (and then the adapter is loaded).
 

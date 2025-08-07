@@ -5,7 +5,7 @@ more efficient GPU utilization by avoiding a separate inference runtime pod per 
 
 The code is located at the `engine/internal/runtime` package.
 
-## LoRA Loading flow.
+## LoRA Loading flow
 
 Inference Manager Engine has the following three ways to load an LoRA into a vLLM pod.
 

@@ -186,10 +186,19 @@ func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 
 	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
+		// TODO(kenji): Currently do not report the GPU allocated for the dynamically loaded LoRA
+		// as we don't have a correct accounting. Also the frontend needs a special handling
+		// to report the GPU allocated for the dynamically loaded LoRA. (If we simply summing up all,
+		// it will be larger than the actual GPU allocated.)
+		var gpu int32
+		if !r.isDynamicallyLoadedLoRA {
+			gpu = r.gpu * r.replicas
+		}
+
 		ms = append(ms, &iv1.EngineStatus_Model{
 			Id:                      id,
 			IsReady:                 r.ready,
-			GpuAllocated:            r.gpu * r.replicas,
+			GpuAllocated:            gpu,
 			IsDynamicallyLoadedLora: r.isDynamicallyLoadedLoRA,
 		})
 	}
@@ -663,7 +672,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 			modelID:     e.modelID,
 			address:     vllmAddr,
 			gpu:         e.gpu,
-			replicas:    1, // TODO(kenji): Fix this.
+			replicas:    0, // TODO(kenji): Fix this.
 			eventWaitCh: e.eventWaitCh,
 		}
 	}()
@@ -697,7 +706,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 			log.Info("Creating a new runtime", "modelID", modelID)
 			r = newPendingRuntime(modelID)
 			r.isDynamicallyLoadedLoRA = true
-			r.becomeReady(vllmAddr, e.update.gpu, 1, log)
+			r.becomeReady(vllmAddr, e.update.gpu, 1 /* replicas */, log)
 			m.runtimes[modelID] = r
 		}
 

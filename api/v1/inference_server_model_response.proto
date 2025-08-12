@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package llmariner.chat.server.v1;
+package llmariner.response.server.v1;
 
 import "google/api/annotations.proto";
 

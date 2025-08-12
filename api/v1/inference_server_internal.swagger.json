@@ -140,6 +140,101 @@
         }
       }
     },
+    "CreateModelResponseRequestInput": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateModelResponseRequestInputContent"
+          },
+          "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
+        },
+        "role": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "description": "id is only meaningful when the type is \"item_reference\" or \"message\" (and the item is an output message)."
+        }
+      }
+    },
+    "CreateModelResponseRequestInputContent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "description": "This field is meaningful when the type is \"input_text\"."
+        },
+        "detail": {
+          "type": "string",
+          "description": "These fields are meaningful when the type is \"input_image\"."
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "fileId": {
+          "type": "string",
+          "description": "This field is meaningful when the type is \"input_image\" or \"input_file\"."
+        },
+        "fileData": {
+          "type": "string",
+          "description": "These fields are meaningful when the type is \"input_file\"."
+        },
+        "fileUrl": {
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateModelResponseRequestPrompt": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "title": "TODO(kenji): Support variables"
+        }
+      }
+    },
+    "CreateModelResponseRequestReasoning": {
+      "type": "object",
+      "properties": {
+        "effort": {
+          "type": "string"
+        },
+        "generateSummary": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateModelResponseRequestText": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "$ref": "#/definitions/TextFormat"
+        },
+        "verbosity": {
+          "type": "string"
+        }
+      }
+    },
     "EngineStatusModel": {
       "type": "object",
       "properties": {
@@ -189,6 +284,29 @@
         },
         "tenantId": {
           "type": "string"
+        }
+      }
+    },
+    "TextFormat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Set to \"text\", \"json_schema\", or \"json_object\"."
+        },
+        "name": {
+          "type": "string",
+          "description": "The following fields are only meaningful when the type is \"json_schema\"."
+        },
+        "encodedSchema": {
+          "type": "string",
+          "description": "encoded_schema is a base64 encoded JSON Schema object.\n\nThe original value in the \"schema\" field is stripped by the server and converted\nto \"encoded_schema\".\n\nThe value of the field is converted back to the \"schema\" field when the request is being\nsent to vLLM."
+        },
+        "description": {
+          "type": "string"
+        },
+        "strict": {
+          "type": "boolean"
         }
       }
     },
@@ -431,6 +549,145 @@
         }
       }
     },
+    "v1CreateModelResponseRequest": {
+      "type": "object",
+      "properties": {
+        "background": {
+          "type": "boolean"
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "input": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateModelResponseRequestInput"
+          },
+          "description": "The type of the input is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxToolCalls": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "type": "string"
+        },
+        "parallelToolCalls": {
+          "type": "boolean"
+        },
+        "previousResponseId": {
+          "type": "string"
+        },
+        "prompt": {
+          "$ref": "#/definitions/CreateModelResponseRequestPrompt"
+        },
+        "promptCacheKey": {
+          "type": "string"
+        },
+        "reasoning": {
+          "$ref": "#/definitions/CreateModelResponseRequestReasoning"
+        },
+        "safetyIdentifier": {
+          "type": "string"
+        },
+        "serviceTier": {
+          "type": "string"
+        },
+        "store": {
+          "type": "boolean"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "streamOptions": {
+          "$ref": "#/definitions/v1CreateModelResponseRequestStreamOptions"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "double"
+        },
+        "isTemperatureSet": {
+          "type": "boolean",
+          "description": "is_temperature_set is used to indicate whether the temperature is set or not.\nThis is required as the OpenAI API spec uses 1.0 as the default value for temperature while\nsetting temperature to 0.0 in the proto is equivalent to unset. If the user sets temperature to 0.0,\nit becomes unset when the request is sent to the engine (and then the inference runtime sets temperature to 1.0\nas that's the default value)."
+        },
+        "text": {
+          "$ref": "#/definitions/CreateModelResponseRequestText"
+        },
+        "toolChoice": {
+          "type": "string",
+          "description": "The type of the \"tool_choice\" field is a string or an object.\nAs we cannot have a string or an object in the proto, we use the \"tool_choice_object\"\nif a request sets the \"tool_choice\" field as an object.\n\nThe \"tool_choice_object\" field is converted to the \"tool_choice\" field when the request is being\nsent to an inference runtime."
+        },
+        "toolChoiceObject": {
+          "$ref": "#/definitions/v1CreateModelResponseRequestToolChoice"
+        },
+        "topLogprobs": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "topP": {
+          "type": "number",
+          "format": "double"
+        },
+        "isTopPSet": {
+          "type": "boolean",
+          "description": "is_top_p_set is used to indicate whether the top_p is set or not.\nThis is required as the OpenAI API spec uses 1.0 as the default value for top_p while\nsetting top_p to 0.0 in the proto is equivalent to unset. If the user sets top_p to 0.0,\nit becomes unset when the request is sent to the engine (and then the inference runtime sets top_p to 1.0\nas that's the default value)."
+        },
+        "truncation": {
+          "type": "boolean"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateModelResponseRequestStreamOptions": {
+      "type": "object",
+      "properties": {
+        "includeObfuscation": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1CreateModelResponseRequestToolChoice": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "description": "name is meaningful for the hosted tool, function tool, MC tool, and custom tool."
+        },
+        "mode": {
+          "type": "string",
+          "description": "mode is meaningful for the allowed tools."
+        },
+        "encodedTools": {
+          "type": "string",
+          "description": "encoded_tools is meaningful for the allowed tools. It is a base64 encoded JSON object.\n\nThe original value in the \"tools\" field is stripped by the server and converted\nto \"encoded_tools\".\n\nThe value of the field is converted back to the \"tools\" field when the request is being\nsent to vLLM."
+        },
+        "serverLabel": {
+          "type": "string",
+          "description": "server_label is meaningful for the MCP tool."
+        }
+      }
+    },
     "v1EngineStatus": {
       "type": "object",
       "properties": {
@@ -563,6 +820,9 @@
         },
         "audioTranscription": {
           "$ref": "#/definitions/v1CreateAudioTranscriptionRequest"
+        },
+        "modelResponse": {
+          "$ref": "#/definitions/v1CreateModelResponseRequest"
         },
         "goAway": {
           "$ref": "#/definitions/v1GoAwayRequest",

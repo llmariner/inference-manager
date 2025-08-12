@@ -106,14 +106,6 @@
         }
       }
     },
-    "CreateChatCompletionRequestStreamOptions": {
-      "type": "object",
-      "properties": {
-        "includeUsage": {
-          "type": "boolean"
-        }
-      }
-    },
     "CreateChatCompletionRequestTool": {
       "type": "object",
       "properties": {
@@ -122,17 +114,6 @@
         },
         "function": {
           "$ref": "#/definitions/CreateChatCompletionRequestToolFunction"
-        }
-      }
-    },
-    "CreateChatCompletionRequestToolChoice": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "function": {
-          "$ref": "#/definitions/CreateChatCompletionRequestToolChoiceFunction"
         }
       }
     },
@@ -332,7 +313,7 @@
           "type": "boolean"
         },
         "streamOptions": {
-          "$ref": "#/definitions/CreateChatCompletionRequestStreamOptions"
+          "$ref": "#/definitions/v1CreateChatCompletionRequestStreamOptions"
         },
         "temperature": {
           "type": "number",
@@ -353,7 +334,7 @@
           "description": "The type of the \"tool_choice\" field is a string or an object.\nAs we cannot have a string or an object in the proto, we use the \"tool_choice_obj\"\nif a request sets the \"tool_choice\" field as an object.\n\nThe \"tool_choice_object\" field is converted to the \"tool_choice\" field when the request is being\nsent to an inference runtime."
         },
         "toolChoiceObject": {
-          "$ref": "#/definitions/CreateChatCompletionRequestToolChoice"
+          "$ref": "#/definitions/v1CreateChatCompletionRequestToolChoice"
         },
         "user": {
           "type": "string"
@@ -405,6 +386,25 @@
         }
       },
       "description": "Message has fields for system message, user message, assistant message, and tool message."
+    },
+    "v1CreateChatCompletionRequestStreamOptions": {
+      "type": "object",
+      "properties": {
+        "includeUsage": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1CreateChatCompletionRequestToolChoice": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/CreateChatCompletionRequestToolChoiceFunction"
+        }
+      }
     },
     "v1CreateEmbeddingRequest": {
       "type": "object",

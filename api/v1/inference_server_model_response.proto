@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package llmariner.chat.server.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+// The API specification follows OpenAPI API specification (https://platform.openai.com/docs/api-reference/responses).
+
+
+message CreateModelResponseRequest {
+  message Input {
+    message Content {
+      string type = 1;
+
+      // This field is meaningful when the type is "input_text".
+      string text = 2;
+
+      // These fields are meaningful when the type is "input_image".
+      string detail = 3;
+      string image_url = 4;
+
+      // This field is meaningful when the type is "input_image" or "input_file".
+      string file_id = 5;
+
+      // These fields are meaningful when the type is "input_file".
+      string file_data = 6;
+      string file_url = 7;
+      string filename = 8;
+    }
+
+    string type = 1;
+
+    // These fields are meaningful for input messages.
+
+    // The type of the content is either string or array in the OpenAI API spec, but
+    // we only support the array type here. When a client sends a string, it is converted before
+    // the request is being unmarshalled.
+    repeated Content content = 2;
+    string role = 3;
+    string status = 4;
+
+    // id is only meaningful when the type is "item_reference" or "message" (and the item is an output message).
+    string id = 5;
+
+    // TODO(kenji): Support other tool calls such as file search tool call, compute tool call, etc.
+  }
+
+  message Prompt {
+    string id = 1;
+    // TODO(kenji): Support variables
+    string version = 3;
+  }
+
+  message Reasoning {
+    string effort = 1;
+    string generate_summary = 2;
+    string summary = 3;
+  }
+
+  message StreamOptions {
+    bool include_obfuscation = 1;
+  }
+
+  message Text {
+    message Format {
+      // Set to "text", "json_schema", or "json_object".
+      string type = 1;
+
+      // The following fields are only meaningful when the type is "json_schema".
+      string name = 2;
+
+      // encoded_schema is a base64 encoded JSON Schema object.
+      //
+      // The original value in the "schema" field is stripped by the server and converted
+      // to "encoded_schema".
+      //
+      // The value of the field is converted back to the "schema" field when the request is being
+      // sent to vLLM.
+      string encoded_schema = 3;
+
+      string description = 4;
+
+      bool strict = 5;
+    }
+
+    Format format = 1;
+    string verbosity = 2;
+  }
+
+  message ToolChoice {
+    string type = 1;
+
+    // name is meaningful for the hosted tool, function tool, MC tool, and custom tool.
+    string name = 2;
+
+    // mode is meaningful for the allowed tools.
+    string mode = 3;
+
+    // encoded_tools is meaningful for the allowed tools. It is a base64 encoded JSON object.
+    //
+    // The original value in the "tools" field is stripped by the server and converted
+    // to "encoded_tools".
+    //
+    // The value of the field is converted back to the "tools" field when the request is being
+    // sent to vLLM.
+    string encoded_tools = 4;
+
+    // server_label is meaningful for the MCP tool.
+    string server_label = 5;
+  }
+
+  bool background = 1;
+  repeated string include = 2;
+
+  // The type of the input is either string or array in the OpenAI API spec, but
+  // we only support the array type here. When a client sends a string, it is converted before
+  // the request is being unmarshalled.
+  repeated Input input = 3;
+
+  string instructions = 4;
+
+  int32 max_output_tokens = 5;
+
+  int32 max_tool_calls = 6;
+
+  map<string, string> metadata = 7;
+
+  string model = 8;
+
+  bool parallel_tool_calls = 9;
+
+  string previous_response_id = 10;
+
+  Prompt prompt = 11;
+
+  string prompt_cache_key = 12;
+
+  Reasoning reasoning = 13;
+
+  string safety_identifier = 14;
+
+  string service_tier = 15;
+
+  bool store = 16;
+
+  bool stream = 17;
+
+  StreamOptions stream_options = 18;
+
+  double temperature = 19;
+
+  // is_temperature_set is used to indicate whether the temperature is set or not.
+  // This is required as the OpenAI API spec uses 1.0 as the default value for temperature while
+  // setting temperature to 0.0 in the proto is equivalent to unset. If the user sets temperature to 0.0,
+  // it becomes unset when the request is sent to the engine (and then the inference runtime sets temperature to 1.0
+  // as that's the default value).
+  bool is_temperature_set = 20;
+
+  Text text = 21;
+
+  // The type of the "tool_choice" field is a string or an object.
+  // As we cannot have a string or an object in the proto, we use the "tool_choice_object"
+  // if a request sets the "tool_choice" field as an object.
+  //
+  // The "tool_choice_object" field is converted to the "tool_choice" field when the request is being
+  // sent to an inference runtime.
+  string tool_choice = 22;
+  ToolChoice tool_choice_object = 23;
+
+  int32 top_logprobs = 24;
+
+  double top_p = 25;
+
+  // is_top_p_set is used to indicate whether the top_p is set or not.
+  // This is required as the OpenAI API spec uses 1.0 as the default value for top_p while
+  // setting top_p to 0.0 in the proto is equivalent to unset. If the user sets top_p to 0.0,
+  // it becomes unset when the request is sent to the engine (and then the inference runtime sets top_p to 1.0
+  // as that's the default value).
+  bool is_top_p_set = 26;
+
+  bool truncation = 27;
+
+  string user = 28;
+}
+
+message ModelResponse {
+}

@@ -328,7 +328,7 @@ func (p *P) SendAudioTranscriptionTask(
 	return p.sendTask(ctx, t, p.logger.WithName("audio"))
 }
 
-// SendModelResponseTask sends an embedding task.
+// SendModelResponseTask sends a model response task.
 func (p *P) SendModelResponseTask(
 	ctx context.Context,
 	tenantID string,

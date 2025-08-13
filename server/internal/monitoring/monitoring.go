@@ -322,14 +322,14 @@ func (m *MetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
 	m.embeddingRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
 }
 
-// ObserveModelResponseLatency observes a new latency data for an embedding request.
+// ObserveModelResponseLatency observes a new latency data for a model response request.
 func (m *MetricsMonitor) ObserveModelResponseLatency(modelID string, latency time.Duration) {
-	m.embeddingLatencyHistVec.WithLabelValues(modelID).Observe(float64(latency) / float64(time.Second))
+	m.modelResponseLatencyHistVec.WithLabelValues(modelID).Observe(float64(latency) / float64(time.Second))
 }
 
-// UpdateModelResponseRequest updates the number of embedding requests.
+// UpdateModelResponseRequest updates the number of model response requests.
 func (m *MetricsMonitor) UpdateModelResponseRequest(modelID string, c int) {
-	m.embeddingRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
+	m.modelResponseRequestGaugeVec.WithLabelValues(modelID).Add(float64(c))
 }
 
 // ObserveRequestCount observes a new request count for a model and tenant.

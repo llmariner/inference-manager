@@ -127,6 +127,8 @@ func (t *task) model() string {
 		return req.GetEmbedding().Model
 	case *v1.TaskRequest_AudioTranscription:
 		return req.GetAudioTranscription().Model
+	case *v1.TaskRequest_ModelResponse:
+		return req.GetModelResponse().Model
 	default:
 		return ""
 	}

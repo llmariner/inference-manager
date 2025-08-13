@@ -328,6 +328,31 @@ func (p *P) SendAudioTranscriptionTask(
 	return p.sendTask(ctx, t, p.logger.WithName("audio"))
 }
 
+// SendModelResponseTask sends an embedding task.
+func (p *P) SendModelResponseTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.CreateModelResponseRequest,
+	header http.Header,
+) (*http.Response, error) {
+	t, err := newTask(
+		ctx,
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_ModelResponse{
+				ModelResponse: req,
+			},
+		},
+		header,
+		"",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.sendTask(ctx, t, p.logger.WithName("modelResponse"))
+}
+
 // SendGoAwayTaskToLocalEngines sends a go away task to local engines.
 func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 	req := &v1.TaskRequest{

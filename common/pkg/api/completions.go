@@ -54,12 +54,11 @@ func ConvertCreateChatCompletionRequestToOpenAI(body []byte, needStringFormat bo
 		//
 		// We don't have a function that corresponds to convertContentStringToArray as the convertion
 		// doesn't break the OpenAI API spec.
-		convertEncodedTopP,
+		convertEncodedResponseFormat,
 		convertEncodedTopP,
 		convertEncodedTemperature,
 		convertEncodedChatTemplateKwargs,
 		convertEncodedFunctionParameters,
-		convertEncodedResponseFormat,
 		convertToolChoiceObject,
 	}
 	if needStringFormat {

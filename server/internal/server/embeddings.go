@@ -127,7 +127,7 @@ func (s *S) CreateEmbedding(
 	w.WriteHeader(resp.StatusCode)
 
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
+		httpError(w, fmt.Sprintf("Failed to copy response body: %s", err), http.StatusInternalServerError, &usage)
 		return
 	}
 	s.logger.Info("Embedding creation completed", "model", createReq.Model, "duration", time.Since(st))

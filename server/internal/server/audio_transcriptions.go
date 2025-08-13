@@ -180,7 +180,7 @@ func (s *S) CreateAudioTranscription(
 	// TODO(kenji): Set usage details.
 
 	if _, err := io.Copy(w, bytes.NewBuffer(respBody)); err != nil {
-		httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
+		httpError(w, fmt.Sprintf("Failed to copy response body: %s", err), http.StatusInternalServerError, &usage)
 		return
 	}
 }

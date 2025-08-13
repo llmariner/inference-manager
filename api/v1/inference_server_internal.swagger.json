@@ -140,64 +140,6 @@
         }
       }
     },
-    "CreateModelResponseRequestInput": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "content": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CreateModelResponseRequestInputContent"
-          },
-          "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
-        },
-        "role": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string",
-          "description": "id is only meaningful when the type is \"item_reference\" or \"message\" (and the item is an output message)."
-        }
-      }
-    },
-    "CreateModelResponseRequestInputContent": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string",
-          "description": "This field is meaningful when the type is \"input_text\"."
-        },
-        "detail": {
-          "type": "string",
-          "description": "These fields are meaningful when the type is \"input_image\"."
-        },
-        "imageUrl": {
-          "type": "string"
-        },
-        "fileId": {
-          "type": "string",
-          "description": "This field is meaningful when the type is \"input_image\" or \"input_file\"."
-        },
-        "fileData": {
-          "type": "string",
-          "description": "These fields are meaningful when the type is \"input_file\"."
-        },
-        "fileUrl": {
-          "type": "string"
-        },
-        "filename": {
-          "type": "string"
-        }
-      }
-    },
     "CreateModelResponseRequestPrompt": {
       "type": "object",
       "properties": {
@@ -529,7 +471,7 @@
       "properties": {
         "input": {
           "type": "string",
-          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a stryg, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
+          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a string, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
         },
         "encodedInput": {
           "type": "string"
@@ -562,11 +504,11 @@
           }
         },
         "input": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CreateModelResponseRequestInput"
-          },
-          "description": "The type of the input is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
+          "type": "string",
+          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a strig, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
+        },
+        "encodedInput": {
+          "type": "string"
         },
         "instructions": {
           "type": "string"

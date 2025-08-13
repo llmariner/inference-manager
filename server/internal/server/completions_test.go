@@ -558,6 +558,12 @@ func (m *fakeMetricsMonitor) ObserveEmbeddingLatency(modelID string, latency tim
 func (m *fakeMetricsMonitor) UpdateEmbeddingRequest(modelID string, c int) {
 }
 
+func (m *fakeMetricsMonitor) UpdateModelResponseRequest(modelID string, c int) {
+}
+
+func (m *fakeMetricsMonitor) ObserveModelResponseLatency(modelID string, latency time.Duration) {
+}
+
 func (m *fakeMetricsMonitor) ObserveRequestCount(modelID, tenantID string, statusCode int32) {
 }
 
@@ -592,6 +598,11 @@ func (s *captureChatRequestTaskSender) SendChatCompletionTask(ctx context.Contex
 func (s *captureChatRequestTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
+
 func (s *captureChatRequestTaskSender) SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+}
+
+func (s *captureChatRequestTaskSender) SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }

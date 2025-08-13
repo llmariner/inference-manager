@@ -119,6 +119,8 @@ type metricsMonitoring interface {
 	UpdateEmbeddingRequest(modelID string, c int)
 	ObserveAudioTranscriptionLatency(modelID string, latency time.Duration)
 	UpdateAudioTranscriptionRequest(modelID string, c int)
+	ObserveModelResponseLatency(modelID string, latency time.Duration)
+	UpdateModelResponseRequest(modelID string, c int)
 	ObserveRequestCount(modelID, tenantID string, statusCode int32)
 }
 
@@ -126,6 +128,7 @@ type taskSender interface {
 	SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error)
 	SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error)
 	SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, error)
+	SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, error)
 }
 
 // New creates a server.

@@ -29,7 +29,7 @@ type CreateModelResponseRequest struct {
 	Background bool     `protobuf:"varint,1,opt,name=background,proto3" json:"background,omitempty"`
 	Include    []string `protobuf:"bytes,2,rep,name=include,proto3" json:"include,omitempty"`
 	// The "input" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.
-	// As that is not supported by proto, if the input is not a strig, we move the value of the "input" field to "encoded_input"
+	// As that is not supported by proto, if the input is not a string, we move the value of the "input" field to "encoded_input"
 	// and remove the field before unmarshalling.
 	Input              string                                    `protobuf:"bytes,3,opt,name=input,proto3" json:"input,omitempty"`
 	EncodedInput       string                                    `protobuf:"bytes,4,opt,name=encoded_input,json=encodedInput,proto3" json:"encoded_input,omitempty"`

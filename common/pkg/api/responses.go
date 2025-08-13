@@ -8,9 +8,8 @@ import (
 // ConvertCreateModelResponseRequestToProto converts the request to the protobuf format.
 func ConvertCreateModelResponseRequestToProto(body []byte) ([]byte, error) {
 	fs := []convertF{
-		convertToolChoiceTool,
+		convertToolChoiceTools,
 		convertToolChoice,
-		convertChatTemplateKwargs,
 		convertTemperature,
 		convertTopP,
 		convertTextFormatSchema,
@@ -27,12 +26,12 @@ func ConvertCreateModelResponseRequestToOpenAI(body []byte) ([]byte, error) {
 		convertEncodedTopP,
 		convertEncodedTemperature,
 		convertToolChoiceObject,
-		convertEncodedToolChoiceTool,
+		convertEncodedToolChoiceTools,
 	}
 	return applyConvertFuncs(body, fs)
 }
 
-func convertToolChoiceTool(r map[string]interface{}) error {
+func convertToolChoiceTools(r map[string]interface{}) error {
 	toolChoice, ok := r["tool_choice"]
 	if !ok {
 		return nil
@@ -61,7 +60,7 @@ func convertToolChoiceTool(r map[string]interface{}) error {
 	return nil
 }
 
-func convertEncodedToolChoiceTool(r map[string]interface{}) error {
+func convertEncodedToolChoiceTools(r map[string]interface{}) error {
 	toolChoice, ok := r["tool_choice"]
 	if !ok {
 		return nil
@@ -166,7 +165,7 @@ func convertEncodedTextFormatSchema(r map[string]interface{}) error {
 	}
 
 	f["schema"] = s
-	delete(t, "encoded_schema")
+	delete(f, "encoded_schema")
 
 	return nil
 }

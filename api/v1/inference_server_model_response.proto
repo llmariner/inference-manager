@@ -117,7 +117,7 @@ message CreateModelResponseRequest {
   repeated string include = 2;
 
   // The "input" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.
-  // As that is not supported by proto, if the input is not a strig, we move the value of the "input" field to "encoded_input"
+  // As that is not supported by proto, if the input is not a string, we move the value of the "input" field to "encoded_input"
   // and remove the field before unmarshalling.
   string input = 3;
   string encoded_input = 4;

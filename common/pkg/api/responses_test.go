@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConvertToolChoiceTool(t *testing.T) {
+func TestConvertToolChoiceTools(t *testing.T) {
 	reqBody := `
 {
   "tool_choice": {
@@ -19,7 +19,7 @@ func TestConvertToolChoiceTool(t *testing.T) {
     ]
   }
 }`
-	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertToolChoiceTool})
+	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertToolChoiceTools})
 	assert.NoError(t, err)
 
 	r := map[string]interface{}{}
@@ -52,14 +52,14 @@ func TestConvertToolChoiceTool(t *testing.T) {
 	assert.Equal(t, wantT, gotT)
 }
 
-func TestConvertEncodedToolChoiceTool(t *testing.T) {
+func TestConvertEncodedToolChoiceTools(t *testing.T) {
 	reqBody := `
 {
   "tool_choice": {
     "encoded_tools": "W3sibmFtZSI6ImdldF93ZWF0aGVyIiwidHlwZSI6ImZ1bmN0aW9uIn0seyJzZXJ2ZXJfbGFiZWwiOiJkZWVwd2lraSIsInR5cGUiOiJtY3AifV0="
   }
 }`
-	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertEncodedToolChoiceTool})
+	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertEncodedToolChoiceTools})
 	assert.NoError(t, err)
 
 	r := map[string]interface{}{}

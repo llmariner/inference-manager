@@ -494,7 +494,7 @@
         },
         "input": {
           "type": "string",
-          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a strig, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
+          "description": "The \"input\" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.\nAs that is not supported by proto, if the input is not a string, we move the value of the \"input\" field to \"encoded_input\"\nand remove the field before unmarshalling."
         },
         "encodedInput": {
           "type": "string"

@@ -201,7 +201,12 @@ func (s *captureAudioTranscriptionTaskSender) SendChatCompletionTask(ctx context
 func (s *captureAudioTranscriptionTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
+
 func (s *captureAudioTranscriptionTaskSender) SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, error) {
 	s.capturedReq = req
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader([]byte{}))}, nil
+}
+
+func (s *captureAudioTranscriptionTaskSender) SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }

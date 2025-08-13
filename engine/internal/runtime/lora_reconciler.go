@@ -131,6 +131,10 @@ func (r *LoRAReconciler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
+	if !isPodReady(&pod) {
+		return ctrl.Result{}, nil
+	}
+
 	log.Info("Pod updated", "pod", pod.Name)
 	r.addPod(&pod)
 

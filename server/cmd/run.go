@@ -382,4 +382,13 @@ func registerHTTPHandlers(s *server.S, mux *runtime.ServeMux) {
 			"",
 		))
 	mux.Handle("POST", pat, s.CreateAudioTranscription)
+
+	pat = runtime.MustPattern(
+		runtime.NewPattern(
+			1,
+			[]int{2, 0, 2, 1},
+			[]string{"v1", "responses"},
+			"",
+		))
+	mux.Handle("POST", pat, s.CreateModelResponse)
 }

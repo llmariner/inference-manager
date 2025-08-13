@@ -27,7 +27,7 @@ type CreateEmbeddingRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// The "input" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.
-	// As that is not supported by proto, if the input is not a stryg, we move the value of the "input" field to "encoded_input"
+	// As that is not supported by proto, if the input is not a string, we move the value of the "input" field to "encoded_input"
 	// and remove the field before unmarshalling.
 	Input          string `protobuf:"bytes,1,opt,name=input,proto3" json:"input,omitempty"`
 	EncodedInput   string `protobuf:"bytes,6,opt,name=encoded_input,json=encodedInput,proto3" json:"encoded_input,omitempty"`

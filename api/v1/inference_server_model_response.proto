@@ -10,6 +10,8 @@ option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 
 message CreateModelResponseRequest {
+  // TODO(kenji): Remove if we don't need this proto. Currently we don't use as
+  // we encode the value of the "input" field.
   message Input {
     message Content {
       string type = 1;
@@ -114,51 +116,52 @@ message CreateModelResponseRequest {
   bool background = 1;
   repeated string include = 2;
 
-  // The type of the input is either string or array in the OpenAI API spec, but
-  // we only support the array type here. When a client sends a string, it is converted before
-  // the request is being unmarshalled.
-  repeated Input input = 3;
+  // The "input" field can be a string, an array of strings, an array of integers, or an array of arrays of integers.
+  // As that is not supported by proto, if the input is not a string, we move the value of the "input" field to "encoded_input"
+  // and remove the field before unmarshalling.
+  string input = 3;
+  string encoded_input = 4;
 
-  string instructions = 4;
+  string instructions = 5;
 
-  int32 max_output_tokens = 5;
+  int32 max_output_tokens = 6;
 
-  int32 max_tool_calls = 6;
+  int32 max_tool_calls = 7;
 
-  map<string, string> metadata = 7;
+  map<string, string> metadata = 8;
 
-  string model = 8;
+  string model = 9;
 
-  bool parallel_tool_calls = 9;
+  bool parallel_tool_calls = 10;
 
-  string previous_response_id = 10;
+  string previous_response_id = 11;
 
-  Prompt prompt = 11;
+  Prompt prompt = 12;
 
-  string prompt_cache_key = 12;
+  string prompt_cache_key = 13;
 
-  Reasoning reasoning = 13;
+  Reasoning reasoning = 14;
 
-  string safety_identifier = 14;
+  string safety_identifier = 15;
 
-  string service_tier = 15;
+  string service_tier = 16;
 
-  bool store = 16;
+  bool store = 17;
 
-  bool stream = 17;
+  bool stream = 18;
 
-  StreamOptions stream_options = 18;
+  StreamOptions stream_options = 19;
 
-  double temperature = 19;
+  double temperature = 20;
 
   // is_temperature_set is used to indicate whether the temperature is set or not.
   // This is required as the OpenAI API spec uses 1.0 as the default value for temperature while
   // setting temperature to 0.0 in the proto is equivalent to unset. If the user sets temperature to 0.0,
   // it becomes unset when the request is sent to the engine (and then the inference runtime sets temperature to 1.0
   // as that's the default value).
-  bool is_temperature_set = 20;
+  bool is_temperature_set = 21;
 
-  Text text = 21;
+  Text text = 22;
 
   // The type of the "tool_choice" field is a string or an object.
   // As we cannot have a string or an object in the proto, we use the "tool_choice_object"
@@ -166,23 +169,23 @@ message CreateModelResponseRequest {
   //
   // The "tool_choice_object" field is converted to the "tool_choice" field when the request is being
   // sent to an inference runtime.
-  string tool_choice = 22;
-  ToolChoice tool_choice_object = 23;
+  string tool_choice = 23;
+  ToolChoice tool_choice_object = 24;
 
-  int32 top_logprobs = 24;
+  int32 top_logprobs = 25;
 
-  double top_p = 25;
+  double top_p = 26;
 
   // is_top_p_set is used to indicate whether the top_p is set or not.
   // This is required as the OpenAI API spec uses 1.0 as the default value for top_p while
   // setting top_p to 0.0 in the proto is equivalent to unset. If the user sets top_p to 0.0,
   // it becomes unset when the request is sent to the engine (and then the inference runtime sets top_p to 1.0
   // as that's the default value).
-  bool is_top_p_set = 26;
+  bool is_top_p_set = 27;
 
-  bool truncation = 27;
+  bool truncation = 28;
 
-  string user = 28;
+  string user = 29;
 }
 
 message ModelResponse {

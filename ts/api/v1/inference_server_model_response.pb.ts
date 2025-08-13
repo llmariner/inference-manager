@@ -61,7 +61,8 @@ export type CreateModelResponseRequestToolChoice = {
 export type CreateModelResponseRequest = {
   background?: boolean
   include?: string[]
-  input?: CreateModelResponseRequestInput[]
+  input?: string
+  encoded_input?: string
   instructions?: string
   max_output_tokens?: number
   max_tool_calls?: number

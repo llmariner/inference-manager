@@ -34,6 +34,12 @@ func TestLoRAReconciler_Reconcile(t *testing.T) {
 					},
 					Status: corev1.PodStatus{
 						PodIP: "ip0",
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
 					},
 				},
 			},

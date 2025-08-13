@@ -169,15 +169,8 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 			found = &p
 		}
 
-		// Check if the pod is ready
-		for _, cond := range p.Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-				foundReady = &p
-				break
-			}
-		}
-
-		if foundReady != nil {
+		if isPodReady(&p) {
+			foundReady = &p
 			break
 		}
 	}
@@ -238,4 +231,13 @@ func (s *loraAdapterLoadingTargetSelectorImpl) listPods(
 	}
 
 	return pods, nil
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }

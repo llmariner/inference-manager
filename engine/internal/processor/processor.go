@@ -33,6 +33,7 @@ const (
 	completionPath         = "/v1/chat/completions"
 	embeddingPath          = "/v1/embeddings"
 	audioTranscriptionPath = "/v1/audio/transcriptions"
+	modelResponsePath      = "/v1/responses"
 
 	// statusReportInterval is the interval to report engine status.
 	// This needs to be shorter than an idle connection timeout period of
@@ -415,7 +416,10 @@ func (p *P) processTask(
 	goAwayCh chan struct{},
 ) error {
 	switch req := t.Request; req.Request.(type) {
-	case *v1.TaskRequest_ChatCompletion, *v1.TaskRequest_Embedding, *v1.TaskRequest_AudioTranscription:
+	case *v1.TaskRequest_ChatCompletion,
+		*v1.TaskRequest_Embedding,
+		*v1.TaskRequest_AudioTranscription,
+		*v1.TaskRequest_ModelResponse:
 		return p.sendRequestToRuntime(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
 		return p.goAway(ctx, stream, t, goAwayCh)
@@ -621,7 +625,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 		r := req.GetChatCompletion()
 		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
-		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
+		// TODO(kenji): Revisit when we support fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
 		b, err := json.Marshal(r)
 		if err != nil {
@@ -655,7 +659,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 
 		r := req.GetAudioTranscription()
 		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
-		// TODO(kenji): Revisit when we supfport fine-tuning models in vLLM.
+		// TODO(kenji): Revisit when we support fine-tuning models in vLLM.
 		r.Model = ollama.ModelName(r.Model)
 
 		w, err := createWriterForAudioTranscription(r, &b)
@@ -666,6 +670,25 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 
 		reqBody = &b
 		path = audioTranscriptionPath
+
+	case *v1.TaskRequest_ModelResponse:
+		r := req.GetModelResponse()
+		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
+		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
+		// TODO(kenji): Revisit when we support fine-tuning models in vLLM.
+		r.Model = ollama.ModelName(r.Model)
+		b, err := json.Marshal(r)
+		if err != nil {
+			return nil, err
+		}
+
+		b, err = api.ConvertCreateModelResponseRequestToOpenAI(b)
+		if err != nil {
+			return nil, err
+		}
+
+		reqBody = bytes.NewReader(b)
+		path = modelResponsePath
 	default:
 		return nil, fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -948,6 +971,8 @@ func taskModel(t *v1.Task) string {
 		return req.GetEmbedding().Model
 	case *v1.TaskRequest_AudioTranscription:
 		return req.GetAudioTranscription().Model
+	case *v1.TaskRequest_ModelResponse:
+		return req.GetModelResponse().Model
 	default:
 		return "n/a"
 	}
@@ -957,6 +982,10 @@ func taskStream(t *v1.Task) bool {
 	switch req := t.Request; req.Request.(type) {
 	case *v1.TaskRequest_ChatCompletion:
 		return req.GetChatCompletion().Stream
+	case *v1.TaskRequest_AudioTranscription:
+		return req.GetAudioTranscription().Stream
+	case *v1.TaskRequest_ModelResponse:
+		return req.GetModelResponse().Stream
 	default:
 		return false
 	}

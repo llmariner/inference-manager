@@ -134,7 +134,7 @@ func (u *Updater) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result,
 		}
 
 		log.Info("Deleting statefulset...", "name", req.NamespacedName.Name)
-		u.deleletStatefulset(req.Name)
+		u.deleteStatefulSet(req.Name)
 		return ctrl.Result{}, nil
 	}
 

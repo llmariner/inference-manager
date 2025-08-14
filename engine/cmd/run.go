@@ -164,6 +164,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		&c.Runtime,
 		processedConfig,
 		c.Ollama,
+		c.Updater.Enable,
 		modelClient,
 	)
 
@@ -202,6 +203,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				processedConfig,
 				modelClient,
 				&c.VLLM,
+				c.Updater.Enable,
 			),
 			config.RuntimeNameTriton: runtime.NewTritonClient(
 				mgr.GetClient(),
@@ -209,6 +211,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				owner,
 				&c.Runtime,
 				processedConfig,
+				c.Updater.Enable,
 				modelClient,
 			),
 		}
@@ -222,6 +225,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				&c.Runtime,
 				&c.NIM,
 				&model,
+				c.Updater.Enable,
 				modelClient,
 			)
 			nimModels[model.ModelName] = true

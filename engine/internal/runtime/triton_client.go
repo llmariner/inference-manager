@@ -28,6 +28,7 @@ func NewTritonClient(
 	owner *metav1apply.OwnerReferenceApplyConfiguration,
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
+	enableUpdater bool,
 	modelGetter modelGetter,
 ) Client {
 	return &tritonClient{
@@ -36,10 +37,11 @@ func NewTritonClient(
 			namespace: namespace,
 			owner:     owner,
 			// Set the servingPort to the proxy port so that requests first hit the proxy (and then the proxy forwards to Triton).
-			servingPort: proxyHTTPPort,
-			rconfig:     rconfig,
-			mconfig:     mconfig,
-			modelGetter: modelGetter,
+			servingPort:   proxyHTTPPort,
+			rconfig:       rconfig,
+			mconfig:       mconfig,
+			enableUpdater: enableUpdater,
+			modelGetter:   modelGetter,
 		},
 	}
 }

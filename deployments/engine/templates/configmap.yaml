@@ -175,7 +175,7 @@ data:
       heartbeatTimeout: {{ .heartbeatTimeout }}
     {{- end }}
     updater:
-      enable: {{ updater.enable }}
+      enable: {{ .Values.updater.enable }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
     componentStatusSender:

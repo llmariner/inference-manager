@@ -456,6 +456,11 @@ func (c *EngineHeartbeatConfig) validate() error {
 	return nil
 }
 
+// UpdaterConfig is the configuration for the updater.
+type UpdaterConfig struct {
+	Enable bool `yaml:"enable"`
+}
+
 // DebugConfig is the debug configuration.
 type DebugConfig struct {
 	// Standalone is true if the service is running in standalone mode (except the
@@ -527,6 +532,8 @@ type Config struct {
 	ModelContextLengths map[string]int `yaml:"modelContextLengths"`
 
 	EngineHeartbeat EngineHeartbeatConfig `yaml:"engineHeartbeat"`
+
+	Updater UpdaterConfig `yaml:"updater"`
 
 	Debug DebugConfig `yaml:"debug"`
 

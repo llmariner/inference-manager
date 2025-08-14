@@ -431,6 +431,12 @@ engineHeartbeat:
   # Reconnect is triggered when heartbeat requests do not come for this period.
   heartbeatTimeout: 120s
 
+updater:
+  # Set this to true to enable the updater. The updater controls and triggers
+  # the update of the statefulsets. It minimizes the disruption by tracking
+  # the model loading status in addition of pod readiness.
+  enable: false
+
 leaderElection:
   # LeaseDuration is the duration that non-leader candidates will
   # wait to force acquire leadership. This is measured against time of

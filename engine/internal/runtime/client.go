@@ -65,6 +65,8 @@ type commonClient struct {
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
 
+	enableUpdater bool
+
 	modelGetter modelGetter
 }
 
@@ -443,6 +445,13 @@ func (c *commonClient) deployRuntime(
 			WithSpec(podSpec))
 	if vol := resConf.Volume; vol != nil && !vol.ShareWithReplicas {
 		stsSpecConf = stsSpecConf.WithVolumeClaimTemplates(volClaim)
+	}
+
+	if c.enableUpdater {
+		// Set the strategy to OnDelete as pods will be deleted by the updater.
+		stsSpecConf = stsSpecConf.WithUpdateStrategy(
+			appsv1apply.StatefulSetUpdateStrategy().
+				WithType(appsv1.OnDeleteStatefulSetStrategyType))
 	}
 
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).

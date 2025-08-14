@@ -460,7 +460,7 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 
 func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *reconcileStatefulSetEvent) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Reconciling statefulset...", "modelID", e.namespacedName.Name)
+	log.Info("Reconciling statefulset...", "name", e.namespacedName.Name)
 
 	defer close(e.eventWaitCh)
 
@@ -470,7 +470,7 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 			return err
 		}
 
-		log.Info("Deleting runtime...", "modelID", e.namespacedName.Name)
+		log.Info("Deleting runtime...", "name", e.namespacedName.Name)
 		m.deleteRuntimeByName(e.namespacedName.Name)
 		m.autoscaler.Unregister(e.namespacedName)
 		return nil

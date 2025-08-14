@@ -83,6 +83,7 @@ export type CreateModelResponseRequest = {
   text?: CreateModelResponseRequestText
   tool_choice?: string
   tool_choice_object?: CreateModelResponseRequestToolChoice
+  encoded_tools?: string
   top_logprobs?: number
   top_p?: number
   is_top_p_set?: boolean

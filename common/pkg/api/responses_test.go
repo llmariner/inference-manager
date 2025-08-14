@@ -86,6 +86,73 @@ func TestConvertEncodedToolChoiceTools(t *testing.T) {
 	assert.Equal(t, wantT, gotT)
 }
 
+func TestConvertTools(t *testing.T) {
+	reqBody := `
+{
+  "tools": [
+    { "type": "function", "name": "get_weather" },
+    { "type": "mcp", "server_label": "deepwiki" }
+  ]
+}`
+	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertTools})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal(got, &r)
+	assert.NoError(t, err)
+	et, ok := r["encoded_tools"]
+	assert.True(t, ok)
+
+	b, ok := et.(string)
+	assert.True(t, ok)
+	db, err := base64.URLEncoding.DecodeString(b)
+	assert.NoError(t, err)
+
+	gotT := []interface{}{}
+	err = json.Unmarshal(db, &gotT)
+	assert.NoError(t, err)
+	wantT := []interface{}{
+		map[string]interface{}{
+			"type": "function",
+			"name": "get_weather",
+		},
+		map[string]interface{}{
+			"type":         "mcp",
+			"server_label": "deepwiki",
+		},
+	}
+	assert.Equal(t, wantT, gotT)
+}
+
+func TestConvertEncodedTools(t *testing.T) {
+	reqBody := `
+{
+  "encoded_tools": "W3sibmFtZSI6ImdldF93ZWF0aGVyIiwidHlwZSI6ImZ1bmN0aW9uIn0seyJzZXJ2ZXJfbGFiZWwiOiJkZWVwd2lraSIsInR5cGUiOiJtY3AifV0="
+}`
+	got, err := applyConvertFuncs([]byte(reqBody), []convertF{convertEncodedTools})
+	assert.NoError(t, err)
+
+	r := map[string]interface{}{}
+	err = json.Unmarshal(got, &r)
+	assert.NoError(t, err)
+
+	ts, ok := r["tools"]
+	assert.True(t, ok)
+	gotT := ts.([]interface{})
+
+	wantT := []interface{}{
+		map[string]interface{}{
+			"type": "function",
+			"name": "get_weather",
+		},
+		map[string]interface{}{
+			"type":         "mcp",
+			"server_label": "deepwiki",
+		},
+	}
+	assert.Equal(t, wantT, gotT)
+}
+
 func TestConvertTextFormatSchema(t *testing.T) {
 	reqBody := `
 {

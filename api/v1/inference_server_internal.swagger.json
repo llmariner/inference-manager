@@ -578,6 +578,10 @@
         "toolChoiceObject": {
           "$ref": "#/definitions/v1CreateModelResponseRequestToolChoice"
         },
+        "encodedTools": {
+          "type": "string",
+          "description": "The original value in the \"tools\" field is stripped by the server and converted\nto \"encoded_tools\".\n\nThe value of the field is converted back to the \"tools\" field when the request is being\nsent to vLLM."
+        },
         "topLogprobs": {
           "type": "integer",
           "format": "int32"

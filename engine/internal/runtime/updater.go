@@ -178,7 +178,7 @@ func (u *Updater) createOrUpdateStatefulSet(name, modelID string, driftedPods []
 	}
 }
 
-func (u *Updater) deleletStatefulset(name string) {
+func (u *Updater) deleteStatefulSet(name string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 

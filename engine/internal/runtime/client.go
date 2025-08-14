@@ -432,7 +432,6 @@ func (c *commonClient) deployRuntime(
 		annos[modelAnnotationKey] = params.modelID
 	}
 
-	// - Set minAvailable to zero
 	stsSpecConf := appsv1apply.StatefulSetSpec().
 		WithReplicas(int32(mci.Replicas)).
 		WithSelector(metav1apply.LabelSelector().

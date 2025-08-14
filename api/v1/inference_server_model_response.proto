@@ -172,6 +172,13 @@ message CreateModelResponseRequest {
   string tool_choice = 23;
   ToolChoice tool_choice_object = 24;
 
+  // The original value in the "tools" field is stripped by the server and converted
+  // to "encoded_tools".
+  //
+  // The value of the field is converted back to the "tools" field when the request is being
+  // sent to vLLM.
+  string encoded_tools = 30;
+
   int32 top_logprobs = 25;
 
   double top_p = 26;

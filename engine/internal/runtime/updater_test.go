@@ -76,9 +76,10 @@ func TestUpdaterReconcile(t *testing.T) {
 	)
 
 	ctx := testutil.ContextWithLogger(t)
-	_, err := u.Reconcile(ctx, ctrl.Request{
+	req := ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace},
-	})
+	}
+	_, err := u.Reconcile(ctx, req)
 	assert.NoError(t, err)
 
 	rec, ok := u.stsesByName[sts.Name]
@@ -86,4 +87,11 @@ func TestUpdaterReconcile(t *testing.T) {
 	assert.Equal(t, "model0", rec.modelID)
 	assert.Len(t, rec.driftedPods, 1)
 	assert.Equal(t, "pod-model0-1", rec.driftedPods[0].Name)
+
+	err = k8sClient.Delete(ctx, sts)
+	assert.NoError(t, err)
+	_, err = u.Reconcile(ctx, req)
+	assert.NoError(t, err)
+
+	assert.Empty(t, u.stsesByName)
 }

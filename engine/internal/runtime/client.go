@@ -432,7 +432,6 @@ func (c *commonClient) deployRuntime(
 		annos[modelAnnotationKey] = params.modelID
 	}
 
-	// Set WithUpdateStrategy(appsv1apply.StatefulSetUpdateStrategy().
 	// - Set minAvailable to zero
 	stsSpecConf := appsv1apply.StatefulSetSpec().
 		WithReplicas(int32(mci.Replicas)).

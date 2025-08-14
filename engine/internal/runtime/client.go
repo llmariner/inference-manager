@@ -433,7 +433,7 @@ func (c *commonClient) deployRuntime(
 	}
 
 	// Set WithUpdateStrategy(appsv1apply.StatefulSetUpdateStrategy().
-	// - Set minAvailable to zero a
+	// - Set minAvailable to zero
 	stsSpecConf := appsv1apply.StatefulSetSpec().
 		WithReplicas(int32(mci.Replicas)).
 		WithSelector(metav1apply.LabelSelector().

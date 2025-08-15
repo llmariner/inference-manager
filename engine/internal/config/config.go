@@ -456,7 +456,7 @@ func (c *EngineHeartbeatConfig) validate() error {
 	return nil
 }
 
-// DriftedPodUpdaterConfig is the configuration for the updater.
+// DriftedPodUpdaterConfig is the configuration for the drifted pod updater.
 type DriftedPodUpdaterConfig struct {
 	Enable bool `yaml:"enable"`
 }

@@ -143,10 +143,6 @@ func (u *Updater) Start(ctx context.Context) error {
 }
 
 func (u *Updater) runPodUpdater(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
 	ticker := time.NewTicker(updaterUpdateInterval)
 	defer ticker.Stop()
 	for {

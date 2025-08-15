@@ -222,7 +222,7 @@ func (u *DriftedPodUpdater) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 
-		log.Info("Deleting statefulset...", "name", req.NamespacedName.Name)
+		log.Info("Deleting statefulset...", "name", req.Name)
 		u.deleteStatefulSet(req.Name)
 		return ctrl.Result{}, nil
 	}

@@ -179,7 +179,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelSyncer  processor.ModelSyncer
 		modelManager modelManagerI
 	)
-
 	nimModels := make(map[string]bool)
 	errCh := make(chan error)
 	if c.Ollama.DynamicModelLoading {
@@ -253,7 +252,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelSyncer = rtManager
 		modelManager = rtManager
 
-		updater := runtime.NewUpdater(ns, c.Updater.Enable, mgr.GetClient(), rtClientFactory)
+		updater := runtime.NewUpdater(ns, rtClientFactory)
 		if err := updater.SetupWithManager(mgr); err != nil {
 			return err
 		}
@@ -323,6 +322,21 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	activator := runtime.NewModelActivator(processedConfig.PreloadedModelIDs(), modelManager, modelClient)
 	if err := activator.SetupWithManager(mgr); err != nil {
 		return err
+	}
+
+	if c.Updater.Enable {
+		driftedPodUpdater := runtime.NewDriftedPodUpdater(ns, mgr.GetClient())
+		if err := driftedPodUpdater.SetupWithManager(mgr); err != nil {
+			return err
+		}
+
+		go func() {
+			if err := driftedPodUpdater.Run(ctx); err != nil {
+				errCh <- fmt.Errorf("run drifted updater: %s", err)
+				return
+			}
+			errCh <- nil
+		}()
 	}
 
 	bootLog.Info("Starting manager")

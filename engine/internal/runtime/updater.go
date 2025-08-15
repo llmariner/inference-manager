@@ -90,6 +90,7 @@ func (u *Updater) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.StatefulSet{}, builder.WithPredicates(filterByLabel)).
+		Named("runtime-updater").
 		Watches(&corev1.Pod{},
 			handler.TypedEnqueueRequestForOwner[client.Object](mgr.GetScheme(), mgr.GetRESTMapper(), &appsv1.StatefulSet{}, handler.OnlyControllerOwner()),
 			builder.WithPredicates(filterByLabel)).

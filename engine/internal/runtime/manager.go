@@ -908,7 +908,7 @@ func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts 
 	}
 	var cnt, unschedulable int
 	for _, pod := range pods {
-		if pod.Labels["controller-revision-hash"] != sts.Status.CurrentRevision {
+		if pod.Labels[appsv1.ControllerRevisionHashLabelKey] != sts.Status.CurrentRevision {
 			continue
 		}
 		cnt++

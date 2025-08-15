@@ -253,7 +253,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelSyncer = rtManager
 		modelManager = rtManager
 
-		updater := runtime.NewUpdater(ns, mgr.GetClient(), rtClientFactory)
+		updater := runtime.NewUpdater(ns, c.Updater.Enable, mgr.GetClient(), rtClientFactory)
 		if err := updater.SetupWithManager(mgr); err != nil {
 			return err
 		}

@@ -164,7 +164,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		&c.Runtime,
 		processedConfig,
 		c.Ollama,
-		c.Updater.Enable,
+		c.DriftedPodUpdater.Enable,
 		modelClient,
 	)
 
@@ -202,7 +202,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				processedConfig,
 				modelClient,
 				&c.VLLM,
-				c.Updater.Enable,
+				c.DriftedPodUpdater.Enable,
 			),
 			config.RuntimeNameTriton: runtime.NewTritonClient(
 				mgr.GetClient(),
@@ -210,7 +210,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				owner,
 				&c.Runtime,
 				processedConfig,
-				c.Updater.Enable,
+				c.DriftedPodUpdater.Enable,
 				modelClient,
 			),
 		}
@@ -224,7 +224,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				&c.Runtime,
 				&c.NIM,
 				&model,
-				c.Updater.Enable,
+				c.DriftedPodUpdater.Enable,
 				modelClient,
 			)
 			nimModels[model.ModelName] = true
@@ -324,7 +324,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	if c.Updater.Enable {
+	if c.DriftedPodUpdater.Enable {
 		driftedPodUpdater := runtime.NewDriftedPodUpdater(ns, mgr.GetClient())
 		if err := driftedPodUpdater.SetupWithManager(mgr); err != nil {
 			return err

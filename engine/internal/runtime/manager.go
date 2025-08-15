@@ -125,6 +125,7 @@ func (m *Manager) deleteRuntimeByName(name string) {
 			continue
 		}
 
+		m.requeuePendingPullModelRequestsUnlocked(r)
 		r.closeWaitChs(errMsgDeletedRuntime)
 		delete(m.runtimes, id)
 		break
@@ -139,8 +140,19 @@ func (m *Manager) deleteRuntimeByModelID(modelID string) {
 	if !ok {
 		return
 	}
+
+	m.requeuePendingPullModelRequestsUnlocked(r)
+
 	r.closeWaitChs(errMsgDeletedRuntime)
 	delete(m.runtimes, modelID)
+}
+
+func (m *Manager) requeuePendingPullModelRequestsUnlocked(r *runtime) {
+	go func(es []*pullModelEvent) {
+		for _, e := range es {
+			m.eventCh <- e
+		}
+	}(r.dequeuePendingPullModelRequests())
 }
 
 // GetLLMAddress returns the address of the LLM.
@@ -526,6 +538,8 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 		log.V(1).Info("Pod is unschedulable")
 		rt.closeWaitChs(corev1.PodReasonUnschedulable)
 
+		// TODO(kenji): Delete the runtime?
+
 		return nil
 	}
 
@@ -599,15 +613,8 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 
 	log.Info("Runtime is ready", "modelID", e.modelID)
 
-	go func(es []*pullModelEvent) {
-		for _, e := range es {
-			log.Info("Requeuing pending pull request", "modelID", e.modelID)
-			m.eventCh <- e
-		}
-	}(rt.dequeuePendingPullModelRequests())
-
+	m.requeuePendingPullModelRequestsUnlocked(rt)
 	rt.closeWaitChs("")
-
 	close(e.eventWaitCh)
 
 	return nil
@@ -725,6 +732,8 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		}
 
 		log.Info("Removing the runtime", "modelID", modelID)
+
+		m.requeuePendingPullModelRequestsUnlocked(r)
 		r.closeWaitChs(errMsgDeletedRuntime)
 		delete(m.runtimes, modelID)
 	}

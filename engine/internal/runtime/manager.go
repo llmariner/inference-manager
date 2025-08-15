@@ -561,6 +561,7 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	m.mu.Unlock()
 	if !ok {
 		log.Info("Runtime does not exist", "modelID", e.modelID)
+		close(e.eventWaitCh)
 		return nil
 	}
 

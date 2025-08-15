@@ -147,7 +147,13 @@ func (u *Updater) runPodUpdater(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(updaterUpdateInterval):
+	ticker := time.NewTicker(updaterUpdateInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
 			stses := u.listStatefulSets()
 			for _, sts := range stses {
 				if err := u.deleteDriftedPods(ctx, sts); err != nil {

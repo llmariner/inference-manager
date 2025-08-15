@@ -38,7 +38,7 @@ func TestDriftedPodUpdaterReconcile(t *testing.T) {
 	}
 
 	k8sClient := fake.NewFakeClient(sts)
-	u := NewDriftedPodUpdater(namespace, k8sClient)
+	u := NewDriftedPodUpdater(namespace, k8sClient, &fakeUpdateInProgressPodGetter{})
 	u.logger = testutil.NewTestLogger(t)
 
 	ctx := testutil.ContextWithLogger(t)
@@ -97,10 +97,11 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 	}
 
 	tcs := []struct {
-		name            string
-		sts             *statefulSet
-		pods            []*corev1.Pod
-		deletedPodNames []string
+		name                     string
+		sts                      *statefulSet
+		pods                     []*corev1.Pod
+		updateInProgressPodNames []string
+		deletedPodNames          []string
 	}{
 		{
 			name: "no drifted pod",
@@ -209,6 +210,42 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 			},
 			deletedPodNames: nil,
 		},
+		{
+			name: "update in-progress",
+			sts: &statefulSet{
+				name:           stsName,
+				namespace:      namespace,
+				modelID:        "model0",
+				replicas:       4,
+				updateRevision: "hash0",
+			},
+			pods: []*corev1.Pod{
+				newPod("pod0", "hash1", true),
+				newPod("pod1", "hash1", true),
+				newPod("pod2", "hash1", true),
+				newPod("pod3", "hash1", true),
+			},
+			updateInProgressPodNames: []string{"pod0", "pod1"},
+			deletedPodNames:          nil,
+		},
+		{
+			name: "drifted updated pod",
+			sts: &statefulSet{
+				name:           stsName,
+				namespace:      namespace,
+				modelID:        "model0",
+				replicas:       4,
+				updateRevision: "hash0",
+			},
+			pods: []*corev1.Pod{
+				newPod("pod0", "hash0", true),
+				newPod("pod1", "hash0", true),
+				newPod("pod2", "hash1", false),
+				newPod("pod3", "hash0", true),
+			},
+			updateInProgressPodNames: []string{"2"},
+			deletedPodNames:          []string{"pod2"},
+		},
 	}
 
 	for _, tc := range tcs {
@@ -219,7 +256,19 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				objs = append(objs, pod)
 			}
 			k8sClient := fake.NewFakeClient(objs...)
-			u := NewDriftedPodUpdater(namespace, k8sClient)
+
+			updatedPods := map[string]struct{}{}
+			for _, podName := range tc.updateInProgressPodNames {
+				updatedPods[podName] = struct{}{}
+			}
+
+			u := NewDriftedPodUpdater(
+				namespace,
+				k8sClient,
+				&fakeUpdateInProgressPodGetter{
+					podNames: updatedPods,
+				},
+			)
 			u.logger = testutil.NewTestLogger(t)
 
 			ctx := testutil.ContextWithLogger(t)
@@ -244,4 +293,12 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 			assert.ElementsMatch(t, tc.deletedPodNames, deletedPodNames)
 		})
 	}
+}
+
+type fakeUpdateInProgressPodGetter struct {
+	podNames map[string]struct{}
+}
+
+func (f *fakeUpdateInProgressPodGetter) GetUpdateInProgressPodNames() map[string]struct{} {
+	return f.podNames
 }

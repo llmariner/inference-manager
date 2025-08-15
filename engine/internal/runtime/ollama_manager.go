@@ -56,6 +56,12 @@ type ollamaModel struct {
 	waitChs []chan struct{}
 }
 
+// GetUpdateInProgressPodNames returns the names of pods that are currently in the process of updating.
+func (m *OllamaManager) GetUpdateInProgressPodNames() map[string]struct{} {
+	// No pods are in the process of updating in ollama manager.
+	return nil
+}
+
 // ListModels returns the list of models.
 func (m *OllamaManager) ListModels() []*iv1.EngineStatus_Model {
 	m.mu.RLock()

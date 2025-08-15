@@ -224,7 +224,6 @@ func TestUpdaterDeleteDriftedPods(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			const namespace = "test-namespace"
 
 			var objs []apiruntime.Object
 			for _, pod := range tc.pods {

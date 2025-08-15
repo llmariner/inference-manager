@@ -116,7 +116,7 @@ func (u *Updater) Start(ctx context.Context) error {
 			"app.kubernetes.io/name":       "runtime",
 			"app.kubernetes.io/created-by": managerName,
 		}); err != nil {
-		return fmt.Errorf("failed to list runtimes: %s", err)
+		return fmt.Errorf("list runtimes: %s", err)
 	}
 
 	// TODO: support runtime(ollama, vllm) changes
@@ -128,11 +128,10 @@ func (u *Updater) Start(ctx context.Context) error {
 		}
 		client, err := u.rtClientFactory.New(modelID)
 		if err != nil {
-			return fmt.Errorf("failed to create runtime client: %s", err)
+			return fmt.Errorf("create runtime client: %s", err)
 		}
-		_, err = client.DeployRuntime(ctx, modelID, true)
-		if err != nil {
-			return fmt.Errorf("failed to update runtime: %s", err)
+		if _, err = client.DeployRuntime(ctx, modelID, true); err != nil {
+			return fmt.Errorf("update runtime: %s", err)
 		}
 		u.logger.V(1).Info("Updated runtime", "model", modelID)
 	}

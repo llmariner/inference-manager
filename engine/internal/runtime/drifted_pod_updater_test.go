@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestUpdaterReconcile(t *testing.T) {
+func TestDriftedPodUpdaterReconcile(t *testing.T) {
 	const (
 		namespace = "test-namespace"
 	)
@@ -38,19 +38,8 @@ func TestUpdaterReconcile(t *testing.T) {
 	}
 
 	k8sClient := fake.NewFakeClient(sts)
-
-	rtClient := &fakeClient{
-		deployed:  map[string]bool{},
-		k8sClient: k8sClient,
-		namespace: namespace,
-	}
-
-	u := NewUpdater(
-		namespace,
-		true,
-		k8sClient,
-		&fakeClientFactory{c: rtClient},
-	)
+	u := NewDriftedPodUpdater(namespace, k8sClient)
+	u.logger = testutil.NewTestLogger(t)
 
 	ctx := testutil.ContextWithLogger(t)
 	req := ctrl.Request{
@@ -75,7 +64,7 @@ func TestUpdaterReconcile(t *testing.T) {
 	assert.Empty(t, u.listStatefulSets())
 }
 
-func TestUpdaterDeleteDriftedPods(t *testing.T) {
+func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 	const (
 		namespace = "test-namespace"
 		stsName   = "sts-model0"
@@ -230,18 +219,7 @@ func TestUpdaterDeleteDriftedPods(t *testing.T) {
 				objs = append(objs, pod)
 			}
 			k8sClient := fake.NewFakeClient(objs...)
-			rtClient := &fakeClient{
-				deployed:  map[string]bool{},
-				k8sClient: k8sClient,
-				namespace: namespace,
-			}
-
-			u := NewUpdater(
-				namespace,
-				true,
-				k8sClient,
-				&fakeClientFactory{c: rtClient},
-			)
+			u := NewDriftedPodUpdater(namespace, k8sClient)
 			u.logger = testutil.NewTestLogger(t)
 
 			ctx := testutil.ContextWithLogger(t)

@@ -681,9 +681,8 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 }
 
 func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *loraAdapterStatusUpdateEvent) error {
-	defer close(e.eventWaitCh)
-
 	if e.update.podIP == "" {
+		close(e.eventWaitCh)
 		return fmt.Errorf("podIP is empty")
 	}
 
@@ -692,9 +691,12 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	var needRetryModels []string
+
 	for _, modelID := range e.update.addedAdapterIDs {
 		client, err := m.rtClientFactory.New(modelID)
 		if err != nil {
+			close(e.eventWaitCh)
 			return err
 		}
 		vllmAddr := client.GetAddress(e.update.podIP)
@@ -710,12 +712,18 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 			m.runtimes[modelID] = r
 		}
 
-		r.addAddress(vllmAddr)
+		if r.ready {
+			r.addAddress(vllmAddr)
+		} else {
+			// Runtime is being created. Retry and add the address later.
+			needRetryModels = append(needRetryModels, modelID)
+		}
 	}
 
 	for _, modelID := range e.update.removedAdapterIDs {
 		client, err := m.rtClientFactory.New(modelID)
 		if err != nil {
+			close(e.eventWaitCh)
 			return err
 		}
 		vllmAddr := client.GetAddress(e.update.podIP)
@@ -735,6 +743,26 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		log.Info("Removing the runtime", "modelID", modelID)
 		m.deleteRuntimeUnlocked(r, modelID)
 	}
+
+	if len(needRetryModels) == 0 {
+		close(e.eventWaitCh)
+		return nil
+	}
+
+	log.Info("Runtime is not ready. Retrying...", "modelIDs", needRetryModels)
+	go func() {
+		time.Sleep(m.readinessCheckRetryInterval)
+		m.eventCh <- &loraAdapterStatusUpdateEvent{
+			update: &loRAAdapterStatusUpdate{
+				podName:         e.update.podName,
+				podIP:           e.update.podIP,
+				gpu:             e.update.gpu,
+				baseModelID:     e.update.baseModelID,
+				addedAdapterIDs: needRetryModels,
+			},
+			eventWaitCh: e.eventWaitCh,
+		}
+	}()
 
 	return nil
 }

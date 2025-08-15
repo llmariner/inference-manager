@@ -125,9 +125,7 @@ func (m *Manager) deleteRuntimeByName(name string) {
 			continue
 		}
 
-		m.requeuePendingPullModelRequestsUnlocked(r)
-		r.closeWaitChs(errMsgDeletedRuntime)
-		delete(m.runtimes, id)
+		m.deleteRuntimeUnlocked(r, id)
 		break
 	}
 }
@@ -141,8 +139,11 @@ func (m *Manager) deleteRuntimeByModelID(modelID string) {
 		return
 	}
 
-	m.requeuePendingPullModelRequestsUnlocked(r)
+	m.deleteRuntimeUnlocked(r, modelID)
+}
 
+func (m *Manager) deleteRuntimeUnlocked(r *runtime, modelID string) {
+	m.requeuePendingPullModelRequestsUnlocked(r)
 	r.closeWaitChs(errMsgDeletedRuntime)
 	delete(m.runtimes, modelID)
 }
@@ -732,10 +733,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		}
 
 		log.Info("Removing the runtime", "modelID", modelID)
-
-		m.requeuePendingPullModelRequestsUnlocked(r)
-		r.closeWaitChs(errMsgDeletedRuntime)
-		delete(m.runtimes, modelID)
+		m.deleteRuntimeUnlocked(r, modelID)
 	}
 
 	return nil

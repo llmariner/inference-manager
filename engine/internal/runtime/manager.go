@@ -162,7 +162,7 @@ func (m *Manager) requeuePendingPullModelRequestsUnlocked(r *runtime) {
 
 // GetUpdateInProgressPodNames returns the names of pods that are currently in the process of updating.
 func (m *Manager) GetUpdateInProgressPodNames() map[string]struct{} {
-	m.mu.RLock()
+	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	copied := make(map[string]struct{}, len(m.updateInProgressPodNames))
@@ -174,8 +174,8 @@ func (m *Manager) GetUpdateInProgressPodNames() map[string]struct{} {
 
 // GetLLMAddress returns the address of the LLM.
 func (m *Manager) GetLLMAddress(modelID string) (string, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	r, ok := m.runtimes[modelID]
 	if !ok {
 		return "", fmt.Errorf("runtime for model %q does not exist", modelID)

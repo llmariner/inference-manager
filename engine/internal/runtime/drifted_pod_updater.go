@@ -20,12 +20,22 @@ import (
 
 const updaterUpdateInterval = 30 * time.Second
 
+// UpdateInProgressPodGetter gets the names of pods that are currently being updated.
+type UpdateInProgressPodGetter interface {
+	GetUpdateInProgressPodNames() map[string]struct{}
+}
+
 // NewDriftedPodUpdater creates a new DriftedPodUpdater.
-func NewDriftedPodUpdater(namespace string, k8sClient client.Client) *DriftedPodUpdater {
+func NewDriftedPodUpdater(
+	namespace string,
+	k8sClient client.Client,
+	updateInProgressPodGetter UpdateInProgressPodGetter,
+) *DriftedPodUpdater {
 	return &DriftedPodUpdater{
-		namespace:   namespace,
-		k8sClient:   k8sClient,
-		stsesByName: make(map[string]*statefulSet),
+		namespace:                 namespace,
+		k8sClient:                 k8sClient,
+		updateInProgressPodGetter: updateInProgressPodGetter,
+		stsesByName:               make(map[string]*statefulSet),
 	}
 }
 
@@ -54,6 +64,8 @@ type DriftedPodUpdater struct {
 	namespace string
 
 	k8sClient client.Client
+
+	updateInProgressPodGetter UpdateInProgressPodGetter
 
 	logger logr.Logger
 
@@ -151,12 +163,21 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	// - If all pods are ready, we can delete any drifted pod.
 	// - If all pods except one are ready, check if the unready pod is the drifted one. If so, we can delete it.
 
+	updateInProgressPods := u.updateInProgressPodGetter.GetUpdateInProgressPodNames()
+
 	readyPodsByName := map[string]*corev1.Pod{}
 	for _, pod := range pods {
-		if isPodReady(&pod) {
-			// TODO(kenji): Check model loading status.
-			readyPodsByName[pod.Name] = &pod
+		if !isPodReady(&pod) {
+			continue
 		}
+
+		if _, ok := updateInProgressPods[pod.Name]; ok {
+			u.logger.Info("Skipping pod that is being updated", "pod", pod.Name)
+			continue
+		}
+
+		// TODO(kenji): Check model loading status.
+		readyPodsByName[pod.Name] = &pod
 	}
 
 	u.logger.Info("Ready pods found", "statefulset", sts.name, "readyPods", len(readyPodsByName), "replicas", sts.replicas)
@@ -195,8 +216,6 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	}
 
 	u.logger.Info("Drifted pods found but not deleted", "statefulset", sts.name, "pods", len(driftedPods))
-
-	// TODO(kenji): check if activators & preloader complete the first run
 
 	return nil
 }

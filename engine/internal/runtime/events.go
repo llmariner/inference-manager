@@ -27,6 +27,9 @@ type readinessCheckEvent struct {
 	gpu      int32
 	replicas int32
 
+	// pod is set when the readiness check is for a specific pod (for LoRA loading).
+	pod *corev1.Pod
+
 	retryCount int
 
 	eventWaitCh chan error

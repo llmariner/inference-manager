@@ -55,6 +55,8 @@ func NewManager(
 		runtimes: make(map[string]*runtime),
 		eventCh:  make(chan interface{}),
 
+		updateInProgressPodNames: map[string]struct{}{},
+
 		runtimeReadinessChecker: &runtimeReadinessCheckerImpl{},
 		loraAdapterLoadingTargetSelector: &loraAdapterLoadingTargetSelectorImpl{
 			k8sClient:       k8sClient,
@@ -100,6 +102,8 @@ type Manager struct {
 	runtimes map[string]*runtime
 
 	eventCh chan interface{}
+
+	updateInProgressPodNames map[string]struct{}
 
 	mu sync.RWMutex
 
@@ -154,6 +158,18 @@ func (m *Manager) requeuePendingPullModelRequestsUnlocked(r *runtime) {
 			m.eventCh <- e
 		}
 	}(r.dequeuePendingPullModelRequests())
+}
+
+// GetUpdateInProgressPodNames returns the names of pods that are currently in the process of updating.
+func (m *Manager) GetUpdateInProgressPodNames() map[string]struct{} {
+	m.mu.RLock()
+	defer m.mu.Unlock()
+
+	copied := make(map[string]struct{}, len(m.updateInProgressPodNames))
+	for k, v := range m.updateInProgressPodNames {
+		copied[k] = v
+	}
+	return copied
 }
 
 // GetLLMAddress returns the address of the LLM.
@@ -577,6 +593,13 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 	if !ok {
 		log.Info("Runtime does not exist", "modelID", e.modelID)
 		close(e.eventWaitCh)
+
+		if e.pod != nil {
+			m.mu.Lock()
+			delete(m.updateInProgressPodNames, e.pod.Name)
+			m.mu.Unlock()
+		}
+
 		return nil
 	}
 
@@ -588,6 +611,13 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 			rt.closeWaitChs(errMsgUnreachableRuntime)
 			close(e.eventWaitCh)
 			// TODO(kenji): Delete the runtime here?
+
+			if e.pod != nil {
+				m.mu.Lock()
+				delete(m.updateInProgressPodNames, e.pod.Name)
+				m.mu.Unlock()
+			}
+
 			return nil
 		}
 
@@ -614,6 +644,10 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 
 	log.Info("Runtime is ready", "modelID", e.modelID)
 
+	if e.pod != nil {
+		delete(m.updateInProgressPodNames, e.pod.Name)
+	}
+
 	m.requeuePendingPullModelRequestsUnlocked(rt)
 	rt.closeWaitChs("")
 	close(e.eventWaitCh)
@@ -624,18 +658,31 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e *loraAdapterPullStatusCheckEvent) error {
 	log := ctrl.LoggerFrom(ctx)
 
+	m.mu.Lock()
+	m.updateInProgressPodNames[e.pod.Name] = struct{}{}
+	m.mu.Unlock()
+
 	if ok, err := m.loraAdapterLoadingTargetSelector.targetExists(ctx, e.modelID, e.pod); err != nil {
 		return fmt.Errorf("check if LoRA adapter loading target pod exists: %s", err)
 	} else if !ok {
 		// Send the error the caller. The caller might retry.
 		log.Info("LoRA adapter loading target pod no longer exists", "modelID", e.modelID, "podIP", e.pod.Status.PodIP)
 		e.eventWaitCh <- fmt.Errorf("lora adapter loading target pod %s no longer exists", e.pod.Name)
+
+		m.mu.Lock()
+		delete(m.updateInProgressPodNames, e.pod.Name)
+		m.mu.Unlock()
+
 		return nil
 	}
 
 	pullerAddr := fmt.Sprintf("%s:%d", e.pod.Status.PodIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
 	if err != nil {
+		m.mu.Lock()
+		delete(m.updateInProgressPodNames, e.pod.Name)
+		m.mu.Unlock()
+
 		return fmt.Errorf("check model pull status: %s", err)
 	}
 	if !ok {
@@ -653,6 +700,10 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 
 	client, err := m.rtClientFactory.New(e.modelID)
 	if err != nil {
+		m.mu.Lock()
+		delete(m.updateInProgressPodNames, e.pod.Name)
+		m.mu.Unlock()
+
 		return err
 	}
 	vllmAddr := client.GetAddress(e.pod.Status.PodIP)
@@ -673,6 +724,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 			address:     vllmAddr,
 			gpu:         e.gpu,
 			replicas:    0, // TODO(kenji): Fix this.
+			pod:         e.pod,
 			eventWaitCh: e.eventWaitCh,
 		}
 	}()

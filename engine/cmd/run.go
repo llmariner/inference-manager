@@ -178,6 +178,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		addrGetter   processor.AddressGetter
 		modelSyncer  processor.ModelSyncer
 		modelManager modelManagerI
+
+		updateInProgressPodGetter runtime.UpdateInProgressPodGetter
 	)
 	nimModels := make(map[string]bool)
 	errCh := make(chan error)
@@ -190,7 +192,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		addrGetter = ollamaManager
 		modelSyncer = ollamaManager
 		modelManager = ollamaManager
-
+		updateInProgressPodGetter = ollamaManager
 	} else {
 		clients := map[string]runtime.Client{
 			config.RuntimeNameOllama: ollamaClient,
@@ -251,6 +253,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		addrGetter = rtManager
 		modelSyncer = rtManager
 		modelManager = rtManager
+		updateInProgressPodGetter = rtManager
 
 		updater := runtime.NewUpdater(ns, rtClientFactory)
 		if err := updater.SetupWithManager(mgr); err != nil {
@@ -325,7 +328,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	if c.DriftedPodUpdater.Enable {
-		driftedPodUpdater := runtime.NewDriftedPodUpdater(ns, mgr.GetClient())
+		driftedPodUpdater := runtime.NewDriftedPodUpdater(ns, mgr.GetClient(), updateInProgressPodGetter)
 		if err := driftedPodUpdater.SetupWithManager(mgr); err != nil {
 			return err
 		}

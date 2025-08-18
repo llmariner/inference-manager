@@ -233,7 +233,7 @@ func (u *DriftedPodUpdater) deleteDriftedPod(ctx context.Context, pod *corev1.Po
 // Reconcile reconciles the runtime.
 func (u *DriftedPodUpdater) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Reconciling statefulset...", "name", req.Name)
+	log.V(1).Info("Reconciling statefulset...", "name", req.Name)
 
 	var sts appsv1.StatefulSet
 	if err := u.k8sClient.Get(ctx, req.NamespacedName, &sts); err != nil {
@@ -241,12 +241,12 @@ func (u *DriftedPodUpdater) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 
-		log.Info("Deleting statefulset...", "name", req.Name)
+		log.V(1).Info("Deleting statefulset...", "name", req.Name)
 		u.deleteStatefulSet(req.Name)
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("Updating statefulset...", "name", sts.Name)
+	log.V(1).Info("Updating statefulset...", "name", sts.Name)
 
 	u.createOrUpdateStatefulSet(&sts)
 

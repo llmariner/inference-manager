@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	auv1 "github.com/llmariner/api-usage/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/common/pkg/api"
 	"github.com/llmariner/inference-manager/server/internal/rate"
@@ -34,11 +35,16 @@ func (s *S) CreateModelResponse(
 	}
 
 	usage := newUsageRecord(userInfo, st, "CreateModelResponse")
-	var modelID string
+	details := &auv1.CreateModelResponse{}
+	usage.Details = &auv1.UsageDetails{
+		Message: &auv1.UsageDetails_CreateModelResponse{
+			CreateModelResponse: details,
+		},
+	}
 	defer func() {
 		usage.LatencyMs = int32(time.Since(st).Milliseconds())
 		s.usageSetter.AddUsage(&usage)
-		s.metricsMonitor.ObserveRequestCount(modelID, userInfo.TenantID, usage.StatusCode)
+		s.metricsMonitor.ObserveRequestCount(details.ModelId, userInfo.TenantID, usage.StatusCode)
 	}()
 
 	if !userInfo.ExcludedFromRateLimiting {
@@ -82,7 +88,7 @@ func (s *S) CreateModelResponse(
 		httpError(w, "model is required", http.StatusBadRequest, &usage)
 		return
 	}
-	modelID = createReq.Model
+	details.ModelId = createReq.Model
 
 	s.metricsMonitor.UpdateModelResponseRequest(createReq.Model, 1)
 	defer func() {
@@ -96,7 +102,7 @@ func (s *S) CreateModelResponse(
 		return
 	}
 
-	resp, err := s.taskSender.SendModelResponseTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
+	resp, ps, err := s.taskSender.SendModelResponseTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -106,6 +112,9 @@ func (s *S) CreateModelResponse(
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
+	details.RuntimeTimeToFirstTokenMs = ps.RuntimeTimeToFirstTokenMs()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)

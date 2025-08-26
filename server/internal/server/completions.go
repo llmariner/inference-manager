@@ -161,7 +161,7 @@ func (s *S) CreateChatCompletion(
 		return
 	}
 
-	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
+	resp, ps, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -173,6 +173,7 @@ func (s *S) CreateChatCompletion(
 	defer func() { _ = resp.Body.Close() }()
 
 	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
+	details.RuntimeTimeToFirstTokenMs = ps.RuntimeTimeToFirstTokenMs()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
@@ -220,6 +221,8 @@ func (s *S) CreateChatCompletion(
 			return
 		}
 
+		usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
+
 		return
 	}
 
@@ -266,6 +269,8 @@ func (s *S) CreateChatCompletion(
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
+
+	usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
 }
 
 // handleToolsForRAG inspects the tool and handles specially if there is a RAG tool funciton.

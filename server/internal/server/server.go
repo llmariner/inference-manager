@@ -11,6 +11,7 @@ import (
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/server/internal/config"
+	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
@@ -125,10 +126,10 @@ type metricsMonitoring interface {
 }
 
 type taskSender interface {
-	SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error)
-	SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error)
-	SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, error)
-	SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, error)
+	SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
+	SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
+	SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
+	SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
 }
 
 // New creates a server.

@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const fakeLatencyMs int32 = 10
+
 func TestP(t *testing.T) {
 	const (
 		modelID = "m0"
@@ -52,12 +54,14 @@ func TestP(t *testing.T) {
 	}()
 
 	req := &v1.CreateChatCompletionRequest{Model: modelID}
-	resp, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
+	resp, ps, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
+	assert.Equal(t, fakeLatencyMs, ps.runtimeLatencyMs)
+	assert.Equal(t, fakeLatencyMs, ps.runtimeTimeToFirstTokenMs)
 
 	assert.Empty(t, iprocessor.inProgressTasksByID)
 
@@ -68,7 +72,7 @@ func TestP(t *testing.T) {
 	// Remove the engine. Check if a newly created task will fail.
 	iprocessor.RemoveEngine("engine_id0", "tenant0")
 	assert.Empty(t, iprocessor.engines["tenant0"])
-	_, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
+	_, _, err = iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 	assert.Truef(t, strings.Contains(err.Error(), "no engine available"), "got %s", err)
 }
@@ -111,12 +115,14 @@ func TestEmbedding(t *testing.T) {
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	resp, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	resp, ps, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
+	assert.Equal(t, fakeLatencyMs, ps.runtimeLatencyMs)
+	assert.Equal(t, fakeLatencyMs, ps.runtimeTimeToFirstTokenMs)
 
 	assert.Empty(t, iprocessor.inProgressTasksByID)
 }
@@ -160,7 +166,7 @@ func TestRemoveEngineWithInProgressTask(t *testing.T) {
 	}()
 
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, _, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 
 	assert.Empty(t, iprocessor.inProgressTasksByID)
@@ -201,7 +207,7 @@ func TestProcessTaskTimeout(t *testing.T) {
 	defer cancel()
 
 	req := &v1.CreateChatCompletionRequest{Model: modelID}
-	_, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
+	_, _, err := iprocessor.SendChatCompletionTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
@@ -243,7 +249,7 @@ func TestProcessTaskResultAfterContextCancel(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	req := &v1.CreateEmbeddingRequest{Model: modelID}
-	_, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
+	_, _, err := iprocessor.SendEmbeddingTask(ctx, "tenant0", req, nil)
 	assert.Error(t, err)
 
 	assert.Empty(t, iprocessor.inProgressTasksByID)
@@ -866,6 +872,7 @@ func (c *fakeEngineCommunicator) run(ctx context.Context) {
 					HttpResponse: &v1.HttpResponse{
 						StatusCode: http.StatusOK,
 						Body:       []byte("ok"),
+						LatencyMs:  fakeLatencyMs,
 					},
 				},
 			}

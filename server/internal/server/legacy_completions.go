@@ -107,7 +107,7 @@ func (s *S) CreateCompletion(
 	}
 
 	convertedReq := toCreateChatCompletionRequest(&createReq)
-	resp, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, convertedReq, dropUnnecessaryHeaders(req.Header))
+	resp, ps, err := s.taskSender.SendChatCompletionTask(ctx, userInfo.TenantID, convertedReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -119,6 +119,7 @@ func (s *S) CreateCompletion(
 	defer func() { _ = resp.Body.Close() }()
 
 	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
+	details.RuntimeTimeToFirstTokenMs = ps.RuntimeTimeToFirstTokenMs()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
@@ -166,6 +167,9 @@ func (s *S) CreateCompletion(
 			httpError(w, fmt.Sprintf("Server error: %s", err), http.StatusInternalServerError, &usage)
 			return
 		}
+
+		usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
+
 		return
 	}
 
@@ -230,6 +234,8 @@ func (s *S) CreateCompletion(
 		httpError(w, err.Error(), http.StatusInternalServerError, &usage)
 		return
 	}
+
+	usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
 }
 
 func toCreateChatCompletionRequest(req *v1.CreateCompletionRequest) *v1.CreateChatCompletionRequest {

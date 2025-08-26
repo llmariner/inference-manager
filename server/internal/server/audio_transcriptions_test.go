@@ -12,6 +12,7 @@ import (
 	"github.com/llmariner/api-usage/pkg/sender"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
+	"github.com/llmariner/inference-manager/server/internal/infprocessor"
 	"github.com/llmariner/inference-manager/server/internal/rate"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	vsv1 "github.com/llmariner/vector-store-manager/api/v1"
@@ -194,19 +195,19 @@ type captureAudioTranscriptionTaskSender struct {
 	capturedReq *v1.CreateAudioTranscriptionRequest
 }
 
-func (s *captureAudioTranscriptionTaskSender) SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *captureAudioTranscriptionTaskSender) SendChatCompletionTask(ctx context.Context, tenantID string, req *v1.CreateChatCompletionRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
+	return nil, nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
-func (s *captureAudioTranscriptionTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *captureAudioTranscriptionTaskSender) SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
+	return nil, nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
-func (s *captureAudioTranscriptionTaskSender) SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, error) {
+func (s *captureAudioTranscriptionTaskSender) SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
 	s.capturedReq = req
-	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader([]byte{}))}, nil
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader([]byte{}))}, &infprocessor.ProcessingStats{}, nil
 }
 
-func (s *captureAudioTranscriptionTaskSender) SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *captureAudioTranscriptionTaskSender) SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
+	return nil, nil, status.Errorf(codes.Unimplemented, "not implemented")
 }

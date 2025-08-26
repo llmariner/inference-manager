@@ -96,7 +96,7 @@ func (s *S) CreateEmbedding(
 		return
 	}
 
-	resp, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
+	resp, ps, err := s.taskSender.SendEmbeddingTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -131,4 +131,6 @@ func (s *S) CreateEmbedding(
 		return
 	}
 	s.logger.Info("Embedding creation completed", "model", createReq.Model, "duration", time.Since(st))
+
+	usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
 }

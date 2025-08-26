@@ -259,7 +259,7 @@ func (p *P) SendChatCompletionTask(
 	tenantID string,
 	req *v1.CreateChatCompletionRequest,
 	header http.Header,
-) (*http.Response, error) {
+) (*http.Response, *ProcessingStats, error) {
 	t, err := newTask(
 		ctx,
 		tenantID,
@@ -272,7 +272,7 @@ func (p *P) SendChatCompletionTask(
 		"",
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return p.sendTask(ctx, t, p.logger.WithName("chat"))
@@ -284,7 +284,7 @@ func (p *P) SendEmbeddingTask(
 	tenantID string,
 	req *v1.CreateEmbeddingRequest,
 	header http.Header,
-) (*http.Response, error) {
+) (*http.Response, *ProcessingStats, error) {
 	t, err := newTask(
 		ctx,
 		tenantID,
@@ -297,7 +297,7 @@ func (p *P) SendEmbeddingTask(
 		"",
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return p.sendTask(ctx, t, p.logger.WithName("embedded"))
@@ -309,7 +309,7 @@ func (p *P) SendAudioTranscriptionTask(
 	tenantID string,
 	req *v1.CreateAudioTranscriptionRequest,
 	header http.Header,
-) (*http.Response, error) {
+) (*http.Response, *ProcessingStats, error) {
 	t, err := newTask(
 		ctx,
 		tenantID,
@@ -322,7 +322,7 @@ func (p *P) SendAudioTranscriptionTask(
 		"",
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return p.sendTask(ctx, t, p.logger.WithName("audio"))
@@ -334,7 +334,7 @@ func (p *P) SendModelResponseTask(
 	tenantID string,
 	req *v1.CreateModelResponseRequest,
 	header http.Header,
-) (*http.Response, error) {
+) (*http.Response, *ProcessingStats, error) {
 	t, err := newTask(
 		ctx,
 		tenantID,
@@ -347,7 +347,7 @@ func (p *P) SendModelResponseTask(
 		"",
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return p.sendTask(ctx, t, p.logger.WithName("modelResponse"))
@@ -443,7 +443,7 @@ func (p *P) sendTaskToEngines(
 					return err
 				}
 
-				if _, err := p.sendTask(ctx, t, p.logger.WithName(taskName)); err != nil {
+				if _, _, err := p.sendTask(ctx, t, p.logger.WithName(taskName)); err != nil {
 					return fmt.Errorf("send task: %s", err)
 				}
 
@@ -465,7 +465,7 @@ func (p *P) sendTask(
 	ctx context.Context,
 	t *task,
 	logger logr.Logger,
-) (*http.Response, error) {
+) (*http.Response, *ProcessingStats, error) {
 	log := logger.WithValues("id", t.id)
 	val, ok := t.header[http.CanonicalHeaderKey(requestIDHeader)]
 	if ok {
@@ -479,6 +479,8 @@ func (p *P) sendTask(
 	// and this function ends.
 	errCh := make(chan error, 1)
 
+	ps := &ProcessingStats{}
+
 	go func() {
 		bodyWriter := newPipeReadWriteCloser()
 		defer func() {
@@ -488,7 +490,7 @@ func (p *P) sendTask(
 		}()
 
 		f := func(r *v1.TaskResult) error {
-			return writeTaskResultToHTTPRespCh(r, bodyWriter, respCh, log)
+			return writeTaskResultToHTTPRespCh(r, bodyWriter, t.stream(), respCh, ps, log)
 		}
 		if err := p.enqueueAndProcessTask(ctx, t, f, log); err != nil {
 			errCh <- err
@@ -497,9 +499,9 @@ func (p *P) sendTask(
 
 	select {
 	case resp := <-respCh:
-		return resp, nil
+		return resp, ps, nil
 	case err := <-errCh:
-		return nil, err
+		return nil, nil, err
 	}
 }
 
@@ -1007,7 +1009,9 @@ func (p *P) DumpStatus() *Status {
 func writeTaskResultToHTTPRespCh(
 	result *v1.TaskResult,
 	bodyWriter *pipeReadWriteCloser,
+	isStreaming bool,
 	respCh chan<- *http.Response,
+	ps *ProcessingStats,
 	log logr.Logger,
 ) error {
 	switch msg := result.Message.(type) {
@@ -1030,6 +1034,13 @@ func writeTaskResultToHTTPRespCh(
 
 		log.Info("Received an initial response", "code", resp.StatusCode, "status", resp.Status)
 
+		// Update the stats before writing to the channel to make sure the stats are updated
+		// before the client reads the data and access the stats.
+		ps.setRuntimeTimeToFirstTokenMsIfUnset(resp.LatencyMs)
+		if !isStreaming {
+			ps.setRuntimeLatencyMs(resp.LatencyMs)
+		}
+
 		respCh <- &http.Response{
 			StatusCode: int(resp.StatusCode),
 			Status:     resp.Status,
@@ -1045,7 +1056,15 @@ func writeTaskResultToHTTPRespCh(
 			}
 		}
 	case *v1.TaskResult_ServerSentEvent:
-		if d := msg.ServerSentEvent.Data; len(d) > 0 {
+		sse := msg.ServerSentEvent
+
+		// Update the stats before writing to the body writer to make sure the stats are updated
+		// before the client reads the data and access the stats.
+		if sse.IsLastEvent {
+			ps.setRuntimeLatencyMs(sse.LatencyMs)
+		}
+
+		if d := sse.Data; len(d) > 0 {
 			if _, err := bodyWriter.Write(d); err != nil {
 				// Gracefully handle the error as it can happen when the request is canceled and
 				// the body writer is closed by the client.

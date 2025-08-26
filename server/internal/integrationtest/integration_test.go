@@ -163,7 +163,7 @@ func TestIntegration(t *testing.T) {
 	// Create a task. The task uses a model that a remote engine has.
 	respCh := make(chan *http.Response)
 	eg.Go(func() error {
-		resp, err := servers[0].infProcessor.SendChatCompletionTask(
+		resp, _, err := servers[0].infProcessor.SendChatCompletionTask(
 			ctx,
 			tenantID,
 			&v1.CreateChatCompletionRequest{
@@ -208,7 +208,7 @@ func TestIntegration(t *testing.T) {
 	// First create a task.
 	respCh = make(chan *http.Response)
 	eg.Go(func() error {
-		resp, err := servers[0].infProcessor.SendChatCompletionTask(
+		resp, _, err := servers[0].infProcessor.SendChatCompletionTask(
 			ctx,
 			tenantID,
 			&v1.CreateChatCompletionRequest{

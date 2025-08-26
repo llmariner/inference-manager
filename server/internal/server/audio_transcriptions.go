@@ -139,7 +139,7 @@ func (s *S) CreateAudioTranscription(
 		return
 	}
 
-	resp, err := s.taskSender.SendAudioTranscriptionTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
+	resp, ps, err := s.taskSender.SendAudioTranscriptionTask(ctx, userInfo.TenantID, &createReq, dropUnnecessaryHeaders(req.Header))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			httpError(w, "Request canceled", clientClosedRequestStatusCode, &usage)
@@ -151,6 +151,7 @@ func (s *S) CreateAudioTranscription(
 	defer func() { _ = resp.Body.Close() }()
 
 	details.TimeToFirstTokenMs = int32(time.Since(st).Milliseconds())
+	details.RuntimeTimeToFirstTokenMs = ps.RuntimeTimeToFirstTokenMs()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
@@ -183,4 +184,6 @@ func (s *S) CreateAudioTranscription(
 		httpError(w, fmt.Sprintf("Failed to copy response body: %s", err), http.StatusInternalServerError, &usage)
 		return
 	}
+
+	usage.RuntimeLatencyMs = ps.RuntimeLatencyMs()
 }

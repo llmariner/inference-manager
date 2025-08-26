@@ -24,12 +24,14 @@ func (s *ProcessingStats) setRuntimeTimeToFirstTokenMsIfUnset(v int32) {
 	}
 }
 
+// RuntimeLatencyMs returns the runtime latency in milliseconds.
 func (s *ProcessingStats) RuntimeLatencyMs() int32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.runtimeLatencyMs
 }
 
+// RuntimeTimeToFirstTokenMs returns the time to first token in milliseconds.
 func (s *ProcessingStats) RuntimeTimeToFirstTokenMs() int32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()

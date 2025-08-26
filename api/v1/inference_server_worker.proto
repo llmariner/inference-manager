@@ -20,11 +20,20 @@ message HttpResponse {
   map<string, HeaderValue> header = 3;
   // body is empty for server sent events.
   bytes body = 4;
+
+  // latency_ms represents the latency in milliseconds
+  // between inference-manager-engine and an inference-runtime.
+  int32 latency_ms = 5;
 }
 
 message ServerSentEvent {
   bytes data = 1;
   bool is_last_event = 2;
+
+  // latency_ms represents the latency in milliseconds
+  // between inference-manager-engine and an inference-runtime.
+  // This is set when is_last_event is true.
+  int32 latency_ms = 3;
 }
 
 message TaskResult {

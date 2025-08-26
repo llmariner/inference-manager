@@ -533,6 +533,7 @@ func (p *P) sendRequestToRuntime(
 		Status:     resp.Status,
 		Header:     respHeader,
 		Body:       body,
+		LatencyMs:  elapsedTimeMs(),
 	}
 	if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
 		return err

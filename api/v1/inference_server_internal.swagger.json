@@ -691,6 +691,11 @@
           "type": "string",
           "format": "byte",
           "description": "body is empty for server sent events."
+        },
+        "latencyMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "latency_ms represents the latency in milliseconds\nbetween inference-manager-engine and an inference-runtime."
         }
       }
     },
@@ -714,6 +719,11 @@
         },
         "isLastEvent": {
           "type": "boolean"
+        },
+        "latencyMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "latency_ms represents the latency in milliseconds\nbetween inference-manager-engine and an inference-runtime.\nThis is set when is_last_event is true."
         }
       }
     },

@@ -439,6 +439,11 @@ func (p *P) sendRequestToRuntime(
 ) error {
 	log := ctrl.LoggerFrom(ctx)
 
+	startTime := time.Now()
+	elapsedTimeMs := func() int32 {
+		return int32(time.Since(startTime).Milliseconds())
+	}
+
 	sendErrResponse := func(code int, body string) {
 		if e := p.sendHTTPResponse(stream, t, &v1.HttpResponse{
 			StatusCode: int32(code),
@@ -501,6 +506,7 @@ func (p *P) sendRequestToRuntime(
 			StatusCode: int32(resp.StatusCode),
 			Status:     resp.Status,
 			Body:       body,
+			LatencyMs:  elapsedTimeMs(),
 		}
 		if err := p.sendHTTPResponse(stream, t, httpResp); err != nil {
 			return err
@@ -557,6 +563,7 @@ func (p *P) sendRequestToRuntime(
 
 	e := &v1.ServerSentEvent{
 		IsLastEvent: true,
+		LatencyMs:   elapsedTimeMs(),
 	}
 	if err := p.sendServerSentEvent(stream, t, e, resultIndex); err != nil {
 		return err

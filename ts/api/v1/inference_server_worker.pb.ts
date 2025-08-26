@@ -27,11 +27,13 @@ export type HttpResponse = {
   status?: string
   header?: {[key: string]: HeaderValue}
   body?: Uint8Array
+  latency_ms?: number
 }
 
 export type ServerSentEvent = {
   data?: Uint8Array
   is_last_event?: boolean
+  latency_ms?: number
 }
 
 

@@ -65,10 +65,12 @@ func TestPodMonitor(t *testing.T) {
 
 func TestExtractErrMsg(t *testing.T) {
 	tcs := []struct {
+		name   string
 		errMsg string
 		want   string
 	}{
 		{
+			name: "no error",
 			errMsg: `...
 log0
 log1
@@ -78,6 +80,7 @@ log2
 			want: "log2",
 		},
 		{
+			name: "with error",
 			errMsg: `...
 ERROR 08-26 10:58:20 [core.py:489]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py", line 532, in check_enough_kv_cache_memory
 ERROR 08-26 10:58:20 [core.py:489]     raise ValueError("No available memory for the cache blocks. "
@@ -96,7 +99,7 @@ RuntimeError: Engine core initialization failed. See root cause above. Failed co
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.errMsg, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			got := extractErrMsg(strings.Split(tc.errMsg, "\n"))
 			assert.Equal(t, tc.want, got)
 		})

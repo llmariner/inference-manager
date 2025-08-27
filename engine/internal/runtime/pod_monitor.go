@@ -167,7 +167,8 @@ func (m *PodMonitor) getPodLogs(
 		podName,
 		&corev1.PodLogOptions{
 			TailLines: ptr.To[int64](100),
-			Previous:  true,
+			// TODO(kenji): Set previous to true only when the pod has restarted.
+			Previous: true,
 		},
 	)
 	stream, err := req.Stream(ctx)

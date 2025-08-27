@@ -89,7 +89,7 @@ func (m *PodMonitor) addOrUpdatePod(pod *corev1.Pod) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	modelID := pod.Annotations["modelAnnotationKey"]
+	modelID := pod.Annotations[modelAnnotationKey]
 
 	// Collect log if the pod is not ready.
 

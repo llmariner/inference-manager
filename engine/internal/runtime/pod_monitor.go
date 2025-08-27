@@ -1,12 +1,16 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
+	"io"
+	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -19,9 +23,11 @@ import (
 // NewPodMonitor constructs a PodMonitor.
 func NewPodMonitor(
 	k8sClient k8sclient.Client,
+	clientset kubernetes.Interface,
 ) *PodMonitor {
 	return &PodMonitor{
 		k8sClient:  k8sClient,
+		clientset:  clientset,
 		podsByName: make(map[string]*podReadinessStatus),
 	}
 }
@@ -30,12 +36,16 @@ type podReadinessStatus struct {
 	pod     *corev1.Pod
 	modelID string
 	ready   bool
+
+	errLogMessage string
 }
 
 // PodMonitor monitors the pods in the cluster.
 type PodMonitor struct {
 	k8sClient k8sclient.Client
-	logger    logr.Logger
+	clientset kubernetes.Interface
+
+	logger logr.Logger
 
 	podsByName map[string]*podReadinessStatus
 	mu         sync.Mutex
@@ -80,23 +90,36 @@ func (m *PodMonitor) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	m.addOrUpdatePod(&pod)
+	m.addOrUpdatePod(ctx, &pod)
 
 	return ctrl.Result{}, nil
 }
 
-func (m *PodMonitor) addOrUpdatePod(pod *corev1.Pod) {
+func (m *PodMonitor) addOrUpdatePod(ctx context.Context, pod *corev1.Pod) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	modelID := pod.Annotations[modelAnnotationKey]
 
-	// TODO(kenji): Collect log if the pod is not ready.
+	ready := isPodReady(pod)
+
+	// Collect log if the pod is not ready.
+	// TODO(kenji): Avoid too frequent fetch.
+	var errLogMessage string
+	if !ready {
+		lines, err := m.getPodLogs(ctx, pod.Name, pod.Namespace)
+		if err != nil {
+			m.logger.Error(err, "Failed to get pod logs", "pod", pod.Name)
+		} else {
+			errLogMessage = extractErrMsg(lines)
+		}
+	}
 
 	m.podsByName[pod.Name] = &podReadinessStatus{
-		pod:     pod,
-		modelID: modelID,
-		ready:   isPodReady(pod),
+		pod:           pod,
+		modelID:       modelID,
+		ready:         ready,
+		errLogMessage: errLogMessage,
 	}
 }
 
@@ -128,11 +151,67 @@ func (m *PodMonitor) modelStatus(modelID string) *modelStatus {
 		if p.ready {
 			ms.numReadyPods++
 		} else {
-			// TODO(kenji): Collect logs.
-			ms.statusMessage += "Pod " + p.pod.Name + " is not ready. "
+			ms.statusMessage += p.errLogMessage + "\n"
 		}
 	}
 
 	return ms
+}
 
+func (m *PodMonitor) getPodLogs(
+	ctx context.Context,
+	podName string,
+	podNamespace string,
+) ([]string, error) {
+	req := m.clientset.CoreV1().Pods(podNamespace).GetLogs(
+		podName,
+		&corev1.PodLogOptions{
+			TailLines: ptr.To[int64](100),
+			// TODO(kenji): Set previous to true only when the pod has restarted.
+			Previous: true,
+		},
+	)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = stream.Close() }()
+
+	r := bufio.NewReader(stream)
+	var lines []string
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) != 0 {
+			lines = append(lines, string(line))
+		}
+		if err != nil {
+			if err != io.EOF {
+				return nil, err
+			}
+			break
+		}
+	}
+	return lines, nil
+}
+
+// extractErrMsg extracts the last ERROR line from the given log lines.
+func extractErrMsg(lines []string) string {
+	var lastError string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "ERROR") {
+			lastError = line
+		}
+	}
+
+	if lastError == "" {
+		// If there is no ERROR line, return the last non-empty line.
+		for i := len(lines) - 1; i >= 0; i-- {
+			if strings.TrimSpace(lines[i]) != "" {
+				lastError = lines[i]
+				break
+			}
+		}
+	}
+
+	return strings.TrimSpace(lastError)
 }

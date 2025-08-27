@@ -74,6 +74,13 @@ rules:
 {{- if .Values.driftedPodUpdater.enable }}
   - delete
 {{- end }}
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
 {{- if and .Values.autoscaler.enable (eq .Values.autoscaler.type "keda") }}
 - apiGroups:
   - keda.sh

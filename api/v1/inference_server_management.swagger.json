@@ -60,6 +60,25 @@
         "isDynamicallyLoadedLora": {
           "type": "boolean",
           "description": "is_dynamically_loaded_lora indicates whether the model is a LoRA\nthat is dynamically loaded onto its base model."
+        },
+        "statusDetails": {
+          "$ref": "#/definitions/ModelStatusDetails"
+        }
+      }
+    },
+    "ModelStatusDetails": {
+      "type": "object",
+      "properties": {
+        "numReadyPods": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "numTotalPods": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "statusMessage": {
+          "type": "string"
         }
       }
     },

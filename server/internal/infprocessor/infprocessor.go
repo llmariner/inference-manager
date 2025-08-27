@@ -1111,5 +1111,6 @@ func copyEngineStatusModel(m *v1.EngineStatus_Model) *v1.EngineStatus_Model {
 		InProgressTaskCount:     m.InProgressTaskCount,
 		GpuAllocated:            m.GpuAllocated,
 		IsDynamicallyLoadedLora: m.IsDynamicallyLoadedLora,
+		StatusDetails:           m.StatusDetails,
 	}
 }

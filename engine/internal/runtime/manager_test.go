@@ -55,6 +55,7 @@ func TestListModels(t *testing.T) {
 			"model-1": newPendingRuntime("rt-model-1"),
 			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
+		podMonitor: &fakePodMonitor{},
 	}
 	models := mgr.ListModels()
 	assert.Len(t, models, 3)
@@ -124,6 +125,7 @@ func TestPullModel(t *testing.T) {
 				k8sClient,
 				&fakeClientFactory{c: rtClient},
 				scaler,
+				nil,
 				nil,
 				false,
 				-1,
@@ -266,6 +268,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 						BaseModelId: baseModelID,
 					},
 				},
+				nil,
 				true,
 				9090,
 				make(map[string]bool),
@@ -402,6 +405,7 @@ func TestDeleteModel(t *testing.T) {
 				k8sClient,
 				&fakeClientFactory{c: rtClient},
 				scaler,
+				nil,
 				nil,
 				false,
 				-1,
@@ -656,6 +660,7 @@ func TestReconcile(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				nil,
+				nil,
 				false,
 				-1,
 				make(map[string]bool),
@@ -836,6 +841,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				&fakeModelClient{},
+				nil,
 				true,
 				9090,
 				make(map[string]bool),
@@ -1105,4 +1111,11 @@ func newReadyRuntime(name, addr string, replicas int32) *runtime {
 		},
 		replicas: replicas,
 	}
+}
+
+type fakePodMonitor struct {
+}
+
+func (f *fakePodMonitor) modelStatus(id string) *modelStatus {
+	return &modelStatus{}
 }

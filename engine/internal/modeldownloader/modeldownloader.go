@@ -39,11 +39,6 @@ type D struct {
 	s3Client s3Client
 }
 
-// ModelDir returns the model directory.
-func (d *D) ModelDir() string {
-	return d.modelDir
-}
-
 // ModelFilePath returns the model file path.
 func (d *D) ModelFilePath(modelID string, format mv1.ModelFormat) (string, error) {
 	return ModelFilePath(d.modelDir, modelID, format)

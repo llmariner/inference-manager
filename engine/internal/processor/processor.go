@@ -111,6 +111,7 @@ func NewP(
 		nimModels:             nimModels,
 		engineHeartbeatConfig: engineHeartbeatConfig,
 		lastHeartbeatTime:     time.Now(),
+		notifyShutdownCh:      make(chan struct{}),
 	}
 }
 
@@ -145,6 +146,9 @@ type P struct {
 
 	engineHeartbeatConfig config.EngineHeartbeatConfig
 	lastHeartbeatTime     time.Time
+
+	isShutdown       bool
+	notifyShutdownCh chan struct{}
 }
 
 // SetupWithManager sets up the processor with the manager.
@@ -187,6 +191,12 @@ func (p *P) Start(ctx context.Context) error {
 				// No need to create a new runner.
 				continue
 			}
+
+			if p.getIsShutdown() {
+				p.logger.Info("Processor is shutting down, not creating a new runner")
+				continue
+			}
+
 			go p.run(ctx)
 		case <-ctx.Done():
 			p.logger.Info("Stopped processor", "ctx", ctx.Err())
@@ -309,6 +319,7 @@ func (p *P) sendEngineStatusPeriodically(
 
 			return ctx.Err()
 		case <-time.After(statusReportInterval):
+		case <-p.notifyShutdownCh:
 		}
 	}
 }
@@ -780,12 +791,16 @@ func (p *P) handleUnimplemented(
 }
 
 func (p *P) sendEngineStatus(stream sender, engineID string, ready bool) error {
+	p.logger.V(1).Info("Sending engine status", "engineID", engineID, "ready", ready, "isShutdown", p.getIsShutdown())
+
 	req := &v1.ProcessTasksRequest{
 		Message: &v1.ProcessTasksRequest_EngineStatus{
 			EngineStatus: &v1.EngineStatus{
 				EngineId: engineID,
 				Models:   p.modelSyncer.ListModels(),
-				Ready:    ready,
+				// Set ready to false if the shutdown is initiated so that
+				// the engine will not receive new tasks.
+				Ready: ready && !p.getIsShutdown(),
 			},
 		},
 	}
@@ -911,6 +926,24 @@ func (p *P) getLastHeartbeatTime() time.Time {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.lastHeartbeatTime
+}
+
+// StartGracefulShutdown starts graceful shutdown of the processor.
+func (p *P) StartGracefulShutdown() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.logger.Info("Starting graceful shutdown of the processor")
+
+	p.isShutdown = true
+	// Notify the runner to force the status update with ready=false.
+	p.notifyShutdownCh <- struct{}{}
+}
+
+func (p *P) getIsShutdown() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.isShutdown
 }
 
 func createWriterForAudioTranscription(req *v1.CreateAudioTranscriptionRequest, b *bytes.Buffer) (*multipart.Writer, error) {

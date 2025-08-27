@@ -178,6 +178,7 @@ data:
       enable: {{ .Values.driftedPodUpdater.enable }}
     inferenceManagerServerWorkerServiceAddr: {{ .Values.inferenceManagerServerWorkerServiceAddr }}
     modelManagerServerWorkerServiceAddr: {{ .Values.global.worker.controlPlaneAddr | default .Values.modelManagerServerWorkerServiceAddr }}
+    gracefulShutdownDelay: {{ .Values.gracefulShutdownDelay }}
     componentStatusSender:
       enable: {{ .Values.componentStatusSender.enable }}
       name: {{ .Values.componentStatusSender.name }}

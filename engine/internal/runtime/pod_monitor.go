@@ -212,5 +212,5 @@ func extractErrMsg(lines []string) string {
 		}
 	}
 
-	return lastError
+	return strings.TrimSpace(lastError)
 }

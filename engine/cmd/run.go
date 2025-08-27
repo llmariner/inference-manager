@@ -241,7 +241,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 
 		podMonitor := runtime.NewPodMonitor(mgr.GetClient())
 		if err := podMonitor.SetupWithManager(mgr); err != nil {
-			return nil
+			return err
 		}
 
 		rtManager := runtime.NewManager(

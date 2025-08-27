@@ -91,7 +91,7 @@ func (m *PodMonitor) addOrUpdatePod(pod *corev1.Pod) {
 
 	modelID := pod.Annotations[modelAnnotationKey]
 
-	// Collect log if the pod is not ready.
+	// TODO(kenji): Collect log if the pod is not ready.
 
 	m.podsByName[pod.Name] = &podReadinessStatus{
 		pod:     pod,

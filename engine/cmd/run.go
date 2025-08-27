@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
@@ -239,7 +240,11 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			nimClients: nimClients,
 		}
 
-		podMonitor := runtime.NewPodMonitor(mgr.GetClient())
+		clientset, err := newClientset()
+		if err != nil {
+			return err
+		}
+		podMonitor := runtime.NewPodMonitor(mgr.GetClient(), clientset)
 		if err := podMonitor.SetupWithManager(mgr); err != nil {
 			return err
 		}
@@ -439,4 +444,17 @@ func getOwnerReference(ctx context.Context, c client.Reader, ns string) (*metav1
 		WithUID(app.GetUID()).
 		WithBlockOwnerDeletion(true).
 		WithController(true), nil
+}
+
+func newClientset() (*kubernetes.Clientset, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return clientset, nil
 }

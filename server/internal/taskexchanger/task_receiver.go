@@ -317,11 +317,27 @@ func sameEngineStatus(a, b *v1.EngineStatus) bool {
 		if am.IsReady != m.IsReady ||
 			am.InProgressTaskCount != m.InProgressTaskCount ||
 			am.GpuAllocated != m.GpuAllocated ||
-			am.IsDynamicallyLoadedLora != m.IsDynamicallyLoadedLora {
+			am.IsDynamicallyLoadedLora != m.IsDynamicallyLoadedLora ||
+			!sameModelStatusDetails(am.StatusDetails, m.StatusDetails) {
 			return false
 		}
+
 	}
 	return true
+}
+
+func sameModelStatusDetails(m0, m1 *v1.EngineStatus_Model_StatusDetails) bool {
+	if m0 == nil && m1 == nil {
+		return true
+	}
+
+	if m0 == nil || m1 == nil {
+		return false
+	}
+
+	return m0.NumReadyPods == m1.NumReadyPods &&
+		m0.NumTotalPods == m1.NumTotalPods &&
+		m0.StatusMessage == m1.StatusMessage
 }
 
 func (r *taskReceiver) processTasks(

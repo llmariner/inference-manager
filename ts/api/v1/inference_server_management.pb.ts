@@ -5,12 +5,19 @@
 */
 
 import * as fm from "../../fetch.pb"
+export type EngineStatusModelStatusDetails = {
+  num_ready_pods?: number
+  num_total_pods?: number
+  status_message?: string
+}
+
 export type EngineStatusModel = {
   id?: string
   is_ready?: boolean
   in_progress_task_count?: number
   gpu_allocated?: number
   is_dynamically_loaded_lora?: boolean
+  status_details?: EngineStatusModelStatusDetails
 }
 
 export type EngineStatus = {

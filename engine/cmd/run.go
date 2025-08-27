@@ -239,11 +239,17 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			nimClients: nimClients,
 		}
 
+		podMonitor := runtime.NewPodMonitor(mgr.GetClient())
+		if err := podMonitor.SetupWithManager(mgr); err != nil {
+			return nil
+		}
+
 		rtManager := runtime.NewManager(
 			mgr.GetClient(),
 			rtClientFactory,
 			scaler,
 			modelClient,
+			podMonitor,
 			c.VLLM.DynamicLoRALoading,
 			c.Runtime.PullerPort,
 			nimModels,

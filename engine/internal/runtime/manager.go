@@ -39,6 +39,7 @@ func NewManager(
 	rtClientFactory ClientFactory,
 	autoscaler autoscaler.Registerer,
 	modelClient modelClient,
+	podMonitor podMonitor,
 	enableDynamicLoRALoading bool,
 	pullerPort int,
 	nimModels map[string]bool,
@@ -48,6 +49,7 @@ func NewManager(
 		rtClientFactory: rtClientFactory,
 		autoscaler:      autoscaler,
 		modelClient:     modelClient,
+		podMonitor:      podMonitor,
 
 		enableDynamicLoRALoading: enableDynamicLoRALoading,
 		pullerPort:               pullerPort,
@@ -69,6 +71,10 @@ func NewManager(
 
 		nimModels: nimModels,
 	}
+}
+
+type podMonitor interface {
+	modelStatus(modelID string) *modelStatus
 }
 
 type runtimeReadinessChecker interface {
@@ -94,6 +100,8 @@ type Manager struct {
 	autoscaler      autoscaler.Registerer
 
 	modelClient modelClient
+
+	podMonitor podMonitor
 
 	enableDynamicLoRALoading bool
 	pullerPort               int
@@ -215,11 +223,18 @@ func (m *Manager) ListModels() []*iv1.EngineStatus_Model {
 
 	var ms []*iv1.EngineStatus_Model
 	for id, r := range m.runtimes {
+		mstatus := m.podMonitor.modelStatus(id)
+
 		ms = append(ms, &iv1.EngineStatus_Model{
 			Id:                      id,
 			IsReady:                 r.ready,
 			GpuAllocated:            r.gpu * r.replicas,
 			IsDynamicallyLoadedLora: r.isDynamicallyLoadedLoRA,
+			StatusDetails: &iv1.EngineStatus_Model_StatusDetails{
+				NumReadyPods:  int32(mstatus.numReadyPods),
+				NumTotalPods:  int32(mstatus.numTotalPods),
+				StatusMessage: mstatus.statusMessage,
+			},
 		})
 	}
 	return ms

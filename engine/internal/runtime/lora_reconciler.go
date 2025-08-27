@@ -117,7 +117,7 @@ func (r *LoRAReconciler) Reconcile(
 			return ctrl.Result{}, err
 		}
 
-		log.Info("Pod deleted", "pod", pod.Name)
+		log.Info("Pod deleted", "pod", req.Name)
 		if err := r.deletePod(ctx, req.Name); err != nil {
 			log.Error(err, "Failed to delete pod")
 			return ctrl.Result{}, err

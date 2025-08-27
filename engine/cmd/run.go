@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -34,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -343,15 +344,31 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	}
 
 	bootLog.Info("Starting manager")
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	go func() {
-		err := mgr.Start(signals.SetupSignalHandler())
+		err := mgr.Start(ctx)
 		if err != nil {
 			logger.Error(err, "Manager exited non-zero")
 		}
 		errCh <- err
 	}()
 
-	return <-errCh
+	select {
+	case err := <-errCh:
+		return err
+	case sig := <-sigCh:
+		logger.Info("Got termination signal.", "signal", sig, "shutdownDelay", c.GracefulShutdownDelay)
+		p.StartGracefulShutdown()
+		time.Sleep(c.GracefulShutdownDelay)
+	}
+
+	logger.Info("Shutting down.")
+	return nil
 }
 
 type grpcClientFactory struct {

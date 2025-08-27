@@ -540,6 +540,9 @@ type Config struct {
 	InferenceManagerServerWorkerServiceAddr string `yaml:"inferenceManagerServerWorkerServiceAddr"`
 	ModelManagerServerWorkerServiceAddr     string `yaml:"modelManagerServerWorkerServiceAddr"`
 
+	// GracefulShutdownDelay is the delay before shutting down the engine.
+	GracefulShutdownDelay time.Duration `yaml:"gracefulShutdownDelay"`
+
 	Worker WorkerConfig `yaml:"worker"`
 
 	// ComponentStatusSender is the configuration for the component status sender.
@@ -563,6 +566,10 @@ func (c *Config) Validate() error {
 		if err := c.ObjectStore.validate(); err != nil {
 			return fmt.Errorf("object store: %s", err)
 		}
+	}
+
+	if c.GracefulShutdownDelay < 0 {
+		return fmt.Errorf("gracefulShutdownDelay must be greater than or equal to 0")
 	}
 
 	for id, length := range c.ModelContextLengths {

@@ -3,13 +3,16 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +50,8 @@ type statefulSet struct {
 	modelID        string
 	replicas       int
 	updateRevision string
+
+	podSpec *corev1.PodSpec
 }
 
 func (s *statefulSet) clone() *statefulSet {
@@ -56,6 +61,7 @@ func (s *statefulSet) clone() *statefulSet {
 		modelID:        s.modelID,
 		replicas:       s.replicas,
 		updateRevision: s.updateRevision,
+		podSpec:        s.podSpec.DeepCopy(),
 	}
 }
 
@@ -136,6 +142,11 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 		if hash == sts.updateRevision {
 			continue
 		}
+
+		if !hasMajorChangeToPodSpec(&pod.Spec, sts.podSpec) {
+			continue
+		}
+
 		driftedPods = append(driftedPods, &pod)
 	}
 
@@ -269,6 +280,7 @@ func (u *DriftedPodUpdater) createOrUpdateStatefulSet(sts *appsv1.StatefulSet) {
 
 	s.replicas = int(*sts.Spec.Replicas)
 	s.updateRevision = sts.Status.UpdateRevision
+	s.podSpec = &sts.Spec.Template.Spec
 }
 
 func (u *DriftedPodUpdater) deleteStatefulSet(name string) {
@@ -287,4 +299,112 @@ func (u *DriftedPodUpdater) listStatefulSets() []*statefulSet {
 		stses = append(stses, s.clone())
 	}
 	return stses
+}
+
+func hasMajorChangeToPodSpec(currPodSpec, specFromTemplate *corev1.PodSpec) bool {
+	curr := currPodSpec.DeepCopy()
+	expected := specFromTemplate.DeepCopy()
+
+	// Set the default values.
+	if expected.EnableServiceLinks == nil {
+		expected.EnableServiceLinks = ptr.To(true)
+	}
+	if expected.PreemptionPolicy == nil {
+		p := corev1.PreemptLowerPriority
+		expected.PreemptionPolicy = &p
+	}
+	if expected.Priority == nil {
+		expected.Priority = ptr.To[int32](0)
+	}
+
+	// Set the dynamically set fields from the current pod spec.
+	expected.Hostname = curr.Hostname
+	expected.NodeName = curr.NodeName
+
+	// Set the request same as limits for GPU if not set.
+	for _, con := range expected.Containers {
+		const gpuResource = "nvidia.com/gpu"
+		r := con.Resources
+		v, ok := r.Limits[gpuResource]
+		if !ok {
+			continue
+		}
+
+		if _, ok := r.Requests[gpuResource]; !ok {
+			r.Requests[gpuResource] = v
+		}
+	}
+
+	// Remove default tolerations.
+	var newTolerations []corev1.Toleration
+	for _, t := range curr.Tolerations {
+		keys := map[string]bool{
+			"node.kubernetes.io/not-ready":   true,
+			"node.kubernetes.io/unreachable": true,
+		}
+
+		if keys[t.Key] && t.Effect == corev1.TaintEffectNoExecute && t.Operator == corev1.TolerationOpExists {
+			continue
+		}
+		newTolerations = append(newTolerations, t)
+	}
+	curr.Tolerations = newTolerations
+
+	const kubeAPIAccessPrefix = "kube-api-access-"
+
+	// Remove volumes for the serviceaccount.
+	removeVolumeMount := func(vms []corev1.VolumeMount) []corev1.VolumeMount {
+		var newVolumeMounts []corev1.VolumeMount
+		for _, vm := range vms {
+			if strings.HasPrefix(vm.Name, kubeAPIAccessPrefix) {
+				continue
+			}
+			newVolumeMounts = append(newVolumeMounts, vm)
+		}
+		return newVolumeMounts
+	}
+	for i := range curr.Containers {
+		con := &curr.Containers[i]
+		con.VolumeMounts = removeVolumeMount(con.VolumeMounts)
+	}
+	for i := range curr.InitContainers {
+		con := &curr.InitContainers[i]
+		con.VolumeMounts = removeVolumeMount(con.VolumeMounts)
+	}
+
+	// Ignore the version of inference-manager-engine image.
+	ignoreInferenceManagerVersion := func(image string) string {
+		parts := strings.Split(image, ":")
+		if len(parts) != 2 || !strings.Contains(parts[0], "inference-manager-engine") {
+			return image
+		}
+		return parts[0] + ":<IGNORED>"
+	}
+	for i := range curr.Containers {
+		con := &curr.Containers[i]
+		con.Image = ignoreInferenceManagerVersion(con.Image)
+	}
+	for i := range curr.InitContainers {
+		con := &curr.InitContainers[i]
+		con.Image = ignoreInferenceManagerVersion(con.Image)
+	}
+	for i := range expected.Containers {
+		con := &expected.Containers[i]
+		con.Image = ignoreInferenceManagerVersion(con.Image)
+	}
+	for i := range expected.InitContainers {
+		con := &expected.InitContainers[i]
+		con.Image = ignoreInferenceManagerVersion(con.Image)
+	}
+
+	var newVolumes []corev1.Volume
+	for _, v := range curr.Volumes {
+		if strings.HasPrefix(v.Name, kubeAPIAccessPrefix) {
+			continue
+		}
+		newVolumes = append(newVolumes, v)
+	}
+	curr.Volumes = newVolumes
+
+	return !equality.Semantic.DeepEqual(curr, expected)
 }

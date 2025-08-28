@@ -371,7 +371,7 @@ func TestHasMajorChangeToPodSpec(t *testing.T) {
 				spec := baseCurrSpec()
 				spec.InitContainers = []corev1.Container{
 					{
-						Image: "init-container:1.0.0",
+						Image: "inference-manager-engine:1.0.0",
 					},
 				}
 				return spec
@@ -380,7 +380,7 @@ func TestHasMajorChangeToPodSpec(t *testing.T) {
 				spec := baseSpec()
 				spec.InitContainers = []corev1.Container{
 					{
-						Image: "init-container:1.0.1",
+						Image: "inference-manager-engine:1.0.1",
 					},
 				}
 				return spec

@@ -61,6 +61,7 @@ func (s *statefulSet) clone() *statefulSet {
 		modelID:        s.modelID,
 		replicas:       s.replicas,
 		updateRevision: s.updateRevision,
+		podSpec:        s.podSpec.DeepCopy(),
 	}
 }
 
@@ -374,7 +375,7 @@ func hasMajorChangeToPodSpec(currPodSpec, specFromTemplate *corev1.PodSpec) bool
 	// Ignore the version of inference-manager-engine image.
 	ignoreInferenceManagerVersion := func(image string) string {
 		parts := strings.Split(image, ":")
-		if len(parts) != 2 && !strings.Contains(parts[0], "inference-manager-engine") {
+		if len(parts) != 2 || !strings.Contains(parts[0], "inference-manager-engine") {
 			return image
 		}
 		return parts[0] + ":<IGNORED>"

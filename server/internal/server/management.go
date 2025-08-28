@@ -157,6 +157,8 @@ func (s *IMS) getInferenceStatus(
 				// it will be larger than the actual GPU allocated.)
 				if m.IsDynamicallyLoadedLora {
 					m.GpuAllocated = 0
+					// Clear the status details as it is correctly not populated.
+					m.StatusDetails = nil
 				}
 			}
 		}

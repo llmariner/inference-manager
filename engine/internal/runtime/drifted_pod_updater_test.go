@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -111,6 +112,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       1,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash0", true),
@@ -125,6 +127,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       1,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash1", true),
@@ -139,6 +142,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       2,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash1", true),
@@ -154,6 +158,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       2,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash0", true),
@@ -169,6 +174,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       2,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash1", false),
@@ -184,6 +190,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       4,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash0", true),
@@ -201,6 +208,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       4,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash0", true),
@@ -218,6 +226,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       4,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash1", true),
@@ -236,6 +245,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				modelID:        "model0",
 				replicas:       4,
 				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
 				newPod("pod0", "hash0", true),
@@ -301,4 +311,155 @@ type fakeUpdateInProgressPodGetter struct {
 
 func (f *fakeUpdateInProgressPodGetter) GetUpdateInProgressPodNames() map[string]struct{} {
 	return f.podNames
+}
+
+func TestHasMajorChangeToPodSpec(t *testing.T) {
+	baseSpec := func() *corev1.PodSpec {
+		return &corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "container1",
+					Image: "inference-manager-engine:1.0.0",
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"cpu":    resource.MustParse("500m"),
+							"memory": resource.MustParse("1Gi"),
+						},
+						Limits: corev1.ResourceList{
+							"cpu":    resource.MustParse("1"),
+							"memory": resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+		}
+	}
+	baseCurrSpec := func() *corev1.PodSpec {
+		spec := baseSpec()
+		spec.EnableServiceLinks = ptr.To(true)
+		p := corev1.PreemptLowerPriority
+		spec.PreemptionPolicy = &p
+		spec.Priority = ptr.To[int32](0)
+		return spec
+	}
+
+	tcs := []struct {
+		name             string
+		currPodSpec      func() *corev1.PodSpec
+		specFromTemplate func() *corev1.PodSpec
+		want             bool
+	}{
+		{
+			name:             "no major change - same spec",
+			currPodSpec:      baseCurrSpec,
+			specFromTemplate: baseSpec,
+			want:             false,
+		},
+		{
+			name:        "no major change - image tag change",
+			currPodSpec: baseCurrSpec,
+			specFromTemplate: func() *corev1.PodSpec {
+				spec := baseSpec()
+				spec.Containers[0].Image = "inference-manager-engine:1.0.1"
+				return spec
+			},
+			want: false,
+		},
+		{
+			name: "no major change - image tag change in init container",
+			currPodSpec: func() *corev1.PodSpec {
+				spec := baseCurrSpec()
+				spec.InitContainers = []corev1.Container{
+					{
+						Image: "init-container:1.0.0",
+					},
+				}
+				return spec
+			},
+			specFromTemplate: func() *corev1.PodSpec {
+				spec := baseSpec()
+				spec.InitContainers = []corev1.Container{
+					{
+						Image: "init-container:1.0.1",
+					},
+				}
+				return spec
+			},
+			want: false,
+		},
+		{
+			name: "no major change - resource limits",
+			currPodSpec: func() *corev1.PodSpec {
+				spec := baseCurrSpec()
+				spec.Containers[0].Resources.Requests["nvidia.com/gpu"] = resource.MustParse("1")
+				spec.Containers[0].Resources.Limits["nvidia.com/gpu"] = resource.MustParse("1")
+				return spec
+			},
+			specFromTemplate: func() *corev1.PodSpec {
+				spec := baseSpec()
+				spec.Containers[0].Resources.Limits["nvidia.com/gpu"] = resource.MustParse("1")
+				return spec
+			},
+			want: false,
+		},
+		{
+			name: "no major change - tolerations added",
+			currPodSpec: func() *corev1.PodSpec {
+				spec := baseCurrSpec()
+				spec.Tolerations = []corev1.Toleration{
+					{
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpExists,
+						Key:      "node.kubernetes.io/not-ready",
+					},
+					{
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpExists,
+						Key:      "node.kubernetes.io/unreachable",
+					},
+				}
+				return spec
+			},
+			specFromTemplate: baseSpec,
+			want:             false,
+		},
+		{
+			name: "no major change - volume added",
+			currPodSpec: func() *corev1.PodSpec {
+				spec := baseCurrSpec()
+				spec.Volumes = []corev1.Volume{
+					{
+						Name: "kube-api-access-abc",
+					},
+				}
+				spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{
+						Name: "kube-api-access-abc",
+					},
+				}
+				return spec
+			},
+			specFromTemplate: baseSpec,
+			want:             false,
+		},
+		{
+			name:        "major change - arg change",
+			currPodSpec: baseCurrSpec,
+			specFromTemplate: func() *corev1.PodSpec {
+				spec := baseSpec()
+				spec.Containers[0].Args = []string{"--new-arg"}
+				return spec
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			curr, expected := tc.currPodSpec(), tc.specFromTemplate()
+			got := hasMajorChangeToPodSpec(curr, expected)
+			assert.Equal(t, tc.want, got, "curr: %+v, expected: %+v", curr, expected)
+		})
+	}
+
 }

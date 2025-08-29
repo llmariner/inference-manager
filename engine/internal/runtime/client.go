@@ -296,15 +296,9 @@ func (c *commonClient) deployRuntime(
 		pullerArgs = append(pullerArgs, "--daemon-mode")
 	}
 
-	var image string
-	if mci.Image != "" {
-		image = mci.Image
-	} else {
-		var ok bool
-		image, ok = c.rconfig.RuntimeImages[mci.RuntimeName]
-		if !ok {
-			return nil, fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
-		}
+	image, err := getImage(mci, c.rconfig)
+	if err != nil {
+		return nil, err
 	}
 
 	// Merge init environment variables with runtime config env
@@ -800,4 +794,15 @@ func mergeEnvVars(existingEnvs []*corev1apply.EnvVarApplyConfiguration, runtimeC
 	allEnvs = append(allEnvs, existingEnvs...)
 	allEnvs = append(allEnvs, convertEnvToApplyConfig(runtimeConfigEnvs)...)
 	return allEnvs
+}
+
+func getImage(mci config.ModelConfigItem, rconfig *config.RuntimeConfig) (string, error) {
+	if mci.Image != "" {
+		return mci.Image, nil
+	}
+	image, ok := rconfig.RuntimeImages[mci.RuntimeName]
+	if !ok {
+		return "", fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
+	}
+	return image, nil
 }

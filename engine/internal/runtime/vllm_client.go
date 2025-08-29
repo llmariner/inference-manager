@@ -179,8 +179,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	if gpus, err := numGPUs(mci); err != nil {
 		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
-
-		if !strings.HasPrefix(mci.Image, "llm-d-inference-sim") {
+		if !strings.HasPrefix(mci.Image, "ghcr.io/llm-d/llm-d-inference-sim") {
 			// Do not set --device when using Inference Sim as the flag is not supported.
 			args = append(args, "--device", "cpu")
 		}

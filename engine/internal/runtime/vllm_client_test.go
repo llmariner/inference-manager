@@ -26,7 +26,11 @@ func TestDeployRuntimeParams(t *testing.T) {
 				},
 			},
 		}),
-		rconfig: &config.RuntimeConfig{},
+		rconfig: &config.RuntimeConfig{
+			RuntimeImages: map[string]string{
+				config.RuntimeNameVLLM: "vllm-image",
+			},
+		},
 	}
 
 	tcs := []struct {
@@ -161,7 +165,6 @@ func TestDeployRuntimeParams(t *testing.T) {
 }
 
 func TestNumGPUs(t *testing.T) {
-
 	tcs := []struct {
 		name string
 		mci  config.ModelConfigItem
@@ -241,6 +244,37 @@ func TestVLLMQuantization(t *testing.T) {
 			gotQ, gotFound := vllmQuantization(tc.modelID)
 			assert.Equal(t, tc.wantQ, gotQ)
 			assert.Equal(t, tc.wantFound, gotFound)
+		})
+	}
+}
+
+func TestRemoveFlagsUnsupportedInInferenceSim(t *testing.T) {
+	tcs := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{
+			name: "no flags to remove",
+			args: []string{"--port", "80", "--model", "m"},
+			want: []string{"--port", "80", "--model", "m"},
+		},
+		{
+			name: "remove --device",
+			args: []string{"--port", "80", "--model", "m", "--device", "cpu", "--other", "v"},
+			want: []string{"--port", "80", "--model", "m", "--other", "v"},
+		},
+		{
+			name: "remove --chat-template",
+			args: []string{"--port", "80", "--model", "m", "--chat-template", "t", "--other", "v"},
+			want: []string{"--port", "80", "--model", "m", "--other", "v"},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got := removeFlagsUnsupportedInInferenceSim(tc.args)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

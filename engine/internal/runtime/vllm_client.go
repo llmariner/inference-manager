@@ -179,15 +179,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	if gpus, err := numGPUs(mci); err != nil {
 		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
-		image, err := getImage(mci, v.rconfig)
-		if err != nil {
-			return deployRuntimeParams{}, err
-		}
-		if !strings.HasPrefix(image, "ghcr.io/llm-d/llm-d-inference-sim") {
-			// Do not set --device when using Inference Sim as the flag is not supported.
-			// TODO(kenji): This is a hack. Revisit.
-			args = append(args, "--device", "cpu")
-		}
+		args = append(args, "--device", "cpu")
 	} else {
 		args = append(args, "--tensor-parallel-size", strconv.Itoa(gpus))
 	}
@@ -208,6 +200,22 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, fs...)
 	}
 
+	var image string
+	if mci.Image != "" {
+		image = mci.Image
+	} else {
+		var ok bool
+		image, ok = v.rconfig.RuntimeImages[config.RuntimeNameVLLM]
+		if !ok {
+			return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
+		}
+	}
+
+	// TODO(kenji):This is a hack. Revisit.
+	if strings.HasPrefix(image, "ghcr.io/llm-d/llm-d-inference-sim") {
+		args = removeFlagsUnsupportedInInferenceSim(args)
+	}
+
 	envs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("VLLM_LOGGING_LEVEL").WithValue(v.vLLMConfig.LoggingLevel),
 		// Increase the timeout (default: 10 seconds) as we hit
@@ -226,17 +234,6 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	// so that the VLLM container won't start until the base model is pulled.
 	var initContainerSepc *initContainerSpec
 	if v.vLLMConfig.DynamicLoRALoading {
-		var image string
-		if mci.Image != "" {
-			image = mci.Image
-		} else {
-			var ok bool
-			image, ok = v.rconfig.RuntimeImages[config.RuntimeNameVLLM]
-			if !ok {
-				return deployRuntimeParams{}, fmt.Errorf("runtime image not found for vllm")
-			}
-		}
-
 		cpath := modeldownloader.CompletionIndicationFilePath(puller.ModelDir(), modelID)
 		initContainerSepc = &initContainerSpec{
 			name: "pull-waiter",
@@ -376,4 +373,29 @@ func chatTemplate(modelID string) string {
 // RuntimeName returns the runtime name.
 func (v *vllmClient) RuntimeName() string {
 	return config.RuntimeNameVLLM
+}
+
+func removeFlagsUnsupportedInInferenceSim(args []string) []string {
+	ignore := map[string]bool{
+		"--device":        true,
+		"--chat-template": true,
+	}
+
+	var (
+		newArgs  []string
+		skipNext bool
+	)
+	for _, arg := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if ignore[arg] {
+			skipNext = true
+			continue
+		}
+		newArgs = append(newArgs, arg)
+
+	}
+	return newArgs
 }

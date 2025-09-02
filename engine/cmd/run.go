@@ -334,7 +334,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	activator := runtime.NewModelActivator(processedConfig.PreloadedModelIDs(), modelManager, modelClient)
+	activator := runtime.NewModelActivator(processedConfig.PreloadedModelIDs(), modelManager, modelClient, c.VLLM.DynamicLoRALoading)
 	if err := activator.SetupWithManager(mgr); err != nil {
 		return err
 	}

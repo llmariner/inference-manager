@@ -129,7 +129,7 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 			}
 
 			if a.isDynamicLoRALoadingEnabled && model.IsBaseModel && baseModelsForActiveFineTunedModels[model.Id] {
-				// Do not deactive a base model if dynamic LoRA loading is enabled
+				// Do not deactivate a base model if dynamic LoRA loading is enabled
 				// and there is at least one active fine-tuned model
 				continue
 			}

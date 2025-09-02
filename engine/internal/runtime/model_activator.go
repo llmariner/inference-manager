@@ -26,7 +26,12 @@ type modelLister interface {
 }
 
 // NewModelActivator creates a new ModelActivator.
-func NewModelActivator(preloadedModelIDs []string, mmanager modelManager, modelLister modelLister) *ModelActivator {
+func NewModelActivator(
+	preloadedModelIDs []string,
+	mmanager modelManager,
+	modelLister modelLister,
+	isDynamicLoRALoadingEnabled bool,
+) *ModelActivator {
 	m := map[string]bool{}
 	for _, id := range preloadedModelIDs {
 		m[id] = true
@@ -36,6 +41,8 @@ func NewModelActivator(preloadedModelIDs []string, mmanager modelManager, modelL
 		preloadedModelIDs: m,
 		mmanager:          mmanager,
 		modelLister:       modelLister,
+
+		isDynamicLoRALoadingEnabled: isDynamicLoRALoadingEnabled,
 
 		parallelism: 3,
 	}
@@ -48,6 +55,8 @@ type ModelActivator struct {
 	mmanager modelManager
 
 	modelLister modelLister
+
+	isDynamicLoRALoadingEnabled bool
 
 	parallelism int
 
@@ -88,6 +97,17 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 		return nil
 	}
 
+	baseModelsForActiveFineTunedModels := map[string]bool{}
+	for _, model := range resp.Data {
+		if model.IsBaseModel {
+			continue
+		}
+		if model.ActivationStatus != mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE {
+			continue
+		}
+		baseModelsForActiveFineTunedModels[model.BaseModelId] = true
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(a.parallelism)
 	for _, model := range resp.Data {
@@ -105,6 +125,12 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
 			if a.preloadedModelIDs[mid] {
 				// Do not inactivate the preloaded models.
+				continue
+			}
+
+			if a.isDynamicLoRALoadingEnabled && model.IsBaseModel && baseModelsForActiveFineTunedModels[model.Id] {
+				// Do not deactive a base model if dynamic LoRA loading is enabled
+				// and there is at least one active fine-tuned model
 				continue
 			}
 

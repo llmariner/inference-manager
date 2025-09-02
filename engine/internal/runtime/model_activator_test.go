@@ -35,12 +35,46 @@ func TestReconcileModelActivation(t *testing.T) {
 		},
 	}
 
-	a := NewModelActivator([]string{"model3"}, mmanager, fakeModelLister)
+	a := NewModelActivator([]string{"model3"}, mmanager, fakeModelLister, false)
 	err := a.reconcileModelActivation(context.Background())
 	assert.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{"model1"}, mmanager.pulled)
 	assert.ElementsMatch(t, []string{"model2"}, mmanager.deleted)
+}
+
+func TestReconcileModelActivation_DynamicLoRALoading(t *testing.T) {
+	mmanager := &fakeModelManager{}
+
+	fakeModelLister := &fakeModelLister{
+		resp: &mv1.ListModelsResponse{
+			Data: []*mv1.Model{
+				{
+					Id:               "bm0",
+					ActivationStatus: mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE,
+					IsBaseModel:      true,
+				},
+				{
+					Id:               "bm1",
+					ActivationStatus: mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE,
+					IsBaseModel:      true,
+				},
+				{
+					Id:               "fm0",
+					ActivationStatus: mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE,
+					IsBaseModel:      false,
+					BaseModelId:      "bm0",
+				},
+			},
+		},
+	}
+
+	a := NewModelActivator(nil, mmanager, fakeModelLister, true)
+	err := a.reconcileModelActivation(context.Background())
+	assert.NoError(t, err)
+
+	assert.ElementsMatch(t, []string{"fm0"}, mmanager.pulled)
+	assert.ElementsMatch(t, []string{"bm1"}, mmanager.deleted)
 }
 
 type fakeModelManager struct {

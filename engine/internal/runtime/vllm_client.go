@@ -377,8 +377,9 @@ func (v *vllmClient) RuntimeName() string {
 
 func removeFlagsUnsupportedInInferenceSim(args []string) []string {
 	ignore := map[string]bool{
-		"--device":        true,
-		"--chat-template": true,
+		"--device":               true,
+		"--chat-template":        true,
+		"--tensor-parallel-size": true,
 	}
 
 	var (

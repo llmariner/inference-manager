@@ -421,6 +421,10 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithRuntimeClassName(rc)
 	}
 
+	if v := c.rconfig.TerminationGracePeriodSeconds; v != nil {
+		podSpec = podSpec.WithTerminationGracePeriodSeconds(int64(*v))
+	}
+
 	annos := map[string]string{
 		runtimeAnnotationKey: mci.RuntimeName,
 	}

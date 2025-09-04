@@ -129,6 +129,13 @@ runtime:
   # Set to true to create a volume for model files with medium=Memory.
   useMemoryMediumForModelVolume: false
 
+  # Optional duration in seconds the pod needs to terminate gracefully.
+  # The value zero indicates stop immediately via the kill signal (no
+  # opportunity to shut down). If not specified, the default grace
+  # period (30 seconds) will be used instead.
+  # +docs:property
+  # terminationGracePeriodSeconds: ""
+
   # Use this for the regular shutdown of all inference runtimes.
   # e.g., during weekends or nighttime.
   # NOTE: This feature runs once for each given scheduled time. Hence,

@@ -206,6 +206,8 @@ type RuntimeConfig struct {
 	EnvFrom             []corev1.EnvFromSource `yaml:"-"`
 
 	UseMemoryMediumForModelVolume bool `yaml:"useMemoryMediumForModelVolume"`
+
+	TerminationGracePeriodSeconds *int `yaml:"terminationGracePeriodSeconds"`
 }
 
 func (c *RuntimeConfig) validate() error {
@@ -274,6 +276,10 @@ func (c *RuntimeConfig) validate() error {
 		if envFrom.SecretRef != nil && envFrom.SecretRef.Name == "" {
 			return fmt.Errorf("runtime.envFrom[%d].secretRef.name must be set", i)
 		}
+	}
+
+	if v := c.TerminationGracePeriodSeconds; v != nil && *v < 0 {
+		return fmt.Errorf("terminationGracePeriodSeconds must be unset or non-negative")
 	}
 
 	return nil

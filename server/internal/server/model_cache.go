@@ -87,8 +87,7 @@ func (c *modelCache) GetModel(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	m, ok := c.getModelFromCache(tenantID, in.Id)
-	if ok {
+	if m, ok := c.getModelFromCache(tenantID, in.Id); ok {
 		return m, nil
 	}
 

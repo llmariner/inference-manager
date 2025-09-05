@@ -38,7 +38,7 @@ func NewManager(
 	k8sClient client.Client,
 	rtClientFactory ClientFactory,
 	autoscaler autoscaler.Registerer,
-	modelClient modelClient,
+	modelClient modelGetter,
 	podMonitor podMonitor,
 	enableDynamicLoRALoading bool,
 	pullerPort int,
@@ -99,7 +99,7 @@ type Manager struct {
 	rtClientFactory ClientFactory
 	autoscaler      autoscaler.Registerer
 
-	modelClient modelClient
+	modelClient modelGetter
 
 	podMonitor podMonitor
 

@@ -159,6 +159,8 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 
 	processedConfig := config.NewProcessedModelConfig(c)
 	modelClient := mv1.NewModelsWorkerServiceClient(conn)
+	modelCache := runtime.NewModelCache(modelClient)
+
 	ollamaClient := runtime.NewOllamaClient(
 		mgr.GetClient(),
 		ns,
@@ -167,7 +169,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		processedConfig,
 		c.Ollama,
 		c.DriftedPodUpdater.Enable,
-		modelClient,
+		modelCache,
 	)
 
 	type modelManagerI interface {
@@ -215,7 +217,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				&c.Runtime,
 				processedConfig,
 				c.DriftedPodUpdater.Enable,
-				modelClient,
+				modelCache,
 			),
 		}
 
@@ -229,7 +231,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				&c.NIM,
 				&model,
 				c.DriftedPodUpdater.Enable,
-				modelClient,
+				modelCache,
 			)
 			nimModels[model.ModelName] = true
 		}
@@ -253,7 +255,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			mgr.GetClient(),
 			rtClientFactory,
 			scaler,
-			modelClient,
+			modelCache,
 			podMonitor,
 			c.VLLM.DynamicLoRALoading,
 			c.Runtime.PullerPort,
@@ -329,7 +331,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(modelManager, processedConfig.PreloadedModelIDs(), modelClient)
+	preloader := runtime.NewPreloader(modelManager, processedConfig.PreloadedModelIDs(), modelCache)
 	if err := preloader.SetupWithManager(mgr); err != nil {
 		return err
 	}

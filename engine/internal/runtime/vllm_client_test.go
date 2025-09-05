@@ -8,6 +8,8 @@ import (
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestDeployRuntimeParams(t *testing.T) {
@@ -294,5 +296,9 @@ func (c *fakeModelClient) GetModelAttributes(ctx context.Context, in *mv1.GetMod
 }
 
 func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
+	if c.model == nil {
+		return nil, status.Errorf(codes.NotFound, "model not found")
+	}
+
 	return c.model, nil
 }

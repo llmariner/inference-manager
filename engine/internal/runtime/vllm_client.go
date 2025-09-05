@@ -84,13 +84,6 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update b
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
-	model, err := v.modelClient.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return deployRuntimeParams{}, fmt.Errorf("get model: %s", err)
-	}
-
 	mci := v.mconfig.ModelConfigItem(modelID)
 
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
@@ -123,7 +116,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 			args = append(args, "--chat-template", t)
 		}
 	}
-	if model.IsBaseModel {
+
+	if isBaseModel, err := v.isBaseModel(ctx, modelID); err != nil {
+		return deployRuntimeParams{}, err
+	} else if isBaseModel {
 		mPath, err := v.baseModelFilePath(ctx, modelID)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
@@ -280,6 +276,16 @@ func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID strin
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("get base model path: %s", err)
 	}
 	return puller.PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
+}
+
+func (v *vllmClient) isBaseModel(ctx context.Context, modelID string) (bool, error) {
+	model, err := v.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("get model: %s", err)
+	}
+	return model.IsBaseModel, nil
 }
 
 func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (string, error) {

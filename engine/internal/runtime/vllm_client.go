@@ -31,7 +31,6 @@ const (
 
 type modelClient interface {
 	GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error)
-	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
 	GetModelAttributes(ctx context.Context, in *mv1.GetModelAttributesRequest, opts ...grpc.CallOption) (*mv1.ModelAttributes, error)
 }
 
@@ -42,6 +41,7 @@ func NewVLLMClient(
 	owner *metav1apply.OwnerReferenceApplyConfiguration,
 	rconfig *config.RuntimeConfig,
 	mconfig *config.ProcessedModelConfig,
+	modelGetter modelGetter,
 	modelClient modelClient,
 	vLLMConfg *config.VLLMConfig,
 	enableUpdater bool,
@@ -55,7 +55,7 @@ func NewVLLMClient(
 			rconfig:       rconfig,
 			mconfig:       mconfig,
 			enableUpdater: enableUpdater,
-			modelGetter:   modelClient,
+			modelGetter:   modelGetter,
 		},
 		modelClient: modelClient,
 		vLLMConfig:  vLLMConfg,
@@ -279,7 +279,7 @@ func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID strin
 }
 
 func (v *vllmClient) isBaseModel(ctx context.Context, modelID string) (bool, error) {
-	model, err := v.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+	model, err := v.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})
 	if err != nil {

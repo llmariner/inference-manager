@@ -206,6 +206,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 				owner,
 				&c.Runtime,
 				processedConfig,
+				modelCache,
 				modelClient,
 				&c.VLLM,
 				c.DriftedPodUpdater.Enable,

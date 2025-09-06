@@ -149,14 +149,16 @@ func TestDeployRuntimeParams(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			modelClient := &fakeModelClient{
+				resp:  tc.resp,
+				attr:  tc.attr,
+				model: tc.model,
+			}
+			commonClient.modelGetter = modelClient
 			v := &vllmClient{
 				commonClient: commonClient,
-				modelClient: &fakeModelClient{
-					resp:  tc.resp,
-					attr:  tc.attr,
-					model: tc.model,
-				},
-				vLLMConfig: &config.VLLMConfig{},
+				modelClient:  modelClient,
+				vLLMConfig:   &config.VLLMConfig{},
 			}
 
 			got, err := v.deployRuntimeParams(context.Background(), tc.modelID)

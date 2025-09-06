@@ -84,7 +84,10 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update b
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
-	mci := v.mconfig.ModelConfigItem(modelID)
+	mci, err := v.commonClient.modelConfigItem(ctx, modelID)
+	if err != nil {
+		return deployRuntimeParams{}, fmt.Errorf("model config info: %s", err)
+	}
 
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
 	// need to do this because the processor does the same converesion when
@@ -172,12 +175,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		}
 	}
 
-	resConf, err := v.modelResourceConf(ctx, modelID, mci)
-	if err != nil {
-		return deployRuntimeParams{}, err
-	}
-
-	if gpus, err := numGPUs(resConf); err != nil {
+	if gpus, err := numGPUs(mci.Resources); err != nil {
 		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
 		args = append(args, "--device", "cpu")

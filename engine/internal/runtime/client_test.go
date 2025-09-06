@@ -368,7 +368,7 @@ func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 		want        *config.Resources
 	}{
 		{
-			name: " gpu not in model config",
+			name: "gpu not in model config",
 			origResConf: &config.Resources{
 				Limits: map[string]string{
 					"cpu":             "1",

@@ -66,7 +66,7 @@ type commonClient struct {
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
 
-	enableUpdater bool
+	enableDriftPodUpdater bool
 
 	modelGetter modelGetter
 }
@@ -449,7 +449,7 @@ func (c *commonClient) deployRuntime(
 		stsSpecConf = stsSpecConf.WithVolumeClaimTemplates(volClaim)
 	}
 
-	if c.enableUpdater {
+	if c.enableDriftPodUpdater {
 		// Set the strategy to OnDelete as pods will be deleted by the updater.
 		stsSpecConf = stsSpecConf.WithUpdateStrategy(
 			appsv1apply.StatefulSetUpdateStrategy().

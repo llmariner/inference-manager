@@ -569,11 +569,19 @@ func (c *commonClient) modelConfigItem(
 		return config.ModelConfigItem{}, fmt.Errorf("get model %q: %s", modelID, err)
 	}
 
-	if model.Config == nil {
+	mc := model.Config
+	if mc == nil {
 		return mci, nil
 	}
 
-	updateResourceConfWithModelConfig(&mci.Resources, model.Config)
+	rc := mc.RuntimeConfig
+	if rc == nil {
+		return mci, nil
+	}
+
+	// Update replicas and resources from the model config.
+	mci.Replicas = int(rc.Replicas)
+	updateResourceConfWithModelConfig(&mci.Resources, rc)
 	return mci, nil
 }
 
@@ -836,12 +844,7 @@ func getImage(mci config.ModelConfigItem, rconfig *config.RuntimeConfig) (string
 	return image, nil
 }
 
-func updateResourceConfWithModelConfig(resConf *config.Resources, mconfig *mv1.ModelConfig) {
-	rc := mconfig.RuntimeConfig
-	if rc == nil {
-		return
-	}
-
+func updateResourceConfWithModelConfig(resConf *config.Resources, rc *mv1.ModelConfig_RuntimeConfig) {
 	res := rc.Resources
 	if res == nil {
 		return

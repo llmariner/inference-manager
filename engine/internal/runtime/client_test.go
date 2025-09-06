@@ -362,10 +362,10 @@ func TestConvertEnvFromToApplyConfig(t *testing.T) {
 
 func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 	tcs := []struct {
-		name        string
-		origResConf *config.Resources
-		mconfig     *mv1.ModelConfig
-		want        *config.Resources
+		name          string
+		origResConf   *config.Resources
+		runtimeConfig *mv1.ModelConfig_RuntimeConfig
+		want          *config.Resources
 	}{
 		{
 			name: "gpu not in model config",
@@ -375,7 +375,7 @@ func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 					nvidiaGPUResource: "2",
 				},
 			},
-			mconfig: &mv1.ModelConfig{},
+			runtimeConfig: &mv1.ModelConfig_RuntimeConfig{},
 			want: &config.Resources{
 				Limits: map[string]string{
 					"cpu":             "1",
@@ -390,11 +390,9 @@ func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 					"cpu": "1",
 				},
 			},
-			mconfig: &mv1.ModelConfig{
-				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
-					Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
-						Gpu: 3,
-					},
+			runtimeConfig: &mv1.ModelConfig_RuntimeConfig{
+				Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
+					Gpu: 3,
 				},
 			},
 			want: &config.Resources{
@@ -415,11 +413,9 @@ func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 					nvidiaGPUResource: "2",
 				},
 			},
-			mconfig: &mv1.ModelConfig{
-				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
-					Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
-						Gpu: 3,
-					},
+			runtimeConfig: &mv1.ModelConfig_RuntimeConfig{
+				Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
+					Gpu: 3,
 				},
 			},
 			want: &config.Resources{
@@ -436,7 +432,7 @@ func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			updateResourceConfWithModelConfig(tc.origResConf, tc.mconfig)
+			updateResourceConfWithModelConfig(tc.origResConf, tc.runtimeConfig)
 			assert.True(t, reflect.DeepEqual(tc.want, tc.origResConf), "got: %+v, want: %+v", tc.origResConf, tc.want)
 		})
 	}

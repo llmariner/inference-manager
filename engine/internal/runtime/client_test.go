@@ -1,8 +1,11 @@
 package runtime
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/llmariner/inference-manager/engine/internal/config"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -355,4 +358,87 @@ func TestConvertEnvFromToApplyConfig(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestUpdateResourceConfWithModelConfig(t *testing.T) {
+	tcs := []struct {
+		name        string
+		origResConf *config.Resources
+		mconfig     *mv1.ModelConfig
+		want        *config.Resources
+	}{
+		{
+			name: " gpu not in model config",
+			origResConf: &config.Resources{
+				Limits: map[string]string{
+					"cpu":             "1",
+					nvidiaGPUResource: "2",
+				},
+			},
+			mconfig: &mv1.ModelConfig{},
+			want: &config.Resources{
+				Limits: map[string]string{
+					"cpu":             "1",
+					nvidiaGPUResource: "2",
+				},
+			},
+		},
+		{
+			name: "gpu in model config, gpu not in resource conf",
+			origResConf: &config.Resources{
+				Limits: map[string]string{
+					"cpu": "1",
+				},
+			},
+			mconfig: &mv1.ModelConfig{
+				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+					Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
+						Gpu: 3,
+					},
+				},
+			},
+			want: &config.Resources{
+				Limits: map[string]string{
+					"cpu":             "1",
+					nvidiaGPUResource: "3",
+				},
+				Requests: map[string]string{
+					nvidiaGPUResource: "3",
+				},
+			},
+		},
+		{
+			name: "gpu in model config, gpu in resource conf",
+			origResConf: &config.Resources{
+				Limits: map[string]string{
+					"cpu":             "1",
+					nvidiaGPUResource: "2",
+				},
+			},
+			mconfig: &mv1.ModelConfig{
+				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+					Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
+						Gpu: 3,
+					},
+				},
+			},
+			want: &config.Resources{
+				Limits: map[string]string{
+					"cpu":             "1",
+					nvidiaGPUResource: "3",
+				},
+				Requests: map[string]string{
+					nvidiaGPUResource: "3",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			updateResourceConfWithModelConfig(tc.origResConf, tc.mconfig)
+			assert.True(t, reflect.DeepEqual(tc.want, tc.origResConf), "got: %+v, want: %+v", tc.origResConf, tc.want)
+		})
+	}
+
 }

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
@@ -138,7 +139,11 @@ func (c *commonClient) deployRuntime(
 	params deployRuntimeParams,
 	update bool,
 ) (*appsv1.StatefulSet, error) {
-	mci := c.mconfig.ModelConfigItem(params.modelID)
+	mci, err := c.modelConfigItem(ctx, params.modelID)
+	if err != nil {
+		return nil, err
+	}
+
 	var name string
 	if params.dynamicModelLoading {
 		name = resourceName(mci.RuntimeName, daemonModeSuffix)
@@ -164,11 +169,6 @@ func (c *commonClient) deployRuntime(
 		"app.kubernetes.io/created-by": managerName,
 	}
 
-	resConf, err := c.modelResourceConf(ctx, params.modelID, mci)
-	if err != nil {
-		return nil, err
-	}
-
 	volumes := []*corev1apply.VolumeApplyConfiguration{
 		corev1apply.Volume().
 			WithName(configVolName).
@@ -179,6 +179,7 @@ func (c *commonClient) deployRuntime(
 
 	var volClaim *corev1apply.PersistentVolumeClaimApplyConfiguration
 	var forcePull bool
+	resConf := mci.Resources
 	if vol := resConf.Volume; vol != nil {
 		pvcName := volName
 		if resConf.Volume.ShareWithReplicas {
@@ -555,8 +556,25 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 	return nil
 }
 
-func (c *commonClient) modelResourceConf(ctx context.Context, modelID string, mci config.ModelConfigItem) (config.Resources, error) {
-	return mci.Resources, nil
+func (c *commonClient) modelConfigItem(
+	ctx context.Context,
+	modelID string,
+) (config.ModelConfigItem, error) {
+	mci := c.mconfig.ModelConfigItem(modelID)
+
+	model, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return config.ModelConfigItem{}, fmt.Errorf("get model %q: %s", modelID, err)
+	}
+
+	if model.Config == nil {
+		return mci, nil
+	}
+
+	updateResourceConfWithModelConfig(&mci.Resources, model.Config)
+	return mci, nil
 }
 
 func (c *commonClient) nodeSelectorForModel(ctx context.Context, modelID string) (map[string]string, error) {
@@ -816,4 +834,27 @@ func getImage(mci config.ModelConfigItem, rconfig *config.RuntimeConfig) (string
 		return "", fmt.Errorf("runtime image not found for %s", mci.RuntimeName)
 	}
 	return image, nil
+}
+
+func updateResourceConfWithModelConfig(resConf *config.Resources, mconfig *mv1.ModelConfig) {
+	rc := mconfig.RuntimeConfig
+	if rc == nil {
+		return
+	}
+
+	res := rc.Resources
+	if res == nil {
+		return
+	}
+
+	v := strconv.Itoa(int(res.Gpu))
+	if resConf.Requests == nil {
+		resConf.Requests = map[string]string{}
+	}
+	resConf.Requests[nvidiaGPUResource] = v
+
+	if resConf.Limits == nil {
+		resConf.Limits = map[string]string{}
+	}
+	resConf.Limits[nvidiaGPUResource] = v
 }

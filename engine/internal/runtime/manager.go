@@ -38,7 +38,7 @@ func NewManager(
 	k8sClient client.Client,
 	rtClientFactory ClientFactory,
 	autoscaler autoscaler.Registerer,
-	modelClient modelGetter,
+	modelGetter modelGetter,
 	podMonitor podMonitor,
 	enableDynamicLoRALoading bool,
 	pullerPort int,
@@ -48,7 +48,7 @@ func NewManager(
 		k8sClient:       k8sClient,
 		rtClientFactory: rtClientFactory,
 		autoscaler:      autoscaler,
-		modelClient:     modelClient,
+		modelGetter:     modelGetter,
 		podMonitor:      podMonitor,
 
 		enableDynamicLoRALoading: enableDynamicLoRALoading,
@@ -99,7 +99,7 @@ type Manager struct {
 	rtClientFactory ClientFactory
 	autoscaler      autoscaler.Registerer
 
-	modelClient modelGetter
+	modelGetter modelGetter
 
 	podMonitor podMonitor
 
@@ -443,7 +443,7 @@ func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID st
 		return false, "", nil
 	}
 
-	model, err := m.modelClient.GetModel(ctx, &mv1.GetModelRequest{
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,
 	})
 	if err != nil {

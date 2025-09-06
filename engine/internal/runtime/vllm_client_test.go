@@ -170,41 +170,35 @@ func TestDeployRuntimeParams(t *testing.T) {
 
 func TestNumGPUs(t *testing.T) {
 	tcs := []struct {
-		name string
-		mci  config.ModelConfigItem
-		want int
+		name    string
+		resConf config.Resources
+		want    int
 	}{
 		{
 			name: "model0",
-			mci: config.ModelConfigItem{
-				Resources: config.Resources{
-					Limits: map[string]string{
-						nvidiaGPUResource: "2",
-						"cpu":             "4",
-					},
+			resConf: config.Resources{
+				Limits: map[string]string{
+					nvidiaGPUResource: "2",
+					"cpu":             "4",
 				},
 			},
 			want: 2,
 		},
 		{
 			name: "model1",
-			mci: config.ModelConfigItem{
-				Resources: config.Resources{
-					Limits: map[string]string{
-						"cpu": "8",
-					},
+			resConf: config.Resources{
+				Limits: map[string]string{
+					"cpu": "8",
 				},
 			},
 			want: 0,
 		},
 		{
 			name: "model2",
-			mci: config.ModelConfigItem{
-				Resources: config.Resources{
-					Limits: map[string]string{
-						awsNeuroncoreResource: "1",
-						"cpu":                 "3",
-					},
+			resConf: config.Resources{
+				Limits: map[string]string{
+					awsNeuroncoreResource: "1",
+					"cpu":                 "3",
 				},
 			},
 			want: 1,
@@ -213,7 +207,7 @@ func TestNumGPUs(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := numGPUs(tc.mci)
+			got, err := numGPUs(tc.resConf)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

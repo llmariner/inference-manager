@@ -172,7 +172,12 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		}
 	}
 
-	if gpus, err := numGPUs(mci); err != nil {
+	resConf, err := v.modelResourceConf(ctx, modelID, mci)
+	if err != nil {
+		return deployRuntimeParams{}, err
+	}
+
+	if gpus, err := numGPUs(resConf); err != nil {
 		return deployRuntimeParams{}, err
 	} else if gpus == 0 {
 		args = append(args, "--device", "cpu")
@@ -296,9 +301,7 @@ func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (str
 	return modeldownloader.ModelFilePath(puller.ModelDir(), modelID, format)
 }
 
-func numGPUs(mci config.ModelConfigItem) (int, error) {
-	resConf := mci.Resources
-
+func numGPUs(resConf config.Resources) (int, error) {
 	for _, resName := range []string{nvidiaGPUResource, awsNeuroncoreResource} {
 		r, ok := resConf.Limits[resName]
 		if !ok {

@@ -164,7 +164,10 @@ func (c *commonClient) deployRuntime(
 		"app.kubernetes.io/created-by": managerName,
 	}
 
-	resConf := mci.Resources
+	resConf, err := c.modelResourceConf(ctx, params.modelID, mci)
+	if err != nil {
+		return nil, err
+	}
 
 	volumes := []*corev1apply.VolumeApplyConfiguration{
 		corev1apply.Volume().
@@ -550,6 +553,10 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 	log.Info("Deleted runtime", "model", modelID)
 
 	return nil
+}
+
+func (c *commonClient) modelResourceConf(ctx context.Context, modelID string, mci config.ModelConfigItem) (config.Resources, error) {
+	return mci.Resources, nil
 }
 
 func (c *commonClient) nodeSelectorForModel(ctx context.Context, modelID string) (map[string]string, error) {

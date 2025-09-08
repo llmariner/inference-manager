@@ -258,8 +258,8 @@ model:
   # +docs:property
   overrides: {}
 
-  # set this to true if the model setting is overriden by
-  # the model configurion stored in model-manager-server.
+  # set this to true if the model setting is overridden by
+  # the model configuration stored in model-manager-server.
   enableOverrideWithModelConfig: false
 
 # Optional a list of model IDs to preload. These models are preloaded

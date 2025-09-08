@@ -22,7 +22,7 @@ const (
 	daemonModeSuffix = "dynamic"
 )
 
-// NewOllamaClient creates a new Ollama runtime client.a
+// NewOllamaClient creates a new Ollama runtime client.
 func NewOllamaClient(
 	opts NewCommonClientOptions,
 	oconfig config.OllamaConfig,

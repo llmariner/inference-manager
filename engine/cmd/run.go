@@ -162,13 +162,14 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	modelCache := runtime.NewModelCache(modelClient)
 
 	ncOpts := runtime.NewCommonClientOptions{
-		K8sClient:              mgr.GetClient(),
-		Namespace:              ns,
-		Owner:                  owner,
-		Rconfig:                &c.Runtime,
-		Mconfig:                processedConfig,
-		ModelGetter:            modelCache,
-		EnableDriftedPodUpdate: c.DriftedPodUpdater.Enable,
+		K8sClient:                     mgr.GetClient(),
+		Namespace:                     ns,
+		Owner:                         owner,
+		Rconfig:                       &c.Runtime,
+		Mconfig:                       processedConfig,
+		ModelGetter:                   modelCache,
+		EnableDriftedPodUpdate:        c.DriftedPodUpdater.Enable,
+		EnableOverrideWithModelConfig: c.Model.EnableOverrideWithModelConfig,
 	}
 
 	ollamaClient := runtime.NewOllamaClient(ncOpts, c.Ollama)

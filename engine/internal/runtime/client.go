@@ -57,25 +57,28 @@ type modelGetter interface {
 
 // NewCommonClientOptions are options for creating a commonClient.
 type NewCommonClientOptions struct {
-	K8sClient              client.Client
-	Namespace              string
-	Owner                  *metav1apply.OwnerReferenceApplyConfiguration
-	Rconfig                *config.RuntimeConfig
-	Mconfig                *config.ProcessedModelConfig
-	ModelGetter            modelGetter
-	EnableDriftedPodUpdate bool
+	K8sClient   client.Client
+	Namespace   string
+	Owner       *metav1apply.OwnerReferenceApplyConfiguration
+	Rconfig     *config.RuntimeConfig
+	Mconfig     *config.ProcessedModelConfig
+	ModelGetter modelGetter
+
+	EnableDriftedPodUpdate        bool
+	EnableOverrideWithModelConfig bool
 }
 
 func newCommonClient(opts NewCommonClientOptions, servingPort int) *commonClient {
 	return &commonClient{
-		k8sClient:              opts.K8sClient,
-		namespace:              opts.Namespace,
-		owner:                  opts.Owner,
-		rconfig:                opts.Rconfig,
-		mconfig:                opts.Mconfig,
-		modelGetter:            opts.ModelGetter,
-		enableDriftedPodUpdate: opts.EnableDriftedPodUpdate,
-		servingPort:            servingPort,
+		k8sClient:                     opts.K8sClient,
+		namespace:                     opts.Namespace,
+		owner:                         opts.Owner,
+		rconfig:                       opts.Rconfig,
+		mconfig:                       opts.Mconfig,
+		modelGetter:                   opts.ModelGetter,
+		enableDriftedPodUpdate:        opts.EnableDriftedPodUpdate,
+		enableOverrideWithModelConfig: opts.EnableOverrideWithModelConfig,
+		servingPort:                   servingPort,
 	}
 }
 
@@ -90,7 +93,8 @@ type commonClient struct {
 
 	modelGetter modelGetter
 
-	enableDriftedPodUpdate bool
+	enableDriftedPodUpdate        bool
+	enableOverrideWithModelConfig bool
 
 	servingPort int
 }
@@ -585,6 +589,10 @@ func (c *commonClient) modelConfigItem(
 	modelID string,
 ) (config.ModelConfigItem, error) {
 	mci := c.mconfig.ModelConfigItem(modelID)
+
+	if !c.enableOverrideWithModelConfig {
+		return mci, nil
+	}
 
 	model, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 		Id: modelID,

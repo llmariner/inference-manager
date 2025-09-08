@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -195,11 +196,27 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 
 	if len(readyPodsByName) == sts.replicas {
 		u.logger.Info("All pods are ready, deleting drifted pods", "statefulset", sts.name)
-		var driftedPod *corev1.Pod
+
+		// Pick up the pod with the largest ordinal number. This is to handle a case where
+		// a statefulset is scaled down and both k8s and the updater are trying to delete pods.
+		// The pod with the largest ordinal number is the one that k8s will delete first, so
+		// we delete the same pod to avoid conflict.
+		var (
+			driftedPod *corev1.Pod
+			podIndex   int64
+		)
 		for _, p := range driftedPods {
-			driftedPod = p
-			break
+			index, err := strconv.ParseInt(p.Labels[appsv1.PodIndexLabel], 10, 64)
+			if err != nil {
+				return fmt.Errorf("parse pod index: %s", err)
+			}
+
+			if driftedPod == nil || index > podIndex {
+				driftedPod = p
+				podIndex = index
+			}
 		}
+
 		if err := u.deleteDriftedPod(ctx, driftedPod); err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strconv"
 	"testing"
 
 	testutil "github.com/llmariner/inference-manager/common/pkg/test"
@@ -71,7 +72,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 		stsName   = "sts-model0"
 	)
 
-	newPod := func(name, revision string, isReady bool) *corev1.Pod {
+	newPod := func(name string, index int, revision string, isReady bool) *corev1.Pod {
 		condStatus := corev1.ConditionFalse
 		if isReady {
 			condStatus = corev1.ConditionTrue
@@ -83,6 +84,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				Namespace: namespace,
 				Labels: map[string]string{
 					appsv1.StatefulSetRevisionLabel: revision,
+					appsv1.PodIndexLabel:            strconv.Itoa(index),
 					"app.kubernetes.io/instance":    stsName,
 				},
 			},
@@ -115,7 +117,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash0", true),
+				newPod("pod0", 0, "hash0", true),
 			},
 			deletedPodNames: nil,
 		},
@@ -130,7 +132,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash1", true),
+				newPod("pod0", 0, "hash1", true),
 			},
 			deletedPodNames: []string{"pod0"},
 		},
@@ -145,10 +147,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash1", true),
-				newPod("pod1", "hash1", true),
+				newPod("pod0", 0, "hash1", true),
+				newPod("pod1", 1, "hash1", true),
 			},
-			deletedPodNames: []string{"pod0"},
+			deletedPodNames: []string{"pod1"},
 		},
 		{
 			name: "one drifted pod with all ready pods",
@@ -161,8 +163,8 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash0", true),
-				newPod("pod1", "hash1", true),
+				newPod("pod0", 0, "hash0", true),
+				newPod("pod1", 1, "hash1", true),
 			},
 			deletedPodNames: []string{"pod1"},
 		},
@@ -177,8 +179,8 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash1", false),
-				newPod("pod1", "hash1", false),
+				newPod("pod0", 0, "hash1", false),
+				newPod("pod1", 1, "hash1", false),
 			},
 			deletedPodNames: nil,
 		},
@@ -193,10 +195,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash0", true),
-				newPod("pod1", "hash0", true),
-				newPod("pod2", "hash1", false),
-				newPod("pod3", "hash0", true),
+				newPod("pod0", 0, "hash0", true),
+				newPod("pod1", 1, "hash0", true),
+				newPod("pod2", 2, "hash1", false),
+				newPod("pod3", 3, "hash0", true),
 			},
 			deletedPodNames: []string{"pod2"},
 		},
@@ -211,10 +213,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash0", true),
-				newPod("pod1", "hash1", true),
-				newPod("pod2", "hash0", false),
-				newPod("pod3", "hash0", true),
+				newPod("pod0", 0, "hash0", true),
+				newPod("pod1", 1, "hash1", true),
+				newPod("pod2", 2, "hash0", false),
+				newPod("pod3", 3, "hash0", true),
 			},
 			deletedPodNames: nil,
 		},
@@ -229,10 +231,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash1", true),
-				newPod("pod1", "hash1", true),
-				newPod("pod2", "hash1", true),
-				newPod("pod3", "hash1", true),
+				newPod("pod0", 0, "hash1", true),
+				newPod("pod1", 1, "hash1", true),
+				newPod("pod2", 2, "hash1", true),
+				newPod("pod3", 3, "hash1", true),
 			},
 			updateInProgressPodNames: []string{"pod0", "pod1"},
 			deletedPodNames:          nil,
@@ -248,10 +250,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", "hash0", true),
-				newPod("pod1", "hash0", true),
-				newPod("pod2", "hash1", false),
-				newPod("pod3", "hash0", true),
+				newPod("pod0", 0, "hash0", true),
+				newPod("pod1", 1, "hash0", true),
+				newPod("pod2", 2, "hash1", false),
+				newPod("pod3", 3, "hash0", true),
 			},
 			updateInProgressPodNames: []string{"2"},
 			deletedPodNames:          []string{"pod2"},

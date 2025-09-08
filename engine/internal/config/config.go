@@ -302,6 +302,8 @@ type ModelConfig struct {
 	// Overrides is a map of model ID to the model configuration item to be overriden. Only
 	// fields that are set in the overrides are applied.
 	Overrides map[string]ModelConfigItem `yaml:"overrides"`
+
+	EnableOverrideWithModelConfig bool `yaml:"enableOverrideWithModelConfig"`
 }
 
 func (c *ModelConfig) validate() error {

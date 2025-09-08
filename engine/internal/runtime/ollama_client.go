@@ -14,8 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
-	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -24,38 +22,21 @@ const (
 	daemonModeSuffix = "dynamic"
 )
 
-// NewOllamaClient creates a new Ollama runtime client.a
+// NewOllamaClient creates a new Ollama runtime client.
 func NewOllamaClient(
-	k8sClient client.Client,
-	namespace string,
-	owner *metav1apply.OwnerReferenceApplyConfiguration,
-	rconfig *config.RuntimeConfig,
-	mconfig *config.ProcessedModelConfig,
+	opts NewCommonClientOptions,
 	oconfig config.OllamaConfig,
-	enableDriftPodUpdater bool,
-	modelGetter modelGetter,
 ) Client {
 	return &ollamaClient{
-		commonClient: &commonClient{
-			k8sClient:             k8sClient,
-			namespace:             namespace,
-			owner:                 owner,
-			servingPort:           ollamaHTTPPort,
-			rconfig:               rconfig,
-			mconfig:               mconfig,
-			enableDriftPodUpdater: enableDriftPodUpdater,
-			modelGetter:           modelGetter,
-		},
-		config:      oconfig,
-		modelGetter: modelGetter,
+		commonClient: newCommonClient(opts, ollamaHTTPPort),
+		config:       oconfig,
 	}
 }
 
 type ollamaClient struct {
 	*commonClient
 
-	config      config.OllamaConfig
-	modelGetter modelGetter
+	config config.OllamaConfig
 }
 
 // GetName returns a resource name of the runtime.

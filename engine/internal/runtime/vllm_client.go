@@ -17,9 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
-	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const vllmHTTPPort = 80
@@ -36,29 +34,14 @@ type modelClient interface {
 
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
-	k8sClient client.Client,
-	namespace string,
-	owner *metav1apply.OwnerReferenceApplyConfiguration,
-	rconfig *config.RuntimeConfig,
-	mconfig *config.ProcessedModelConfig,
-	modelGetter modelGetter,
+	opts NewCommonClientOptions,
 	modelClient modelClient,
 	vLLMConfg *config.VLLMConfig,
-	enableDriftPodUpdater bool,
 ) Client {
 	return &vllmClient{
-		commonClient: &commonClient{
-			k8sClient:             k8sClient,
-			namespace:             namespace,
-			owner:                 owner,
-			servingPort:           vllmHTTPPort,
-			rconfig:               rconfig,
-			mconfig:               mconfig,
-			enableDriftPodUpdater: enableDriftPodUpdater,
-			modelGetter:           modelGetter,
-		},
-		modelClient: modelClient,
-		vLLMConfig:  vLLMConfg,
+		commonClient: newCommonClient(opts, vllmHTTPPort),
+		modelClient:  modelClient,
+		vLLMConfig:   vLLMConfg,
 	}
 }
 

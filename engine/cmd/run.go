@@ -161,16 +161,17 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	modelClient := mv1.NewModelsWorkerServiceClient(conn)
 	modelCache := runtime.NewModelCache(modelClient)
 
-	ollamaClient := runtime.NewOllamaClient(
-		mgr.GetClient(),
-		ns,
-		owner,
-		&c.Runtime,
-		processedConfig,
-		c.Ollama,
-		c.DriftedPodUpdater.Enable,
-		modelCache,
-	)
+	ncOpts := runtime.NewCommonClientOptions{
+		K8sClient:              mgr.GetClient(),
+		Namespace:              ns,
+		Owner:                  owner,
+		Rconfig:                &c.Runtime,
+		Mconfig:                processedConfig,
+		ModelGetter:            modelCache,
+		EnableDriftedPodUpdate: c.DriftedPodUpdater.Enable,
+	}
+
+	ollamaClient := runtime.NewOllamaClient(ncOpts, c.Ollama)
 
 	type modelManagerI interface {
 		PullModel(ctx context.Context, modelID string) error
@@ -200,40 +201,13 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	} else {
 		clients := map[string]runtime.Client{
 			config.RuntimeNameOllama: ollamaClient,
-			config.RuntimeNameVLLM: runtime.NewVLLMClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				processedConfig,
-				modelCache,
-				modelClient,
-				&c.VLLM,
-				c.DriftedPodUpdater.Enable,
-			),
-			config.RuntimeNameTriton: runtime.NewTritonClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				processedConfig,
-				c.DriftedPodUpdater.Enable,
-				modelCache,
-			),
+			config.RuntimeNameVLLM:   runtime.NewVLLMClient(ncOpts, modelClient, &c.VLLM),
+			config.RuntimeNameTriton: runtime.NewTritonClient(ncOpts),
 		}
 
 		nimClients := make(map[string]runtime.Client)
 		for _, model := range c.NIM.Models {
-			nimClients[model.ModelName] = runtime.NewNIMClient(
-				mgr.GetClient(),
-				ns,
-				owner,
-				&c.Runtime,
-				&c.NIM,
-				&model,
-				c.DriftedPodUpdater.Enable,
-				modelCache,
-			)
+			nimClients[model.ModelName] = runtime.NewNIMClient(ncOpts, &c.NIM, &model)
 			nimModels[model.ModelName] = true
 		}
 

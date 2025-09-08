@@ -55,20 +55,44 @@ type modelGetter interface {
 	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
 }
 
+// NewCommonClientOptions are options for creating a commonClient.
+type NewCommonClientOptions struct {
+	K8sClient              client.Client
+	Namespace              string
+	Owner                  *metav1apply.OwnerReferenceApplyConfiguration
+	Rconfig                *config.RuntimeConfig
+	Mconfig                *config.ProcessedModelConfig
+	ModelGetter            modelGetter
+	EnableDriftedPodUpdate bool
+}
+
+func newCommonClient(opts NewCommonClientOptions, servingPort int) *commonClient {
+	return &commonClient{
+		k8sClient:              opts.K8sClient,
+		namespace:              opts.Namespace,
+		owner:                  opts.Owner,
+		rconfig:                opts.Rconfig,
+		mconfig:                opts.Mconfig,
+		modelGetter:            opts.ModelGetter,
+		enableDriftedPodUpdate: opts.EnableDriftedPodUpdate,
+		servingPort:            servingPort,
+	}
+}
+
 type commonClient struct {
 	k8sClient client.Client
 
 	namespace string
 	owner     *metav1apply.OwnerReferenceApplyConfiguration
 
-	servingPort int
-
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
 
-	enableDriftPodUpdater bool
-
 	modelGetter modelGetter
+
+	enableDriftedPodUpdate bool
+
+	servingPort int
 }
 
 // Namespace returns the namespace of the runtime.
@@ -449,7 +473,7 @@ func (c *commonClient) deployRuntime(
 		stsSpecConf = stsSpecConf.WithVolumeClaimTemplates(volClaim)
 	}
 
-	if c.enableDriftPodUpdater {
+	if c.enableDriftedPodUpdate {
 		// Set the strategy to OnDelete as pods will be deleted by the updater.
 		stsSpecConf = stsSpecConf.WithUpdateStrategy(
 			appsv1apply.StatefulSetUpdateStrategy().

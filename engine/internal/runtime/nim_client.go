@@ -17,7 +17,6 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -32,27 +31,14 @@ const (
 
 // NewNIMClient creates a new NIM runtime client.
 func NewNIMClient(
-	k8sClient client.Client,
-	namespace string,
-	owner *metav1apply.OwnerReferenceApplyConfiguration,
-	rconfig *config.RuntimeConfig,
+	opts NewCommonClientOptions,
 	nconfig *config.NIMConfig,
 	nmconfig *config.NIMModelConfig,
-	enableDriftPodUpdater bool,
-	modelGetter modelGetter,
 ) Client {
 	return &nimClient{
-		commonClient: &commonClient{
-			k8sClient:             k8sClient,
-			namespace:             namespace,
-			owner:                 owner,
-			servingPort:           nimHTTPPort,
-			rconfig:               rconfig,
-			enableDriftPodUpdater: enableDriftPodUpdater,
-			modelGetter:           modelGetter,
-		},
-		config:      nconfig,
-		modelConfig: nmconfig,
+		commonClient: newCommonClient(opts, nimHTTPPort),
+		config:       nconfig,
+		modelConfig:  nmconfig,
 	}
 }
 

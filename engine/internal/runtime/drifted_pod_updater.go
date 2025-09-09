@@ -174,11 +174,17 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	//
 	// - If all pods are ready, we can delete any drifted pod.
 	// - If all pods except one are ready, check if the unready pod is the drifted one. If so, we can delete it.
+	// - If a drifted pod is unschedulable, just delete it so that it can be scheduled with the new configuration.
 
 	updateInProgressPods := u.updateInProgressPodGetter.GetUpdateInProgressPodNames()
 
 	readyPodsByName := map[string]*corev1.Pod{}
+	unschedulablePodsByName := map[string]*corev1.Pod{}
 	for _, pod := range pods {
+		if yes, _ := isPodUnschedulable(pod); yes {
+			unschedulablePodsByName[pod.Name] = &pod
+		}
+
 		if !isPodReady(&pod) {
 			continue
 		}
@@ -197,27 +203,12 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	if len(readyPodsByName) == sts.replicas {
 		u.logger.Info("All pods are ready, deleting a drifted pod", "statefulset", sts.name)
 
-		// Pick up the pod with the largest ordinal number. This is to handle a case where
-		// a statefulset is scaled down and both k8s and the updater are trying to delete pods.
-		// The pod with the largest ordinal number is the one that k8s will delete first, so
-		// we delete the same pod to avoid conflict.
-		var (
-			driftedPod *corev1.Pod
-			podIndex   int64
-		)
-		for _, p := range driftedPods {
-			index, err := strconv.ParseInt(p.Labels[appsv1.PodIndexLabel], 10, 64)
-			if err != nil {
-				return fmt.Errorf("parse pod index: %s", err)
-			}
-
-			if driftedPod == nil || index > podIndex {
-				driftedPod = p
-				podIndex = index
-			}
+		p, err := chooseDeletionCandidateFromDriftedPods(driftedPods)
+		if err != nil {
+			return err
 		}
 
-		if err := u.deleteDriftedPod(ctx, driftedPod); err != nil {
+		if err := u.deleteDriftedPod(ctx, p); err != nil {
 			return err
 		}
 		return nil
@@ -243,6 +234,27 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 		}
 		return nil
 	}
+
+	// Find the drifted pod that is unschedulable.
+	var unschedulableDriftedPods []*corev1.Pod
+	for _, p := range driftedPods {
+		if _, ok := unschedulablePodsByName[p.Name]; ok {
+			unschedulableDriftedPods = append(unschedulableDriftedPods, p)
+		}
+	}
+	if len(unschedulableDriftedPods) > 0 {
+		p, err := chooseDeletionCandidateFromDriftedPods(unschedulableDriftedPods)
+		if err != nil {
+			return err
+		}
+		u.logger.Info("Found drifted pod that is unschedulable, deleting it", "statefulset", sts.name, "pod", p.Name)
+		if err := u.deleteDriftedPod(ctx, p); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// TODO(kenji): Delete a drifted pod if the pod is crash-looping (i.e., not unready because model pulling is in-progress).
 
 	u.logger.Info("Drifted pods found but not deleted", "statefulset", sts.name, "pods", len(driftedPods))
 
@@ -425,4 +437,28 @@ func hasMajorChangeToPodSpec(currPodSpec, specFromTemplate *corev1.PodSpec) bool
 	curr.Volumes = newVolumes
 
 	return !equality.Semantic.DeepEqual(curr, expected)
+}
+
+func chooseDeletionCandidateFromDriftedPods(driftedPods []*corev1.Pod) (*corev1.Pod, error) {
+	// Pick up the pod with the largest ordinal number. This is to handle a case where
+	// a statefulset is scaled down and both k8s and the updater are trying to delete pods.
+	// The pod with the largest ordinal number is the one that k8s will delete first, so
+	// we delete the same pod to avoid conflict.
+	var (
+		candidate *corev1.Pod
+		podIndex  int64
+	)
+	for _, p := range driftedPods {
+		index, err := strconv.ParseInt(p.Labels[appsv1.PodIndexLabel], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse pod index: %s", err)
+		}
+
+		if candidate == nil || index > podIndex {
+			candidate = p
+			podIndex = index
+		}
+	}
+
+	return candidate, nil
 }

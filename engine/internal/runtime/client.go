@@ -84,8 +84,6 @@ type commonClient struct {
 	rconfig *config.RuntimeConfig
 	mconfig *config.ProcessedModelConfig
 
-	modelGetter modelGetter
-
 	enableDriftedPodUpdate        bool
 	enableOverrideWithModelConfig bool
 

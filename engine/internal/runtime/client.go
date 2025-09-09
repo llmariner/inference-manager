@@ -585,14 +585,14 @@ func (c *commonClient) modelConfigItem(
 	ctx context.Context,
 	model *mv1.Model,
 ) (config.ModelConfigItem, error) {
+	if model == nil {
+		// model is empty for the dynamic Ollama model loading. Do not call GetModel.
+		return c.mconfig.ModelConfigItem(""), nil
+	}
+
 	mci := c.mconfig.ModelConfigItem(model.Id)
 
 	if !c.enableOverrideWithModelConfig {
-		return mci, nil
-	}
-
-	if model == nil {
-		// model is empty for the dynamic Ollama model loading. Do not call GetModel.
 		return mci, nil
 	}
 

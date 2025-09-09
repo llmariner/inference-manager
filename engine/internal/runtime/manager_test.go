@@ -25,7 +25,7 @@ import (
 func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
-			"model-0": newPendingRuntime("rt-model-0", &mv1.Model{Id: "model-0"}),
+			"model-0": newPendingRuntime("rt-model-0"),
 			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 		},
 	}
@@ -38,7 +38,7 @@ func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", 1),
-			"model-1": newPendingRuntime("rt-model-1", &mv1.Model{Id: "model-1"}),
+			"model-1": newPendingRuntime("rt-model-1"),
 		},
 	}
 	addr, err := mgr.GetLLMAddress("model-0")
@@ -52,7 +52,7 @@ func TestListModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", 1),
-			"model-1": newPendingRuntime("rt-model-1", &mv1.Model{Id: "model-1"}),
+			"model-1": newPendingRuntime("rt-model-1"),
 			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
 		podMonitor: &fakePodMonitor{},
@@ -89,7 +89,7 @@ func TestPullModel(t *testing.T) {
 		},
 		{
 			name: "already pending",
-			rt:   newPendingRuntime("rt-model-1", &mv1.Model{Id: "model-1"}),
+			rt:   newPendingRuntime("rt-model-1"),
 		},
 		{
 			name:     "new model",
@@ -505,7 +505,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt: newPendingRuntime(name),
 		},
 		{
 			name: "unreachable",
@@ -513,7 +513,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt: newPendingRuntime(name),
 
 			readinessCheck: errors.New("runtime not reachable"),
 
@@ -529,7 +529,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt: newPendingRuntime(name),
 
 			readinessCheck: errors.New("runtime not reachable"),
 
@@ -544,7 +544,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt: newPendingRuntime(name),
 
 			wantReady:   true,
 			wantChClose: true,
@@ -610,7 +610,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (pending)",
 			sts:  nil,
-			rt:   newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt:   newPendingRuntime(name),
 			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -646,7 +646,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			rt:            newPendingRuntime(name, &mv1.Model{Id: name}),
+			rt:            newPendingRuntime(name),
 			wantChClose:   true,
 			wantErrReason: corev1.PodReasonUnschedulable,
 		},
@@ -670,11 +670,7 @@ func TestReconcile(t *testing.T) {
 				k8sClient,
 				&fakeClientFactory{c: rtClient},
 				scaler,
-				&fakeModelClient{
-					models: map[string]*mv1.Model{
-						modelID: {Id: modelID},
-					},
-				},
+				nil,
 				nil,
 				false,
 				-1,
@@ -855,12 +851,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				k8sClient,
 				&fakeClientFactory{c: rtClient},
 				scaler,
-				&fakeModelClient{
-					models: map[string]*mv1.Model{
-						"base-mid-0": {Id: "base-mid-0", IsBaseModel: true},
-						modelID:      {Id: modelID, BaseModelId: "base-mid-0"},
-					},
-				},
+				&fakeModelClient{},
 				nil,
 				true,
 				9090,

@@ -44,7 +44,8 @@ func NewModelActivator(
 
 		isDynamicLoRALoadingEnabled: isDynamicLoRALoadingEnabled,
 
-		parallelism: 3,
+		initialDelay: 3 * time.Second,
+		parallelism:  3,
 	}
 }
 
@@ -58,7 +59,8 @@ type ModelActivator struct {
 
 	isDynamicLoRALoadingEnabled bool
 
-	parallelism int
+	initialDelay time.Duration
+	parallelism  int
 
 	logger logr.Logger
 }
@@ -71,6 +73,8 @@ func (a *ModelActivator) SetupWithManager(mgr ctrl.Manager) error {
 
 // Start starts the multi-autoscaler.
 func (a *ModelActivator) Start(ctx context.Context) error {
+	time.Sleep(a.initialDelay)
+
 	ctx = ctrl.LoggerInto(ctx, a.logger)
 
 	a.logger.Info("Starting model activator")
@@ -112,6 +116,18 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 	g.SetLimit(a.parallelism)
 	for _, model := range resp.Data {
 		mid := model.Id
+
+		if a.preloadedModelIDs[mid] {
+			// Activate preloaded models regardless of the activation status.
+			g.Go(func() error {
+				if err := a.mmanager.PullModelUnblocked(ctx, mid); err != nil {
+					return fmt.Errorf("pull model %s: %s", mid, err)
+				}
+				return nil
+			})
+			continue
+		}
+
 		switch model.ActivationStatus {
 		case mv1.ActivationStatus_ACTIVATION_STATUS_UNSPECIFIED:
 			// Do nothing for backward compatibility.
@@ -123,11 +139,6 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 				return nil
 			})
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
-			if a.preloadedModelIDs[mid] {
-				// Do not inactivate the preloaded models.
-				continue
-			}
-
 			if a.isDynamicLoRALoadingEnabled && model.IsBaseModel && baseModelsForActiveFineTunedModels[model.Id] {
 				// Do not deactivate a base model if dynamic LoRA loading is enabled
 				// and there is at least one active fine-tuned model

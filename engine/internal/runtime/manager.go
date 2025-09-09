@@ -333,7 +333,15 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	log.Info("Runtime is not ready. Checking if LoRA adapter loading is applicable", "modelID", e.modelID)
 
 	// TODO(kenji): Revisit the locking if this takes a long time.
-	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(ctx, e.modelID)
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: e.modelID,
+	})
+	if err != nil {
+		m.mu.Unlock()
+		return err
+	}
+
+	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(ctx, e.modelID, model)
 	if err != nil {
 		m.mu.Unlock()
 		return err
@@ -341,14 +349,14 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	if !isDynamicLoRAApplicable {
 		log.Info("Creating a new pending runtime", "modelID", e.modelID)
-		r := newPendingRuntime(client.GetName(e.modelID))
+		r := newPendingRuntime(client.GetName(e.modelID), model)
 		if e.readyWaitCh != nil {
 			r.waitChs = append(r.waitChs, e.readyWaitCh)
 		}
 		m.runtimes[e.modelID] = r
 		m.mu.Unlock()
 
-		if err := m.deployRuntime(ctx, e.modelID); err != nil {
+		if err := m.deployRuntime(ctx, model); err != nil {
 			return fmt.Errorf("deploy runtime: %s", err)
 		}
 		return nil
@@ -357,11 +365,20 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	br, ok := m.runtimes[baseModelID]
 	if !ok {
 		log.Info("Creating a new pending runtime for the base model", "baseModelID", baseModelID)
-		br = newPendingRuntime(client.GetName(baseModelID))
+		baseModel, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+			Id: baseModelID,
+		})
+		if err != nil {
+			m.mu.Unlock()
+			return err
+		}
+
+		br = newPendingRuntime(client.GetName(baseModelID), baseModel)
 		m.runtimes[baseModelID] = br
 
 		// TODO(kenji): Revisit the locking if this takes a long time.
-		if err := m.deployRuntime(ctx, baseModelID); err != nil {
+		if err := m.deployRuntime(ctx, baseModel); err != nil {
+			m.mu.Unlock()
 			return fmt.Errorf("deploy runtime: %s", err)
 		}
 	}
@@ -375,7 +392,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	log.Info("Base model is ready. Load LoRA adapter", "baseModelID", baseModelID, "modelID", e.modelID)
 
-	r := newPendingRuntime(client.GetName(e.modelID))
+	r := newPendingRuntime(client.GetName(e.modelID), model)
 	if e.readyWaitCh != nil {
 		r.waitChs = append(r.waitChs, e.readyWaitCh)
 	}
@@ -408,15 +425,8 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	return nil
 }
 
-func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
-	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return err
-	}
-
-	client, err := m.rtClientFactory.New(modelID)
+func (m *Manager) deployRuntime(ctx context.Context, model *mv1.Model) error {
+	client, err := m.rtClientFactory.New(model.Id)
 	if err != nil {
 		return err
 	}
@@ -426,7 +436,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
+	if err := m.autoscaler.Register(ctx, model.Id, sts); err != nil {
 		return err
 	}
 
@@ -442,7 +452,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 	return nil
 }
 
-func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID string) (bool, string, error) {
+func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID string, model *mv1.Model) (bool, string, error) {
 	if !m.enableDynamicLoRALoading {
 		return false, "", nil
 	}
@@ -454,13 +464,6 @@ func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID st
 
 	if client.RuntimeName() != config.RuntimeNameVLLM {
 		return false, "", nil
-	}
-
-	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return false, "", err
 	}
 
 	if model.IsBaseModel {
@@ -544,13 +547,20 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 		}
 	}
 
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	rt, ok := m.runtimes[modelID]
 	if !ok {
 		// Create a new pending runtime and follow the same flow.
-		rt = newPendingRuntime(sts.Name)
+		rt = newPendingRuntime(sts.Name, model)
 		m.runtimes[modelID] = rt
 
 		// TODO(kenji): Reconsider if Register blocks other calls for a long of time.
@@ -783,10 +793,18 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 
 		log.Info("Adding a new LoRA adapter", "modelID", modelID, "vllmAddr", vllmAddr)
 
+		model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+			Id: modelID,
+		})
+		if err != nil {
+			close(e.eventWaitCh)
+			return err
+		}
+
 		r, ok := m.runtimes[modelID]
 		if !ok {
 			log.Info("Creating a new runtime", "modelID", modelID)
-			r = newPendingRuntime(modelID)
+			r = newPendingRuntime(modelID, model)
 			r.isDynamicallyLoadedLoRA = true
 			r.becomeReady(vllmAddr, e.update.gpu, 1 /* replicas */, log)
 			m.runtimes[modelID] = r

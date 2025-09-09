@@ -45,7 +45,7 @@ func TestOllamaPullModel(t *testing.T) {
 	}{
 		{
 			name: "runtime is not ready",
-			rt:   newPendingRuntime(stsName),
+			rt:   newPendingRuntime(stsName, nil),
 		},
 		{
 			name: "new model",

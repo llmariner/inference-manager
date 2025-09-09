@@ -34,7 +34,7 @@ type Client struct {
 func (c *Client) Show(ctx context.Context, modelID string) error {
 	showURL := url.URL{Scheme: "http", Host: c.addr, Path: "/api/show"}
 	data := fmt.Appendf([]byte{}, `{"model": "%s"}`, modelID)
-	if err := httputil.SendHTTPRequestWithRetry(ctx, showURL, data, func(status int, err error) (bool, error) {
+	if err := httputil.SendHTTPRequestWithRetry(ctx, showURL, "POST", data, func(status int, err error) (bool, error) {
 		if err != nil {
 			c.log.V(2).Error(err, "Failed to check model status", "url", showURL, "retry-interval", retryInterval)
 			return true, nil
@@ -46,6 +46,28 @@ func (c *Client) Show(ctx context.Context, modelID string) error {
 		return false, nil
 	}, requestTimeout, retryInterval, -1); err != nil {
 		return fmt.Errorf("failed to check model: %s", err)
+	}
+
+	return nil
+}
+
+// DeleteModel deletes the model with the given ID.
+func (c *Client) DeleteModel(ctx context.Context, modelID string) error {
+	deleteURL := url.URL{Scheme: "http", Host: c.addr, Path: "/api/delete"}
+	data := fmt.Appendf([]byte{}, `{"model": "%s"}`, modelID)
+
+	if err := httputil.SendHTTPRequestWithRetry(ctx, deleteURL, "DELETE", data, func(status int, err error) (bool, error) {
+		if err != nil {
+			c.log.V(2).Error(err, "Failed to delete model", "url", deleteURL, "retry-interval", retryInterval)
+			return true, nil
+		}
+
+		if status != http.StatusOK && status != http.StatusNotFound {
+			return true, nil
+		}
+		return false, nil
+	}, requestTimeout, retryInterval, -1); err != nil {
+		return fmt.Errorf("failed to delete model: %s", err)
 	}
 
 	return nil

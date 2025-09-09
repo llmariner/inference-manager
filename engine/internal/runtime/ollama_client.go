@@ -121,7 +121,7 @@ ollama serve
 `, puller.ModelDir(), puller.ModelDir(), puller.ModelDir())
 
 		return o.deployRuntime(ctx, deployRuntimeParams{
-			modelID:  "",
+			model:    nil,
 			initEnvs: initEnvs,
 			envs:     envs,
 			readinessProbe: corev1apply.Probe().
@@ -172,7 +172,7 @@ kill ${serve_pid}
 `, strings.Join(createCmds, "\n"))
 
 	return o.deployRuntime(ctx, deployRuntimeParams{
-		modelID:  model.Id,
+		model:    model,
 		initEnvs: initEnvs,
 		envs:     envs,
 		readinessProbe: corev1apply.Probe().

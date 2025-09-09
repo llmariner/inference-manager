@@ -163,7 +163,7 @@ func TestDeployRuntimeParams(t *testing.T) {
 				vLLMConfig:   &config.VLLMConfig{},
 			}
 
-			got, err := v.deployRuntimeParams(context.Background(), tc.modelID)
+			got, err := v.deployRuntimeParams(context.Background(), tc.model)
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tc.wantArgs, got.args)
 		})

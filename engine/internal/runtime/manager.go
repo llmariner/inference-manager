@@ -14,6 +14,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
+	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,10 @@ const (
 	errMsgUnreachableRuntime = "runtime is unreachable"
 	errMsgDeletedRuntime     = "runtime is deleted"
 )
+
+type modelGetter interface {
+	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
+}
 
 // NewManager creates a new runtime manager.
 func NewManager(

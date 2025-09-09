@@ -9,7 +9,6 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	mv1 "github.com/llmariner/model-manager/api/v1"
-	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,18 +50,13 @@ type ClientFactory interface {
 	New(modelID string) (Client, error)
 }
 
-type modelGetter interface {
-	GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error)
-}
-
 // NewCommonClientOptions are options for creating a commonClient.
 type NewCommonClientOptions struct {
-	K8sClient   client.Client
-	Namespace   string
-	Owner       *metav1apply.OwnerReferenceApplyConfiguration
-	Rconfig     *config.RuntimeConfig
-	Mconfig     *config.ProcessedModelConfig
-	ModelGetter modelGetter
+	K8sClient client.Client
+	Namespace string
+	Owner     *metav1apply.OwnerReferenceApplyConfiguration
+	Rconfig   *config.RuntimeConfig
+	Mconfig   *config.ProcessedModelConfig
 
 	EnableDriftedPodUpdate        bool
 	EnableOverrideWithModelConfig bool
@@ -75,7 +69,6 @@ func newCommonClient(opts NewCommonClientOptions, servingPort int) *commonClient
 		owner:                         opts.Owner,
 		rconfig:                       opts.Rconfig,
 		mconfig:                       opts.Mconfig,
-		modelGetter:                   opts.ModelGetter,
 		enableDriftedPodUpdate:        opts.EnableDriftedPodUpdate,
 		enableOverrideWithModelConfig: opts.EnableOverrideWithModelConfig,
 		servingPort:                   servingPort,
@@ -138,7 +131,7 @@ type initContainerSpec struct {
 }
 
 type deployRuntimeParams struct {
-	modelID        string
+	model          *mv1.Model
 	initEnvs       []*corev1apply.EnvVarApplyConfiguration
 	envs           []*corev1apply.EnvVarApplyConfiguration
 	volumes        []*corev1apply.VolumeApplyConfiguration
@@ -167,7 +160,13 @@ func (c *commonClient) deployRuntime(
 	params deployRuntimeParams,
 	update bool,
 ) (*appsv1.StatefulSet, error) {
-	mci, err := c.modelConfigItem(ctx, params.modelID)
+	// modelID is empty for Ollama dynamic model loading.
+	var modelID string
+	if params.model != nil {
+		modelID = params.model.Id
+	}
+
+	mci, err := c.modelConfigItem(ctx, params.model)
 	if err != nil {
 		return nil, err
 	}
@@ -176,11 +175,11 @@ func (c *commonClient) deployRuntime(
 	if params.dynamicModelLoading {
 		name = resourceName(mci.RuntimeName, daemonModeSuffix)
 	} else {
-		name = resourceName(mci.RuntimeName, params.modelID)
+		name = resourceName(mci.RuntimeName, params.model.Id)
 	}
 
 	log := ctrl.LoggerFrom(ctx).WithValues("name", name)
-	log.Info("Deploying runtime", "model", params.modelID, "update", update)
+	log.Info("Deploying runtime", "model", modelID, "update", update)
 
 	const (
 		tmpDir        = "/tmp"
@@ -320,7 +319,7 @@ func (c *commonClient) deployRuntime(
 		"pull",
 		"--index=$(INDEX)",
 		"--runtime=" + mci.RuntimeName,
-		"--model-id=" + params.modelID,
+		"--model-id=" + modelID,
 		"--config=/etc/config/config.yaml",
 		"--force-pull=" + fmt.Sprintf("%t", forcePull),
 	}
@@ -418,7 +417,7 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithAffinity(buildAffinityApplyConfig(c.rconfig.Affinity))
 	}
 
-	nodeSelector, err := c.nodeSelectorForModel(ctx, params.modelID)
+	nodeSelector, err := c.nodeSelectorForModel(ctx, params.model)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +460,7 @@ func (c *commonClient) deployRuntime(
 		runtimeAnnotationKey: mci.RuntimeName,
 	}
 	if !params.dynamicModelLoading {
-		annos[modelAnnotationKey] = params.modelID
+		annos[modelAnnotationKey] = modelID
 	}
 
 	stsSpecConf := appsv1apply.StatefulSetSpec().
@@ -586,19 +585,17 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 
 func (c *commonClient) modelConfigItem(
 	ctx context.Context,
-	modelID string,
+	model *mv1.Model,
 ) (config.ModelConfigItem, error) {
-	mci := c.mconfig.ModelConfigItem(modelID)
+	mci := c.mconfig.ModelConfigItem(model.Id)
 
 	if !c.enableOverrideWithModelConfig {
 		return mci, nil
 	}
 
-	model, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return config.ModelConfigItem{}, fmt.Errorf("get model %q: %s", modelID, err)
+	if model == nil {
+		// model is empty for the dynamic Ollama model loading. Do not call GetModel.
+		return mci, nil
 	}
 
 	mc := model.Config
@@ -617,27 +614,19 @@ func (c *commonClient) modelConfigItem(
 	return mci, nil
 }
 
-func (c *commonClient) nodeSelectorForModel(ctx context.Context, modelID string) (map[string]string, error) {
+func (c *commonClient) nodeSelectorForModel(ctx context.Context, model *mv1.Model) (map[string]string, error) {
 	nodeSelector := map[string]string{}
 
 	for k, v := range c.rconfig.NodeSelector {
 		nodeSelector[k] = v
 	}
 
-	if modelID == "" {
-		// modelID is empty for the dynamic Ollama model loading. Do not call GetModel.
+	if model == nil {
+		// model is empty for the dynamic Ollama model loading.
 		return nodeSelector, nil
 	}
 
-	// Set node selector from the model config.
-	modelProto, err := c.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get model %q: %s", modelID, err)
-	}
-
-	if p := modelProto.Project; p != nil {
+	if p := model.Project; p != nil {
 		// TODO(kenji): Only apply node selector effective for this cluster.
 		for _, a := range p.Assignments {
 			for _, n := range a.NodeSelector {

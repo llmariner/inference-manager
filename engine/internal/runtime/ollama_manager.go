@@ -30,7 +30,7 @@ func NewOllamaManager(
 		ollamaClient: ollamaClient,
 		autoscaler:   autoscaler,
 		pullerAddr:   pullerAddr,
-		runtime:      newPendingRuntime(ollamaClient.GetName("")),
+		runtime:      newPendingRuntime(ollamaClient.GetName(""), nil),
 		models:       make(map[string]*ollamaModel),
 	}
 }

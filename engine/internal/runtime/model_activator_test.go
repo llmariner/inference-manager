@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	mv1 "github.com/llmariner/model-manager/api/v1"
@@ -39,7 +40,7 @@ func TestReconcileModelActivation(t *testing.T) {
 	err := a.reconcileModelActivation(context.Background())
 	assert.NoError(t, err)
 
-	assert.ElementsMatch(t, []string{"model1"}, mmanager.pulled)
+	assert.ElementsMatch(t, []string{"model1", "model3"}, mmanager.pulled)
 	assert.ElementsMatch(t, []string{"model2"}, mmanager.deleted)
 }
 
@@ -80,14 +81,21 @@ func TestReconcileModelActivation_DynamicLoRALoading(t *testing.T) {
 type fakeModelManager struct {
 	pulled  []string
 	deleted []string
+	mu      sync.Mutex
 }
 
 func (f *fakeModelManager) PullModelUnblocked(ctx context.Context, modelID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	f.pulled = append(f.pulled, modelID)
 	return nil
 }
 
 func (f *fakeModelManager) DeleteModel(ctx context.Context, modelID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	f.deleted = append(f.deleted, modelID)
 	return nil
 }

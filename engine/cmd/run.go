@@ -306,11 +306,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		return err
 	}
 
-	preloader := runtime.NewPreloader(modelManager, processedConfig.PreloadedModelIDs(), modelCache)
-	if err := preloader.SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	activator := runtime.NewModelActivator(processedConfig.PreloadedModelIDs(), modelManager, modelClient, c.VLLM.DynamicLoRALoading)
 	if err := activator.SetupWithManager(mgr); err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
 	"github.com/llmariner/inference-manager/engine/internal/puller"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -34,11 +35,11 @@ type tritonClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (c *tritonClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
+func (c *tritonClient) DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deploying Triton runtime for model", "model", modelID)
+	log.Info("Deploying Triton runtime for model", "model", model.Id)
 
-	params, err := c.deployRuntimeParams(ctx, modelID)
+	params, err := c.deployRuntimeParams(ctx, model.Id)
 	if err != nil {
 		return nil, fmt.Errorf("deploy runtime params: %s", err)
 	}

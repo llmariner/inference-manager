@@ -14,7 +14,7 @@ func TestModelCache(t *testing.T) {
 	const modelID = "model1"
 
 	modelClient := &fakeModelClient{
-		model: nil,
+		models: map[string]*mv1.Model{},
 	}
 
 	c := NewModelCache(modelClient)
@@ -26,9 +26,8 @@ func TestModelCache(t *testing.T) {
 	// No cache.
 	assert.Empty(t, c.modelsByID)
 
-	modelClient.model = &mv1.Model{
-		Id: modelID,
-	}
+	modelClient.models[modelID] = &mv1.Model{Id: modelID}
+
 	_, err = c.GetModel(ctx, &mv1.GetModelRequest{Id: modelID})
 	assert.NoError(t, err)
 	// Cached.

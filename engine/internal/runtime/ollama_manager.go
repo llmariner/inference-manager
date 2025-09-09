@@ -89,7 +89,7 @@ func (m *OllamaManager) cleanupModels() {
 
 // Start deploys the ollama runtime.
 func (m *OllamaManager) Start(ctx context.Context) error {
-	sts, err := m.ollamaClient.DeployRuntime(ctx, "", true)
+	sts, err := m.ollamaClient.DeployRuntime(ctx, nil, true)
 	if err != nil {
 		return fmt.Errorf("deploy runtime: %s", err)
 	}
@@ -251,7 +251,7 @@ func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			log.Info("Runtime is deleted")
 
 			// Re-deploy the runtime.
-			sts, err := m.ollamaClient.DeployRuntime(ctx, "", false)
+			sts, err := m.ollamaClient.DeployRuntime(ctx, nil, false)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("deploy runtime: %s", err)
 			}

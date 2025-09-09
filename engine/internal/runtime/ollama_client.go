@@ -49,7 +49,9 @@ func (o *ollamaClient) GetName(modelID string) string {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (o *ollamaClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
+//
+// model is nil if dynamic model loading is enabled.
+func (o *ollamaClient) DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error) {
 	initEnvs := []*corev1apply.EnvVarApplyConfiguration{
 		corev1apply.EnvVar().WithName("OLLAMA_MODELS").WithValue(puller.ModelDir()),
 
@@ -119,7 +121,7 @@ ollama serve
 `, puller.ModelDir(), puller.ModelDir(), puller.ModelDir())
 
 		return o.deployRuntime(ctx, deployRuntimeParams{
-			modelID:  modelID,
+			modelID:  "",
 			initEnvs: initEnvs,
 			envs:     envs,
 			readinessProbe: corev1apply.Probe().
@@ -133,18 +135,11 @@ ollama serve
 		}, update)
 	}
 
-	modelProto, err := o.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get model %q: %s", modelID, err)
-	}
-
 	var modelIDs []string
-	if modelProto.IsBaseModel {
-		modelIDs = append(modelIDs, modelID)
+	if model.IsBaseModel {
+		modelIDs = append(modelIDs, model.Id)
 	} else {
-		modelIDs = append(modelIDs, modelProto.BaseModelId, modelID)
+		modelIDs = append(modelIDs, model.BaseModelId, model.Id)
 	}
 
 	var createCmds []string
@@ -177,7 +172,7 @@ kill ${serve_pid}
 `, strings.Join(createCmds, "\n"))
 
 	return o.deployRuntime(ctx, deployRuntimeParams{
-		modelID:  modelID,
+		modelID:  model.Id,
 		initEnvs: initEnvs,
 		envs:     envs,
 		readinessProbe: corev1apply.Probe().

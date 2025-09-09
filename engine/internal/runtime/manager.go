@@ -403,12 +403,19 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 }
 
 func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: modelID,
+	})
+	if err != nil {
+		return err
+	}
+
 	client, err := m.rtClientFactory.New(modelID)
 	if err != nil {
 		return err
 	}
 
-	sts, err := client.DeployRuntime(ctx, modelID, false)
+	sts, err := client.DeployRuntime(ctx, model, false)
 	if err != nil {
 		return err
 	}

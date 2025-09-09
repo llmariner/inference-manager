@@ -21,9 +21,7 @@ const (
 )
 
 // NewTritonClient creates a new Triton runtime client.
-func NewTritonClient(
-	opts NewCommonClientOptions,
-) Client {
+func NewTritonClient(opts NewCommonClientOptions) Client {
 	return &tritonClient{
 		// Set the servingPort to the proxy port so that requests first hit the proxy (and then the proxy forwards to Triton).
 		commonClient: newCommonClient(opts, proxyHTTPPort),
@@ -39,7 +37,7 @@ func (c *tritonClient) DeployRuntime(ctx context.Context, model *mv1.Model, upda
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deploying Triton runtime for model", "model", model.Id)
 
-	params, err := c.deployRuntimeParams(ctx, model.Id)
+	params, err := c.deployRuntimeParams(ctx, model)
 	if err != nil {
 		return nil, fmt.Errorf("deploy runtime params: %s", err)
 	}
@@ -47,7 +45,7 @@ func (c *tritonClient) DeployRuntime(ctx context.Context, model *mv1.Model, upda
 	return c.deployRuntime(ctx, params, update)
 }
 
-func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
+func (c *tritonClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) (deployRuntimeParams, error) {
 	// TOOD(kenji): Remove this once Triton Inference Server supports OpenAI-compatible API
 	// (https://github.com/triton-inference-server/server/pull/7561).
 	proxyContainer := corev1apply.Container().
@@ -64,7 +62,7 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, modelID string) 
 			WithProtocol(corev1.ProtocolTCP))
 
 	return deployRuntimeParams{
-		modelID: modelID,
+		model: model,
 		volumes: []*corev1apply.VolumeApplyConfiguration{
 			shmemVolume(),
 		},

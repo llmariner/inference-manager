@@ -58,7 +58,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, model *mv1.Model, update
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Deploying VLLM runtime for model", "model", model.Id)
 
-	params, err := v.deployRuntimeParams(ctx, model.Id)
+	params, err := v.deployRuntimeParams(ctx, model)
 	if err != nil {
 		return nil, fmt.Errorf("deploy runtime params: %s", err)
 	}
@@ -66,8 +66,8 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, model *mv1.Model, update
 	return v.deployRuntime(ctx, params, update)
 }
 
-func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (deployRuntimeParams, error) {
-	mci, err := v.modelConfigItem(ctx, modelID)
+func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) (deployRuntimeParams, error) {
+	mci, err := v.modelConfigItem(ctx, model)
 	if err != nil {
 		return deployRuntimeParams{}, fmt.Errorf("model config info: %s", err)
 	}
@@ -76,18 +76,18 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	// need to do this because the processor does the same converesion when
 	// processing requests (for Ollama)
 	// TODO(kenji): Remove this once the processor does not require this conversion.
-	oModelID := ollama.ModelName(modelID)
+	oModelID := ollama.ModelName(model.Id)
 
 	args := []string{
 		"--port", strconv.Itoa(vllmHTTPPort),
 	}
 	// Ultravox models is a model to handle audio input, which require a specific tokenizer.
-	if strings.Contains(modelID, "ultravox") {
+	if strings.Contains(model.Id, "ultravox") {
 		args = append(args, "--tokenizer", "fixie-ai/ultravox-v0_3")
 	}
 	// We only set the chat template and do not set the tokenizer as the model files provide necessary information
 	// such as stop tokens.
-	if t := chatTemplate(modelID); t != "" {
+	if t := chatTemplate(model.Id); t != "" {
 		// Set --chat-template only if it is not explicitly set in the extra flags.
 		var found = false
 		for _, f := range mci.VLLMExtraFlags {
@@ -103,10 +103,10 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		}
 	}
 
-	if isBaseModel, err := v.isBaseModel(ctx, modelID); err != nil {
+	if isBaseModel, err := v.isBaseModel(ctx, model.Id); err != nil {
 		return deployRuntimeParams{}, err
 	} else if isBaseModel {
-		mPath, err := v.baseModelFilePath(ctx, modelID)
+		mPath, err := v.baseModelFilePath(ctx, model.Id)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
 		}
@@ -116,20 +116,20 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		)
 	} else {
 		attr, err := v.modelClient.GetModelAttributes(ctx, &mv1.GetModelAttributesRequest{
-			Id: modelID,
+			Id: model.Id,
 		})
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("get model attributes: %s", err)
 		}
 		if attr.BaseModel == "" {
-			return deployRuntimeParams{}, fmt.Errorf("base model ID is not set for %q", modelID)
+			return deployRuntimeParams{}, fmt.Errorf("base model ID is not set for %q", model.Id)
 		}
 		format, err := v.preferredBaseModelFormat(ctx, attr.BaseModel)
 		if err != nil {
 			return deployRuntimeParams{}, err
 		}
 
-		mPath, err := modeldownloader.ModelFilePath(puller.ModelDir(), modelID, format)
+		mPath, err := modeldownloader.ModelFilePath(puller.ModelDir(), model.Id, format)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("model file path: %s", err)
 		}
@@ -170,7 +170,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 		args = append(args, "--max-model-len", strconv.Itoa(mci.ContextLength))
 	}
 
-	if q, ok := vllmQuantization(modelID); ok {
+	if q, ok := vllmQuantization(model.Id); ok {
 		args = append(args, "--quantization", q)
 		if q == "bitsandbytes" {
 			// BitsAndBytes quantization only supports 'bitsandbytes' load format.
@@ -216,7 +216,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	// so that the VLLM container won't start until the base model is pulled.
 	var initContainerSepc *initContainerSpec
 	if v.vLLMConfig.DynamicLoRALoading {
-		cpath := modeldownloader.CompletionIndicationFilePath(puller.ModelDir(), modelID)
+		cpath := modeldownloader.CompletionIndicationFilePath(puller.ModelDir(), model.Id)
 		initContainerSepc = &initContainerSpec{
 			name: "pull-waiter",
 			// TODO(kenji): Fix. Use a better image.
@@ -229,8 +229,8 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, modelID string) (d
 	}
 
 	return deployRuntimeParams{
-		modelID: modelID,
-		envs:    envs,
+		model: model,
+		envs:  envs,
 		// Shared memory is required for Pytorch
 		// (See https://docs.vllm.ai/en/latest/serving/deploying_with_docker.html#deploying-with-docker).
 		volumes: []*corev1apply.VolumeApplyConfiguration{

@@ -167,7 +167,6 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		Owner:                         owner,
 		Rconfig:                       &c.Runtime,
 		Mconfig:                       processedConfig,
-		ModelGetter:                   modelCache,
 		EnableDriftedPodUpdate:        c.DriftedPodUpdater.Enable,
 		EnableOverrideWithModelConfig: c.Model.EnableOverrideWithModelConfig,
 	}

@@ -1021,25 +1021,3 @@ func allChildrenUnschedulable(ctx context.Context, k8sClient client.Client, sts 
 	}
 	return unschedulable > 0 && cnt == unschedulable, nil
 }
-
-func listPods(ctx context.Context, k8sClient client.Client, namespace, name string) ([]corev1.Pod, error) {
-	var podList corev1.PodList
-	if err := k8sClient.List(ctx, &podList,
-		client.InNamespace(namespace),
-		client.MatchingLabels{"app.kubernetes.io/instance": name},
-	); err != nil {
-		return nil, err
-	}
-	return podList.Items, nil
-}
-
-func isPodUnschedulable(pod corev1.Pod) (bool, string) {
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodScheduled {
-			return cond.Status == corev1.ConditionFalse &&
-					cond.Reason == corev1.PodReasonUnschedulable,
-				cond.Message
-		}
-	}
-	return false, ""
-}

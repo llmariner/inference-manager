@@ -240,7 +240,7 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 		return nil
 	}
 
-	// Find the drifted pod that is unschedulable or crash-looping.
+	// Find the drifted pods that are unschedulable or crash-looping.
 	var deletableDriftedPods []*corev1.Pod
 	for _, p := range driftedPods {
 		if unschedulablePodNames[p.Name] || crashLoopingPodNames[p.Name] {

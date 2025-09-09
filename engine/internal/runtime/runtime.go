@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -125,18 +124,15 @@ func (s *runtimeAddressSet) blacklistAddress(addr string, now time.Time) {
 	s.blacklistedAddresses[addr] = now
 }
 
-func newPendingRuntime(name string, model *mv1.Model) *runtime {
+func newPendingRuntime(name string) *runtime {
 	return &runtime{
 		name:  name,
-		model: model,
 		ready: false,
 	}
 }
 
 type runtime struct {
 	name string
-
-	model *mv1.Model
 
 	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.
 	isDynamicallyLoadedLoRA bool

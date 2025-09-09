@@ -35,13 +35,11 @@ type modelClient interface {
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
 	opts NewCommonClientOptions,
-	modelGetter modelGetter,
 	modelClient modelClient,
 	vLLMConfg *config.VLLMConfig,
 ) Client {
 	return &vllmClient{
 		commonClient: newCommonClient(opts, vllmHTTPPort),
-		modelGetter:  modelGetter,
 		modelClient:  modelClient,
 		vLLMConfig:   vLLMConfg,
 	}
@@ -50,7 +48,6 @@ func NewVLLMClient(
 type vllmClient struct {
 	*commonClient
 
-	modelGetter modelGetter
 	modelClient modelClient
 
 	vLLMConfig *config.VLLMConfig
@@ -106,9 +103,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) 
 		}
 	}
 
-	if isBaseModel, err := v.isBaseModel(ctx, model.Id); err != nil {
-		return deployRuntimeParams{}, err
-	} else if isBaseModel {
+	if model.IsBaseModel {
 		mPath, err := v.baseModelFilePath(ctx, model.Id)
 		if err != nil {
 			return deployRuntimeParams{}, fmt.Errorf("base model file path: %s", err)
@@ -265,16 +260,6 @@ func (v *vllmClient) preferredBaseModelFormat(ctx context.Context, modelID strin
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("get base model path: %s", err)
 	}
 	return puller.PreferredModelFormat(config.RuntimeNameVLLM, resp.Formats)
-}
-
-func (v *vllmClient) isBaseModel(ctx context.Context, modelID string) (bool, error) {
-	model, err := v.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return false, fmt.Errorf("get model: %s", err)
-	}
-	return model.IsBaseModel, nil
 }
 
 func (v *vllmClient) baseModelFilePath(ctx context.Context, modelID string) (string, error) {

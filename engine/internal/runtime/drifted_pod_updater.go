@@ -179,10 +179,15 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	updateInProgressPods := u.updateInProgressPodGetter.GetUpdateInProgressPodNames()
 
 	readyPodsByName := map[string]*corev1.Pod{}
-	unschedulablePodsByName := map[string]*corev1.Pod{}
+	unschedulablePodNames := map[string]bool{}
+	crashLoopingPodNames := map[string]bool{}
 	for _, pod := range pods {
 		if yes, _ := isPodUnschedulable(pod); yes {
-			unschedulablePodsByName[pod.Name] = &pod
+			unschedulablePodNames[pod.Name] = true
+		}
+
+		if isPodCrashLooping(pod) {
+			crashLoopingPodNames[pod.Name] = true
 		}
 
 		if !isPodReady(&pod) {
@@ -235,15 +240,15 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 		return nil
 	}
 
-	// Find the drifted pod that is unschedulable.
-	var unschedulableDriftedPods []*corev1.Pod
+	// Find the drifted pods that are unschedulable or crash-looping.
+	var deletableDriftedPods []*corev1.Pod
 	for _, p := range driftedPods {
-		if _, ok := unschedulablePodsByName[p.Name]; ok {
-			unschedulableDriftedPods = append(unschedulableDriftedPods, p)
+		if unschedulablePodNames[p.Name] || crashLoopingPodNames[p.Name] {
+			deletableDriftedPods = append(deletableDriftedPods, p)
 		}
 	}
-	if len(unschedulableDriftedPods) > 0 {
-		p, err := chooseDeletionCandidateFromDriftedPods(unschedulableDriftedPods)
+	if len(deletableDriftedPods) > 0 {
+		p, err := chooseDeletionCandidateFromDriftedPods(deletableDriftedPods)
 		if err != nil {
 			return err
 		}

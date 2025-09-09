@@ -73,27 +73,45 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 		stsName   = "sts-model0"
 	)
 
-	newPod := func(name string, index int, revision string, isReady, isUnschedulable bool) *corev1.Pod {
-		condStatus := corev1.ConditionFalse
-		if isReady {
-			condStatus = corev1.ConditionTrue
-		}
+	type podModifier func(*corev1.Pod) *corev1.Pod
 
-		var conds []corev1.PodCondition
-		conds = append(conds, corev1.PodCondition{
+	ready := func(pod *corev1.Pod) *corev1.Pod {
+		pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{
 			Type:   corev1.PodReady,
-			Status: condStatus,
+			Status: corev1.ConditionTrue,
 		})
+		return pod
+	}
+	unready := func(pod *corev1.Pod) *corev1.Pod {
+		pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{
+			Type:   corev1.PodReady,
+			Status: corev1.ConditionFalse,
+		})
+		return pod
+	}
 
-		if isUnschedulable {
-			conds = append(conds, corev1.PodCondition{
-				Type:   corev1.PodScheduled,
-				Status: corev1.ConditionFalse,
-				Reason: corev1.PodReasonUnschedulable,
-			})
-		}
+	unschedulable := func(pod *corev1.Pod) *corev1.Pod {
+		pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{
+			Type:   corev1.PodScheduled,
+			Status: corev1.ConditionFalse,
+			Reason: corev1.PodReasonUnschedulable,
+		})
+		return pod
+	}
 
-		return &corev1.Pod{
+	crashLooping := func(pod *corev1.Pod) *corev1.Pod {
+		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
+			State: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{
+					Reason: "CrashLoopBackOff",
+				},
+			},
+		})
+		return pod
+	}
+
+	newPod := func(name string, index int, revision string, mods []podModifier) *corev1.Pod {
+		p := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
@@ -103,10 +121,13 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 					"app.kubernetes.io/instance":    stsName,
 				},
 			},
-			Status: corev1.PodStatus{
-				Conditions: conds,
-			},
+			Status: corev1.PodStatus{},
 		}
+
+		for _, mod := range mods {
+			p = mod(p)
+		}
+		return p
 	}
 
 	tcs := []struct {
@@ -127,7 +148,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash0", true, false),
+				newPod("pod0", 0, "hash0", []podModifier{ready}),
 			},
 			deletedPodNames: nil,
 		},
@@ -142,7 +163,7 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash1", true, false),
+				newPod("pod0", 0, "hash1", []podModifier{ready}),
 			},
 			deletedPodNames: []string{"pod0"},
 		},
@@ -157,8 +178,8 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash1", true, false),
-				newPod("pod1", 1, "hash1", true, false),
+				newPod("pod0", 0, "hash1", []podModifier{ready}),
+				newPod("pod1", 1, "hash1", []podModifier{ready}),
 			},
 			deletedPodNames: []string{"pod1"},
 		},
@@ -173,8 +194,8 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash0", true, false),
-				newPod("pod1", 1, "hash1", true, false),
+				newPod("pod0", 0, "hash0", []podModifier{ready}),
+				newPod("pod1", 1, "hash1", []podModifier{ready}),
 			},
 			deletedPodNames: []string{"pod1"},
 		},
@@ -189,8 +210,8 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash1", false, false),
-				newPod("pod1", 1, "hash1", false, false),
+				newPod("pod0", 0, "hash1", []podModifier{unready}),
+				newPod("pod1", 1, "hash1", []podModifier{unready}),
 			},
 			deletedPodNames: nil,
 		},
@@ -205,10 +226,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash0", true, false),
-				newPod("pod1", 1, "hash0", true, false),
-				newPod("pod2", 2, "hash1", false, false),
-				newPod("pod3", 3, "hash0", true, false),
+				newPod("pod0", 0, "hash0", []podModifier{ready}),
+				newPod("pod1", 1, "hash0", []podModifier{ready}),
+				newPod("pod2", 2, "hash1", []podModifier{unready}),
+				newPod("pod3", 3, "hash0", []podModifier{ready}),
 			},
 			deletedPodNames: []string{"pod2"},
 		},
@@ -223,10 +244,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash0", true, false),
-				newPod("pod1", 1, "hash1", true, false),
-				newPod("pod2", 2, "hash0", false, false),
-				newPod("pod3", 3, "hash0", true, false),
+				newPod("pod0", 0, "hash0", []podModifier{ready}),
+				newPod("pod1", 1, "hash1", []podModifier{ready}),
+				newPod("pod2", 2, "hash0", []podModifier{unready}),
+				newPod("pod3", 3, "hash0", []podModifier{ready}),
 			},
 			deletedPodNames: nil,
 		},
@@ -241,10 +262,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash1", true, false),
-				newPod("pod1", 1, "hash1", true, false),
-				newPod("pod2", 2, "hash1", true, false),
-				newPod("pod3", 3, "hash1", true, false),
+				newPod("pod0", 0, "hash1", []podModifier{ready}),
+				newPod("pod1", 1, "hash1", []podModifier{ready}),
+				newPod("pod2", 2, "hash1", []podModifier{ready}),
+				newPod("pod3", 3, "hash1", []podModifier{ready}),
 			},
 			updateInProgressPodNames: []string{"pod0", "pod1"},
 			deletedPodNames:          nil,
@@ -260,10 +281,10 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash0", true, false),
-				newPod("pod1", 1, "hash0", true, false),
-				newPod("pod2", 2, "hash1", false, false),
-				newPod("pod3", 3, "hash0", true, false),
+				newPod("pod0", 0, "hash0", []podModifier{ready}),
+				newPod("pod1", 1, "hash0", []podModifier{ready}),
+				newPod("pod2", 2, "hash1", []podModifier{unready}),
+				newPod("pod3", 3, "hash0", []podModifier{ready}),
 			},
 			updateInProgressPodNames: []string{"2"},
 			deletedPodNames:          []string{"pod2"},
@@ -279,8 +300,24 @@ func TestDriftedPodUpdaterDeleteDriftedPods(t *testing.T) {
 				podSpec:        &corev1.PodSpec{},
 			},
 			pods: []*corev1.Pod{
-				newPod("pod0", 0, "hash1", false, true),
-				newPod("pod1", 1, "hash1", false, true),
+				newPod("pod0", 0, "hash1", []podModifier{unready, unschedulable}),
+				newPod("pod1", 1, "hash1", []podModifier{unready, unschedulable}),
+			},
+			deletedPodNames: []string{"pod1"},
+		},
+		{
+			name: "crashlooping pods",
+			sts: &statefulSet{
+				name:           stsName,
+				namespace:      namespace,
+				modelID:        "model0",
+				replicas:       2,
+				updateRevision: "hash0",
+				podSpec:        &corev1.PodSpec{},
+			},
+			pods: []*corev1.Pod{
+				newPod("pod0", 0, "hash1", []podModifier{unready, crashLooping}),
+				newPod("pod1", 1, "hash1", []podModifier{unready, crashLooping}),
 			},
 			deletedPodNames: []string{"pod1"},
 		},

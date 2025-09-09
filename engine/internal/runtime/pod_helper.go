@@ -37,3 +37,12 @@ func isPodUnschedulable(pod corev1.Pod) (bool, string) {
 	}
 	return false, ""
 }
+
+func isPodCrashLooping(pod corev1.Pod) bool {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if w := cs.State.Waiting; w != nil && w.Reason == "CrashLoopBackOff" {
+			return true
+		}
+	}
+	return false
+}

@@ -156,9 +156,9 @@ func TestDeployRuntimeParams(t *testing.T) {
 					tc.modelID: tc.model,
 				},
 			}
-			commonClient.modelGetter = modelClient
 			v := &vllmClient{
 				commonClient: commonClient,
+				modelGetter:  modelClient,
 				modelClient:  modelClient,
 				vLLMConfig:   &config.VLLMConfig{},
 			}

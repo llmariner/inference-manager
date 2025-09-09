@@ -35,11 +35,13 @@ type modelClient interface {
 // NewVLLMClient creates a new VLLM runtime client.
 func NewVLLMClient(
 	opts NewCommonClientOptions,
+	modelGetter modelGetter,
 	modelClient modelClient,
 	vLLMConfg *config.VLLMConfig,
 ) Client {
 	return &vllmClient{
 		commonClient: newCommonClient(opts, vllmHTTPPort),
+		modelGetter:  modelGetter,
 		modelClient:  modelClient,
 		vLLMConfig:   vLLMConfg,
 	}
@@ -48,6 +50,7 @@ func NewVLLMClient(
 type vllmClient struct {
 	*commonClient
 
+	modelGetter modelGetter
 	modelClient modelClient
 
 	vLLMConfig *config.VLLMConfig

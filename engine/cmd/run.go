@@ -245,7 +245,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		modelManager = rtManager
 		updateInProgressPodGetter = rtManager
 
-		updater := runtime.NewUpdater(ns, rtClientFactory)
+		updater := runtime.NewUpdater(ns, rtClientFactory, modelCache)
 		if err := updater.SetupWithManager(mgr); err != nil {
 			return err
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/llmariner/inference-manager/engine/internal/config"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +51,7 @@ type nimClient struct {
 
 // DeployRuntime deploys the runtime for the given model.
 // TODO(guangrui): refactor to reuse the common code from client.go
-func (c *nimClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
+func (c *nimClient) DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error) {
 	name := resourceName(c.RuntimeName(), c.modelConfig.ModelName)
 
 	log := ctrl.LoggerFrom(ctx).WithValues("name", name)

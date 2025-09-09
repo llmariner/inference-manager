@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	appsv1 "k8s.io/api/apps/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -12,10 +13,15 @@ import (
 )
 
 // NewUpdater creates a new Updater.
-func NewUpdater(namespace string, rtClientFactory ClientFactory) *Updater {
+func NewUpdater(
+	namespace string,
+	rtClientFactory ClientFactory,
+	modelGetter modelGetter,
+) *Updater {
 	return &Updater{
 		namespace:       namespace,
 		rtClientFactory: rtClientFactory,
+		modelGetter:     modelGetter,
 	}
 }
 
@@ -24,8 +30,10 @@ type Updater struct {
 	namespace       string
 	rtClientFactory ClientFactory
 
-	k8sClient client.Client
-	logger    logr.Logger
+	k8sClient   client.Client
+	modelGetter modelGetter
+
+	logger logr.Logger
 }
 
 // SetupWithManager sets up the updater with the manager.
@@ -63,15 +71,23 @@ func (u *Updater) Start(ctx context.Context) error {
 			u.logger.Error(nil, "No model ID found", "sts", sts.Name)
 			continue
 		}
-		client, err := u.rtClientFactory.New(modelID)
+
+		model, err := u.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+			Id: modelID,
+		})
+		if err != nil {
+			return err
+		}
+
+		client, err := u.rtClientFactory.New(model.Id)
 		if err != nil {
 			return fmt.Errorf("failed to create runtime client: %s", err)
 		}
-		_, err = client.DeployRuntime(ctx, modelID, true)
+		_, err = client.DeployRuntime(ctx, model, true)
 		if err != nil {
 			return fmt.Errorf("failed to update runtime: %s", err)
 		}
-		u.logger.V(1).Info("Updated runtime", "model", modelID)
+		u.logger.V(1).Info("Updated runtime", "model", model.Id)
 	}
 
 	u.logger.Info("Updater finished")

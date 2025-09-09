@@ -54,11 +54,11 @@ type vllmClient struct {
 }
 
 // DeployRuntime deploys the runtime for the given model.
-func (v *vllmClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
+func (v *vllmClient) DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Deploying VLLM runtime for model", "model", modelID)
+	log.Info("Deploying VLLM runtime for model", "model", model.Id)
 
-	params, err := v.deployRuntimeParams(ctx, modelID)
+	params, err := v.deployRuntimeParams(ctx, model.Id)
 	if err != nil {
 		return nil, fmt.Errorf("deploy runtime params: %s", err)
 	}

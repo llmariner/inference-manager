@@ -125,7 +125,11 @@ func TestPullModel(t *testing.T) {
 				k8sClient,
 				&fakeClientFactory{c: rtClient},
 				scaler,
-				nil,
+				&fakeModelClient{
+					models: map[string]*mv1.Model{
+						testModelID: {Id: testModelID},
+					},
+				},
 				nil,
 				false,
 				-1,
@@ -263,9 +267,16 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				&fakeClientFactory{c: rtClient},
 				scaler,
 				&fakeModelClient{
-					model: &mv1.Model{
-						IsBaseModel: false,
-						BaseModelId: baseModelID,
+					models: map[string]*mv1.Model{
+						baseModelID: {
+							Id:          baseModelID,
+							IsBaseModel: true,
+						},
+						fineTunedModelID: {
+							Id:          fineTunedModelID,
+							IsBaseModel: false,
+							BaseModelId: baseModelID,
+						},
 					},
 				},
 				nil,
@@ -991,14 +1002,14 @@ func (c *fakeClient) GetAddress(name string) string {
 	return fmt.Sprintf("%s:1234", name)
 }
 
-func (c *fakeClient) DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error) {
-	c.deployed[modelID] = true
+func (c *fakeClient) DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error) {
+	c.deployed[model.Id] = true
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.GetName(modelID),
+			Name:      c.GetName(model.Id),
 			Namespace: c.namespace,
 			Annotations: map[string]string{
-				modelAnnotationKey: modelID,
+				modelAnnotationKey: model.Id,
 			},
 		},
 		Status: appsv1.StatefulSetStatus{

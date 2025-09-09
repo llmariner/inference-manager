@@ -39,7 +39,7 @@ const (
 type Client interface {
 	GetName(modelID string) string
 	GetAddress(name string) string
-	DeployRuntime(ctx context.Context, modelID string, update bool) (*appsv1.StatefulSet, error)
+	DeployRuntime(ctx context.Context, model *mv1.Model, update bool) (*appsv1.StatefulSet, error)
 	DeleteRuntime(ctx context.Context, name, modelID string) error
 
 	RuntimeName() string

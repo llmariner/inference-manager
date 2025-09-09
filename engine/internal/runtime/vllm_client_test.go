@@ -150,9 +150,11 @@ func TestDeployRuntimeParams(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			modelClient := &fakeModelClient{
-				resp:  tc.resp,
-				attr:  tc.attr,
-				model: tc.model,
+				resp: tc.resp,
+				attr: tc.attr,
+				models: map[string]*mv1.Model{
+					tc.modelID: tc.model,
+				},
 			}
 			commonClient.modelGetter = modelClient
 			v := &vllmClient{
@@ -278,9 +280,9 @@ func TestRemoveFlagsUnsupportedInInferenceSim(t *testing.T) {
 }
 
 type fakeModelClient struct {
-	resp  *mv1.GetBaseModelPathResponse
-	attr  *mv1.ModelAttributes
-	model *mv1.Model
+	resp   *mv1.GetBaseModelPathResponse
+	attr   *mv1.ModelAttributes
+	models map[string]*mv1.Model
 }
 
 func (c *fakeModelClient) GetBaseModelPath(ctx context.Context, in *mv1.GetBaseModelPathRequest, opts ...grpc.CallOption) (*mv1.GetBaseModelPathResponse, error) {
@@ -292,9 +294,10 @@ func (c *fakeModelClient) GetModelAttributes(ctx context.Context, in *mv1.GetMod
 }
 
 func (c *fakeModelClient) GetModel(ctx context.Context, in *mv1.GetModelRequest, opts ...grpc.CallOption) (*mv1.Model, error) {
-	if c.model == nil {
+	m, ok := c.models[in.Id]
+	if !ok {
 		return nil, status.Errorf(codes.NotFound, "model not found")
 	}
 
-	return c.model, nil
+	return m, nil
 }

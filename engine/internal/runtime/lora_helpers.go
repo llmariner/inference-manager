@@ -232,12 +232,3 @@ func (s *loraAdapterLoadingTargetSelectorImpl) listPods(
 
 	return pods, nil
 }
-
-func isPodReady(pod *corev1.Pod) bool {
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
-}

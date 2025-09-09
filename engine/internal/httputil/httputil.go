@@ -12,14 +12,19 @@ import (
 // SendHTTPRequestWithRetry sends a request with retry logic.
 func SendHTTPRequestWithRetry(
 	ctx context.Context,
-	url url.URL, data []byte, retry func(status int, err error) (bool, error),
-	reqTimeout, retryInterval time.Duration, retryCount int,
+	url url.URL,
+	httpMethod string,
+	data []byte,
+	retry func(status int, err error) (bool, error),
+	reqTimeout,
+	retryInterval time.Duration,
+	retryCount int,
 ) error {
 	for attempt := 1; retryCount < 0 || attempt <= retryCount; attempt++ {
 		reqCtx, cancel := context.WithTimeout(ctx, reqTimeout)
 		defer cancel()
 
-		req, err := http.NewRequestWithContext(reqCtx, "POST", url.String(), bytes.NewBuffer(data))
+		req, err := http.NewRequestWithContext(reqCtx, httpMethod, url.String(), bytes.NewBuffer(data))
 		if err != nil {
 			return fmt.Errorf("request creation error: %s", err)
 		}

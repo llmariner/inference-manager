@@ -120,9 +120,7 @@ func (m *OllamaManager) BlacklistLLMAddress(modelID, address string) error {
 func (m *OllamaManager) PullModel(ctx context.Context, modelID string) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	// check if the runtime is ready.
 	m.mu.Lock()
-
 	var runtimeAddr string
 	if m.runtime.ready {
 		addrs := m.runtime.addresses()
@@ -232,7 +230,44 @@ func (m *OllamaManager) PullModelUnblocked(ctx context.Context, modelID string) 
 
 // DeleteModel deletes the model from the model manager.
 func (m *OllamaManager) DeleteModel(ctx context.Context, modelID string) error {
-	return fmt.Errorf("unsupported operation in ollama manager: delete model %s", modelID)
+	log := ctrl.LoggerFrom(ctx)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.runtime.ready {
+		// Do nothing if the runtime is not ready.
+		// TODO(kenji): Wait for the runtime to be ready?
+		return nil
+	}
+
+	model, ok := m.models[modelID]
+	if !ok {
+		// Do nothing if the model is not found.
+		return nil
+	}
+	if !model.ready {
+		// Notify clients waiting for the model to be ready.
+		for _, ch := range model.waitChs {
+			close(ch)
+		}
+	}
+
+	delete(m.models, modelID)
+
+	addrs := m.runtime.addresses()
+	if len(addrs) != 1 {
+		return fmt.Errorf("expected only one address: %v", addrs)
+	}
+	runtimeAddr := addrs[0]
+
+	log.Info("Deleting model", "modelID", modelID, "address", runtimeAddr)
+	oc := ollama.NewClient(runtimeAddr, log)
+	if err := oc.DeleteModel(ctx, modelID); err != nil {
+		return fmt.Errorf("delete model: %s", err)
+	}
+
+	return nil
 }
 
 // Reconcile reconciles the runtime.

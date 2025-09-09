@@ -195,7 +195,7 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 	u.logger.Info("Ready pods found", "statefulset", sts.name, "readyPods", len(readyPodsByName), "replicas", sts.replicas)
 
 	if len(readyPodsByName) == sts.replicas {
-		u.logger.Info("All pods are ready, deleting drifted pods", "statefulset", sts.name)
+		u.logger.Info("All pods are ready, deleting a drifted pod", "statefulset", sts.name)
 
 		// Pick up the pod with the largest ordinal number. This is to handle a case where
 		// a statefulset is scaled down and both k8s and the updater are trying to delete pods.
@@ -241,6 +241,7 @@ func (u *DriftedPodUpdater) deleteDriftedPods(ctx context.Context, sts *stateful
 		if err := u.deleteDriftedPod(ctx, driftedPod); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	u.logger.Info("Drifted pods found but not deleted", "statefulset", sts.name, "pods", len(driftedPods))

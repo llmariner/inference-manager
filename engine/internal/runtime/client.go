@@ -586,7 +586,7 @@ func (c *commonClient) modelConfigItem(
 	model *mv1.Model,
 ) (config.ModelConfigItem, error) {
 	if model == nil {
-		// model is empty for the dynamic Ollama model loading. Do not call GetModel.
+		// model is nil for the dynamic Ollama model loading.
 		return c.mconfig.ModelConfigItem(""), nil
 	}
 

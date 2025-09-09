@@ -201,7 +201,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 	} else {
 		clients := map[string]runtime.Client{
 			config.RuntimeNameOllama: ollamaClient,
-			config.RuntimeNameVLLM:   runtime.NewVLLMClient(ncOpts, modelCache, modelClient, &c.VLLM),
+			config.RuntimeNameVLLM:   runtime.NewVLLMClient(ncOpts, modelClient, &c.VLLM),
 			config.RuntimeNameTriton: runtime.NewTritonClient(ncOpts),
 		}
 

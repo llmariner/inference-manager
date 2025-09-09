@@ -335,6 +335,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	// TODO(kenji): Revisit the locking if this takes a long time.
 	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(ctx, e.modelID)
 	if err != nil {
+		m.mu.Unlock()
 		return err
 	}
 

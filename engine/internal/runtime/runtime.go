@@ -132,6 +132,7 @@ func newPendingRuntime(name string) *runtime {
 }
 
 type runtime struct {
+	// name is the name of the statefulset managing the runtime.
 	name string
 
 	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.

@@ -456,14 +456,8 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithTerminationGracePeriodSeconds(int64(*v))
 	}
 
-	encodedMci, err := json.Marshal(mci)
-	if err != nil {
-		return nil, fmt.Errorf("marshal model config item: %s", err)
-	}
-
 	annos := map[string]string{
-		runtimeAnnotationKey:     mci.RuntimeName,
-		modelConfigAnnotationKey: string(encodedMci),
+		runtimeAnnotationKey: mci.RuntimeName,
 	}
 	if !params.dynamicModelLoading {
 		annos[modelAnnotationKey] = modelID
@@ -488,6 +482,12 @@ func (c *commonClient) deployRuntime(
 			appsv1apply.StatefulSetUpdateStrategy().
 				WithType(appsv1.OnDeleteStatefulSetStrategyType))
 	}
+
+	encodedMci, err := json.Marshal(mci)
+	if err != nil {
+		return nil, fmt.Errorf("marshal model config item: %s", err)
+	}
+	annos[modelConfigAnnotationKey] = string(encodedMci)
 
 	stsConf := appsv1apply.StatefulSet(name, c.namespace).
 		WithLabels(labels).

@@ -67,7 +67,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, model *mv1.Model, update
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) (deployRuntimeParams, error) {
-	mci, err := v.modelConfigItem(ctx, model)
+	mci, err := v.modelConfigItem(model)
 	if err != nil {
 		return deployRuntimeParams{}, fmt.Errorf("model config info: %s", err)
 	}

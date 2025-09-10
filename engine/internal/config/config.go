@@ -320,36 +320,36 @@ func (c *ModelConfig) validate() error {
 
 // ModelConfigItem is the model configuration item.
 type ModelConfigItem struct {
-	RuntimeName string `yaml:"runtimeName"`
+	RuntimeName string `yaml:"runtimeName" json:"runtimeName"`
 
-	Resources Resources `yaml:"resources"`
-	Replicas  int       `yaml:"replicas"`
+	Resources Resources `yaml:"resources" json:"resources"`
+	Replicas  int       `yaml:"replicas" json:"replicas"`
 
 	// Preloaded is true if the model is preloaded.
 	// If this is set to true in the the default model item, all models that are specified in override items
 	// are preloaded.
-	Preloaded bool `yaml:"preloaded"`
+	Preloaded bool `yaml:"preloaded" json:"preloaded"`
 
 	// ContextLength is the context length for the model. If the value is 0,
 	// the default context length is used.
-	ContextLength int `yaml:"contextLength"`
+	ContextLength int `yaml:"contextLength" json:"contextLength"`
 
 	// VLLMExtraFlags is the extra flags for VLLM.
-	VLLMExtraFlags []string `yaml:"vllmExtraFlags"`
+	VLLMExtraFlags []string `yaml:"vllmExtraFlags" json:"vllmExtraFlags"`
 
 	// SchedulerName is the name of the scheduler to use.
 	// This is set when a vLLM runs on Inferentia instances and
 	// requires Neuron scheduling extension.
 	// See https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/tutorials/k8s-setup.html.
-	SchedulerName string `yaml:"schedulerName"`
+	SchedulerName string `yaml:"schedulerName" json:"schedulerName"`
 
 	// ContainerRuntimeClassName is the name of a K8s Runtime Class
 	// (https://kubernetes.io/docs/concepts/containers/runtime-class/) used by model runtime.
 	// This is set the Runtime Class of Nvidia container runtime if it is not a cluster default.
-	ContainerRuntimeClassName string `yaml:"containerRuntimeClassName"`
+	ContainerRuntimeClassName string `yaml:"containerRuntimeClassName" json:"containerRuntimeClassName"`
 
 	// Image is the docker image to use for the model. If empty, use the default runtime image.
-	Image string `yaml:"image"`
+	Image string `yaml:"image" json:"image"`
 }
 
 func (c *ModelConfigItem) validate() error {
@@ -382,18 +382,18 @@ func isValidRuntimeName(name string) bool {
 
 // Resources is the resources configuration.
 type Resources struct {
-	Requests map[string]string `yaml:"requests"`
-	Limits   map[string]string `yaml:"limits"`
-	Volume   *PersistentVolume `yaml:"volume"`
+	Requests map[string]string `yaml:"requests" json:"requests"`
+	Limits   map[string]string `yaml:"limits" json:"limits"`
+	Volume   *PersistentVolume `yaml:"volume" json:"volume"`
 }
 
 // PersistentVolume is the persistent volume configuration.
 type PersistentVolume struct {
 	// ShareWithReplicas sets whether to share the volume among replicas.
-	ShareWithReplicas bool   `yaml:"shareWithReplicas"`
-	StorageClassName  string `yaml:"storageClassName"`
-	Size              string `yaml:"size"`
-	AccessMode        string `yaml:"accessMode"`
+	ShareWithReplicas bool   `yaml:"shareWithReplicas" json:"shareWithReplicas"`
+	StorageClassName  string `yaml:"storageClassName" json:"storageClassName"`
+	Size              string `yaml:"size" json:"size"`
+	AccessMode        string `yaml:"accessMode" json:"accessMode"`
 }
 
 func (c *PersistentVolume) validate() error {

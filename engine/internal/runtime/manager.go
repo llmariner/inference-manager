@@ -335,7 +335,14 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	log.Info("Runtime is not ready. Checking if LoRA adapter loading is applicable", "modelID", e.modelID)
 
 	// TODO(kenji): Revisit the locking if this takes a long time.
-	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(ctx, e.modelID)
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: e.modelID,
+	})
+	if err != nil {
+		return nil
+	}
+
+	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(model)
 	if err != nil {
 		m.mu.Unlock()
 		return err
@@ -350,7 +357,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		m.runtimes[e.modelID] = r
 		m.mu.Unlock()
 
-		if err := m.deployRuntime(ctx, e.modelID); err != nil {
+		if err := m.deployRuntime(ctx, model); err != nil {
 			return fmt.Errorf("deploy runtime: %s", err)
 		}
 		return nil
@@ -362,8 +369,15 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		br = newPendingRuntime(client.GetName(baseModelID))
 		m.runtimes[baseModelID] = br
 
+		baseModel, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+			Id: baseModelID,
+		})
+		if err != nil {
+			return nil
+		}
+
 		// TODO(kenji): Revisit the locking if this takes a long time.
-		if err := m.deployRuntime(ctx, baseModelID); err != nil {
+		if err := m.deployRuntime(ctx, baseModel); err != nil {
 			m.mu.Unlock()
 			return fmt.Errorf("deploy runtime: %s", err)
 		}
@@ -411,15 +425,8 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	return nil
 }
 
-func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
-	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return err
-	}
-
-	client, err := m.rtClientFactory.New(modelID)
+func (m *Manager) deployRuntime(ctx context.Context, model *mv1.Model) error {
+	client, err := m.rtClientFactory.New(model.Id)
 	if err != nil {
 		return err
 	}
@@ -429,7 +436,7 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 		return err
 	}
 
-	if err := m.autoscaler.Register(ctx, modelID, sts); err != nil {
+	if err := m.autoscaler.Register(ctx, model.Id, sts); err != nil {
 		return err
 	}
 
@@ -445,25 +452,18 @@ func (m *Manager) deployRuntime(ctx context.Context, modelID string) error {
 	return nil
 }
 
-func (m *Manager) isDynamicLoRAloadingApplicable(ctx context.Context, modelID string) (bool, string, error) {
+func (m *Manager) isDynamicLoRAloadingApplicable(model *mv1.Model) (bool, string, error) {
 	if !m.enableDynamicLoRALoading {
 		return false, "", nil
 	}
 
-	client, err := m.rtClientFactory.New(modelID)
+	client, err := m.rtClientFactory.New(model.Id)
 	if err != nil {
 		return false, "", err
 	}
 
 	if client.RuntimeName() != config.RuntimeNameVLLM {
 		return false, "", nil
-	}
-
-	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
-		Id: modelID,
-	})
-	if err != nil {
-		return false, "", err
 	}
 
 	if model.IsBaseModel {

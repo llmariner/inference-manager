@@ -44,7 +44,6 @@ type Client interface {
 	DeleteRuntime(ctx context.Context, name, modelID string) error
 
 	RuntimeName() string
-	Namespace() string
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.
@@ -90,11 +89,6 @@ type commonClient struct {
 	enableOverrideWithModelConfig bool
 
 	servingPort int
-}
-
-// Namespace returns the namespace of the runtime.
-func (c *commonClient) Namespace() string {
-	return c.namespace
 }
 
 func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client.Object, error) {

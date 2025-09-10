@@ -234,6 +234,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			podMonitor,
 			c.VLLM.DynamicLoRALoading,
 			c.Runtime.PullerPort,
+			ns,
 			nimModels,
 		)
 		if err := rtManager.SetupWithManager(mgr, leaderElection); err != nil {

@@ -106,6 +106,8 @@ func (c *commonClient) applyObject(ctx context.Context, applyConfig any) (client
 
 // GetName returns a resource name of the runtime.
 func (c *commonClient) GetName(modelID string) string {
+	// This is not calling ModelConfigItem() intentionally as
+	// currently runtime is not updated with model config.
 	mci := c.mconfig.ModelConfigItem(modelID)
 	return resourceName(mci.RuntimeName, modelID)
 }
@@ -160,7 +162,7 @@ func (c *commonClient) deployRuntime(
 		modelID = params.model.Id
 	}
 
-	mci, err := c.modelConfigItem(ctx, params.model)
+	mci, err := c.modelConfigItem(params.model)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +413,7 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithAffinity(buildAffinityApplyConfig(c.rconfig.Affinity))
 	}
 
-	nodeSelector, err := c.nodeSelectorForModel(ctx, params.model)
+	nodeSelector, err := c.nodeSelectorForModel(params.model)
 	if err != nil {
 		return nil, err
 	}
@@ -583,10 +585,7 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 	return nil
 }
 
-func (c *commonClient) modelConfigItem(
-	ctx context.Context,
-	model *mv1.Model,
-) (config.ModelConfigItem, error) {
+func (c *commonClient) modelConfigItem(model *mv1.Model) (config.ModelConfigItem, error) {
 	if model == nil {
 		// model is nil for the dynamic Ollama model loading.
 		return c.mconfig.ModelConfigItem(""), nil
@@ -614,7 +613,7 @@ func (c *commonClient) modelConfigItem(
 	return mci, nil
 }
 
-func (c *commonClient) nodeSelectorForModel(ctx context.Context, model *mv1.Model) (map[string]string, error) {
+func (c *commonClient) nodeSelectorForModel(model *mv1.Model) (map[string]string, error) {
 	nodeSelector := map[string]string{}
 
 	for k, v := range c.rconfig.NodeSelector {

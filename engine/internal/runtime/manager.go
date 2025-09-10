@@ -373,7 +373,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 			Id: baseModelID,
 		})
 		if err != nil {
-			return nil
+			return err
 		}
 
 		// TODO(kenji): Revisit the locking if this takes a long time.

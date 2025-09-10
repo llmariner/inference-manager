@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/llmariner/inference-manager/engine/internal/config"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -124,9 +125,10 @@ func (s *runtimeAddressSet) blacklistAddress(addr string, now time.Time) {
 	s.blacklistedAddresses[addr] = now
 }
 
-func newPendingRuntime(name string) *runtime {
+func newPendingRuntime(name string, mci *config.ModelConfigItem) *runtime {
 	return &runtime{
 		name:  name,
+		mci:   mci,
 		ready: false,
 	}
 }
@@ -134,6 +136,10 @@ func newPendingRuntime(name string) *runtime {
 type runtime struct {
 	// name is the name of the statefulset managing the runtime.
 	name string
+
+	// mci is a model config item. It is nil for a dynamically loaded LoRA or
+	// an old runtime that was created before the statefulset annotation change.
+	mci *config.ModelConfigItem
 
 	// isDynamicallyLoadedLoRA is true if the model is dynamically loaded LoRA.
 	isDynamicallyLoadedLoRA bool

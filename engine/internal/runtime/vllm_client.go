@@ -67,7 +67,7 @@ func (v *vllmClient) DeployRuntime(ctx context.Context, model *mv1.Model, update
 }
 
 func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) (deployRuntimeParams, error) {
-	mci := v.modelConfigItem(model)
+	mci := v.ModelConfigItem(model)
 
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
 	// need to do this because the processor does the same converesion when

@@ -25,7 +25,7 @@ import (
 func TestDeleteRuntime(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
-			"model-0": newPendingRuntime("rt-model-0"),
+			"model-0": newPendingRuntime("rt-model-0", nil),
 			"model-1": newReadyRuntime("rt-model-1", "test", 1),
 		},
 	}
@@ -38,7 +38,7 @@ func TestGetLLMAddress(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", 1),
-			"model-1": newPendingRuntime("rt-model-1"),
+			"model-1": newPendingRuntime("rt-model-1", nil),
 		},
 	}
 	addr, err := mgr.GetLLMAddress("model-0")
@@ -52,7 +52,7 @@ func TestListModels(t *testing.T) {
 	mgr := &Manager{
 		runtimes: map[string]*runtime{
 			"model-0": newReadyRuntime("rt-model-0", "test", 1),
-			"model-1": newPendingRuntime("rt-model-1"),
+			"model-1": newPendingRuntime("rt-model-1", nil),
 			"model-2": newReadyRuntime("rt-model-2", "test2", 2),
 		},
 		podMonitor: &fakePodMonitor{},
@@ -89,7 +89,7 @@ func TestPullModel(t *testing.T) {
 		},
 		{
 			name: "already pending",
-			rt:   newPendingRuntime("rt-model-1"),
+			rt:   newPendingRuntime("rt-model-1", nil),
 		},
 		{
 			name:     "new model",
@@ -508,7 +508,7 @@ func TestReconcile(t *testing.T) {
 			sts: createSts(func(sts *appsv1.StatefulSet) {
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name),
+			rt: newPendingRuntime(name, nil),
 		},
 		{
 			name: "unreachable",
@@ -516,7 +516,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name),
+			rt: newPendingRuntime(name, nil),
 
 			readinessCheck: errors.New("runtime not reachable"),
 
@@ -532,7 +532,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name),
+			rt: newPendingRuntime(name, nil),
 
 			readinessCheck: errors.New("runtime not reachable"),
 
@@ -547,7 +547,7 @@ func TestReconcile(t *testing.T) {
 				sts.Status.ReadyReplicas = 1
 				sts.Status.Replicas = 1
 			}),
-			rt: newPendingRuntime(name),
+			rt: newPendingRuntime(name, nil),
 
 			wantReady:   true,
 			wantChClose: true,
@@ -613,7 +613,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "not found (pending)",
 			sts:  nil,
-			rt:   newPendingRuntime(name),
+			rt:   newPendingRuntime(name, nil),
 			wantExtra: func(t *testing.T, m *Manager, fs *fakeScalerRegister) {
 				assert.Empty(t, fs.registered, "scaler")
 				assert.Empty(t, m.runtimes, "runtime")
@@ -649,7 +649,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			rt:            newPendingRuntime(name),
+			rt:            newPendingRuntime(name, nil),
 			wantChClose:   true,
 			wantErrReason: corev1.PodReasonUnschedulable,
 		},
@@ -1044,8 +1044,8 @@ func (c *fakeClient) DeleteRuntime(ctx context.Context, name, modelID string) er
 	return nil
 }
 
-func (c *fakeClient) Namespace() string {
-	return c.namespace
+func (c *fakeClient) ModelConfigItem(model *mv1.Model) config.ModelConfigItem {
+	return config.ModelConfigItem{}
 }
 
 func (c *fakeClient) RuntimeName() string {

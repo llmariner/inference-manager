@@ -144,14 +144,12 @@ func (*loraAdapterStatusGetterImpl) get(ctx context.Context, addr string) (*loRA
 type loraAdapterLoadingTargetSelectorImpl struct {
 	rtClientFactory ClientFactory
 	k8sClient       client.Client
+
+	namespace string
 }
 
-func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
-	ctx context.Context,
-	modelID string,
-	stsName string,
-) (*corev1.Pod, error) {
-	pods, err := s.listPods(ctx, modelID, stsName)
+func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(ctx context.Context, stsName string) (*corev1.Pod, error) {
+	pods, err := s.listPods(ctx, stsName)
 	if err != nil {
 		return nil, err
 	}
@@ -188,17 +186,13 @@ func (s *loraAdapterLoadingTargetSelectorImpl) selectTarget(
 	return found, nil
 }
 
-func (s *loraAdapterLoadingTargetSelectorImpl) targetExists(
-	ctx context.Context,
-	modelID string,
-	pod *corev1.Pod,
-) (bool, error) {
+func (s *loraAdapterLoadingTargetSelectorImpl) targetExists(ctx context.Context, pod *corev1.Pod) (bool, error) {
 	stsName, ok := pod.Labels["app.kubernetes.io/instance"]
 	if !ok {
 		return false, fmt.Errorf("pod %s does not have app.kubernetes.io/instance label", pod.Name)
 	}
 
-	pods, err := s.listPods(ctx, modelID, stsName)
+	pods, err := s.listPods(ctx, stsName)
 	if err != nil {
 		return false, err
 	}
@@ -215,17 +209,8 @@ func (s *loraAdapterLoadingTargetSelectorImpl) targetExists(
 	return found, nil
 }
 
-func (s *loraAdapterLoadingTargetSelectorImpl) listPods(
-	ctx context.Context,
-	modelID string,
-	stsName string,
-) ([]corev1.Pod, error) {
-	client, err := s.rtClientFactory.New(modelID)
-	if err != nil {
-		return nil, err
-	}
-
-	pods, err := listPods(ctx, s.k8sClient, client.Namespace(), stsName)
+func (s *loraAdapterLoadingTargetSelectorImpl) listPods(ctx context.Context, stsName string) ([]corev1.Pod, error) {
+	pods, err := listPods(ctx, s.k8sClient, s.namespace, stsName)
 	if err != nil {
 		return nil, err
 	}

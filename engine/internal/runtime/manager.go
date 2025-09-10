@@ -47,6 +47,7 @@ func NewManager(
 	podMonitor podMonitor,
 	enableDynamicLoRALoading bool,
 	pullerPort int,
+	namespace string,
 	nimModels map[string]bool,
 ) *Manager {
 	return &Manager{
@@ -68,6 +69,7 @@ func NewManager(
 		loraAdapterLoadingTargetSelector: &loraAdapterLoadingTargetSelectorImpl{
 			k8sClient:       k8sClient,
 			rtClientFactory: rtClientFactory,
+			namespace:       namespace,
 		},
 		loraAdapterLoader: &loraAdapterLoaderImpl{},
 
@@ -87,8 +89,8 @@ type runtimeReadinessChecker interface {
 }
 
 type loraAdapterLoadingTargetSelector interface {
-	selectTarget(ctx context.Context, modelID string, stsName string) (*corev1.Pod, error)
-	targetExists(ctx context.Context, modelID string, pod *corev1.Pod) (bool, error)
+	selectTarget(ctx context.Context, stsName string) (*corev1.Pod, error)
+	targetExists(ctx context.Context, pod *corev1.Pod) (bool, error)
 }
 
 type loraAdapterLoader interface {
@@ -384,7 +386,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	m.mu.Unlock()
 
 	// TODO(kenji): Consider sending the request to all pods.
-	pod, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, e.modelID, br.name)
+	pod, err := m.loraAdapterLoadingTargetSelector.selectTarget(ctx, br.name)
 	if err != nil {
 		return fmt.Errorf("find LoRA adapter loading target pod: %s", err)
 	}
@@ -690,7 +692,7 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	m.updateInProgressPodNames[e.pod.Name] = struct{}{}
 	m.mu.Unlock()
 
-	if ok, err := m.loraAdapterLoadingTargetSelector.targetExists(ctx, e.modelID, e.pod); err != nil {
+	if ok, err := m.loraAdapterLoadingTargetSelector.targetExists(ctx, e.pod); err != nil {
 		return fmt.Errorf("check if LoRA adapter loading target pod exists: %s", err)
 	} else if !ok {
 		// Send the error the caller. The caller might retry.

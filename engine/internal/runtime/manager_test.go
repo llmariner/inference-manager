@@ -133,6 +133,7 @@ func TestPullModel(t *testing.T) {
 				nil,
 				false,
 				-1,
+				"test-namespace",
 				make(map[string]bool),
 			)
 			if test.rt != nil {
@@ -282,6 +283,7 @@ func TestPullModel_DynamicLoRALoading(t *testing.T) {
 				nil,
 				true,
 				9090,
+				"test-namespace",
 				make(map[string]bool),
 			)
 			loader := &fakeLoraAdapterLoader{
@@ -420,6 +422,7 @@ func TestDeleteModel(t *testing.T) {
 				nil,
 				false,
 				-1,
+				"test-namespace",
 				make(map[string]bool),
 			)
 			loader := &fakeLoraAdapterLoader{
@@ -674,6 +677,7 @@ func TestReconcile(t *testing.T) {
 				nil,
 				false,
 				-1,
+				"test-namespace",
 				make(map[string]bool),
 			)
 			mgr.readinessCheckMaxRetryCount = test.readinessCheckMaxRetryCount
@@ -855,6 +859,7 @@ func TestLoRAAdapterStatusUpdateEvent(t *testing.T) {
 				nil,
 				true,
 				9090,
+				"test-namespace",
 				make(map[string]bool),
 			)
 			if test.rt != nil {
@@ -1102,14 +1107,14 @@ type fakeLoRAAdapterLoadingTargetSelector struct {
 	targetExistsResp bool
 }
 
-func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, modelID, stsName string) (*corev1.Pod, error) {
+func (s *fakeLoRAAdapterLoadingTargetSelector) selectTarget(ctx context.Context, stsName string) (*corev1.Pod, error) {
 	if s.pod == nil {
 		return nil, errors.New("no pod")
 	}
 	return s.pod, nil
 }
 
-func (s *fakeLoRAAdapterLoadingTargetSelector) targetExists(ctx context.Context, modelID string, pod *corev1.Pod) (bool, error) {
+func (s *fakeLoRAAdapterLoadingTargetSelector) targetExists(ctx context.Context, pod *corev1.Pod) (bool, error) {
 	return s.targetExistsResp, nil
 }
 

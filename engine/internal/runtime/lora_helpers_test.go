@@ -136,7 +136,7 @@ func TestSelectTarget(t *testing.T) {
 				k8sClient: fake.NewFakeClient(objs...),
 			}
 
-			got, err := s.selectTarget(context.Background(), modelID, stsName)
+			got, err := s.selectTarget(context.Background(), stsName)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return

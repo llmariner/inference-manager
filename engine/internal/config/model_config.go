@@ -31,7 +31,7 @@ type ProcessedModelConfig struct {
 }
 
 // ModelConfigItem returns the model configuration item for the given model ID.
-func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
+func (c *ProcessedModelConfig) ModelConfigItem(modelID string) *ModelConfigItem {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -43,7 +43,7 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 
 	modelID = formatModelID(modelID)
 	if item, ok := c.items[modelID]; ok {
-		return item
+		return &item
 	}
 
 	item := c.model.Default
@@ -105,7 +105,7 @@ func (c *ProcessedModelConfig) ModelConfigItem(modelID string) ModelConfigItem {
 
 	c.items[modelID] = item
 
-	return item
+	return &item
 }
 
 // PreloadedModelIDs returns the IDs of the models to be preloaded.

@@ -44,7 +44,7 @@ type Client interface {
 	DeleteRuntime(ctx context.Context, name, modelID string) error
 
 	RuntimeName() string
-	ModelConfigItem(model *mv1.Model) config.ModelConfigItem
+	ModelConfigItem(model *mv1.Model) *config.ModelConfigItem
 }
 
 // ClientFactory is the interface for creating a new Client given a model ID.
@@ -584,7 +584,7 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 }
 
 // ModelConfigItem returns the model config item for the given model.
-func (c *commonClient) ModelConfigItem(model *mv1.Model) config.ModelConfigItem {
+func (c *commonClient) ModelConfigItem(model *mv1.Model) *config.ModelConfigItem {
 	if model == nil {
 		// model is nil for the dynamic Ollama model loading.
 		return c.mconfig.ModelConfigItem("")
@@ -852,7 +852,7 @@ func mergeEnvVars(existingEnvs []*corev1apply.EnvVarApplyConfiguration, runtimeC
 	return allEnvs
 }
 
-func getImage(mci config.ModelConfigItem, rconfig *config.RuntimeConfig) (string, error) {
+func getImage(mci *config.ModelConfigItem, rconfig *config.RuntimeConfig) (string, error) {
 	if mci.Image != "" {
 		return mci.Image, nil
 	}

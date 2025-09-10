@@ -351,8 +351,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	if !isDynamicLoRAApplicable {
 		log.Info("Creating a new pending runtime", "modelID", e.modelID)
-		mci := client.ModelConfigItem(model)
-		r := newPendingRuntime(client.GetName(e.modelID), &mci)
+		r := newPendingRuntime(client.GetName(e.modelID), client.ModelConfigItem(model))
 		if e.readyWaitCh != nil {
 			r.waitChs = append(r.waitChs, e.readyWaitCh)
 		}
@@ -375,8 +374,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 			return err
 		}
 
-		mci := client.ModelConfigItem(baseModel)
-		br = newPendingRuntime(client.GetName(baseModelID), &mci)
+		br = newPendingRuntime(client.GetName(baseModelID), client.ModelConfigItem(baseModel))
 		m.runtimes[baseModelID] = br
 
 		// TODO(kenji): Revisit the locking if this takes a long time.
@@ -559,6 +557,7 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 		// Create a new pending runtime and follow the same flow.
 		var mci *config.ModelConfigItem
 		if v, ok := sts.Annotations[modelConfigAnnotationKey]; ok {
+			mci = &config.ModelConfigItem{}
 			if err := json.Unmarshal([]byte(v), mci); err != nil {
 				return err
 			}

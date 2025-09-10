@@ -1044,8 +1044,8 @@ func (c *fakeClient) DeleteRuntime(ctx context.Context, name, modelID string) er
 	return nil
 }
 
-func (c *fakeClient) ModelConfigItem(model *mv1.Model) config.ModelConfigItem {
-	return config.ModelConfigItem{}
+func (c *fakeClient) ModelConfigItem(model *mv1.Model) *config.ModelConfigItem {
+	return &config.ModelConfigItem{}
 }
 
 func (c *fakeClient) RuntimeName() string {

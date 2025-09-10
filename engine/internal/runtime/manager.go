@@ -339,7 +339,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 		Id: e.modelID,
 	})
 	if err != nil {
-		return nil
+		return err
 	}
 
 	isDynamicLoRAApplicable, baseModelID, err := m.isDynamicLoRAloadingApplicable(model)

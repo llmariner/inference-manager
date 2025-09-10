@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -350,7 +351,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	if !isDynamicLoRAApplicable {
 		log.Info("Creating a new pending runtime", "modelID", e.modelID)
-		r := newPendingRuntime(client.GetName(e.modelID))
+		r := newPendingRuntime(client.GetName(e.modelID), client.ModelConfigItem(model))
 		if e.readyWaitCh != nil {
 			r.waitChs = append(r.waitChs, e.readyWaitCh)
 		}
@@ -366,15 +367,15 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 	br, ok := m.runtimes[baseModelID]
 	if !ok {
 		log.Info("Creating a new pending runtime for the base model", "baseModelID", baseModelID)
-		br = newPendingRuntime(client.GetName(baseModelID))
-		m.runtimes[baseModelID] = br
-
 		baseModel, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
 			Id: baseModelID,
 		})
 		if err != nil {
 			return err
 		}
+
+		br = newPendingRuntime(client.GetName(baseModelID), client.ModelConfigItem(baseModel))
+		m.runtimes[baseModelID] = br
 
 		// TODO(kenji): Revisit the locking if this takes a long time.
 		if err := m.deployRuntime(ctx, baseModel); err != nil {
@@ -392,7 +393,8 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 	log.Info("Base model is ready. Load LoRA adapter", "baseModelID", baseModelID, "modelID", e.modelID)
 
-	r := newPendingRuntime(client.GetName(e.modelID))
+	// mci is nil for a dynamically loaded LoRA.
+	r := newPendingRuntime(client.GetName(e.modelID), nil /* mci */)
 	if e.readyWaitCh != nil {
 		r.waitChs = append(r.waitChs, e.readyWaitCh)
 	}
@@ -553,7 +555,14 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 	rt, ok := m.runtimes[modelID]
 	if !ok {
 		// Create a new pending runtime and follow the same flow.
-		rt = newPendingRuntime(sts.Name)
+		var mci *config.ModelConfigItem
+		if v, ok := sts.Annotations[modelConfigAnnotationKey]; ok {
+			mci = &config.ModelConfigItem{}
+			if err := json.Unmarshal([]byte(v), mci); err != nil {
+				return err
+			}
+		}
+		rt = newPendingRuntime(sts.Name, mci)
 		m.runtimes[modelID] = rt
 
 		// TODO(kenji): Reconsider if Register blocks other calls for a long of time.
@@ -789,7 +798,7 @@ func (m *Manager) processLoRAAdapterStatusUpdateEvent(ctx context.Context, e *lo
 		r, ok := m.runtimes[modelID]
 		if !ok {
 			log.Info("Creating a new runtime", "modelID", modelID)
-			r = newPendingRuntime(client.GetName(modelID))
+			r = newPendingRuntime(client.GetName(modelID), nil)
 			r.isDynamicallyLoadedLoRA = true
 			r.becomeReady(vllmAddr, e.update.gpu, 1 /* replicas */, log)
 			m.runtimes[modelID] = r

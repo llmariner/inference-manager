@@ -11,7 +11,7 @@ func TestModelConfigItem(t *testing.T) {
 		name    string
 		c       *ProcessedModelConfig
 		modelID string
-		want    ModelConfigItem
+		want    *ModelConfigItem
 	}{
 		{
 			name: "override in the model config",
@@ -36,7 +36,7 @@ func TestModelConfigItem(t *testing.T) {
 				items: map[string]ModelConfigItem{},
 			},
 			modelID: "google/gemma-2b-it-q4",
-			want: ModelConfigItem{
+			want: &ModelConfigItem{
 				RuntimeName: RuntimeNameVLLM,
 				Preloaded:   true,
 				Resources: Resources{
@@ -67,7 +67,7 @@ func TestModelConfigItem(t *testing.T) {
 				},
 			},
 			modelID: "ft:google-gemma-2b-it:fine-tuning-BN2TAF-WGA",
-			want: ModelConfigItem{
+			want: &ModelConfigItem{
 				Resources: Resources{
 					Requests: map[string]string{
 						"nvidia.com/gpu": "1",

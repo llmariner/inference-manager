@@ -162,10 +162,7 @@ func (c *commonClient) deployRuntime(
 		modelID = params.model.Id
 	}
 
-	mci, err := c.modelConfigItem(params.model)
-	if err != nil {
-		return nil, err
-	}
+	mci := c.modelConfigItem(params.model)
 
 	var name string
 	if params.dynamicModelLoading {
@@ -585,32 +582,32 @@ func (c *commonClient) DeleteRuntime(ctx context.Context, name, modelID string) 
 	return nil
 }
 
-func (c *commonClient) modelConfigItem(model *mv1.Model) (config.ModelConfigItem, error) {
+func (c *commonClient) modelConfigItem(model *mv1.Model) config.ModelConfigItem {
 	if model == nil {
 		// model is nil for the dynamic Ollama model loading.
-		return c.mconfig.ModelConfigItem(""), nil
+		return c.mconfig.ModelConfigItem("")
 	}
 
 	mci := c.mconfig.ModelConfigItem(model.Id)
 
 	if !c.enableOverrideWithModelConfig {
-		return mci, nil
+		return mci
 	}
 
 	mc := model.Config
 	if mc == nil {
-		return mci, nil
+		return mci
 	}
 
 	rc := mc.RuntimeConfig
 	if rc == nil {
-		return mci, nil
+		return mci
 	}
 
 	// Update replicas and resources from the model config.
 	mci.Replicas = int(rc.Replicas)
 	updateResourceConfWithModelConfig(&mci.Resources, rc)
-	return mci, nil
+	return mci
 }
 
 func (c *commonClient) nodeSelectorForModel(model *mv1.Model) (map[string]string, error) {

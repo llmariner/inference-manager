@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -28,8 +29,9 @@ import (
 const (
 	managerName = "inference-engine"
 
-	runtimeAnnotationKey = "llmariner/runtime"
-	modelAnnotationKey   = "llmariner/model"
+	runtimeAnnotationKey     = "llmariner/runtime"
+	modelConfigAnnotationKey = "llmariner/model-config"
+	modelAnnotationKey       = "llmariner/model"
 
 	finalizerKey = "llmariner/runtime-finalizer"
 )
@@ -454,8 +456,14 @@ func (c *commonClient) deployRuntime(
 		podSpec = podSpec.WithTerminationGracePeriodSeconds(int64(*v))
 	}
 
+	encodedMci, err := json.Marshal(mci)
+	if err != nil {
+		return nil, fmt.Errorf("marshal model config item: %s", err)
+	}
+
 	annos := map[string]string{
-		runtimeAnnotationKey: mci.RuntimeName,
+		runtimeAnnotationKey:     mci.RuntimeName,
+		modelConfigAnnotationKey: string(encodedMci),
 	}
 	if !params.dynamicModelLoading {
 		annos[modelAnnotationKey] = modelID

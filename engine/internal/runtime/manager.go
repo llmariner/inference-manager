@@ -364,6 +364,7 @@ func (m *Manager) processPullModelEvent(ctx context.Context, e *pullModelEvent) 
 
 		// TODO(kenji): Revisit the locking if this takes a long time.
 		if err := m.deployRuntime(ctx, baseModelID); err != nil {
+			m.mu.Unlock()
 			return fmt.Errorf("deploy runtime: %s", err)
 		}
 	}

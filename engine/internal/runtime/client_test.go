@@ -360,6 +360,81 @@ func TestConvertEnvFromToApplyConfig(t *testing.T) {
 	}
 }
 
+func TestUpdateModelConfigItemWithModelConfig(t *testing.T) {
+	tcs := []struct {
+		name string
+		mci  *config.ModelConfigItem
+		mc   *mv1.ModelConfig
+		want *config.ModelConfigItem
+	}{
+		{
+			name: "replicas",
+			mci: &config.ModelConfigItem{
+				Replicas: 1,
+			},
+			mc: &mv1.ModelConfig{
+				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+					Replicas: 2,
+				},
+			},
+			want: &config.ModelConfigItem{
+				Replicas: 2,
+			},
+		},
+		{
+			name: "gpus",
+			mci: &config.ModelConfigItem{
+				Resources: config.Resources{
+					Limits: map[string]string{
+						nvidiaGPUResource: "1",
+					},
+				},
+			},
+			mc: &mv1.ModelConfig{
+				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+					Resources: &mv1.ModelConfig_RuntimeConfig_Resources{
+						Gpu: 2,
+					},
+				},
+			},
+			want: &config.ModelConfigItem{
+				Resources: config.Resources{
+					Limits: map[string]string{
+						nvidiaGPUResource: "2",
+					},
+					Requests: map[string]string{
+						nvidiaGPUResource: "2",
+					},
+				},
+			},
+		},
+		{
+			name: "extra args",
+			mci: &config.ModelConfigItem{
+				VLLMExtraFlags: []string{"--flag0", "val0"},
+			},
+			mc: &mv1.ModelConfig{
+				RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+					ExtraArgs: []string{
+						"--flag1",
+						"val1",
+					},
+				},
+			},
+			want: &config.ModelConfigItem{
+				VLLMExtraFlags: []string{"--flag0", "val0", "--flag1", "val1"},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got := updateModelConfigItemWithModelConfig(tc.mci, tc.mc)
+			assert.True(t, reflect.DeepEqual(tc.want, got), "got: %+v, want: %+v", got, tc.want)
+		})
+	}
+}
+
 func TestUpdateResourceConfWithModelConfig(t *testing.T) {
 	tcs := []struct {
 		name          string

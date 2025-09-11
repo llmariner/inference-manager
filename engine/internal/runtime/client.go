@@ -861,9 +861,18 @@ func updateModelConfigItemWithModelConfig(mci *config.ModelConfigItem, mc *mv1.M
 		return mci
 	}
 
-	// Update replicas and resources from the model config.
 	mci.Replicas = int(rc.Replicas)
+
 	updateResourceConfWithModelConfig(&mci.Resources, rc)
+
+	if len(rc.ExtraArgs) > 0 {
+		newArgs := append([]string{}, mci.VLLMExtraFlags...)
+		newArgs = append(newArgs, rc.ExtraArgs...)
+		// TODO(kenji): Support Ollama.
+		// TODO(kenji): Override if there is an existing flag set?
+		mci.VLLMExtraFlags = newArgs
+	}
+
 	return mci
 }
 

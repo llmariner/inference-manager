@@ -19,6 +19,7 @@ const modelListInterval = 30 * time.Second
 type modelManager interface {
 	PullModelUnblocked(ctx context.Context, modelID string) error
 	DeleteModel(ctx context.Context, modelID string) error
+	UpdateModel(ctx context.Context, modelID string) error
 }
 
 type modelLister interface {
@@ -120,10 +121,7 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 		if a.preloadedModelIDs[mid] {
 			// Activate preloaded models regardless of the activation status.
 			g.Go(func() error {
-				if err := a.mmanager.PullModelUnblocked(ctx, mid); err != nil {
-					return fmt.Errorf("pull model %s: %s", mid, err)
-				}
-				return nil
+				return a.pullModel(ctx, mid)
 			})
 			continue
 		}
@@ -133,10 +131,8 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 			// Do nothing for backward compatibility.
 		case mv1.ActivationStatus_ACTIVATION_STATUS_ACTIVE:
 			g.Go(func() error {
-				if err := a.mmanager.PullModelUnblocked(ctx, mid); err != nil {
-					return fmt.Errorf("pull model %s: %s", mid, err)
-				}
-				return nil
+				return a.pullModel(ctx, mid)
+
 			})
 		case mv1.ActivationStatus_ACTIVATION_STATUS_INACTIVE:
 			if a.isDynamicLoRALoadingEnabled && model.IsBaseModel && baseModelsForActiveFineTunedModels[model.Id] {
@@ -161,6 +157,22 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 	}
 
 	a.logger.Info("Model activation reconciled", "modelCount", len(resp.Data))
+	return nil
+}
+
+func (a *ModelActivator) pullModel(ctx context.Context, modelID string) error {
+	if err := a.mmanager.PullModelUnblocked(ctx, modelID); err != nil {
+		return fmt.Errorf("pull model %s: %s", modelID, err)
+	}
+
+	a.logger.Info("Model pull initiated", "modelID", modelID)
+
+	if err := a.mmanager.UpdateModel(ctx, modelID); err != nil {
+		return fmt.Errorf("update model %s: %s", modelID, err)
+	}
+
+	a.logger.Info("Model update initiated", "modelID", modelID)
+
 	return nil
 }
 

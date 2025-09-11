@@ -601,15 +601,7 @@ func (c *commonClient) ModelConfigItem(model *mv1.Model) *config.ModelConfigItem
 		return mci
 	}
 
-	rc := mc.RuntimeConfig
-	if rc == nil {
-		return mci
-	}
-
-	// Update replicas and resources from the model config.
-	mci.Replicas = int(rc.Replicas)
-	updateResourceConfWithModelConfig(&mci.Resources, rc)
-	return mci
+	return updateModelConfigItemWithModelConfig(mci, mc)
 }
 
 func (c *commonClient) nodeSelectorForModel(model *mv1.Model) (map[string]string, error) {
@@ -863,20 +855,36 @@ func getImage(mci *config.ModelConfigItem, rconfig *config.RuntimeConfig) (strin
 	return image, nil
 }
 
+func updateModelConfigItemWithModelConfig(mci *config.ModelConfigItem, mc *mv1.ModelConfig) *config.ModelConfigItem {
+	rc := mc.RuntimeConfig
+	if rc == nil {
+		return mci
+	}
+
+	// Update replicas and resources from the model config.
+	mci.Replicas = int(rc.Replicas)
+	updateResourceConfWithModelConfig(&mci.Resources, rc)
+	return mci
+}
+
 func updateResourceConfWithModelConfig(resConf *config.Resources, rc *mv1.ModelConfig_RuntimeConfig) {
 	res := rc.Resources
 	if res == nil {
 		return
 	}
 
-	v := strconv.Itoa(int(res.Gpu))
-	if resConf.Requests == nil {
-		resConf.Requests = map[string]string{}
-	}
-	resConf.Requests[nvidiaGPUResource] = v
+	// Create a new map and add a GPU field. We do not mutate the existing map
+	// as it will mutate the original model config.
 
-	if resConf.Limits == nil {
-		resConf.Limits = map[string]string{}
+	copyAndUpdate := func(r map[string]string) map[string]string {
+		newM := map[string]string{}
+		for k, v := range r {
+			newM[k] = v
+		}
+		newM[nvidiaGPUResource] = strconv.Itoa(int(res.Gpu))
+		return newM
 	}
-	resConf.Limits[nvidiaGPUResource] = v
+
+	resConf.Requests = copyAndUpdate(resConf.Requests)
+	resConf.Limits = copyAndUpdate(resConf.Limits)
 }

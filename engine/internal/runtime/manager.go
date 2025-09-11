@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sync"
 	"time"
 
@@ -266,6 +267,10 @@ func (m *Manager) RunStateMachine(ctx context.Context) error {
 				if err := m.processDeleteModelEvent(ctx, e); err != nil {
 					return err
 				}
+			case *updateModelEvent:
+				if err := m.processUpdateModelEvent(ctx, e); err != nil {
+					return err
+				}
 			case *reconcileStatefulSetEvent:
 				if err := m.processReconcileStatefulSetEvent(ctx, e); err != nil {
 					return err
@@ -516,6 +521,54 @@ func (m *Manager) processDeleteModelEvent(ctx context.Context, e *deleteModelEve
 	}
 
 	// No need to call m.deleteRuntimeByModelID() as Reconcile will delete the runtime.
+
+	return nil
+}
+
+func (m *Manager) processUpdateModelEvent(ctx context.Context, e *updateModelEvent) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	defer close(e.eventWaitCh)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, ok := m.runtimes[e.modelID]
+	if !ok {
+		return nil
+	}
+
+	if r.mci == nil {
+		// A runtime with dynamic LoRA loading or a runtime created with an older version of
+		// inference-manager-engine.
+		return nil
+	}
+
+	model, err := m.modelGetter.GetModel(ctx, &mv1.GetModelRequest{
+		Id: e.modelID,
+	})
+	if err != nil {
+		return err
+	}
+
+	client, err := m.rtClientFactory.New(e.modelID)
+	if err != nil {
+		return err
+	}
+	expectedMCI := client.ModelConfigItem(model)
+
+	if reflect.DeepEqual(r.mci, expectedMCI) {
+		// No need to update.
+		return nil
+	}
+
+	log.Info("Updating runtime to a new model config", "currConfig", *r.mci, "expectedConfig", *expectedMCI)
+
+	if _, err := client.DeployRuntime(ctx, model, true /* update */); err != nil {
+		return err
+	}
+
+	r.mci = expectedMCI
 
 	return nil
 }
@@ -917,6 +970,23 @@ func (m *Manager) DeleteModel(ctx context.Context, modelID string) error {
 	waitCh := make(chan error)
 
 	m.eventCh <- &deleteModelEvent{
+		modelID:     modelID,
+		eventWaitCh: waitCh,
+	}
+
+	select {
+	case err := <-waitCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// UpdateModel updates the model if its model config has changed.
+func (m *Manager) UpdateModel(ctx context.Context, modelID string) error {
+	waitCh := make(chan error)
+
+	m.eventCh <- &updateModelEvent{
 		modelID:     modelID,
 		eventWaitCh: waitCh,
 	}

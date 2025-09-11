@@ -15,6 +15,11 @@ type deleteModelEvent struct {
 	eventWaitCh chan error
 }
 
+type updateModelEvent struct {
+	modelID     string
+	eventWaitCh chan error
+}
+
 type reconcileStatefulSetEvent struct {
 	namespacedName types.NamespacedName
 	eventWaitCh    chan error

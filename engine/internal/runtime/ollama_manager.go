@@ -270,6 +270,12 @@ func (m *OllamaManager) DeleteModel(ctx context.Context, modelID string) error {
 	return nil
 }
 
+// UpdateModel updates the model in the model manager.
+func (m *OllamaManager) UpdateModel(ctx context.Context, modelID string) error {
+	// TODO(kenji): Implement.
+	return nil
+}
+
 // Reconcile reconciles the runtime.
 func (m *OllamaManager) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)

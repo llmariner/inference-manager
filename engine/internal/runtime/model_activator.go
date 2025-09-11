@@ -165,13 +165,9 @@ func (a *ModelActivator) pullModel(ctx context.Context, modelID string) error {
 		return fmt.Errorf("pull model %s: %s", modelID, err)
 	}
 
-	a.logger.Info("Model pull initiated", "modelID", modelID)
-
 	if err := a.mmanager.UpdateModel(ctx, modelID); err != nil {
 		return fmt.Errorf("update model %s: %s", modelID, err)
 	}
-
-	a.logger.Info("Model update initiated", "modelID", modelID)
 
 	return nil
 }

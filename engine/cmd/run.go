@@ -177,6 +177,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		PullModel(ctx context.Context, modelID string) error
 		PullModelUnblocked(ctx context.Context, modelID string) error
 		DeleteModel(ctx context.Context, modelID string) error
+		UpdateModel(ctx context.Context, modelID string) error
 	}
 
 	var (

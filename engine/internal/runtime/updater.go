@@ -13,6 +13,8 @@ import (
 )
 
 // NewUpdater creates a new Updater.
+//
+// TODO(kenji): Consider removing updater as ModelActivator now takes the responsibility of updating the runtime.
 func NewUpdater(
 	namespace string,
 	rtClientFactory ClientFactory,

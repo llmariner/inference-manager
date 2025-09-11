@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -465,6 +466,93 @@ func TestDeleteModel(t *testing.T) {
 			if f := test.wantExtra; f != nil {
 				f(t, rtClient, loader)
 			}
+		})
+	}
+}
+
+func TestUpdateModel(t *testing.T) {
+	const (
+		name        = "rt-mid-0"
+		namespace   = "ns-0"
+		testModelID = "mid-0"
+	)
+
+	currMCI := config.ModelConfigItem{
+		Replicas: 1,
+	}
+
+	var tests = []struct {
+		name string
+		rt   *runtime
+		sts  *appsv1.StatefulSet
+	}{
+		{
+			name: "success",
+			rt:   newPendingRuntime(name, &currMCI),
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			k8sClient := fake.NewFakeClient(test.sts)
+
+			rtClient := &fakeClient{
+				deployed:  map[string]bool{},
+				k8sClient: k8sClient,
+				namespace: namespace,
+				mci:       currMCI,
+			}
+
+			modelClient := &fakeModelClient{
+				models: map[string]*mv1.Model{
+					testModelID: {
+						Id: testModelID,
+						Config: &mv1.ModelConfig{
+							RuntimeConfig: &mv1.ModelConfig_RuntimeConfig{
+								Replicas: 2,
+							},
+						},
+					},
+				},
+			}
+
+			mgr := NewManager(
+				k8sClient,
+				&fakeClientFactory{c: rtClient},
+				&fakeScalerRegister{registered: map[types.NamespacedName]bool{}},
+				modelClient,
+				nil,
+				false,
+				-1,
+				"test-namespace",
+				make(map[string]bool),
+			)
+
+			mgr.runtimes[testModelID] = test.rt
+
+			ctx, cancel := context.WithTimeout(testutil.ContextWithLogger(t), 2*time.Second)
+			defer cancel()
+
+			go func() {
+				if err := mgr.RunStateMachine(ctx); err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			}()
+
+			err := mgr.UpdateModel(ctx, testModelID)
+			assert.NoError(t, err)
+
+			mgr.mu.Lock()
+			r, ok := mgr.runtimes[testModelID]
+			assert.True(t, ok)
+			mgr.mu.Unlock()
+
+			assert.Equal(t, 2, r.mci.Replicas)
 		})
 	}
 }
@@ -997,6 +1085,7 @@ type fakeClient struct {
 	k8sClient     client.Client
 	namespace     string
 	runtimeName   string
+	mci           config.ModelConfigItem
 }
 
 func (c *fakeClient) GetName(modelID string) string {
@@ -1021,10 +1110,30 @@ func (c *fakeClient) DeployRuntime(ctx context.Context, model *mv1.Model, update
 			ReadyReplicas: c.readyReplicas,
 		},
 	}
-	if c.k8sClient != nil {
+
+	if c.k8sClient == nil {
+		return sts, nil
+	}
+
+	var existingSts appsv1.StatefulSet
+	if err := c.k8sClient.Get(ctx, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace}, &existingSts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		// The statefulset does not exist. Create it.
 		if err := c.k8sClient.Create(ctx, sts); err != nil {
 			return nil, err
 		}
+		return sts, nil
+	}
+
+	if !update {
+		return nil, fmt.Errorf("statefulset %s already exists", sts.Name)
+	}
+
+	if err := c.k8sClient.Update(ctx, sts); err != nil {
+		return nil, err
 	}
 	return sts, nil
 }
@@ -1045,7 +1154,13 @@ func (c *fakeClient) DeleteRuntime(ctx context.Context, name, modelID string) er
 }
 
 func (c *fakeClient) ModelConfigItem(model *mv1.Model) *config.ModelConfigItem {
-	return &config.ModelConfigItem{}
+	mc := model.Config
+	if mc == nil {
+		return &c.mci
+	}
+
+	copied := c.mci
+	return updateModelConfigItemWithModelConfig(&copied, mc)
 }
 
 func (c *fakeClient) RuntimeName() string {

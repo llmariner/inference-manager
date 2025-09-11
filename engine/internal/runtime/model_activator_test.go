@@ -100,6 +100,10 @@ func (f *fakeModelManager) DeleteModel(ctx context.Context, modelID string) erro
 	return nil
 }
 
+func (f *fakeModelManager) UpdateModel(ctx context.Context, modelID string) error {
+	return nil
+}
+
 type fakeModelLister struct {
 	resp *mv1.ListModelsResponse
 }

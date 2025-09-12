@@ -454,9 +454,17 @@ func chooseDeletionCandidateFromDriftedPods(driftedPods []*corev1.Pod) (*corev1.
 		podIndex  int64
 	)
 	for _, p := range driftedPods {
-		index, err := strconv.ParseInt(p.Labels[appsv1.PodIndexLabel], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("parse pod index: %s", err)
+		v, ok := p.Labels[appsv1.PodIndexLabel]
+		var index int64
+		if ok {
+			var err error
+			index, err = strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("parse pod index: %s", err)
+			}
+		} else {
+			// To handle an old k8s that doesn't set the label.
+			index = -1
 		}
 
 		if candidate == nil || index > podIndex {

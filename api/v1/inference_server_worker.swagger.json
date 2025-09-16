@@ -771,6 +771,9 @@
         "modelResponse": {
           "$ref": "#/definitions/v1CreateModelResponseRequest"
         },
+        "tokenizeRequest": {
+          "$ref": "#/definitions/v1TokenizeRequest"
+        },
         "goAway": {
           "$ref": "#/definitions/v1GoAwayRequest",
           "description": "go_away is used to signal the worker to disconnect and\nreconnect to other server."
@@ -796,6 +799,17 @@
           "type": "integer",
           "format": "int32",
           "description": "result_index is used to identify the index of the result and make sure results are processed in order."
+        }
+      }
+    },
+    "v1TokenizeRequest": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
         }
       }
     }

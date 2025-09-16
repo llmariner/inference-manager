@@ -40,13 +40,13 @@ func NewR(enableAuth bool, vsInernalClient VectorStoreInternalClient, logger log
 func (r *R) ProcessMessages(
 	ctx context.Context,
 	vstore *vsv1.VectorStore,
-	messages []*v1.CreateChatCompletionRequest_Message,
-) ([]*v1.CreateChatCompletionRequest_Message, error) {
+	messages []*v1.ChatCompletionMessage,
+) ([]*v1.ChatCompletionMessage, error) {
 	r.logger.Info("Processing messages", "store", vstore.Name)
 
 	const contentTypeText = "text"
 
-	var msgs []*v1.CreateChatCompletionRequest_Message
+	var msgs []*v1.ChatCompletionMessage
 	for _, msg := range messages {
 		var query string
 		for _, c := range msg.Content {
@@ -65,8 +65,8 @@ func (r *R) ProcessMessages(
 		}
 		r.logger.Info("Found documents", "count", len(searchResp.Documents), "store", vstore.Name, "query", msg.Content)
 		for _, doc := range searchResp.Documents {
-			msgs = append(msgs, &v1.CreateChatCompletionRequest_Message{
-				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+			msgs = append(msgs, &v1.ChatCompletionMessage{
+				Content: []*v1.ChatCompletionMessage_Content{
 					{
 						Type: contentTypeText,
 						Text: doc,
@@ -77,10 +77,10 @@ func (r *R) ProcessMessages(
 		}
 	}
 	if len(msgs) > 0 {
-		msgs = append([]*v1.CreateChatCompletionRequest_Message{
+		msgs = append([]*v1.ChatCompletionMessage{
 			{
 				Role: "system",
-				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+				Content: []*v1.ChatCompletionMessage_Content{
 					{
 						Type: contentTypeText,
 						Text: prompt,

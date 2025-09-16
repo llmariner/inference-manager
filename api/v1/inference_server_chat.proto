@@ -8,9 +8,9 @@ option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 // The API specification follows OpenAPI API specification (https://platform.openai.com/docs/api-reference/chat).
 
-message CreateChatCompletionRequest {
-  // Message has fields for system message, user message, assistant message, and tool message.
-  message Message {
+
+// ChatCompletionMessage has fields for system message, user message, assistant message, and tool message.
+message ChatCompletionMessage {
     message ToolCall {
       message Function {
         string name = 1;
@@ -57,6 +57,7 @@ message CreateChatCompletionRequest {
     // Next ID: 7
   }
 
+message CreateChatCompletionRequest {
   message ToolChoice {
     string type = 2;
     message Function {
@@ -106,7 +107,7 @@ message CreateChatCompletionRequest {
   }
 
   // TODO(kenji): Revisit this.
-  repeated Message messages = 1;
+  repeated ChatCompletionMessage messages = 1;
   string model = 2;
   double frequency_penalty = 3;
   map<string, double> logit_bias = 4;

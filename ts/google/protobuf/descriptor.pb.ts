@@ -131,12 +131,6 @@ export enum FeatureSetJsonFormat {
   LEGACY_BEST_EFFORT = "LEGACY_BEST_EFFORT",
 }
 
-export enum FeatureSetEnforceNamingStyle {
-  ENFORCE_NAMING_STYLE_UNKNOWN = "ENFORCE_NAMING_STYLE_UNKNOWN",
-  STYLE2024 = "STYLE2024",
-  STYLE_LEGACY = "STYLE_LEGACY",
-}
-
 export enum GeneratedCodeInfoAnnotationSemantic {
   NONE = "NONE",
   SET = "SET",
@@ -374,7 +368,6 @@ export type FeatureSet = {
   utf8_validation?: FeatureSetUtf8Validation
   message_encoding?: FeatureSetMessageEncoding
   json_format?: FeatureSetJsonFormat
-  enforce_naming_style?: FeatureSetEnforceNamingStyle
 }
 
 export type FeatureSetDefaultsFeatureSetEditionDefault = {

@@ -9,6 +9,7 @@ import * as LlmarinerChatServerV1Inference_server_chat from "./inference_server_
 import * as LlmarinerEmbeddingsServerV1Inference_server_embeddings from "./inference_server_embeddings.pb"
 import * as LlmarinerInferenceServerV1Inference_server_management from "./inference_server_management.pb"
 import * as LlmarinerResponseServerV1Inference_server_model_response from "./inference_server_model_response.pb"
+import * as LlmarinerTokenizeServerV1Inference_server_tokenize from "./inference_server_tokenize.pb"
 
 type Absent<T, K extends keyof T> = { [k in Exclude<keyof T, K>]?: undefined };
 type OneOf<T> =
@@ -63,7 +64,7 @@ type BaseTaskRequest = {
 }
 
 export type TaskRequest = BaseTaskRequest
-  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server_chat.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; audio_transcription: LlmarinerAudioServerV1Inference_server_audio.CreateAudioTranscriptionRequest; model_response: LlmarinerResponseServerV1Inference_server_model_response.CreateModelResponseRequest; go_away: GoAwayRequest; heartbeat: HeartbeatRequest }>
+  & OneOf<{ chat_completion: LlmarinerChatServerV1Inference_server_chat.CreateChatCompletionRequest; embedding: LlmarinerEmbeddingsServerV1Inference_server_embeddings.CreateEmbeddingRequest; audio_transcription: LlmarinerAudioServerV1Inference_server_audio.CreateAudioTranscriptionRequest; model_response: LlmarinerResponseServerV1Inference_server_model_response.CreateModelResponseRequest; tokenize_request: LlmarinerTokenizeServerV1Inference_server_tokenize.TokenizeRequest; go_away: GoAwayRequest; heartbeat: HeartbeatRequest }>
 
 export type Task = {
   id?: string

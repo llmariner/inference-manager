@@ -7,6 +7,7 @@ import "api/v1/inference_server_chat.proto";
 import "api/v1/inference_server_embeddings.proto";
 import "api/v1/inference_server_management.proto";
 import "api/v1/inference_server_model_response.proto";
+import "api/v1/inference_server_tokenize.proto";
 
 option go_package = "github.com/llmariner/inference-manager/api/v1";
 
@@ -66,6 +67,7 @@ message TaskRequest {
     llmariner.embeddings.server.v1.CreateEmbeddingRequest embedding = 2;
     llmariner.audio.server.v1.CreateAudioTranscriptionRequest audio_transcription = 7;
     llmariner.response.server.v1.CreateModelResponseRequest model_response = 8;
+    llmariner.tokenize.server.v1.TokenizeRequest tokenize_request = 9;
 
     // go_away is used to signal the worker to disconnect and
     // reconnect to other server.

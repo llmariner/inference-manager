@@ -32,17 +32,17 @@ func TestProcessMessages(t *testing.T) {
 		name   string
 		vsName string
 		req    *v1.CreateChatCompletionRequest
-		exp    []*v1.CreateChatCompletionRequest_Message
+		exp    []*v1.ChatCompletionMessage
 		err    bool
 	}{
 		{
 			name:   "success",
 			vsName: "default",
 			req: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: query,
@@ -51,10 +51,10 @@ func TestProcessMessages(t *testing.T) {
 					},
 				},
 			},
-			exp: []*v1.CreateChatCompletionRequest_Message{
+			exp: []*v1.ChatCompletionMessage{
 				{
 					Role: "system",
-					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					Content: []*v1.ChatCompletionMessage_Content{
 						{
 							Type: "text",
 							Text: prompt,
@@ -63,7 +63,7 @@ func TestProcessMessages(t *testing.T) {
 				},
 				{
 					Role: "assistant",
-					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					Content: []*v1.ChatCompletionMessage_Content{
 						{
 							Type: "text",
 							Text: "sky is red when the sun is setting",
@@ -72,7 +72,7 @@ func TestProcessMessages(t *testing.T) {
 				},
 				{
 					Role: "assistant",
-					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					Content: []*v1.ChatCompletionMessage_Content{
 						{
 							Type: "text",
 							Text: "sky is blue when the sun is shining",
@@ -81,7 +81,7 @@ func TestProcessMessages(t *testing.T) {
 				},
 				{
 					Role: "user",
-					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					Content: []*v1.ChatCompletionMessage_Content{
 						{
 							Type: "text",
 							Text: query,
@@ -94,10 +94,10 @@ func TestProcessMessages(t *testing.T) {
 			name:   "docs not found",
 			vsName: "default",
 			req: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "unknown",
@@ -106,10 +106,10 @@ func TestProcessMessages(t *testing.T) {
 					},
 				},
 			},
-			exp: []*v1.CreateChatCompletionRequest_Message{
+			exp: []*v1.ChatCompletionMessage{
 				{
 					Role: "user",
-					Content: []*v1.CreateChatCompletionRequest_Message_Content{
+					Content: []*v1.ChatCompletionMessage_Content{
 						{
 							Type: "text",
 							Text: "unknown",

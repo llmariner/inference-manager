@@ -512,17 +512,17 @@ func TestConvertContentStringToArray(t *testing.T) {
 	]
 }`,
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Process audio data.",
 							},
 							{
 								Type: "input_audio",
-								InputAudio: &v1.CreateChatCompletionRequest_Message_Content_InputAudio{
+								InputAudio: &v1.ChatCompletionMessage_Content_InputAudio{
 									Data:   "audiodata",
 									Format: "wav",
 								},
@@ -544,10 +544,10 @@ func TestConvertContentStringToArray(t *testing.T) {
 	]
 }`,
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "system",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "You are a helpful assistant.",
@@ -585,10 +585,10 @@ func TestConvertContentStringToArray(t *testing.T) {
 				]
 			}`,
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "system",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "You are a helpful assistant.",
@@ -597,14 +597,14 @@ func TestConvertContentStringToArray(t *testing.T) {
 					},
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Process audio data.",
 							},
 							{
 								Type: "input_audio",
-								InputAudio: &v1.CreateChatCompletionRequest_Message_Content_InputAudio{
+								InputAudio: &v1.ChatCompletionMessage_Content_InputAudio{
 									Data:   "audiodata",
 									Format: "wav",
 								},

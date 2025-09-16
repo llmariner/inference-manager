@@ -1,35 +1,35 @@
-export type CreateChatCompletionRequestMessageToolCallFunction = {
+export type ChatCompletionMessageToolCallFunction = {
     name?: string;
     arguments?: string;
 };
-export type CreateChatCompletionRequestMessageToolCall = {
+export type ChatCompletionMessageToolCall = {
     id?: string;
     type?: string;
-    function?: CreateChatCompletionRequestMessageToolCallFunction;
+    function?: ChatCompletionMessageToolCallFunction;
 };
-export type CreateChatCompletionRequestMessageContentImageUrl = {
+export type ChatCompletionMessageContentImageUrl = {
     url?: string;
     detail?: string;
 };
-export type CreateChatCompletionRequestMessageContentInputAudio = {
+export type ChatCompletionMessageContentInputAudio = {
     data?: string;
     format?: string;
 };
-export type CreateChatCompletionRequestMessageContentAudioUrl = {
+export type ChatCompletionMessageContentAudioUrl = {
     url?: string;
 };
-export type CreateChatCompletionRequestMessageContent = {
+export type ChatCompletionMessageContent = {
     type?: string;
     text?: string;
-    image_url?: CreateChatCompletionRequestMessageContentImageUrl;
-    input_audio?: CreateChatCompletionRequestMessageContentInputAudio;
-    audio_url?: CreateChatCompletionRequestMessageContentAudioUrl;
+    image_url?: ChatCompletionMessageContentImageUrl;
+    input_audio?: ChatCompletionMessageContentInputAudio;
+    audio_url?: ChatCompletionMessageContentAudioUrl;
 };
-export type CreateChatCompletionRequestMessage = {
-    content?: CreateChatCompletionRequestMessageContent[];
+export type ChatCompletionMessage = {
+    content?: ChatCompletionMessageContent[];
     role?: string;
     name?: string;
-    tool_calls?: CreateChatCompletionRequestMessageToolCall[];
+    tool_calls?: ChatCompletionMessageToolCall[];
     tool_call_id?: string;
 };
 export type CreateChatCompletionRequestToolChoiceFunction = {
@@ -62,7 +62,7 @@ export type CreateChatCompletionRequestStreamOptions = {
     include_usage?: boolean;
 };
 export type CreateChatCompletionRequest = {
-    messages?: CreateChatCompletionRequestMessage[];
+    messages?: ChatCompletionMessage[];
     model?: string;
     frequency_penalty?: number;
     logit_bias?: {

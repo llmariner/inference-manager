@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package llmariner.tokenize.server.v1;
+
+option go_package = "github.com/llmariner/inference-manager/api/v1";
+
+message TokenizeRequest {
+  string model = 1;
+
+  string prompt = 2;
+
+  //  repeated ChatCompletionMessage messages = 3;
+}
+
+message TokenizeResponse {
+  int32 count = 1;
+  int32 max_model_len = 2;
+  repeated int32 tokens = 3;
+}

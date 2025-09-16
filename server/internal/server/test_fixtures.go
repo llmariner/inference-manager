@@ -11,10 +11,10 @@ import (
 func CreateChatCompletionRequestFixture(mutators ...func(c *v1.CreateChatCompletionRequest)) *v1.CreateChatCompletionRequest {
 	r := &v1.CreateChatCompletionRequest{
 		Model: "defaultTestModel",
-		Messages: []*v1.CreateChatCompletionRequest_Message{
+		Messages: []*v1.ChatCompletionMessage{
 			{
 				Role: "user",
-				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+				Content: []*v1.ChatCompletionMessage_Content{
 					{Type: "text", Text: "test"},
 				},
 			},

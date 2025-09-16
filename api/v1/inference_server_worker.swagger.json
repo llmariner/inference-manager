@@ -49,51 +49,6 @@
         }
       }
     },
-    "CreateChatCompletionRequestMessageContent": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string"
-        },
-        "imageUrl": {
-          "$ref": "#/definitions/ContentImageUrl"
-        },
-        "inputAudio": {
-          "$ref": "#/definitions/ContentInputAudio"
-        },
-        "audioUrl": {
-          "$ref": "#/definitions/ContentAudioUrl"
-        }
-      }
-    },
-    "CreateChatCompletionRequestMessageToolCall": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "function": {
-          "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCallFunction"
-        }
-      }
-    },
-    "CreateChatCompletionRequestMessageToolCallFunction": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "arguments": {
-          "type": "string"
-        }
-      }
-    },
     "CreateChatCompletionRequestResponseFormat": {
       "type": "object",
       "properties": {
@@ -287,6 +242,80 @@
         }
       }
     },
+    "v1ChatCompletionMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ChatCompletionMessageContent"
+          },
+          "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ChatCompletionMessageToolCall"
+          }
+        },
+        "toolCallId": {
+          "type": "string",
+          "description": "Used by the \"Tool message\"."
+        }
+      },
+      "description": "ChatCompletionMessage has fields for system message, user message, assistant message, and tool message."
+    },
+    "v1ChatCompletionMessageContent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "$ref": "#/definitions/ContentImageUrl"
+        },
+        "inputAudio": {
+          "$ref": "#/definitions/ContentInputAudio"
+        },
+        "audioUrl": {
+          "$ref": "#/definitions/ContentAudioUrl"
+        }
+      }
+    },
+    "v1ChatCompletionMessageToolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/v1ChatCompletionMessageToolCallFunction"
+        }
+      }
+    },
+    "v1ChatCompletionMessageToolCallFunction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      }
+    },
     "v1CreateAudioTranscriptionRequest": {
       "type": "object",
       "properties": {
@@ -325,7 +354,7 @@
         "messages": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1CreateChatCompletionRequestMessage"
+            "$ref": "#/definitions/v1ChatCompletionMessage"
           },
           "description": "TODO(kenji): Revisit this."
         },
@@ -425,35 +454,6 @@
           "description": "is_top_p_set is used to indicate whether the top_p is set or not.\nThis is required as the OpenAI API spec uses 1.0 as the default value for top_p while\nsetting top_p to 0.0 in the proto is equivalent to unset. If the user sets top_p to 0.0,\nit becomes unset when the request is sent to the engine (and then the inference runtime sets top_p to 1.0\nas that's the default value)."
         }
       }
-    },
-    "v1CreateChatCompletionRequestMessage": {
-      "type": "object",
-      "properties": {
-        "content": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CreateChatCompletionRequestMessageContent"
-          },
-          "description": "The type of the content is either string or array in the OpenAI API spec, but\nwe only support the array type here. When a client sends a string, it is converted before\nthe request is being unmarshalled."
-        },
-        "role": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "toolCalls": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CreateChatCompletionRequestMessageToolCall"
-          }
-        },
-        "toolCallId": {
-          "type": "string",
-          "description": "Used by the \"Tool message\"."
-        }
-      },
-      "description": "Message has fields for system message, user message, assistant message, and tool message."
     },
     "v1CreateChatCompletionRequestStreamOptions": {
       "type": "object",

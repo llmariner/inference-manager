@@ -95,8 +95,8 @@ type Rewriter interface {
 	ProcessMessages(
 		ctx context.Context,
 		vstore *vsv1.VectorStore,
-		messages []*v1.CreateChatCompletionRequest_Message,
-	) ([]*v1.CreateChatCompletionRequest_Message, error)
+		messages []*v1.ChatCompletionMessage,
+	) ([]*v1.ChatCompletionMessage, error)
 }
 
 // NoopRewriter is a no-op rewriter.
@@ -107,8 +107,8 @@ type NoopRewriter struct {
 func (r *NoopRewriter) ProcessMessages(
 	ctx context.Context,
 	vstore *vsv1.VectorStore,
-	messages []*v1.CreateChatCompletionRequest_Message,
-) ([]*v1.CreateChatCompletionRequest_Message, error) {
+	messages []*v1.ChatCompletionMessage,
+) ([]*v1.ChatCompletionMessage, error) {
 	return messages, nil
 }
 

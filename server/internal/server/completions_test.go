@@ -80,7 +80,7 @@ func TestCreateChatCompletion(t *testing.T) {
 			name: "no content",
 			req: &v1.CreateChatCompletionRequest{
 				Model: "m0",
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{Role: "user"},
 				},
 			},
@@ -211,9 +211,9 @@ func TestHandleToolsForRAG(t *testing.T) {
 			},
 		},
 		rewriter: &fakeRewriter{
-			msg: &v1.CreateChatCompletionRequest_Message{
+			msg: &v1.ChatCompletionMessage{
 				Role: "user",
-				Content: []*v1.CreateChatCompletionRequest_Message_Content{
+				Content: []*v1.ChatCompletionMessage_Content{
 					{
 						Type: "text",
 						Text: "RAG info",
@@ -244,10 +244,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -257,10 +257,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -269,7 +269,7 @@ func TestHandleToolsForRAG(t *testing.T) {
 					},
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "RAG info",
@@ -294,10 +294,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -322,10 +322,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -346,10 +346,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -380,10 +380,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -404,10 +404,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -416,7 +416,7 @@ func TestHandleToolsForRAG(t *testing.T) {
 					},
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "RAG info",
@@ -439,10 +439,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 						},
 					},
 				},
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -452,10 +452,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -468,10 +468,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 		{
 			name: "no tools",
 			req: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -481,10 +481,10 @@ func TestHandleToolsForRAG(t *testing.T) {
 				},
 			},
 			want: &v1.CreateChatCompletionRequest{
-				Messages: []*v1.CreateChatCompletionRequest_Message{
+				Messages: []*v1.ChatCompletionMessage{
 					{
 						Role: "user",
-						Content: []*v1.CreateChatCompletionRequest_Message_Content{
+						Content: []*v1.ChatCompletionMessage_Content{
 							{
 								Type: "text",
 								Text: "Hello",
@@ -527,14 +527,14 @@ func (c *fakeModelClient) ActivateModel(ctx context.Context, in *mv1.ActivateMod
 }
 
 type fakeRewriter struct {
-	msg *v1.CreateChatCompletionRequest_Message
+	msg *v1.ChatCompletionMessage
 }
 
 func (c *fakeRewriter) ProcessMessages(
 	ctx context.Context,
 	vstore *vsv1.VectorStore,
-	messages []*v1.CreateChatCompletionRequest_Message,
-) ([]*v1.CreateChatCompletionRequest_Message, error) {
+	messages []*v1.ChatCompletionMessage,
+) ([]*v1.ChatCompletionMessage, error) {
 	return append(messages, c.msg), nil
 }
 

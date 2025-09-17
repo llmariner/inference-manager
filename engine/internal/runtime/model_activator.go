@@ -163,13 +163,14 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 		modelIDsInServer[model.Id] = true
 	}
 	for _, model := range a.mmanager.ListModels() {
-		if modelIDsInServer[model.Id] {
+		mid := model.Id
+		if modelIDsInServer[mid] {
 			continue
 		}
 		// The model is deleted from the model-manager-server.
 		g.Go(func() error {
-			if err := a.mmanager.DeleteModel(ctx, model.Id); err != nil {
-				return fmt.Errorf("delete model %s: %s", model.Id, err)
+			if err := a.mmanager.DeleteModel(ctx, mid); err != nil {
+				return fmt.Errorf("delete model %s: %s", mid, err)
 			}
 			return nil
 		})

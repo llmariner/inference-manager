@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package llmariner.tokenize.server.v1;
 
+import "api/v1/inference_server_chat.proto";
+
 option go_package = "github.com/llmariner/inference-manager/api/v1";
 
 message TokenizeRequest {
@@ -9,7 +11,7 @@ message TokenizeRequest {
 
   string prompt = 2;
 
-  //  repeated ChatCompletionMessage messages = 3;
+  repeated llmariner.chat.server.v1.ChatCompletionMessage messages = 3;
 }
 
 message TokenizeResponse {

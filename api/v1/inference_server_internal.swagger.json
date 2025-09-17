@@ -838,6 +838,12 @@
         },
         "prompt": {
           "type": "string"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ChatCompletionMessage"
+          }
         }
       }
     }

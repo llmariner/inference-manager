@@ -353,6 +353,31 @@ func (p *P) SendModelResponseTask(
 	return p.sendTask(ctx, t, p.logger.WithName("modelResponse"))
 }
 
+// SendTokenizeTask sends a tokenize task.
+func (p *P) SendTokenizeTask(
+	ctx context.Context,
+	tenantID string,
+	req *v1.TokenizeRequest,
+	header http.Header,
+) (*http.Response, *ProcessingStats, error) {
+	t, err := newTask(
+		ctx,
+		tenantID,
+		&v1.TaskRequest{
+			Request: &v1.TaskRequest_TokenizeRequest{
+				TokenizeRequest: req,
+			},
+		},
+		header,
+		"",
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return p.sendTask(ctx, t, p.logger.WithName("tokenize"))
+}
+
 // SendGoAwayTaskToLocalEngines sends a go away task to local engines.
 func (p *P) SendGoAwayTaskToLocalEngines(ctx context.Context) error {
 	req := &v1.TaskRequest{

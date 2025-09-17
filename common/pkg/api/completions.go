@@ -52,7 +52,7 @@ func ConvertCreateChatCompletionRequestToOpenAI(body []byte, needStringFormat bo
 	fs := []convertF{
 		// The order of the functions is the opposite of the ConvertCreateChatCompletionRequestToProto.
 		//
-		// We don't have a function that corresponds to convertContentStringToArray as the convertion
+		// We don't have a function that corresponds to convertContentStringToArray as the conversion
 		// doesn't break the OpenAI API spec.
 		convertEncodedResponseFormat,
 		convertEncodedTopP,

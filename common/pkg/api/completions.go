@@ -378,7 +378,7 @@ func convertEncodedResponseFormat(r map[string]interface{}) error {
 func convertContentStringToArray(r map[string]interface{}) error {
 	msgs, ok := r["messages"]
 	if !ok {
-		return fmt.Errorf("messages is required")
+		return nil
 	}
 	for _, msg := range msgs.([]interface{}) {
 		m := msg.(map[string]interface{})

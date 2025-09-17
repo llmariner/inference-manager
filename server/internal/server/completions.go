@@ -103,6 +103,11 @@ func (s *S) CreateChatCompletion(
 	}
 	details.ModelId = createReq.Model
 
+	if len(createReq.Messages) == 0 {
+		httpError(w, "Messages are required", http.StatusBadRequest, &usage)
+		return
+	}
+
 	if c := toolChoiceType(createReq.ToolChoice); c != "" {
 		if c != autoToolChoice && c != requiredToolChoice && c != noneToolChoice {
 			httpError(w, "Invalid tool choice", http.StatusBadRequest, &usage)

@@ -82,6 +82,11 @@ func (s *S) Tokenize(
 	}
 	details.ModelId = createReq.Model
 
+	if createReq.Prompt == "" && len(createReq.Messages) == 0 {
+		httpError(w, "Prompt or Messages is required", http.StatusBadRequest, &usage)
+		return
+	}
+
 	ctx := auth.CarryMetadataFromHTTPHeader(req.Context(), req.Header)
 
 	if code, err := s.checkModelAvailability(ctx, userInfo.TenantID, createReq.Model); err != nil {

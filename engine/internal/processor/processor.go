@@ -727,7 +727,7 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 		}
 
 		reqBody = bytes.NewReader(b)
-		path = modelResponsePath
+		path = tokenizePath
 	default:
 		return nil, fmt.Errorf("unknown request type: %T", req.Request)
 	}

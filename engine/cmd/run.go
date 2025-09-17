@@ -14,6 +14,7 @@ import (
 	"github.com/go-logr/stdr"
 	"github.com/llmariner/cluster-manager/pkg/status"
 	"github.com/llmariner/common/pkg/id"
+	iv1 "github.com/llmariner/inference-manager/api/v1"
 	v1 "github.com/llmariner/inference-manager/api/v1"
 	"github.com/llmariner/inference-manager/engine/internal/autoscaler"
 	"github.com/llmariner/inference-manager/engine/internal/config"
@@ -178,6 +179,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 		PullModelUnblocked(ctx context.Context, modelID string) error
 		DeleteModel(ctx context.Context, modelID string) error
 		UpdateModel(ctx context.Context, modelID string) error
+		ListModels() []*iv1.EngineStatus_Model
 	}
 
 	var (

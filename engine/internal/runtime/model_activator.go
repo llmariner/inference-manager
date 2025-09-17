@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	iv1 "github.com/llmariner/inference-manager/api/v1"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	"github.com/llmariner/rbac-manager/pkg/auth"
 	"golang.org/x/sync/errgroup"
@@ -20,6 +21,7 @@ type modelManager interface {
 	PullModelUnblocked(ctx context.Context, modelID string) error
 	DeleteModel(ctx context.Context, modelID string) error
 	UpdateModel(ctx context.Context, modelID string) error
+	ListModels() []*iv1.EngineStatus_Model
 }
 
 type modelLister interface {
@@ -150,6 +152,28 @@ func (a *ModelActivator) reconcileModelActivation(ctx context.Context) error {
 		default:
 			return fmt.Errorf("unknown activation state: %s", model.ActivationStatus)
 		}
+	}
+
+	// There is a case where a model is deactivated and then immediately deleted. As the above routine
+	// does not cover such a case, check if a model in the runtime still exists in model-manager-server's DB (and
+	// delete it if not).
+
+	modelIDsInServer := map[string]bool{}
+	for _, model := range resp.Data {
+		modelIDsInServer[model.Id] = true
+	}
+	for _, model := range a.mmanager.ListModels() {
+		mid := model.Id
+		if modelIDsInServer[mid] {
+			continue
+		}
+		// The model is deleted from the model-manager-server.
+		g.Go(func() error {
+			if err := a.mmanager.DeleteModel(ctx, mid); err != nil {
+				return fmt.Errorf("delete model %s: %s", mid, err)
+			}
+			return nil
+		})
 	}
 
 	if err := g.Wait(); err != nil {

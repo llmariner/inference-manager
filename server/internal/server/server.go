@@ -130,6 +130,7 @@ type taskSender interface {
 	SendEmbeddingTask(ctx context.Context, tenantID string, req *v1.CreateEmbeddingRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
 	SendAudioTranscriptionTask(ctx context.Context, tenantID string, req *v1.CreateAudioTranscriptionRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
 	SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
+	SendTokenizeTask(ctx context.Context, tenantID string, req *v1.TokenizeRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error)
 }
 
 // New creates a server.

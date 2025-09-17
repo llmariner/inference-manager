@@ -211,3 +211,7 @@ func (s *captureAudioTranscriptionTaskSender) SendAudioTranscriptionTask(ctx con
 func (s *captureAudioTranscriptionTaskSender) SendModelResponseTask(ctx context.Context, tenantID string, req *v1.CreateModelResponseRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
 	return nil, nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
+
+func (s *captureAudioTranscriptionTaskSender) SendTokenizeTask(ctx context.Context, tenantID string, req *v1.TokenizeRequest, header http.Header) (*http.Response, *infprocessor.ProcessingStats, error) {
+	return nil, nil, status.Errorf(codes.Unimplemented, "not implemented")
+}

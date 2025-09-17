@@ -129,6 +129,8 @@ func (t *task) model() string {
 		return req.GetAudioTranscription().Model
 	case *v1.TaskRequest_ModelResponse:
 		return req.GetModelResponse().Model
+	case *v1.TaskRequest_TokenizeRequest:
+		return req.GetTokenizeRequest().Model
 	default:
 		return ""
 	}

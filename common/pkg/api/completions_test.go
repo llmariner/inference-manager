@@ -533,7 +533,7 @@ func TestConvertContentStringToArray(t *testing.T) {
 			},
 		},
 		{
-			name: "convertion",
+			name: "conversion",
 			body: `
 {
 	"messages": [

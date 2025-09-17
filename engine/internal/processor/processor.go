@@ -431,7 +431,8 @@ func (p *P) processTask(
 	case *v1.TaskRequest_ChatCompletion,
 		*v1.TaskRequest_Embedding,
 		*v1.TaskRequest_AudioTranscription,
-		*v1.TaskRequest_ModelResponse:
+		*v1.TaskRequest_ModelResponse,
+		*v1.TaskRequest_TokenizeRequest:
 		return p.sendRequestToRuntime(ctx, stream, t)
 	case *v1.TaskRequest_GoAway:
 		return p.goAway(ctx, stream, t, goAwayCh)

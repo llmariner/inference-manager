@@ -34,6 +34,7 @@ const (
 	embeddingPath          = "/v1/embeddings"
 	audioTranscriptionPath = "/v1/audio/transcriptions"
 	modelResponsePath      = "/v1/responses"
+	tokenizePath           = "/tokenize"
 
 	// statusReportInterval is the interval to report engine status.
 	// This needs to be shorter than an idle connection timeout period of
@@ -708,6 +709,25 @@ func buildRequest(ctx context.Context, t *v1.Task, addr string, needStringFormat
 
 		reqBody = bytes.NewReader(b)
 		path = modelResponsePath
+
+	case *v1.TaskRequest_TokenizeRequest:
+		r := req.GetTokenizeRequest()
+		log.V(1).Info(fmt.Sprintf("Request: %+v", r))
+		// Convert the model name as we do the same conversion when creating (fine-tuned) models in Ollama.
+		// TODO(kenji): Revisit when we support fine-tuning models in vLLM.
+		r.Model = ollama.ModelName(r.Model)
+		b, err := json.Marshal(r)
+		if err != nil {
+			return nil, err
+		}
+
+		b, err = api.ConvertTokenizeRequestToOpenAI(b)
+		if err != nil {
+			return nil, err
+		}
+
+		reqBody = bytes.NewReader(b)
+		path = modelResponsePath
 	default:
 		return nil, fmt.Errorf("unknown request type: %T", req.Request)
 	}
@@ -1014,6 +1034,8 @@ func taskModel(t *v1.Task) string {
 		return req.GetAudioTranscription().Model
 	case *v1.TaskRequest_ModelResponse:
 		return req.GetModelResponse().Model
+	case *v1.TaskRequest_TokenizeRequest:
+		return req.GetTokenizeRequest().Model
 	default:
 		return "n/a"
 	}

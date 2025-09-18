@@ -34,6 +34,8 @@ const (
 	modelAnnotationKey       = "llmariner/model"
 
 	finalizerKey = "llmariner/runtime-finalizer"
+
+	runtime_type_vllm = "vllm"
 )
 
 // Client is the interface for managing runtimes.
@@ -149,6 +151,8 @@ type deployRuntimeParams struct {
 	pullerDaemonMode    bool
 	// pullerPort is the port number of the puller daemon.
 	pullerPort int
+
+	runtimeType string
 }
 
 // deployRuntime deploys the runtime for the given model.
@@ -375,23 +379,44 @@ func (c *commonClient) deployRuntime(
 	if p := params.runtimePort; p != 0 {
 		cport = p
 	}
-	podSpec = podSpec.
-		WithContainers(corev1apply.Container().
-			WithName("runtime").
-			WithImage(image).
-			WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
-			WithCommand(params.command...).
-			WithArgs(params.args...).
-			WithPorts(corev1apply.ContainerPort().
-				WithName("http").
-				WithContainerPort(int32(cport)).
-				WithProtocol(corev1.ProtocolTCP)).
-			WithEnv(allRuntimeEnvs...).
-			WithEnvFrom(runtimeEnvFroms...).
-			WithVolumeMounts(volumeMounts...).
-			WithResources(runtimeResources).
-			WithReadinessProbe(params.readinessProbe).
-			WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError))
+
+	containerSpec := corev1apply.Container().
+		WithName("runtime").
+		WithImage(image).
+		WithImagePullPolicy(corev1.PullPolicy(c.rconfig.RuntimeImagePullPolicy)).
+		WithCommand(params.command...).
+		WithArgs(params.args...).
+		WithPorts(corev1apply.ContainerPort().
+			WithName("http").
+			WithContainerPort(int32(cport)).
+			WithProtocol(corev1.ProtocolTCP)).
+		WithEnv(allRuntimeEnvs...).
+		WithEnvFrom(runtimeEnvFroms...).
+		WithVolumeMounts(volumeMounts...).
+		WithResources(runtimeResources).
+		WithReadinessProbe(params.readinessProbe).
+		WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError)
+
+	if params.runtimeType == runtime_type_vllm {
+		cmd := fmt.Sprintf(`
+sleep 15
+while true; do
+	metrics=$(curl -s http://localhost:%d/metrics/)
+	running=$(echo "$metrics" | grep '^vllm:num_requests_running' | awk '{print $2}')
+	waiting=$(echo "$metrics" | grep '^vllm:num_requests_waiting' | awk '{print $2}')
+	if [[ "$running" == "0.0" && "$waiting" == "0.0" ]]; then
+	break
+	fi
+	sleep 1
+done
+`, cport)
+		// PreStop hook to wait until all in-flight requests are done.
+		lifeCycleSpec := corev1apply.Lifecycle().WithPreStop(
+			corev1apply.LifecycleHandler().
+				WithExec(corev1apply.ExecAction().
+					WithCommand("/bin/sh", "-c", cmd)))
+		containerSpec = containerSpec.WithLifecycle(lifeCycleSpec)
+	}
 
 	if secrets := c.rconfig.RuntimeImagePullSecrets; len(secrets) > 0 {
 		var objs []*corev1apply.LocalObjectReferenceApplyConfiguration

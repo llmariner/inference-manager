@@ -1,9 +1,7 @@
 package runtime
 
 import (
-	"bufio"
 	"context"
-	"io"
 	"strings"
 	"sync"
 
@@ -103,15 +101,26 @@ func (m *PodMonitor) addOrUpdatePod(ctx context.Context, pod *corev1.Pod) {
 
 	ready := isPodReady(pod)
 
-	// Collect log if the pod is not ready.
-	// TODO(kenji): Avoid too frequent fetch.
 	var errLogMessage string
 	if !ready {
-		lines, err := m.getPodLogs(ctx, pod.Name, pod.Namespace)
-		if err != nil {
-			m.logger.Error(err, "Failed to get pod logs", "pod", pod.Name)
-		} else {
-			errLogMessage = extractErrMsg(lines)
+		var ts []*corev1.ContainerStateTerminated
+		for _, c := range pod.Status.InitContainerStatuses {
+			if t := c.LastTerminationState.Terminated; t != nil && t.ExitCode != 0 {
+				ts = append(ts, t)
+			}
+		}
+		for _, c := range pod.Status.ContainerStatuses {
+			if t := c.LastTerminationState.Terminated; t != nil && t.ExitCode != 0 {
+				ts = append(ts, t)
+			}
+		}
+
+		// TODO(kenji): Have a better way to get the error message.
+		for _, t := range ts {
+			errLogMessage = extractErrMsg(t.Message)
+			if errLogMessage != "" {
+				break
+			}
 		}
 	}
 
@@ -158,44 +167,9 @@ func (m *PodMonitor) modelStatus(modelID string) *modelStatus {
 	return ms
 }
 
-func (m *PodMonitor) getPodLogs(
-	ctx context.Context,
-	podName string,
-	podNamespace string,
-) ([]string, error) {
-	req := m.clientset.CoreV1().Pods(podNamespace).GetLogs(
-		podName,
-		&corev1.PodLogOptions{
-			TailLines: ptr.To[int64](100),
-			// TODO(kenji): Set previous to true only when the pod has restarted.
-			Previous: true,
-		},
-	)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = stream.Close() }()
-
-	r := bufio.NewReader(stream)
-	var lines []string
-	for {
-		line, err := r.ReadBytes('\n')
-		if len(line) != 0 {
-			lines = append(lines, string(line))
-		}
-		if err != nil {
-			if err != io.EOF {
-				return nil, err
-			}
-			break
-		}
-	}
-	return lines, nil
-}
-
 // extractErrMsg extracts the last ERROR line from the given log lines.
-func extractErrMsg(lines []string) string {
+func extractErrMsg(msg string) string {
+	lines := strings.Split(msg, "\n")
 	var lastError string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "ERROR") {

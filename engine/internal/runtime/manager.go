@@ -772,11 +772,14 @@ func (m *Manager) processLoRAAdapterPullStatusCheckEvent(ctx context.Context, e 
 	pullerAddr := fmt.Sprintf("%s:%d", e.pod.Status.PodIP, m.pullerPort)
 	ok, err := m.loraAdapterLoader.checkModelPullStatus(ctx, pullerAddr, e.modelID)
 	if err != nil {
+		log.Error(err, "Failed to check LoRA adapter pull status", "modelID", e.modelID, "podIP", e.pod.Status.PodIP)
+		e.eventWaitCh <- fmt.Errorf("check LoRA adapter pull status: %s", err)
+
 		m.mu.Lock()
 		delete(m.updateInProgressPodNames, e.pod.Name)
 		m.mu.Unlock()
 
-		return fmt.Errorf("check model pull status: %s", err)
+		return nil
 	}
 	if !ok {
 		// Retry. We repeat without the max limit as we don't know how long the pull will take.

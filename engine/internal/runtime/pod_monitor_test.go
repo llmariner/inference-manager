@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,7 +99,7 @@ RuntimeError: Engine core initialization failed. See root cause above. Failed co
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got := extractErrMsg(strings.Split(tc.errMsg, "\n"))
+			got := extractErrMsg(tc.errMsg)
 			assert.Equal(t, tc.want, got)
 		})
 	}

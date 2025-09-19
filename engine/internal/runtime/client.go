@@ -339,7 +339,8 @@ func (c *commonClient) deployRuntime(
 		WithArgs(pullerArgs...).
 		WithEnv(allInitEnvs...).
 		WithEnvFrom(initEnvFroms...).
-		WithVolumeMounts(initVolumeMounts...)
+		WithVolumeMounts(initVolumeMounts...).
+		WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError)
 	if params.pullerDaemonMode {
 		pullerSpec = pullerSpec.WithPorts(corev1apply.ContainerPort().
 			WithName("puller").
@@ -360,7 +361,8 @@ func (c *commonClient) deployRuntime(
 			WithArgs(ic.args...).
 			WithEnv(allInitEnvs...).
 			WithEnvFrom(initEnvFroms...).
-			WithVolumeMounts(initVolumeMounts...))
+			WithVolumeMounts(initVolumeMounts...).
+			WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError))
 	}
 
 	// Merge runtime environment variables with runtime config env
@@ -388,7 +390,8 @@ func (c *commonClient) deployRuntime(
 			WithEnvFrom(runtimeEnvFroms...).
 			WithVolumeMounts(volumeMounts...).
 			WithResources(runtimeResources).
-			WithReadinessProbe(params.readinessProbe))
+			WithReadinessProbe(params.readinessProbe).
+			WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError))
 
 	if secrets := c.rconfig.RuntimeImagePullSecrets; len(secrets) > 0 {
 		var objs []*corev1apply.LocalObjectReferenceApplyConfiguration

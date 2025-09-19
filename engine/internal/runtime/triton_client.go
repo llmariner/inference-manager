@@ -59,7 +59,8 @@ func (c *tritonClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 		WithPorts(corev1apply.ContainerPort().
 			WithName("http").
 			WithContainerPort(int32(proxyHTTPPort)).
-			WithProtocol(corev1.ProtocolTCP))
+			WithProtocol(corev1.ProtocolTCP)).
+		WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError)
 
 	return deployRuntimeParams{
 		model: model,

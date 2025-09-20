@@ -245,7 +245,7 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) 
 		initContainerSpec: initContainerSepc,
 		pullerDaemonMode:  v.vLLMConfig.DynamicLoRALoading,
 		pullerPort:        v.rconfig.PullerPort,
-		runtimeType:       runtime_type_vllm,
+		runtimeType:       runtimeTypeVLLM,
 	}, nil
 }
 

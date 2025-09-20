@@ -35,7 +35,7 @@ const (
 
 	finalizerKey = "llmariner/runtime-finalizer"
 
-	runtime_type_vllm = "vllm"
+	runtimeTypeVLLM = "vllm"
 )
 
 // Client is the interface for managing runtimes.
@@ -397,7 +397,7 @@ func (c *commonClient) deployRuntime(
 		WithReadinessProbe(params.readinessProbe).
 		WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError)
 
-	if params.runtimeType == runtime_type_vllm {
+	if params.runtimeType == runtimeTypeVLLM {
 		cmd := fmt.Sprintf(`
 sleep 15
 while true; do

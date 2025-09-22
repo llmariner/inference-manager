@@ -30,6 +30,7 @@ func TestDownloadModelFiles(t *testing.T) {
 		"/src/added_tokens.json",
 		"/src/merges.txt",
 		"/src/normalizer.json",
+		"/src/chat_template.jinja",
 		"/src/llava_qwen.py",
 		"/src/model.safetensors",
 	}
@@ -45,6 +46,7 @@ func TestDownloadModelFiles(t *testing.T) {
 		"/src/added_tokens.json",
 		"/src/merges.txt",
 		"/src/normalizer.json",
+		"/src/chat_template.jinja",
 		"/src/llava_qwen.py",
 		"/src/model-00001-of-00002.safetensors",
 		"/src/model-00002-of-00002.safetensors",

@@ -83,6 +83,7 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.
 		{name: "added_tokens.json", isOptional: true},
 		{name: "merges.txt", isOptional: true},
 		{name: "normalizer.json", isOptional: true},
+		{name: "chat_template.jinja", isOptional: true},
 		// For https://huggingface.co/apple/FastVLM-0.5B/tree/main.
 		{name: "llava_qwen.py", isOptional: true},
 	}

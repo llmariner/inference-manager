@@ -417,6 +417,7 @@ done
 					WithCommand("/bin/sh", "-c", cmd)))
 		containerSpec = containerSpec.WithLifecycle(lifeCycleSpec)
 	}
+	podSpec = podSpec.WithContainers(containerSpec)
 
 	if secrets := c.rconfig.RuntimeImagePullSecrets; len(secrets) > 0 {
 		var objs []*corev1apply.LocalObjectReferenceApplyConfiguration

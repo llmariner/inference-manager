@@ -586,6 +586,7 @@ func (m *Manager) processReconcileStatefulSetEvent(ctx context.Context, e *recon
 		}
 
 		log.Info("Deleting runtime...", "name", e.namespacedName.Name)
+		// TODO(kenji): Handle dynamically loaded LoRAs.
 		m.deleteRuntimeByName(e.namespacedName.Name)
 		m.autoscaler.Unregister(e.namespacedName)
 		return nil
@@ -703,7 +704,6 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 			log.Info("runtime is not reachable", "modelID", e.modelID, "retryCount", e.retryCount)
 			rt.closeWaitChs(errMsgUnreachableRuntime)
 			close(e.eventWaitCh)
-			// TODO(kenji): Delete the runtime here?
 
 			if e.pod != nil {
 				m.mu.Lock()
@@ -711,6 +711,13 @@ func (m *Manager) processReadinessCheckEvent(ctx context.Context, e *readinessCh
 				m.mu.Unlock()
 			}
 
+			// Delete the runtime here. Otherwise, next pull request will wait forever.
+			go func() {
+				m.eventCh <- &deleteModelEvent{
+					modelID:     e.modelID,
+					eventWaitCh: make(chan error),
+				}
+			}()
 			return nil
 		}
 

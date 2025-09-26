@@ -206,6 +206,7 @@ func run(ctx context.Context, c *config.Config, ns string, lv int) error {
 			config.RuntimeNameOllama: ollamaClient,
 			config.RuntimeNameVLLM:   runtime.NewVLLMClient(ncOpts, modelClient, &c.VLLM),
 			config.RuntimeNameTriton: runtime.NewTritonClient(ncOpts),
+			config.RuntimeNameSGLang: runtime.NewSGLangClient(ncOpts, modelClient),
 		}
 
 		nimClients := make(map[string]runtime.Client)

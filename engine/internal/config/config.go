@@ -167,6 +167,8 @@ const (
 	RuntimeNameTriton string = "triton"
 	// RuntimeNameNIM is the NIM runtime name.
 	RuntimeNameNIM string = "nim"
+	// RuntimeNameSGLang is the SGLang runtime name.
+	RuntimeNameSGLang string = "sglang"
 )
 
 // RuntimeConfig is the runtime configuration.
@@ -374,7 +376,7 @@ func (c *ModelConfigItem) validate() error {
 
 func isValidRuntimeName(name string) bool {
 	switch name {
-	case RuntimeNameOllama, RuntimeNameVLLM, RuntimeNameTriton:
+	case RuntimeNameOllama, RuntimeNameVLLM, RuntimeNameTriton, RuntimeNameNIM, RuntimeNameSGLang:
 		return true
 	}
 	return false

@@ -51,7 +51,7 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 	mci := s.ModelConfigItem(model)
 
 	// Remove the "ft:" suffix if it exists. This is confusing, but we
-	// need to do this because the processor does the same converesion when
+	// need to do this because the processor does the same conversion when
 	// processing requests (for Ollama)
 	// TODO(kenji): Remove this once the processor does not require this conversion.
 	oModelID := ollama.ModelName(model.Id)

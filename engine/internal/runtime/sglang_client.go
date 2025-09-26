@@ -22,8 +22,8 @@ func NewSGLangClient(
 	opts NewCommonClientOptions,
 	modelClient modelClient,
 ) Client {
-	return &vllmClient{
-		commonClient: newCommonClient(opts, vllmHTTPPort),
+	return &sglangClient{
+		commonClient: newCommonClient(opts, sglangHTTPPort),
 		modelClient:  modelClient,
 	}
 }

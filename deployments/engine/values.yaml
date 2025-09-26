@@ -106,6 +106,7 @@ runtime:
     # We might need to recompile models when we upgrade the version of Triton Inference Server
     # and TensortRT-LLM.
     triton: nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
+    sglang: lmsysorg/sglang:v0.5.3rc1
 
   # Kubernetes imagePullPolicy for the runtime Statefulset.
   imagePullPolicy: IfNotPresent

@@ -26,7 +26,7 @@ func PreferredModelFormat(runtime string, supportedFormats []mv1.ModelFormat) (m
 			return mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE, nil
 		}
 		return mv1.ModelFormat_MODEL_FORMAT_UNSPECIFIED, fmt.Errorf("unsupported model format for Ollama runtime: %v", supportedFormats)
-	case config.RuntimeNameVLLM:
+	case config.RuntimeNameVLLM, config.RuntimeNameSGLang:
 		var preferredFormat mv1.ModelFormat
 		for _, f := range supportedFormats {
 			if f == mv1.ModelFormat_MODEL_FORMAT_HUGGING_FACE {

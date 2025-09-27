@@ -57,6 +57,8 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 	oModelID := ollama.ModelName(model.Id)
 
 	args := []string{
+		"-m",
+		"sglang.launch_server",
 		"--port", strconv.Itoa(sglangHTTPPort),
 	}
 
@@ -89,6 +91,7 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 		volumeMounts: []*corev1apply.VolumeMountApplyConfiguration{
 			shmemVolumeMount(),
 		},
+		command:    []string{"python3"},
 		args:       args,
 		pullerPort: s.rconfig.PullerPort,
 	}, nil

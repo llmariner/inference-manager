@@ -60,6 +60,8 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 	args := []string{
 		"-m",
 		"sglang.launch_server",
+		// To accept requests from outside the container.
+		"--host", "0.0.0.0",
 		"--port", strconv.Itoa(sglangHTTPPort),
 	}
 
@@ -95,7 +97,9 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 		readinessProbe: corev1apply.Probe().
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(sglangHTTPPort)).
-				WithPath("/health")),
+				WithPath("/health")).
+			// Have a longer timeout thant default (1 second) as the health endpoint sometimes responds slowly.
+			WithTimeoutSeconds(3),
 		command:    []string{"python3"},
 		args:       args,
 		pullerPort: s.rconfig.PullerPort,

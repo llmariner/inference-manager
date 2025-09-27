@@ -11,6 +11,7 @@ import (
 	"github.com/llmariner/inference-manager/engine/internal/puller"
 	mv1 "github.com/llmariner/model-manager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -91,6 +92,10 @@ func (s *sglangClient) deployRuntimeParams(ctx context.Context, model *mv1.Model
 		volumeMounts: []*corev1apply.VolumeMountApplyConfiguration{
 			shmemVolumeMount(),
 		},
+		readinessProbe: corev1apply.Probe().
+			WithHTTPGet(corev1apply.HTTPGetAction().
+				WithPort(intstr.FromInt(sglangHTTPPort)).
+				WithPath("/health")),
 		command:    []string{"python3"},
 		args:       args,
 		pullerPort: s.rconfig.PullerPort,

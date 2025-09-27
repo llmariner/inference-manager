@@ -240,7 +240,9 @@ func (v *vllmClient) deployRuntimeParams(ctx context.Context, model *mv1.Model) 
 		readinessProbe: corev1apply.Probe().
 			WithHTTPGet(corev1apply.HTTPGetAction().
 				WithPort(intstr.FromInt(vllmHTTPPort)).
-				WithPath("/health")),
+				WithPath("/health")).
+			// Have a longer timeout thant default (1 second) as the health endpoint sometimes responds slowly.
+			WithTimeoutSeconds(3),
 		args:              args,
 		initContainerSpec: initContainerSepc,
 		pullerDaemonMode:  v.vLLMConfig.DynamicLoRALoading,

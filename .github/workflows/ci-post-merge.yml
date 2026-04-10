@@ -17,11 +17,11 @@ jobs:
       release_commit: ${{ startsWith(github.event.head_commit.message, 'Release v') }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: 1.23
+        go-version: '1.25'
     - name: Re-test
       run: make test
 
@@ -30,9 +30,9 @@ jobs:
     needs: re-test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: arn:aws:iam::803339316953:role/github-actions-ecr-push-llmariners
         aws-region: us-east-1
@@ -73,7 +73,7 @@ jobs:
     needs: re-test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Extract version
       run: |
         ver=$(echo "$COMMIT_MESSAGE"| head -n1 | awk '{print $2}' |sed 's/v//')
@@ -81,7 +81,7 @@ jobs:
       env:
         COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: arn:aws:iam::803339316953:role/github-actions-ecr-push-llmariners
         aws-region: us-east-1
@@ -130,7 +130,7 @@ jobs:
         helm package --version ${{ env.version }} ./deployments/server
         helm push inference-manager-server-${{ env.version }}.tgz oci://public.ecr.aws/cloudnatix/llmariner-charts
     - name: Create release
-      uses: softprops/action-gh-release@v2.0.8
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ env.version }}
         target_commitish: ${{ github.sha }}

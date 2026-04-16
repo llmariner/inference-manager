@@ -79,6 +79,7 @@ func DownloadModelFiles(ctx context.Context, s3Client s3Client, adapterType mv1.
 		{name: "tokenizer.json", isOptional: true},
 		{name: "tokenizer_config.json", isOptional: false},
 		{name: "preprocessor_config.json", isOptional: true},
+		{name: "processor_config.json", isOptional: true},
 		{name: "vocab.json", isOptional: true},
 		{name: "added_tokens.json", isOptional: true},
 		{name: "merges.txt", isOptional: true},

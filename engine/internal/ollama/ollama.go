@@ -63,6 +63,8 @@ func CreateModelfile(
 // If it is set to the default value, the function returns false.
 func contextLengthOfModel(modelID string) (int, bool, error) {
 	switch {
+	case strings.Contains(modelID, "gemma-4-12b-it-GGUF"):
+		return 0, false, nil
 	case strings.Contains(modelID, "gemma-3"):
 		return 0, false, nil
 	case strings.HasPrefix(modelID, "google-gemma-"):

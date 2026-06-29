@@ -99,7 +99,7 @@ func contextLengthOfModel(modelID string) (int, bool, error) {
 // This is based on the output of "ollama show <model> --modelfile".
 func ollamaBaseModelFile(modelID string) (string, error) {
 	switch {
-	case strings.Contains(modelID, "unsloth/gemma-4-12b-it-GGUF"):
+	case strings.Contains(modelID, "gemma-4-12b-it-GGUF"):
 		return `
 TEMPLATE "{{ if .System }}<bos><|turn>system
 {{ .System }}<turn|>

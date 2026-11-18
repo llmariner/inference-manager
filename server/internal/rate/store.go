@@ -151,7 +151,7 @@ func (s *memoryStore) take(key string, rate, burstOffset, cost float64) (bool, f
 	const baseT = 1577836800 // Jan 1, 2020 00:00:00 GMT in epoch seconds
 	t := time.Now()
 	sec := t.Unix()
-	micro := float64(t.UnixMicro() - sec)
+	micro := float64(t.UnixMicro() - sec*1000000)
 	now := float64(sec-baseT) + (micro / 1000000)
 
 	tat, exists := s.data[key]
